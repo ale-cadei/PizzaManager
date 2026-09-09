@@ -2,14 +2,17 @@
 
 **Dipende da**: branch 2 e branch 5. **Taglia stimata**: 3-5 giorni.
 
-> ## ⚠ Questo piano è volutamente incompleto
+> ## Stato: sbloccato dallo spike, con una riserva
 >
-> Va compilato **dopo** [lo spike](05-spike-tmux.md), non prima. Scriverlo adesso
-> significherebbe indovinare: se lo spike scopre che serve una configurazione
-> tmux particolare, o che `Ctrl+B` va gestito in un certo modo, metà del piano
-> cambierebbe. Meglio uno stub onesto che dieci pagine da buttare.
+> Lo [spike](05-spike-tmux.md) è stato eseguito il 2026-09-09 e ha dato esito
+> positivo su tutte e quattro le domande: vedi [i risultati](05-risultati.md).
+> Le sezioni qui sotto sono state riscritte con la configurazione reale.
 >
-> Qui sotto c'è solo quello che si sa già con certezza.
+> **Resta una riserva da chiudere prima di cominciare**: la sessione di prova è
+> sopravvissuta alla chiusura dell'app (verificato: app a zero processi, `claude`
+> vivo da 5 minuti), ma è sparita qualche minuto dopo per una causa non
+> identificata. Se `claude` esce da solo quando nessun client è attaccato,
+> l'intero branch perde senso e va ripensato. Vedi «Riserva aperta» in fondo.
 
 ---
 
@@ -58,16 +61,37 @@ muore comunque al ⌘Q.
 
 ## Cosa si sa già del lavoro
 
-**Parte tecnica** (piccola, e in buona parte riusa quello che c'è):
+**Parte tecnica** — ridotta rispetto alle stime iniziali, perché lo spike ha
+trovato una strada migliore:
 
+- **Socket dedicato, non solo config file.** `tmux -f <config>` viene *ignorato*
+  se un server tmux è già attivo sulla macchina (caso comune: l'utente usa tmux
+  per conto suo, o un altro strumento lo usa — sulla macchina di prova c'erano
+  quattro sessioni del CLI `xirp`). Serve `tmux -L aisession`, che dà all'app un
+  server proprio.
+- **Conseguenza gradita**: `tmux -L aisession ls` elenca solo le sessioni
+  dell'app. Il filtro per prefisso di nome previsto in origine **non serve più**.
+- ⚠️ **Ogni comando tmux dell'app deve passare per `-L aisession`.** Un
+  `tmux kill-server` senza socket ammazzerebbe le sessioni personali dell'utente.
+- **Configurazione da distribuire** (verificata funzionante):
+  ```tmux
+  set -g prefix None      # Ctrl+B arriva all'app ospitata
+  unbind C-b
+  set -g default-terminal "tmux-256color"
+  set -as terminal-features ",xterm-256color:RGB"
+  set -g escape-time 0
+  set -g history-limit 50000
+  set -g status off       # tmux deve essere invisibile
+  set -g mouse on
+  ```
+- **Comando da eseguire**:
+  ```
+  tmux -L aisession -f <config> new-session -A -s <nome> -- <cmd> <args>
+  ```
+  `-A` riattacca se la sessione esiste, la crea altrimenti: è la primitiva su cui
+  poggia tutto il riattacco.
 - `tmux` entra nel resolver dei binari con i suoi candidati (`/opt/homebrew/bin`,
   `/usr/local/bin`, `/usr/bin`) — l'infrastruttura esiste già.
-- **Configurazione tmux isolata**, distribuita con l'app e passata con `tmux -f`.
-  Senza, l'app eredita il `.tmux.conf` personale di chi la usa: comportamento
-  diverso da macchina a macchina e bug irriproducibili.
-- `buildCommand` avvolge il comando in `tmux new-session -A -s <nome> -- ...`.
-- La scoperta delle sessioni la fa `tmux ls -F`, che sostituisce il `pty-list`
-  che nell'alternativa scartata sarebbe stato da scrivere a mano.
 - All'avvio il renderer ricostruisce le schede dalle sessioni vive.
 - `window-all-closed` non uccide più: stacca.
 - Fallback quando tmux non c'è: comportamento attuale più un avviso.
@@ -93,9 +117,30 @@ muore comunque al ⌘Q.
 - Senza tmux installato l'app funziona come oggi, con un avviso.
 - Non è possibile lasciare sessioni tmux orfane senza essersene accorti.
 
-## Da compilare dopo lo spike
+## Riserva aperta — da chiudere prima di cominciare
 
-- La configurazione tmux minima da distribuire.
-- Lo schema di naming delle sessioni.
-- Come si comporta il ridimensionamento a due livelli (client tmux vs finestra).
+Durante lo spike la sessione è sopravvissuta alla chiusura dell'app (verificato
+oggettivamente), ma è morta qualche minuto più tardi. Due ipotesi:
+
+1. `claude` esce da solo quando nessun client tmux è attaccato;
+2. il gestore di memoria di macOS l'ha ucciso — nella stessa finestra temporale
+   aveva già ucciso un processo Electron per memoria bassa.
+
+Se vale la 1, il branch va ripensato: una funzionalità che tiene le sessioni vive
+cinque minuti e poi le perde è **peggio** di non averla, perché l'utente ci fa
+affidamento.
+
+Il modo per distinguerle è quello usato nello spike: due sessioni senza client
+attaccato, una con un processo banale che scrive un heartbeat e una con `claude`,
+e si guarda quale muore. Se muore solo `claude`, è comportamento suo; se muoiono
+entrambe, è il sistema.
+
+## Ancora da definire
+
+- Lo schema di naming delle sessioni (deve sopravvivere ai riavvii e mappare
+  a tipo + directory).
+- **Il ridimensionamento a due livelli** (client tmux vs finestra tmux) non è
+  stato provato sistematicamente: nello spike la finestra è stata ridimensionata
+  senza problemi evidenti, ma non è un test rigoroso. Da verificare presto,
+  perché tocca `refitTab` e la logica di `ResizeObserver` già esistente.
 - Il disegno delle due azioni **stacca** / **termina** in UI.

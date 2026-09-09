@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell: electronShell } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -448,9 +448,4 @@ ipcMain.handle('list-claude-sessions', async (event, { limit } = {}) => {
   } catch (e) {
     return { ok: false, error: String(e.message), sessions: [] };
   }
-});
-
-ipcMain.handle('open-external', async (event, { url }) => {
-  electronShell.openExternal(url);
-  return { ok: true };
 });

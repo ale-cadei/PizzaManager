@@ -36,6 +36,7 @@
       "main.js",
       "preload.js",
       "renderer/**/*",
+      "assets/**/*",
       "package.json",
       "!node_modules/.cache/**/*"
     ],

@@ -42,6 +42,7 @@ async function init() {
   } catch {}
 
   initSidebarResize();
+  initMenubar(d.platform);
 
   // new modal
   $$('.type-card').forEach(c => c.addEventListener('click', () => {
@@ -430,6 +431,43 @@ async function closeTab(id) {
   renderSidebar();
 }
 
+/* ---------- Raggruppamento card per tipo (gruppi collassabili) ---------- */
+const GROUP_ORDER = ['shell', 'opencode', 'claude'];
+const GROUP_LABELS = { shell: 'Terminale', opencode: 'OpenCode', claude: 'Claude' };
+let collapsedGroups = new Set();
+try {
+  const saved = JSON.parse(localStorage.getItem('aisess.collapsedGroups') || '[]');
+  if (Array.isArray(saved)) collapsedGroups = new Set(saved.filter(t => GROUP_ORDER.includes(t)));
+} catch {}
+function saveCollapsedGroups() {
+  try { localStorage.setItem('aisess.collapsedGroups', JSON.stringify([...collapsedGroups])); } catch {}
+}
+
+/* Mostra solo parent + current (es. "progetto/backend" invece del full path) */
+function shortPath(cwd) {
+  if (!cwd) return '';
+  const parts = String(cwd).split('/').filter(Boolean);
+  if (!parts.length) return '/';
+  return parts.slice(-2).join('/');
+}
+
+function createSessionItem(t) {
+  const b = document.createElement('button');
+  b.className = 'session-item' + (t.id === activeId ? ' active' : '');
+  const fullSub = t.claudeAccountName ? `${t.cwd || ''} · ${t.claudeAccountName}` : (t.cwd || '');
+  const displaySub = t.claudeAccountName ? `${shortPath(t.cwd)} · ${t.claudeAccountName}` : shortPath(t.cwd);
+  b.innerHTML = `<span class="icon">${ICONS[t.type]}</span>
+    ${t.alive ? '<span class="live-dot" title="In esecuzione"></span>' : ''}
+    <span class="meta"><span class="name">${escapeHtml(t.name)}${t.alive ? '' : ' (terminata)'}</span><br>
+    <span class="sub path" title="${escapeHtml(fullSub)}"><span>${escapeHtml(displaySub)}</span></span></span>`;
+  b.onclick = () => setActive(t.id);
+  const x = document.createElement('span');
+  x.className = 'close-x'; x.textContent = '✕'; x.title = 'Chiudi';
+  x.onclick = (e) => { e.stopPropagation(); closeTab(t.id); };
+  b.appendChild(x);
+  return b;
+}
+
 function renderSidebar() {
   const list = $('#session-list');
   list.innerHTML = '';
@@ -438,27 +476,98 @@ function renderSidebar() {
     list.innerHTML = '<p class="muted" style="font-size:12px">Nessuna sessione aperta.<br>Avviane una con ＋ Nuova sessione.</p>';
     return;
   }
+  // Se la scheda attiva è in un gruppo collassato, espandilo
+  const active = activeId && tabs.get(activeId);
+  if (active && collapsedGroups.has(active.type)) {
+    collapsedGroups.delete(active.type);
+    saveCollapsedGroups();
+  }
+  const byType = new Map(GROUP_ORDER.map(t => [t, []]));
   tabs.forEach((t) => {
-    const b = document.createElement('button');
-    b.className = 'session-item' + (t.id === activeId ? ' active' : '');
-    const sub = t.claudeAccountName ? `${t.cwd || ''} · ${t.claudeAccountName}` : (t.cwd || '');
-    b.innerHTML = `<span class="icon">${ICONS[t.type]}</span>
-      ${t.alive ? '<span class="live-dot" title="In esecuzione"></span>' : ''}
-      <span class="meta"><span class="name">${escapeHtml(t.name)}${t.alive ? '' : ' (terminata)'}</span><br>
-      <span class="sub path"><span>${escapeHtml(sub)}</span></span></span>
-      <span class="badge ${t.type}">${t.type}</span>`;
-    b.onclick = () => setActive(t.id);
-    const x = document.createElement('span');
-    x.className = 'close-x'; x.textContent = '✕'; x.title = 'Chiudi';
-    x.onclick = (e) => { e.stopPropagation(); closeTab(t.id); };
-    b.appendChild(x);
-    list.appendChild(b);
+    if (!byType.has(t.type)) byType.set(t.type, []);
+    byType.get(t.type).push(t);
   });
+  for (const type of byType.keys()) {
+    const items = byType.get(type);
+    if (!items.length) continue;
+    // Una sola sessione di questo tipo: card singola, senza gruppo
+    if (items.length === 1) {
+      list.appendChild(createSessionItem(items[0]));
+      continue;
+    }
+    // Più sessioni dello stesso tipo: gruppo espandibile/collassabile
+    const collapsed = collapsedGroups.has(type);
+    const group = document.createElement('div');
+    group.className = 'session-group';
+    const header = document.createElement('button');
+    header.className = 'group-header';
+    header.setAttribute('aria-expanded', String(!collapsed));
+    header.innerHTML = `<span class="chevron">${collapsed ? '▸' : '▾'}</span>
+      <span class="icon">${ICONS[type] || '•'}</span>
+      <span class="group-name">${escapeHtml(GROUP_LABELS[type] || type)}</span>
+      <span class="group-count">${items.length}</span>`;
+    header.onclick = () => {
+      if (collapsedGroups.has(type)) collapsedGroups.delete(type);
+      else collapsedGroups.add(type);
+      saveCollapsedGroups();
+      renderSidebar();
+    };
+    group.appendChild(header);
+    const body = document.createElement('div');
+    body.className = 'group-body';
+    if (collapsed) body.hidden = true;
+    for (const t of items) body.appendChild(createSessionItem(t));
+    group.appendChild(body);
+    list.appendChild(group);
+  }
 }
 
 function updateEmpty() {
   const el = $('#empty');
   if (el) el.style.display = tabs.size ? 'none' : 'block';
+}
+
+/* Menubar scura in-app: su macOS il menu nativo segue già il tema scuro,
+   quindi questa barra viene rimossa; altrove sostituisce la menubar nativa
+   (nascosta nel main process perché il tema di sistema la disegna chiara). */
+function initMenubar(platform) {
+  const bar = document.querySelector('#menubar');
+  if (!bar) return;
+  if (platform === 'darwin') { bar.remove(); return; }
+  const menus = [...bar.querySelectorAll('.mb-menu')];
+  const closeAll = () => menus.forEach((m) => {
+    m.classList.remove('open');
+    const drop = m.querySelector('.mb-drop');
+    if (drop) drop.hidden = true;
+  });
+  menus.forEach((m) => {
+    const label = m.querySelector('.mb-label');
+    label.addEventListener('click', () => {
+      const wasOpen = m.classList.contains('open');
+      closeAll();
+      if (!wasOpen) {
+        m.classList.add('open');
+        m.querySelector('.mb-drop').hidden = false;
+      }
+    });
+    m.addEventListener('mouseenter', () => {
+      if (menus.some((x) => x.classList.contains('open'))) {
+        closeAll();
+        m.classList.add('open');
+        m.querySelector('.mb-drop').hidden = false;
+      }
+    });
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#menubar')) closeAll();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeAll();
+  });
+  bar.querySelectorAll('[data-action]').forEach((b) => b.addEventListener('click', async () => {
+    closeAll();
+    try { await window.aisess.menuAction(b.dataset.action); } catch {}
+  }));
 }
 
 /* Sidebar ridimensionabile via drag, larghezza persistita in localStorage */

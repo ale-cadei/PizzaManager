@@ -149,10 +149,18 @@ ok('build.files include ogni modulo richiesto da main.js', () => {
   const main = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
   const localRequires = [...main.matchAll(/require\('\.\/([^']+)'\)/g)].map((m) => m[1]);
   assert.ok(localRequires.length, 'nessun require locale trovato in main.js');
+  // build.files ammette i glob di electron-builder: un'uguaglianza fra stringhe
+  // segnalerebbe come mancante un modulo coperto da "lib/**/*".
+  const globToRegExp = (g) => new RegExp('^' + g
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*\*\/?/g, '\u0000')
+    .replace(/\*/g, '[^/]*')
+    .replace(/\u0000/g, '(?:.*/)?') + '$');
+  const patterns = files.filter((f) => !f.startsWith('!')).map(globToRegExp);
   for (const mod of localRequires) {
     const candidates = [mod, `${mod}.js`];
     assert.ok(
-      candidates.some((c) => files.includes(c)),
+      candidates.some((c) => patterns.some((re) => re.test(c))),
       `${mod} richiesto da main.js ma assente da build.files: l'app installata crasha all'avvio`
     );
   }

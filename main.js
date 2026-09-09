@@ -1,8 +1,8 @@
-const { app, BrowserWindow, ipcMain, shell: electronShell } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { spawn, execFile } = require('child_process');
+const { execFile } = require('child_process');
 
 let pty = null;
 try {
@@ -441,16 +441,9 @@ ipcMain.handle('list-claude-sessions', async (event, { limit } = {}) => {
       }
     }
     out.sort((a, b) => b.mtime - a.mtime);
-    resolve_limited: {
-      const sliced = limit ? out.slice(0, limit) : out.slice(0, 100);
-      return { ok: true, sessions: sliced };
-    }
+    const sliced = limit ? out.slice(0, limit) : out.slice(0, 100);
+    return { ok: true, sessions: sliced };
   } catch (e) {
     return { ok: false, error: String(e.message), sessions: [] };
   }
-});
-
-ipcMain.handle('open-external', async (event, { url }) => {
-  electronShell.openExternal(url);
-  return { ok: true };
 });

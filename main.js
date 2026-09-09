@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, shell: electronShell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -204,14 +204,78 @@ function buildCommand(type, resumeId) {
   return { cmd: sh, args: process.platform !== 'win32' ? ['-i'] : [] };
 }
 
+function buildAppMenu() {
+  const template = [
+    {
+      label: 'File',
+      submenu: [
+        { label: 'Nuova sessione', accelerator: 'CmdOrCtrl+N', click: () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('menu-new-session'); } },
+        { type: 'separator' },
+        { role: 'quit', label: 'Esci' },
+      ],
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo', label: 'Annulla' },
+        { role: 'redo', label: 'Ripeti' },
+        { type: 'separator' },
+        { role: 'cut', label: 'Taglia' },
+        { role: 'copy', label: 'Copia' },
+        { role: 'paste', label: 'Incolla' },
+        { role: 'selectAll', label: 'Seleziona tutto' },
+      ],
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload', label: 'Ricarica' },
+        { role: 'forceReload', label: 'Ricarica forzata' },
+        { role: 'toggleDevTools', label: 'Strumenti di sviluppo' },
+        { type: 'separator' },
+        { role: 'resetZoom', label: 'Zoom originale' },
+        { role: 'zoomIn', label: 'Aumenta zoom' },
+        { role: 'zoomOut', label: 'Riduci zoom' },
+        { type: 'separator' },
+        { role: 'togglefullscreen', label: 'Schermo intero' },
+      ],
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize', label: 'Riduci a icona' },
+        { role: 'close', label: 'Chiudi finestra' },
+      ],
+    },
+    {
+      label: 'Help',
+      submenu: [
+        { label: 'Repository AISessionManager', click: async () => { await electronShell.openExternal('https://github.com/aisessionmanager/aisessionmanager'); } },
+      ],
+    },
+  ];
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
+
 function createWindow() {
+  buildAppMenu();
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 900,
     minHeight: 600,
     title: 'AISessionManager',
-    backgroundColor: '#1e1e2e',
+    // Barra superiore in tema con il resto dell'app (nera):
+    // - backgroundColor nero per il flash di avvio
+    // - darkTheme: dice al SO/Chromium di usare controlli e menu scuri
+    // - titleBarOverlay nera dove supportata (Win/Linux): mantiene i
+    //   controlli nativi ma con fondo nero e simboli chiari
+    // - autoHideMenuBar: false così File/Edit/View/Window/Help restano visibili
+    backgroundColor: '#000000',
+    darkTheme: true,
+    autoHideMenuBar: false,
+    titleBarOverlay: { color: '#000000', symbolColor: '#F2EFF4' },
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

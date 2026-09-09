@@ -3,8 +3,14 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="dark" />
+<meta name="theme-color" content="#000000" />
 <title>AISessionManager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" />
 <link rel="stylesheet" href="../node_modules/@xterm/xterm/css/xterm.css" />
+<link rel="stylesheet" href="tokens.css" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -18,8 +24,8 @@
       </div>
     </div>
     <div class="side-actions">
-      <button class="btn primary" id="btn-new" title="Crea una nuova sessione (il tipo si sceglie nel dialog)">＋ Nuova sessione</button>
-      <button class="btn" id="btn-resume" title="Riprendi una vecchia sessione">⟲ Resume</button>
+      <button class="btn btn--primary" id="btn-new" title="Crea una nuova sessione (il tipo si sceglie nel dialog)">＋ Nuova sessione</button>
+      <button class="btn btn--ghost" id="btn-resume" title="Riprendi una vecchia sessione">⟲ Resume</button>
     </div>
     <div class="side-section">SESSIONI APERTE <span id="count"></span></div>
     <div id="session-list"></div>
@@ -48,33 +54,33 @@
       <button class="type-card" data-type="opencode">⚡<b>OpenCode</b><span>opencode TUI</span></button>
       <button class="type-card" data-type="claude">🤖<b>Claude</b><span>claude TUI</span></button>
     </div>
-    <label>Nome (opzionale)<input id="new-name" placeholder="es. backend, fix-auth…" /></label>
+    <label>Nome (opzionale)<input class="input" id="new-name" placeholder="es. backend, fix-auth…" /></label>
     <label>Directory di lavoro
       <div class="row">
-        <input id="new-cwd" placeholder="/home/utente/progetto" />
-        <button class="btn" id="btn-browse">Sfoglia…</button>
+        <input class="input" id="new-cwd" placeholder="/home/utente/progetto" />
+        <button class="btn btn--secondary" id="btn-browse">Sfoglia…</button>
       </div>
     </label>
     <div id="claude-account-row" hidden>
       <label>Account Claude
         <div class="row">
-          <select id="new-claude-account"></select>
-          <button class="btn" id="btn-manage-accounts" title="Gestisci gli account Claude">⚙</button>
+          <select class="input" id="new-claude-account"></select>
+          <button class="btn btn--ghost" id="btn-manage-accounts" title="Gestisci gli account Claude">⚙</button>
         </div>
       </label>
       <div id="account-manager" hidden>
         <div id="account-list"></div>
         <div class="row">
-          <input id="acc-name" placeholder="Nome account" />
-          <input id="acc-key" type="password" placeholder="sk-ant-…" />
-          <button class="btn" id="btn-add-account">Aggiungi</button>
+          <input class="input" id="acc-name" placeholder="Nome account" />
+          <input class="input" id="acc-key" type="password" placeholder="sk-ant-…" />
+          <button class="btn btn--outline" id="btn-add-account">Aggiungi</button>
         </div>
         <p class="muted small">Le chiavi sono salvate solo in locale (file con permessi 600). Una chiave API ha precedenza sul login OAuth.</p>
       </div>
     </div>
     <div class="modal-actions">
-      <button class="btn" id="new-cancel">Annulla</button>
-      <button class="btn primary" id="new-confirm">Avvia</button>
+      <button class="btn btn--ghost" id="new-cancel">Annulla</button>
+      <button class="btn btn--primary" id="new-confirm">Avvia</button>
     </div>
   </div>
 </div>
@@ -83,21 +89,21 @@
 <div class="modal-backdrop" id="modal-resume" hidden>
   <div class="modal wide">
     <h2>⟲ Resume di una sessione precedente</h2>
-    <div class="tabs">
-      <button class="tab active" data-tab="opencode">⚡ OpenCode</button>
-      <button class="tab" data-tab="claude">🤖 Claude Code</button>
-      <button class="tab" data-tab="history">🕘 Cronologia app</button>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-tab="opencode">⚡ OpenCode</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="claude">🤖 Claude Code</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="history">🕘 Cronologia app</button>
     </div>
-    <input id="resume-search" placeholder="Cerca per titolo, directory o id…" />
+    <input class="input" id="resume-search" placeholder="Cerca per titolo, directory o id…" />
     <div id="resume-account-row" hidden>
       <label>Account Claude
-        <select id="resume-claude-account"></select>
+        <select class="input" id="resume-claude-account"></select>
       </label>
     </div>
     <div id="resume-list"><p class="muted">Caricamento…</p></div>
     <div class="modal-actions">
-      <button class="btn" id="resume-close">Chiudi</button>
-      <button class="btn" id="resume-reload">↻ Ricarica</button>
+      <button class="btn btn--ghost" id="resume-close">Chiudi</button>
+      <button class="btn btn--secondary" id="resume-reload">↻ Ricarica</button>
     </div>
   </div>
 </div>

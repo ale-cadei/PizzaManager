@@ -1,28 +1,23 @@
-const { app, BrowserWindow, ipcMain, shell: electronShell } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const fs = require('fs');
 const os = require('os');
 const { listCodexSessions } = require('./lib/codex-sessions');
 const { getDefaultShell } = require('./lib/shell');
 const { getLoginPathSync } = require('./lib/login-path');
-const { resolveAllBinaries, augmentedEnv } = require('./lib/binaries');
-const { buildCommand, installHint } = require('./lib/commands');
+const { resolveAllBinaries } = require('./lib/binaries');
 const { createHistoryStore } = require('./lib/history');
 const { createAccountStore } = require('./lib/accounts');
 const { listClaudeSessions } = require('./lib/claude-sessions');
 const { listOpencodeSessions } = require('./lib/opencode-sessions');
 const { createWindow } = require('./app/window');
-const { REPO_URL } = require('./app/menu');
+const { runMenuAction } = require('./app/menu');
+const { createPtyManager } = require('./app/pty');
 
-let pty = null;
-try {
-  pty = require('node-pty');
-} catch (e) {
-  console.error('node-pty non disponibile:', e.message);
-}
-
-const ptys = new Map();
 let mainWindow = null;
+
+function sendToRenderer(channel, payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, payload);
+}
 
 // Gli store si creano alla prima richiesta: app.getPath('userData') va chiamato
 // quando Electron e' pronto, non al caricamento del modulo.
@@ -38,40 +33,10 @@ function accounts() {
   return _accounts;
 }
 
+const ptys = createPtyManager({ accounts, history, sendToRenderer });
+
 // ---------- Risoluzione binari (fix lancio da GUI/.deb con PATH minimo) ----------
-// Azioni della menubar scura in-app (renderer/index.html#menubar).
-// Replica i ruoli del menu nativo così File/Edit/View/Window/Help
-// funzionano anche con la menubar nativa nascosta.
-ipcMain.handle('menu-action', async (event, { action } = {}) => {
-  if (!mainWindow || mainWindow.isDestroyed()) return { ok: false, error: 'finestra non disponibile' };
-  const wc = mainWindow.webContents;
-  try {
-    switch (action) {
-      case 'new-session': wc.send('menu-new-session'); break;
-      case 'quit': app.quit(); break;
-      case 'undo': wc.undo(); break;
-      case 'redo': wc.redo(); break;
-      case 'cut': wc.cut(); break;
-      case 'copy': wc.copy(); break;
-      case 'paste': wc.paste(); break;
-      case 'selectAll': wc.selectAll(); break;
-      case 'reload': wc.reload(); break;
-      case 'forceReload': wc.reloadIgnoringCache(); break;
-      case 'devtools': wc.toggleDevTools(); break;
-      case 'resetZoom': wc.setZoomLevel(0); break;
-      case 'zoomIn': wc.setZoomLevel(wc.getZoomLevel() + 0.5); break;
-      case 'zoomOut': wc.setZoomLevel(wc.getZoomLevel() - 0.5); break;
-      case 'fullscreen': mainWindow.setFullScreen(!mainWindow.isFullScreen()); break;
-      case 'minimize': mainWindow.minimize(); break;
-      case 'close': mainWindow.close(); break;
-      case 'open-repo': await electronShell.openExternal(REPO_URL); break;
-      default: return { ok: false, error: `azione menu sconosciuta: ${action}` };
-    }
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: String((e && e.message) || e) };
-  }
-});
+ipcMain.handle('menu-action', async (event, { action } = {}) => runMenuAction(action, mainWindow));
 
 app.whenReady().then(() => {
   mainWindow = createWindow();
@@ -81,72 +46,15 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  for (const [, p] of ptys) { try { p.kill(); } catch {} }
+  ptys.killAll();
   if (process.platform !== 'darwin') app.quit();
 });
 
 // ---------- PTY IPC ----------
-ipcMain.handle('pty-spawn', async (event, { id, type, cwd, resumeId, claudeAccountId, cols, rows }) => {
-  if (!pty) return { ok: false, error: 'node-pty non installato. Esegui: npm install' };
-  const workdir = cwd && fs.existsSync(cwd) ? cwd : os.homedir();
-  const { cmd, args, missing, searchedPath, resolvedVia } = buildCommand(type, resumeId);
-  if (!cmd) {
-    return {
-      ok: false,
-      error: `Binario '${missing}' non trovato nel PATH.\nPATH cercato: ${searchedPath}\n` + installHint(missing),
-    };
-  }
-  let extraVars = {};
-  let accountName = null;
-  if (type === 'claude' && claudeAccountId && claudeAccountId !== 'oauth') {
-    const ae = accounts().envFor(claudeAccountId);
-    if (ae.error) return { ok: false, error: ae.error };
-    extraVars = ae.vars;
-    accountName = ae.name;
-  } else if (type === 'claude') {
-    const o = accounts().detectOauth();
-    accountName = o.available ? 'OAuth' : null;
-  }
-  try {
-    const p = pty.spawn(cmd, args, {
-      name: 'xterm-color',
-      cols: cols || 80,
-      rows: rows || 24,
-      cwd: workdir,
-      env: augmentedEnv([cmd], extraVars),
-    });
-    ptys.set(id, p);
-    p.onData((data) => {
-      if (mainWindow && !mainWindow.isDestroyed())
-        mainWindow.webContents.send('pty-data', { id, data });
-    });
-    p.onExit(({ exitCode, signal }) => {
-      ptys.delete(id);
-      if (mainWindow && !mainWindow.isDestroyed())
-        mainWindow.webContents.send('pty-exit', { id, exitCode, signal });
-    });
-    history().append({ type, cwd: workdir, resumeId: resumeId || null, claudeAccountId: claudeAccountId || null, claudeAccountName: accountName, cmd: cmd + ' ' + args.join(' ') });
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: String(e.message || e) };
-  }
-});
-
-ipcMain.on('pty-write', (event, { id, data }) => {
-  const p = ptys.get(id);
-  if (p) p.write(data);
-});
-
-ipcMain.on('pty-resize', (event, { id, cols, rows }) => {
-  const p = ptys.get(id);
-  if (p && cols > 0 && rows > 0) { try { p.resize(cols, rows); } catch {} }
-});
-
-ipcMain.handle('pty-kill', async (event, { id }) => {
-  const p = ptys.get(id);
-  if (p) { try { p.kill(); } catch {} ptys.delete(id); }
-  return { ok: true };
-});
+ipcMain.handle('pty-spawn', async (event, opts) => ptys.spawn(opts));
+ipcMain.on('pty-write', (event, { id, data }) => ptys.write(id, data));
+ipcMain.on('pty-resize', (event, { id, cols, rows }) => ptys.resize(id, cols, rows));
+ipcMain.handle('pty-kill', async (event, { id }) => ptys.kill(id));
 
 ipcMain.handle('get-defaults', async () => ({
   shell: getDefaultShell(),

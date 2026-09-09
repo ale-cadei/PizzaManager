@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const { execFile } = require('child_process');
 const { listCodexSessions } = require('./codex-sessions');
+const { getDefaultShell } = require('./lib/shell');
 
 // Binari delle sessioni AI gestite (lo shell non passa da resolveBinary)
 const AI_BINARIES = ['opencode', 'claude', 'codex'];
@@ -17,17 +18,6 @@ try {
 
 const ptys = new Map();
 let mainWindow = null;
-
-function getDefaultShell() {
-  if (process.platform === 'win32') return 'powershell.exe';
-  if (process.platform === 'darwin') {
-    // macOS: prefer zsh, fallback bash
-    if (fs.existsSync('/bin/zsh')) return '/bin/zsh';
-    return '/bin/bash';
-  }
-  // Linux: $SHELL o bash
-  return process.env.SHELL || '/bin/bash';
-}
 
 // ---------- Risoluzione binari (fix lancio da GUI/.deb con PATH minimo) ----------
 let loginPathCache = null;

@@ -17,10 +17,13 @@ contextBridge.exposeInMainWorld('aisess', {
   listClaudeAccounts: () => ipcRenderer.invoke('list-claude-accounts'),
   addClaudeAccount: ({ name, apiKey }) => ipcRenderer.invoke('add-claude-account', { name, apiKey }),
   deleteClaudeAccount: (id) => ipcRenderer.invoke('delete-claude-account', { id }),
+  getCommandProfiles: () => ipcRenderer.invoke('get-command-profiles'),
+  saveCommandProfiles: (profiles) => ipcRenderer.invoke('save-command-profiles', { profiles }),
+  resetCommandProfiles: () => ipcRenderer.invoke('reset-command-profiles'),
   pickCwd: () => ipcRenderer.invoke('dialog-cwd'),
   menuAction: (action) => ipcRenderer.invoke('menu-action', { action }),
   onMenu: (channel, cb) => {
-    const allowed = ['menu-new-session'];
+    const allowed = ['menu-new-session', 'menu-open-config'];
     if (!allowed.includes(channel)) return;
     ipcRenderer.on(channel, () => cb());
   },

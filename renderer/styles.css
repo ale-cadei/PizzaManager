@@ -107,18 +107,30 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   cursor: pointer; text-align: left; color: var(--text); width: 100%;
   font-family: var(--font-ui);
 }
-/* barra corallo a sinistra */
+/* Colore identità del tipo, ereditato da barra laterale e marker selezione */
+.type-shell    { --type-color: var(--type-shell); }
+.type-opencode { --type-color: var(--type-opencode); }
+.type-claude   { --type-color: var(--type-claude); }
+.type-codex    { --type-color: var(--type-codex); }
+
+/* barra laterale del colore del tipo: tenue di base, piena se selezionata */
 .session-item::before {
   content: ''; position: absolute; left: 0; top: 8px; bottom: 8px;
-  width: 3px; border-radius: 99px; background: var(--accent);
-  opacity: .9;
+  width: 3px; border-radius: 99px; background: var(--type-color, var(--accent));
+  opacity: .3;
 }
 .session-item:hover { border-color: var(--border-strong); background: var(--surface-3); }
-.session-item.active {
-  background: var(--surface-3);
-  border-color: var(--action);
-  box-shadow: 0 0 0 3px var(--action-ring);
+/* Selezione segnalata dal marker ◆ + fondo elevato, MAI dal bordo colorato */
+.session-item.active { background: var(--surface-3); }
+.session-item.active::before { opacity: 1; width: 4px; }
+/* `visibility` invece di `display`: lo spazio resta occupato, le card non si spostano */
+.sel-mark {
+  flex: 0 0 auto; width: 12px; text-align: center;
+  font-size: 10px; line-height: 1;
+  color: var(--type-color, var(--accent));
+  visibility: hidden;
 }
+.session-item.active > .sel-mark { visibility: visible; }
 .session-item .icon { font-size: 16px; }
 .session-item .meta { flex: 1; min-width: 0; }
 .session-item .name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -145,10 +157,10 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 /* Legenda footer: distinzione tipi senza verde (riservato a "in esecuzione") */
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
-.dot.shell { background: var(--action-text); }
-.dot.opencode { background: var(--accent); }
-.dot.claude { background: var(--text-muted); }
-.dot.codex { background: var(--state-ok); }
+.dot.shell { background: var(--type-shell); }
+.dot.opencode { background: var(--type-opencode); }
+.dot.claude { background: var(--type-claude); }
+.dot.codex { background: var(--type-codex); }
 .side-footer { display: flex; flex-wrap: wrap; gap: 6px 10px; font-size: 11px; color: var(--text-dim); }
 .side-footer.muted { color: var(--text-dim); }
 
@@ -163,8 +175,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   cursor: pointer; text-align: left;
 }
 .group-header:hover { border-color: var(--border-strong); background: var(--surface-3); }
-/* Gruppo chiuso che contiene la sessione attiva */
-.group-header.has-active { border-color: var(--accent); }
+/* Gruppo chiuso che contiene la sessione attiva: stesso marker delle card */
+.group-header.has-active .sel-mark { visibility: visible; }
 .group-header .chevron { color: var(--text-dim); font-size: 11px; width: 14px; flex: 0 0 auto; }
 .group-header .icon { font-size: 14px; }
 .group-header .group-name { flex: 1; }
@@ -197,13 +209,13 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .modal-backdrop[hidden] { display: none; }
 .modal {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-xl); padding: 32px;
-  width: 560px; max-width: 92vw; max-height: 90vh; overflow-y: auto;
+  border-radius: var(--radius-xl); padding: 36px;
+  width: 680px; max-width: 94vw; max-height: 92vh; overflow-y: auto;
   display: flex; flex-direction: column; gap: var(--gap);
   box-shadow: var(--shadow-modal);
 }
-.modal.wide { width: 820px; }
-.modal h2 { margin: 0; font-size: 21px; font-weight: 600; }
+.modal.wide { width: 980px; }
+.modal h2 { margin: 0; font-size: 23px; font-weight: 600; }
 .modal label {
   font-size: 13px; font-weight: 500; color: var(--text-muted);
   display: flex; flex-direction: column; gap: 6px;
@@ -261,7 +273,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 
 /* La lista cresce con la finestra ma resta dentro il modale (max-height: 90vh) */
-#resume-list { max-height: min(52vh, 520px); overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+#resume-list { max-height: min(58vh, 620px); overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
 .resume-item {
   background: var(--surface-2); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 10px;

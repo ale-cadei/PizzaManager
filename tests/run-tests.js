@@ -164,5 +164,33 @@ ok('group-body collassato e nascosto anche con display flex', () => {
   assert.ok(rule.test(css), 'manca .group-body[hidden] { display: none } : il gruppo non si collassa');
 });
 
+ok('sessione attiva segnalata dal marker, non dal contorno', () => {
+  const root = path.join(__dirname, '..');
+  const js = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'renderer', 'styles.css'), 'utf8');
+  assert.ok(js.includes('class="sel-mark"'), 'il renderer non genera il marker di selezione');
+  assert.ok(/session-item type-\$\{t\.type\}/.test(js), 'manca la classe di tipo sulla card');
+  const activeRule = css.match(/\.session-item\.active\s*\{[^}]*\}/);
+  assert.ok(activeRule, 'manca la regola .session-item.active');
+  assert.ok(!/border-color|box-shadow/.test(activeRule[0]),
+    'la card attiva evidenzia ancora il contorno: ' + activeRule[0]);
+  assert.ok(/\.session-item\.active\s*>\s*\.sel-mark\s*\{[^}]*visibility:\s*visible/.test(css),
+    'il marker non viene mostrato sulla card attiva');
+});
+
+ok('ogni tipo di sessione ha un colore identita distinto', () => {
+  const root = path.join(__dirname, '..');
+  const tokens = fs.readFileSync(path.join(root, 'renderer', 'tokens.css'), 'utf8');
+  const colors = SESSION_TYPES.map((type) => {
+    const m = tokens.match(new RegExp(`--type-${type}:\\s*(#[0-9A-Fa-f]{6})`));
+    assert.ok(m, `manca il token --type-${type}`);
+    return m[1].toUpperCase();
+  });
+  assert.strictEqual(new Set(colors).size, colors.length, 'due tipi condividono lo stesso colore: ' + colors);
+  const green = (tokens.match(/--state-ok:\s*(#[0-9A-Fa-f]{6})/) || [])[1];
+  // Il verde e riservato al pallino "in esecuzione"
+  assert.ok(green && !colors.includes(green.toUpperCase()), 'un tipo usa il verde di --state-ok');
+});
+
 console.log(`\n${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

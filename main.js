@@ -8,6 +8,7 @@ const { getDefaultShell } = require('./lib/shell');
 const { getLoginPathSync } = require('./lib/login-path');
 const { resolveBinary, resolveAllBinaries, augmentedEnv } = require('./lib/binaries');
 const { buildCommand, installHint } = require('./lib/commands');
+const { createHistoryStore } = require('./lib/history');
 
 let pty = null;
 try {
@@ -18,6 +19,14 @@ try {
 
 const ptys = new Map();
 let mainWindow = null;
+
+// Gli store si creano alla prima richiesta: app.getPath('userData') va chiamato
+// quando Electron e' pronto, non al caricamento del modulo.
+let _history = null;
+function history() {
+  if (!_history) _history = createHistoryStore({ dir: app.getPath('userData') });
+  return _history;
+}
 
 // ---------- Risoluzione binari (fix lancio da GUI/.deb con PATH minimo) ----------
 // ---------- Account Claude multipli ----------
@@ -62,26 +71,6 @@ function claudeAccountEnv(accountId) {
   if (!acc) return { vars: {}, name: null, error: 'Account Claude non trovato (forse eliminato).' };
   // ANTHROPIC_API_KEY ha precedenza sul login OAuth di Claude Code
   return { vars: { ANTHROPIC_API_KEY: acc.apiKey }, name: acc.name };
-}
-
-function historyFile() {
-  return path.join(app.getPath('userData'), 'sessions-history.json');
-}
-
-function loadHistory() {
-  try {
-    const f = historyFile();
-    if (fs.existsSync(f)) return JSON.parse(fs.readFileSync(f, 'utf8'));
-  } catch {}
-  return [];
-}
-
-function saveHistoryEntry(entry) {
-  try {
-    const h = loadHistory();
-    h.unshift({ ...entry, lastOpened: new Date().toISOString() });
-    fs.writeFileSync(historyFile(), JSON.stringify(h.slice(0, 200), null, 2));
-  } catch (e) { console.error(e); }
 }
 
 function buildAppMenu() {
@@ -264,7 +253,7 @@ ipcMain.handle('pty-spawn', async (event, { id, type, cwd, resumeId, claudeAccou
       if (mainWindow && !mainWindow.isDestroyed())
         mainWindow.webContents.send('pty-exit', { id, exitCode, signal });
     });
-    saveHistoryEntry({ type, cwd: workdir, resumeId: resumeId || null, claudeAccountId: claudeAccountId || null, claudeAccountName: accountName, cmd: cmd + ' ' + args.join(' ') });
+    history().append({ type, cwd: workdir, resumeId: resumeId || null, claudeAccountId: claudeAccountId || null, claudeAccountName: accountName, cmd: cmd + ' ' + args.join(' ') });
     return { ok: true };
   } catch (e) {
     return { ok: false, error: String(e.message || e) };
@@ -300,7 +289,7 @@ ipcMain.handle('check-deps', async () => ({
   path: getLoginPathSync(),
 }));
 
-ipcMain.handle('get-history', async () => loadHistory());
+ipcMain.handle('get-history', async () => history().load());
 
 // ---------- Account Claude: lista / aggiungi / elimina ----------
 // Nota: le chiavi API non lasciano mai il main process; alla UI vanno solo id+nomi.

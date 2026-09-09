@@ -71,7 +71,7 @@ ok('codex: main + preload + UI collegati', () => {
 });
 
 ok('codex-sessions: scan rollout senza crash', () => {
-  const { listCodexSessions, sessionsDir } = require('../codex-sessions');
+  const { listCodexSessions, sessionsDir } = require('../lib/codex-sessions');
   const r = listCodexSessions(5);
   assert.ok(typeof r.ok === 'boolean' && Array.isArray(r.sessions));
   if (!fs.existsSync(sessionsDir())) { console.log('  (skip: nessuna dir codex)'); return; }

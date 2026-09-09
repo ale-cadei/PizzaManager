@@ -19,7 +19,43 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   outline-offset: 2px;
 }
 
-#app { display: flex; height: 100vh; background: var(--bg); }
+#app { display: flex; height: calc(100vh - 33px); background: var(--bg); }
+
+/* ---------- Menubar scura in-app (sostituisce la menubar nativa,
+   nascosta su Linux/Windows dove il tema di sistema la disegna chiara) ---------- */
+#menubar {
+  display: flex; align-items: stretch; gap: 2px;
+  height: 32px; padding: 0 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px; user-select: none;
+  position: relative; z-index: 40;
+}
+#menubar[hidden] { display: none; }
+.mb-menu { position: relative; display: flex; }
+.mb-label {
+  background: transparent; border: none; cursor: pointer;
+  color: var(--text-2); font-family: var(--font-ui); font-size: 12px;
+  padding: 0 10px;
+}
+.mb-label:hover, .mb-menu.open .mb-label { background: var(--surface-3); color: var(--text); }
+.mb-drop {
+  position: absolute; top: 100%; left: 0; min-width: 230px;
+  background: var(--surface-2); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); padding: 4px;
+  display: flex; flex-direction: column;
+  box-shadow: var(--shadow-modal);
+}
+.mb-drop[hidden] { display: none; }
+.mb-drop button {
+  display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  background: transparent; border: none; cursor: pointer;
+  color: var(--text); font-family: var(--font-ui); font-size: 12px; text-align: left;
+  padding: 7px 10px; border-radius: 6px; width: 100%;
+}
+.mb-drop button:hover { background: var(--action-soft); }
+.mb-acc { color: var(--text-dim); font-family: var(--font-mono); font-size: 11px; }
+.mb-sep { height: 1px; background: var(--border); margin: 4px 6px; }
 
 /* ---------- Sidebar (pannello) ---------- */
 #sidebar {
@@ -109,6 +145,27 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .dot.claude { background: var(--text-muted); }
 .side-footer { display: flex; gap: 10px; font-size: 11px; color: var(--text-dim); }
 .side-footer.muted { color: var(--text-dim); }
+
+/* ---------- Gruppi sessioni per tipo (collassabili) ---------- */
+.session-group { display: flex; flex-direction: column; gap: var(--gap-xs); }
+.group-header {
+  display: flex; align-items: center; gap: var(--gap-sm);
+  width: 100%; padding: 8px 10px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text);
+  font-family: var(--font-ui); font-size: 12px; font-weight: 600;
+  cursor: pointer; text-align: left;
+}
+.group-header:hover { border-color: var(--border-strong); background: var(--surface-3); }
+.group-header .chevron { color: var(--text-dim); font-size: 11px; width: 14px; flex: 0 0 auto; }
+.group-header .icon { font-size: 14px; }
+.group-header .group-name { flex: 1; }
+.group-count {
+  font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
+  background: var(--surface-3); border: 1px solid var(--border-strong);
+  border-radius: 99px; padding: 1px 8px;
+}
+.group-body { display: flex; flex-direction: column; gap: var(--gap-xs); }
 
 /* ---------- Area terminale ---------- */
 #main { flex: 1; position: relative; display: flex; background: var(--bg); }

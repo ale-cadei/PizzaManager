@@ -1,0 +1,88 @@
+/* AISessionManager — design tokens
+   Palette: Teal notturno (azione) + corallo (accento) su nero */
+
+:root {
+  /* superfici */
+  --bg:            #000000;  /* base app / area terminale */
+  --surface:       #0B0A0E;  /* pannelli, sidebar, modali */
+  --surface-2:     #111017;  /* righe elenco */
+  --surface-3:     #151220;  /* elemento selezionato / elevato */
+  --border:        #1E1A24;  /* bordo standard */
+  --border-strong: #2A2434;  /* bordo input e pulsanti secondari */
+
+  /* azione (teal notturno) */
+  --action:        #1FA79A;
+  --action-hover:  #31C3B4;
+  --action-soft:   #0E2E2B;  /* fondo tenue, chip attivi */
+  --action-text:   #5FD8CB;  /* testo/bordo azione su nero */
+  --action-ink:    #02201D;  /* testo sopra il pieno --action */
+  --action-ring:   rgba(31,167,154,0.22);
+
+  /* accento (corallo) */
+  --accent:        #FF8A6B;  /* badge runtime, sessione attiva, link */
+  --accent-soft:   rgba(255,138,107,0.16);
+
+  /* stati */
+  --state-ok:      #5BC78F;
+  --state-error:   #E8556E;
+
+  /* testo */
+  --text:          #F2EFF4;
+  --text-2:        #D8D3DE;
+  --text-muted:    #A79FB0;
+  --text-dim:      #7C7488;
+  --text-faint:    #6E6878;
+
+  /* tipografia */
+  --font-ui:   'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* forma e spazio */
+  --radius-sm: 8px;
+  --radius:    10px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+  --gap-xs: 6px;
+  --gap-sm: 8px;
+  --gap:    12px;
+  --gap-lg: 20px;
+  --shadow-modal: 0 24px 60px rgba(0,0,0,0.6);
+}
+
+/* --- componenti di base --- */
+
+.btn            { font-family: var(--font-ui); font-size: 13px; font-weight: 600;
+                  padding: 11px 20px; border-radius: var(--radius); cursor: pointer; border: 1px solid transparent; }
+.btn--primary   { background: var(--action); color: var(--action-ink); }
+.btn--primary:hover { background: var(--action-hover); }
+.btn--outline   { background: transparent; border-color: var(--action); color: var(--action-text); }
+.btn--outline:hover { background: var(--action); color: var(--action-ink); }
+.btn--secondary { background: var(--surface-3); border-color: var(--border-strong); color: var(--text-2); font-weight: 500; }
+.btn--secondary:hover { border-color: var(--action); }
+.btn--ghost     { background: transparent; border-color: var(--border-strong); color: var(--text-muted); font-weight: 500; }
+.btn--ghost:hover { color: var(--text); border-color: #4A4356; }
+
+.input          { width: 100%; box-sizing: border-box; padding: 11px 14px; border-radius: var(--radius);
+                  background: var(--bg); border: 1px solid var(--border-strong); color: var(--text);
+                  font-family: var(--font-mono); font-size: 13px; outline: none; }
+.input:focus    { border-color: var(--action); }
+
+.card           { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.card--selected { background: var(--surface-3); border-color: var(--action); box-shadow: 0 0 0 3px var(--action-ring); }
+
+.tab            { padding: 9px 12px; border-radius: 9px; font-size: 13px; font-weight: 500;
+                  border: 1px solid transparent; color: var(--text-dim); background: transparent; }
+.tab[aria-selected="true"] { background: var(--action-soft); border-color: var(--action); color: var(--text); }
+
+.badge          { font-family: var(--font-mono); font-size: 9px; letter-spacing: .08em;
+                  padding: 2px 6px; border-radius: 5px; color: var(--accent); background: var(--accent-soft); }
+
+/* percorso troncato a sinistra, senza slash fantasma */
+.path           { direction: rtl; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                  font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+.path > span    { direction: ltr; unicode-bidi: embed; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2A2531; border-radius: 99px; border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--action); background-clip: content-box; }

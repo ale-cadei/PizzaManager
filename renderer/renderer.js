@@ -493,10 +493,14 @@ function shortPath(cwd) {
 
 function createSessionItem(t) {
   const b = document.createElement('button');
-  b.className = 'session-item' + (t.id === activeId ? ' active' : '');
+  const isActive = t.id === activeId;
+  b.className = `session-item type-${t.type}` + (isActive ? ' active' : '');
+  if (isActive) b.setAttribute('aria-current', 'true');
   const fullSub = t.claudeAccountName ? `${t.cwd || ''} · ${t.claudeAccountName}` : (t.cwd || '');
   const displaySub = t.claudeAccountName ? `${shortPath(t.cwd)} · ${t.claudeAccountName}` : shortPath(t.cwd);
-  b.innerHTML = `<span class="icon">${ICONS[t.type]}</span>
+  // Il marker resta nel DOM anche se invisibile: così tutte le card sono allineate
+  b.innerHTML = `<span class="sel-mark" aria-hidden="true">◆</span>
+    <span class="icon">${ICONS[t.type]}</span>
     ${t.alive ? '<span class="live-dot" title="In esecuzione"></span>' : ''}
     <span class="meta"><span class="name">${escapeHtml(t.name)}${t.alive ? '' : ' (terminata)'}</span><br>
     <span class="sub path" title="${escapeHtml(fullSub)}"><span>${escapeHtml(displaySub)}</span></span></span>`;
@@ -536,9 +540,10 @@ function renderSidebar() {
     const header = document.createElement('button');
     // Se collassato nasconde la scheda attiva, l'header la segnala
     const hidesActive = collapsed && items.some((t) => t.id === activeId);
-    header.className = 'group-header' + (hidesActive ? ' has-active' : '');
+    header.className = `group-header type-${type}` + (hidesActive ? ' has-active' : '');
     header.setAttribute('aria-expanded', String(!collapsed));
     header.innerHTML = `<span class="chevron">${collapsed ? '▸' : '▾'}</span>
+      <span class="sel-mark" aria-hidden="true">◆</span>
       <span class="icon">${ICONS[type] || '•'}</span>
       <span class="group-name">${escapeHtml(GROUP_LABELS[type] || type)}</span>
       <span class="group-count">${items.length}</span>`;

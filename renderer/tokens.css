@@ -26,6 +26,13 @@
   --state-ok:      #5BC78F;
   --state-error:   #E8556E;
 
+  /* identità per tipo di sessione (barra card, marker selezione, legenda).
+     Il verde resta riservato a "in esecuzione", quindi codex usa l'azzurro. */
+  --type-shell:    #5FD8CB;
+  --type-opencode: #FF8A6B;
+  --type-claude:   #C39BF5;
+  --type-codex:    #7FB2FF;
+
   /* testo */
   --text:          #F2EFF4;
   --text-2:        #D8D3DE;

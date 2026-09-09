@@ -12,8 +12,8 @@ Branch del codice usa-e-getta: `spike/tmux`, commit `699a090`. **Non va mergiato
 e i processi sopravvivono alla chiusura dell'app — verificato fino a 15 minuti
 senza alcun client attaccato.
 
-Le morti di sessione osservate durante le prove sono attribuibili all'ambiente
-di test dell'agente, non a tmux: vedi Q4.
+Le morti di sessione osservate durante le prove erano un artefatto dell'ambiente
+dell'agente, dimostrato da una misura di controllo dell'utente: vedi Q4.
 
 ---
 
@@ -120,9 +120,19 @@ sensato che il riattacco gestisca con garbo il caso «la sessione non c'è più�
 perché un riavvio della macchina la fa sparire in ogni caso — ma è normale
 robustezza, non la mitigazione di un difetto.
 
-**Verifica in sospeso**: una sessione `prova-jack` è stata lasciata attiva perché
-l'utente la controlli dal proprio terminale con `tmux -L aisession ls`, fuori
-dall'ambiente dell'agente. Se sopravvive, la questione è chiusa.
+**Verifica conclusa (2026-09-09, 16:19).** Una sessione avviata dall'utente dal
+proprio terminale, con lo stesso comando e sullo stesso socket, ha girato per
+**46 minuti** scrivendo un heartbeat ogni 5 secondi senza interruzioni, mentre
+tutte quelle avviate dall'agente morivano entro 5-15 minuti.
+
+Causa accertata: **l'ambiente isolato in cui l'agente esegue i comandi raccoglie
+i processi che ha generato**. Non è un comportamento di tmux, né di `claude`, né
+del gestore di memoria di macOS. Nessuna riserva sul branch 6.
+
+Lezione metodologica: quando una misura vale solo dentro l'ambiente di chi la
+esegue, va rifatta fuori. Qui il controesempio era in bella vista fin dall'inizio
+— le sessioni `xirp` dell'utente, vive da ore sulla stessa macchina — ed è stato
+notato dall'utente, non dall'agente.
 
 ---
 

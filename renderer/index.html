@@ -14,6 +14,58 @@
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+<!-- Menubar scura in-app: sostituisce la menubar nativa (nascosta su
+     Linux/Windows perché il tema GTK la disegnerebbe chiara). Su macOS il
+     menu nativo resta e questa barra viene rimossa (vedi initMenubar). -->
+<nav id="menubar" aria-label="Menu applicazione">
+  <div class="mb-menu" data-menu>
+    <button class="mb-label" tabindex="0">File</button>
+    <div class="mb-drop" hidden>
+      <button data-action="new-session">Nuova sessione<span class="mb-acc">Ctrl+N</span></button>
+      <div class="mb-sep"></div>
+      <button data-action="quit">Esci</button>
+    </div>
+  </div>
+  <div class="mb-menu" data-menu>
+    <button class="mb-label" tabindex="0">Edit</button>
+    <div class="mb-drop" hidden>
+      <button data-action="undo">Annulla<span class="mb-acc">Ctrl+Z</span></button>
+      <button data-action="redo">Ripeti<span class="mb-acc">Ctrl+Y</span></button>
+      <div class="mb-sep"></div>
+      <button data-action="cut">Taglia<span class="mb-acc">Ctrl+X</span></button>
+      <button data-action="copy">Copia<span class="mb-acc">Ctrl+C</span></button>
+      <button data-action="paste">Incolla<span class="mb-acc">Ctrl+V</span></button>
+      <button data-action="selectAll">Seleziona tutto<span class="mb-acc">Ctrl+A</span></button>
+    </div>
+  </div>
+  <div class="mb-menu" data-menu>
+    <button class="mb-label" tabindex="0">View</button>
+    <div class="mb-drop" hidden>
+      <button data-action="reload">Ricarica<span class="mb-acc">Ctrl+R</span></button>
+      <button data-action="forceReload">Ricarica forzata</button>
+      <button data-action="devtools">Strumenti di sviluppo<span class="mb-acc">Ctrl+Shift+I</span></button>
+      <div class="mb-sep"></div>
+      <button data-action="resetZoom">Zoom originale<span class="mb-acc">Ctrl+0</span></button>
+      <button data-action="zoomIn">Aumenta zoom<span class="mb-acc">Ctrl++</span></button>
+      <button data-action="zoomOut">Riduci zoom<span class="mb-acc">Ctrl+-</span></button>
+      <div class="mb-sep"></div>
+      <button data-action="fullscreen">Schermo intero<span class="mb-acc">F11</span></button>
+    </div>
+  </div>
+  <div class="mb-menu" data-menu>
+    <button class="mb-label" tabindex="0">Window</button>
+    <div class="mb-drop" hidden>
+      <button data-action="minimize">Riduci a icona</button>
+      <button data-action="close">Chiudi finestra</button>
+    </div>
+  </div>
+  <div class="mb-menu" data-menu>
+    <button class="mb-label" tabindex="0">Help</button>
+    <div class="mb-drop" hidden>
+      <button data-action="open-repo">Repository AISessionManager</button>
+    </div>
+  </div>
+</nav>
 <div id="app">
   <aside id="sidebar">
     <div class="brand">

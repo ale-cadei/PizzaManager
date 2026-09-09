@@ -7,6 +7,7 @@ const { listCodexSessions } = require('./codex-sessions');
 const { getDefaultShell } = require('./lib/shell');
 const { getLoginPathSync } = require('./lib/login-path');
 const { resolveBinary, resolveAllBinaries, augmentedEnv } = require('./lib/binaries');
+const { buildCommand, installHint } = require('./lib/commands');
 
 let pty = null;
 try {
@@ -81,44 +82,6 @@ function saveHistoryEntry(entry) {
     h.unshift({ ...entry, lastOpened: new Date().toISOString() });
     fs.writeFileSync(historyFile(), JSON.stringify(h.slice(0, 200), null, 2));
   } catch (e) { console.error(e); }
-}
-
-function buildCommand(type, resumeId) {
-  if (type === 'opencode') {
-    const r = resolveBinary('opencode');
-    if (!r.path) return { cmd: null, args: [], missing: 'opencode', searchedPath: r.searchedPath };
-    return resumeId
-      ? { cmd: r.path, args: ['--session', resumeId], resolvedVia: r.via }
-      : { cmd: r.path, args: [], resolvedVia: r.via };
-  }
-  if (type === 'claude') {
-    const r = resolveBinary('claude');
-    if (!r.path) return { cmd: null, args: [], missing: 'claude', searchedPath: r.searchedPath };
-    return resumeId
-      ? { cmd: r.path, args: ['--resume', resumeId], resolvedVia: r.via }
-      : { cmd: r.path, args: [], resolvedVia: r.via };
-  }
-  if (type === 'codex') {
-    const r = resolveBinary('codex');
-    if (!r.path) return { cmd: null, args: [], missing: 'codex', searchedPath: r.searchedPath };
-    // `codex resume <SESSION_ID>` riapre il rollout indicato
-    return resumeId
-      ? { cmd: r.path, args: ['resume', resumeId], resolvedVia: r.via }
-      : { cmd: r.path, args: [], resolvedVia: r.via };
-  }
-  const sh = getDefaultShell();
-  return { cmd: sh, args: process.platform !== 'win32' ? ['-i'] : [] };
-}
-
-// Suggerimento di installazione mostrato quando un binario non è nel PATH
-const INSTALL_HINTS = {
-  opencode: 'Installa da https://opencode.ai o verifica ~/.opencode/bin/opencode',
-  claude: 'Installa con: npm i -g @anthropic-ai/claude-code, oppure verifica il percorso (nvm: ~/.nvm/versions/node/*/bin/claude)',
-  codex: 'Installa con: npm i -g @openai/codex (oppure brew install codex)',
-};
-
-function installHint(name) {
-  return INSTALL_HINTS[name] || `Verifica che '${name}' sia installato e nel PATH.`;
 }
 
 function buildAppMenu() {

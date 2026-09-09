@@ -36,6 +36,7 @@
       "main.js",
       "preload.js",
       "lib/**/*",
+      "app/**/*",
       "renderer/**/*",
       "assets/**/*",
       "!assets/generate-icon.py",

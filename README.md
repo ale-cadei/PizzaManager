@@ -11,6 +11,7 @@ Compatibile con **Linux (.deb / AppImage)** e **macOS (.dmg / .zip)**.
 - ✳ **Sessione Codex** — avvia `codex` in un pty dedicato
 - 🧭 **Navbar a sinistra** con classificazione per tipo (badge + icona), switch e chiusura schede; **ridimensionabile** via trascinamento (larghezza ricordata)
 - ➕ **Pulsante unico «Nuova sessione»** in sidebar: il tipo (terminale / OpenCode / Claude / Codex) si sceglie nel dialog
+- ⚙ **Configurazione comandi** (`File → Configurazione comandi…`, `Ctrl+,`): per ogni tipo di sessione si possono definire **più comandi di avvio** (nome, riga di comando, argomenti di resume con segnaposto `{id}`). Se un tipo ha più comandi, all'avvio della sessione viene chiesto quale usare. I comandi sono in `userData/command-profiles.json` e vengono eseguiti direttamente, senza shell (pipe/redirezioni non supportate).
 - 👤 **Account Claude multipli**: rilevamento del login OAuth corrente + profili API key aggiuntivi (⚙ nel dialog, salvati in locale con permessi 600); se ce n'è più di uno, il dialog chiede quale usare (`ANTHROPIC_API_KEY` per le sessioni con chiave)
 - ⟲ **Dialog Resume**: ripristina vecchie sessioni
   - OpenCode via `opencode session list --format json` → resume con `opencode --session <id>`

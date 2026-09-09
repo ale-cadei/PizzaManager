@@ -35,8 +35,10 @@
     "files": [
       "main.js",
       "preload.js",
+      "codex-sessions.js",
       "renderer/**/*",
       "assets/**/*",
+      "!assets/generate-icon.py",
       "package.json",
       "!node_modules/.cache/**/*"
     ],
@@ -48,7 +50,7 @@
       ],
       "maintainer": "AISessionManager <support@example.com>",
       "category": "Development",
-      "icon": "assets/icon.png",
+      "icon": "assets/icons",
       "desktop": {
         "Name": "AISessionManager",
         "Comment": "Gestore unificato terminali, OpenCode e Claude Code",

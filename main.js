@@ -3,6 +3,10 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { execFile } = require('child_process');
+const { listCodexSessions } = require('./codex-sessions');
+
+// Binari delle sessioni AI gestite (lo shell non passa da resolveBinary)
+const AI_BINARIES = ['opencode', 'claude', 'codex'];
 
 let pty = null;
 try {
@@ -52,38 +56,45 @@ function isExecutable(p) {
   } catch { return false; }
 }
 
+// Percorsi tipici dei tool installati via npm/volta/asdf/nvm/homebrew
+function nodeToolCandidates(name) {
+  const home = os.homedir();
+  const list = [
+    path.join(home, '.local', 'bin', name),
+    '/usr/local/bin/' + name,
+    '/opt/homebrew/bin/' + name,
+    '/home/linuxbrew/.linuxbrew/bin/' + name,
+    path.join(home, '.npm-global', 'bin', name),
+    path.join(home, '.volta', 'bin', name),
+    path.join(home, '.asdf', 'shims', name),
+  ];
+  // nvm: ~/.nvm/versions/node/*/bin/<name>
+  try {
+    const base = path.join(home, '.nvm', 'versions', 'node');
+    if (fs.existsSync(base)) {
+      for (const v of fs.readdirSync(base)) list.push(path.join(base, v, 'bin', name));
+    }
+  } catch {}
+  return list;
+}
+
 function candidatesFor(name) {
   const home = os.homedir();
-  const list = [];
   if (name === 'opencode') {
-    list.push(
+    return [
       path.join(home, '.opencode', 'bin', 'opencode'),
       path.join(home, '.local', 'bin', 'opencode'),
       '/usr/local/bin/opencode',
       '/opt/opencode/opencode',
       '/snap/bin/opencode',
       '/opt/homebrew/bin/opencode',
-    );
-  } else if (name === 'claude') {
-    list.push(
-      path.join(home, '.local', 'bin', 'claude'),
-      '/usr/local/bin/claude',
-      '/opt/homebrew/bin/claude',
-      path.join(home, '.npm-global', 'bin', 'claude'),
-      path.join(home, '.volta', 'bin', 'claude'),
-      path.join(home, '.asdf', 'shims', 'claude'),
-    );
-    // nvm: ~/.nvm/versions/node/*/bin/claude
-    try {
-      const base = path.join(home, '.nvm', 'versions', 'node');
-      if (fs.existsSync(base)) {
-        for (const v of fs.readdirSync(base)) {
-          list.push(path.join(base, v, 'bin', 'claude'));
-        }
-      }
-    } catch {}
+      '/home/linuxbrew/.linuxbrew/bin/opencode',
+    ];
   }
-  return list;
+  if (name === 'claude') return nodeToolCandidates('claude');
+  // Codex CLI: npm @openai/codex, homebrew, o binario in ~/.codex/bin
+  if (name === 'codex') return [path.join(home, '.codex', 'bin', 'codex'), ...nodeToolCandidates('codex')];
+  return [];
 }
 
 function resolveBinary(name) {
@@ -112,7 +123,7 @@ function augmentedEnv(extraBins, extraVars) {
     if (b) dirs.add(path.dirname(b));
   }
   // assicurati che le dir dei binari risolti ci siano
-  for (const n of ['opencode', 'claude']) {
+  for (const n of AI_BINARIES) {
     try {
       const r = resolveBinary(n);
       if (r.path) dirs.add(path.dirname(r.path));
@@ -200,8 +211,27 @@ function buildCommand(type, resumeId) {
       ? { cmd: r.path, args: ['--resume', resumeId], resolvedVia: r.via }
       : { cmd: r.path, args: [], resolvedVia: r.via };
   }
+  if (type === 'codex') {
+    const r = resolveBinary('codex');
+    if (!r.path) return { cmd: null, args: [], missing: 'codex', searchedPath: r.searchedPath };
+    // `codex resume <SESSION_ID>` riapre il rollout indicato
+    return resumeId
+      ? { cmd: r.path, args: ['resume', resumeId], resolvedVia: r.via }
+      : { cmd: r.path, args: [], resolvedVia: r.via };
+  }
   const sh = getDefaultShell();
   return { cmd: sh, args: process.platform !== 'win32' ? ['-i'] : [] };
+}
+
+// Suggerimento di installazione mostrato quando un binario non è nel PATH
+const INSTALL_HINTS = {
+  opencode: 'Installa da https://opencode.ai o verifica ~/.opencode/bin/opencode',
+  claude: 'Installa con: npm i -g @anthropic-ai/claude-code, oppure verifica il percorso (nvm: ~/.nvm/versions/node/*/bin/claude)',
+  codex: 'Installa con: npm i -g @openai/codex (oppure brew install codex)',
+};
+
+function installHint(name) {
+  return INSTALL_HINTS[name] || `Verifica che '${name}' sia installato e nel PATH.`;
 }
 
 function buildAppMenu() {
@@ -352,10 +382,7 @@ ipcMain.handle('pty-spawn', async (event, { id, type, cwd, resumeId, claudeAccou
   if (!cmd) {
     return {
       ok: false,
-      error: `Binario '${missing}' non trovato nel PATH.\nPATH cercato: ${searchedPath}\n` +
-        (missing === 'opencode'
-          ? `Installa da https://opencode.ai o verifica ~/.opencode/bin/opencode`
-          : `Installa con: npm i -g @anthropic-ai/claude-code, oppure verifica il percorso (nvm: ~/.nvm/versions/node/*/bin/claude)`),
+      error: `Binario '${missing}' non trovato nel PATH.\nPATH cercato: ${searchedPath}\n` + installHint(missing),
     };
   }
   let extraVars = {};
@@ -410,30 +437,33 @@ ipcMain.handle('pty-kill', async (event, { id }) => {
   return { ok: true };
 });
 
-ipcMain.handle('get-defaults', async () => {
-  const op = resolveBinary('opencode');
-  const cl = resolveBinary('claude');
-  return {
-    shell: getDefaultShell(),
-    homedir: os.homedir(),
-    platform: process.platform,
-    path: getLoginPathSync(),
-    binaries: {
-      opencode: { found: !!op.path, path: op.path, via: op.via },
-      claude: { found: !!cl.path, path: cl.path, via: cl.via },
-    },
-  };
-});
+// Stato di tutti i binari AI, nella forma attesa dalla UI
+function resolveAllBinaries() {
+  const out = {};
+  for (const name of AI_BINARIES) {
+    const r = resolveBinary(name);
+    out[name] = {
+      found: !!r.path,
+      path: r.path,
+      via: r.via,
+      searchedPath: r.searchedPath || getLoginPathSync(),
+    };
+  }
+  return out;
+}
 
-ipcMain.handle('check-deps', async () => {
-  const op = resolveBinary('opencode');
-  const cl = resolveBinary('claude');
-  return {
-    opencode: { found: !!op.path, path: op.path, via: op.via, searchedPath: op.searchedPath || getLoginPathSync() },
-    claude: { found: !!cl.path, path: cl.path, via: cl.via, searchedPath: cl.searchedPath || getLoginPathSync() },
-    path: getLoginPathSync(),
-  };
-});
+ipcMain.handle('get-defaults', async () => ({
+  shell: getDefaultShell(),
+  homedir: os.homedir(),
+  platform: process.platform,
+  path: getLoginPathSync(),
+  binaries: resolveAllBinaries(),
+}));
+
+ipcMain.handle('check-deps', async () => ({
+  ...resolveAllBinaries(),
+  path: getLoginPathSync(),
+}));
 
 ipcMain.handle('get-history', async () => loadHistory());
 
@@ -502,6 +532,15 @@ ipcMain.handle('list-opencode-sessions', async (event, { limit } = {}) => {
         }
       });
   });
+});
+
+// Codex CLI: scan ~/.codex/sessions/**/rollout-*.jsonl (vedi codex-sessions.js)
+ipcMain.handle('list-codex-sessions', async (event, { limit } = {}) => {
+  try {
+    return listCodexSessions(limit);
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e), sessions: [] };
+  }
 });
 
 // Claude Code: scan ~/.claude/projects/**/*.jsonl

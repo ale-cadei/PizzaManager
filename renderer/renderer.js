@@ -4,12 +4,19 @@ let activeId = null;
 let counter = 1;
 let pendingNewType = 'shell';
 let resumeTab = 'opencode';
-let resumeCache = { opencode: null, claude: null, history: null };
+let resumeCache = { opencode: null, claude: null, codex: null, history: null };
+const emptyResumeCache = () => ({ opencode: null, claude: null, codex: null, history: null });
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 
-const ICONS = { shell: '🖥', opencode: '⚡', claude: '🤖' };
+const ICONS = { shell: '🖥', opencode: '⚡', claude: '🤖', codex: '✳' };
+// Tipi con un binario esterno da risolvere (lo shell è sempre disponibile)
+const AI_TYPES = ['opencode', 'claude', 'codex'];
+
+// Corpo del testo dei terminali (shell, opencode, claude)
+const TERM_FONT_SIZE = 15;
+const TERM_LINE_HEIGHT = 1.2;
 
 async function init() {
   const d = await window.aisess.getDefaults();
@@ -18,17 +25,16 @@ async function init() {
   try {
     const deps = await window.aisess.checkDeps();
     const fmt = (b, name) => b && b.found ? `✔ ${name}: ${b.path}` : `✘ ${name} non trovato`;
-    $('#deps-status').textContent = `${deps.opencode.found ? '✔' : '✘'} opencode · ${deps.claude.found ? '✔' : '✘'} claude`;
-    $('#deps-status').title = fmt(deps.opencode, 'opencode') + '\n' + fmt(deps.claude, 'claude') + '\nPATH: ' + deps.path;
+    $('#deps-status').textContent = AI_TYPES.map(n => `${deps[n] && deps[n].found ? '✔' : '✘'} ${n}`).join(' · ');
+    $('#deps-status').title = AI_TYPES.map(n => fmt(deps[n], n)).join('\n') + '\nPATH: ' + deps.path;
     const mark = (id, b) => {
       const el = $(id);
       if (!el) return;
       el.style.opacity = b && b.found ? '1' : '0.45';
       el.title = b && b.found ? b.path + ' (' + (b.via || '') + ')' : 'NON TROVATO nel PATH:\n' + (b && b.searchedPath);
     };
-    mark('#dep-opencode', deps.opencode);
-    mark('#dep-claude', deps.claude);
-    if (!deps.opencode.found || !deps.claude.found) {
+    for (const n of AI_TYPES) mark('#dep-' + n, deps[n]);
+    if (AI_TYPES.some(n => !deps[n] || !deps[n].found)) {
       console.warn('[AISessionManager] binari mancanti:', deps);
     }
   } catch (e) { console.warn('check-deps fallito', e); }
@@ -98,7 +104,7 @@ async function init() {
   }));
   $('#resume-close').addEventListener('click', () => $('#modal-resume').hidden = true);
   $('#resume-reload').addEventListener('click', async () => {
-    resumeCache = { opencode: null, claude: null, history: null };
+    resumeCache = emptyResumeCache();
     await renderResumeList();
   });
   $('#resume-search').addEventListener('input', () => renderResumeList(true));
@@ -268,6 +274,9 @@ async function ensureResumeData(tab) {
   } else if (tab === 'claude') {
     const r = await window.aisess.listClaude(100);
     resumeCache.claude = r;
+  } else if (tab === 'codex') {
+    const r = await window.aisess.listCodex(100);
+    resumeCache.codex = r;
   } else {
     const h = await window.aisess.getHistory();
     resumeCache.history = { ok: true, sessions: h };
@@ -293,45 +302,68 @@ async function renderResumeList(keepCache = false) {
     return;
   }
   box.innerHTML = '';
-  for (const s of items.slice(0, 80)) {
-    const el = document.createElement('div');
-    el.className = 'resume-item';
-    if (resumeTab === 'opencode') {
-      const date = new Date(s.created).toLocaleString();
-      el.innerHTML = `<div class="meta"><div class="title">⚡ ${escapeHtml(s.title || s.id)}</div>
-        <div class="sub path"><span>${escapeHtml(s.directory || '')} · ${escapeHtml(s.id)} · ${date}</span></div></div>`;
-      const btn = document.createElement('button');
-      btn.className = 'btn btn--primary'; btn.style.width = 'auto'; btn.textContent = 'Resume';
-      btn.onclick = async () => {
-        $('#modal-resume').hidden = true;
-        await createTab('opencode', { name: (s.title || 'opencode').slice(0, 28), cwd: s.directory, resumeId: s.id });
-      };
-      el.appendChild(btn);
-    } else if (resumeTab === 'claude') {
-      const date = new Date(s.mtime).toLocaleString();
-      el.innerHTML = `<div class="meta"><div class="title">🤖 ${escapeHtml(s.title || s.id)}</div>
-        <div class="sub path"><span>${escapeHtml(s.cwd || '')} · ${escapeHtml(s.id.slice(0, 8))} · ${date}</span></div></div>`;
-      const btn = document.createElement('button');
-      btn.className = 'btn btn--primary'; btn.style.width = 'auto'; btn.textContent = 'Resume';
-      btn.onclick = async () => {
-        $('#modal-resume').hidden = true;
-        await createTab('claude', { name: (s.title || 'claude').slice(0, 28), cwd: s.cwd, resumeId: s.id, claudeAccountId: selectedResumeAccount() });
-      };
-      el.appendChild(btn);
-    } else {
-      el.innerHTML = `<div class="meta"><div class="title">${ICONS[s.type] || '•'} ${escapeHtml(s.cmd || s.type)}</div>
-        <div class="sub path"><span>${escapeHtml(s.cwd || '')} · ${escapeHtml(s.lastOpened || '')}</span></div></div>`;
-      const btn = document.createElement('button');
-      btn.className = 'btn btn--secondary'; btn.style.width = 'auto'; btn.textContent = 'Riapri';
-      btn.onclick = async () => {
-        $('#modal-resume').hidden = true;
-        const t = s.type === 'claude' || s.type === 'opencode' ? s.type : 'shell';
-        await createTab(t, { cwd: s.cwd, resumeId: s.resumeId, claudeAccountId: t === 'claude' ? (s.claudeAccountId || null) : null });
-      };
-      el.appendChild(btn);
-    }
-    box.appendChild(el);
-  }
+  for (const s of items.slice(0, 80)) box.appendChild(createResumeItem(resumeTab, s));
+}
+
+/* Descrittori per tab: come mostrare una voce e come riaprirla.
+   `date` è la data da mostrare, `open()` avvia la scheda corrispondente. */
+const RESUME_VIEWS = {
+  opencode: (s) => ({
+    title: `${ICONS.opencode} ${s.title || s.id}`,
+    sub: [s.directory, s.id, fmtDate(s.created)],
+    action: 'Resume',
+    actionClass: 'btn--primary',
+    open: () => createTab('opencode', { name: (s.title || 'opencode').slice(0, 28), cwd: s.directory, resumeId: s.id }),
+  }),
+  claude: (s) => ({
+    title: `${ICONS.claude} ${s.title || s.id}`,
+    sub: [s.cwd, s.id.slice(0, 8), fmtDate(s.mtime)],
+    action: 'Resume',
+    actionClass: 'btn--primary',
+    open: () => createTab('claude', { name: (s.title || 'claude').slice(0, 28), cwd: s.cwd, resumeId: s.id, claudeAccountId: selectedResumeAccount() }),
+  }),
+  codex: (s) => ({
+    title: `${ICONS.codex} ${s.title || s.id}`,
+    sub: [s.cwd, s.id.slice(0, 8), fmtDate(s.mtime)],
+    action: 'Resume',
+    actionClass: 'btn--primary',
+    open: () => createTab('codex', { name: (s.title || 'codex').slice(0, 28), cwd: s.cwd, resumeId: s.id }),
+  }),
+  history: (s) => ({
+    title: `${ICONS[s.type] || '•'} ${s.cmd || s.type}`,
+    sub: [s.cwd, s.lastOpened],
+    action: 'Riapri',
+    actionClass: 'btn--secondary',
+    open: () => {
+      const t = ICONS[s.type] ? s.type : 'shell';
+      return createTab(t, { cwd: s.cwd, resumeId: s.resumeId, claudeAccountId: t === 'claude' ? (s.claudeAccountId || null) : null });
+    },
+  }),
+};
+
+function fmtDate(v) {
+  if (!v) return '';
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? '' : d.toLocaleString();
+}
+
+function createResumeItem(tab, s) {
+  const view = (RESUME_VIEWS[tab] || RESUME_VIEWS.history)(s);
+  const el = document.createElement('div');
+  el.className = 'resume-item';
+  const sub = view.sub.filter(Boolean).join(' · ');
+  el.innerHTML = `<div class="meta"><div class="title">${escapeHtml(view.title)}</div>
+    <div class="sub path" title="${escapeHtml(sub)}"><span>${escapeHtml(sub)}</span></div></div>`;
+  const btn = document.createElement('button');
+  btn.className = 'btn ' + view.actionClass;
+  btn.style.width = 'auto';
+  btn.textContent = view.action;
+  btn.onclick = async () => {
+    $('#modal-resume').hidden = true;
+    await view.open();
+  };
+  el.appendChild(btn);
+  return el;
 }
 
 async function createTab(type, { name, cwd, resumeId, claudeAccountId } = {}) {
@@ -356,7 +388,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId } = {}) {
   updateEmpty();
   setActive(id);
 
-  const term = new Terminal({ cursorBlink: true, fontSize: 13, fontFamily: "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace", theme: { background: '#000000', foreground: '#F2EFF4', cursor: '#1FA79A', selectionBackground: '#0E2E2B', black: '#000000', brightBlack: '#7C7488', white: '#F2EFF4', brightWhite: '#FFFFFF', cyan: '#5FD8CB', brightCyan: '#31C3B4', green: '#5BC78F', red: '#E8556E', yellow: '#FF8A6B' } });
+  const term = new Terminal({ cursorBlink: true, fontSize: TERM_FONT_SIZE, lineHeight: TERM_LINE_HEIGHT, fontFamily: "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace", theme: { background: '#000000', foreground: '#F2EFF4', cursor: '#1FA79A', selectionBackground: '#0E2E2B', black: '#000000', brightBlack: '#7C7488', white: '#F2EFF4', brightWhite: '#FFFFFF', cyan: '#5FD8CB', brightCyan: '#31C3B4', green: '#5BC78F', red: '#E8556E', yellow: '#FF8A6B' } });
   const fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
   try { term.loadAddon(new WebLinksAddon.WebLinksAddon()); } catch {}
@@ -397,6 +429,14 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId } = {}) {
 function setActive(id) {
   activeId = id;
   tabs.forEach((t) => t.wrap.classList.toggle('active', t.id === id));
+  // Selezionare una scheda espande il suo gruppo, così la card resta visibile.
+  // Va fatto SOLO qui e non in renderSidebar(), altrimenti il click sull'header
+  // richiuderebbe e riaprirebbe subito il gruppo della scheda attiva.
+  const t = tabs.get(id);
+  if (t && collapsedGroups.has(t.type)) {
+    collapsedGroups.delete(t.type);
+    saveCollapsedGroups();
+  }
   renderSidebar();
   setTimeout(() => fitActive(), 30);
 }
@@ -432,8 +472,8 @@ async function closeTab(id) {
 }
 
 /* ---------- Raggruppamento card per tipo (gruppi collassabili) ---------- */
-const GROUP_ORDER = ['shell', 'opencode', 'claude'];
-const GROUP_LABELS = { shell: 'Terminale', opencode: 'OpenCode', claude: 'Claude' };
+const GROUP_ORDER = ['shell', 'opencode', 'claude', 'codex'];
+const GROUP_LABELS = { shell: 'Terminale', opencode: 'OpenCode', claude: 'Claude', codex: 'Codex' };
 let collapsedGroups = new Set();
 try {
   const saved = JSON.parse(localStorage.getItem('aisess.collapsedGroups') || '[]');
@@ -476,12 +516,6 @@ function renderSidebar() {
     list.innerHTML = '<p class="muted" style="font-size:12px">Nessuna sessione aperta.<br>Avviane una con ＋ Nuova sessione.</p>';
     return;
   }
-  // Se la scheda attiva è in un gruppo collassato, espandilo
-  const active = activeId && tabs.get(activeId);
-  if (active && collapsedGroups.has(active.type)) {
-    collapsedGroups.delete(active.type);
-    saveCollapsedGroups();
-  }
   const byType = new Map(GROUP_ORDER.map(t => [t, []]));
   tabs.forEach((t) => {
     if (!byType.has(t.type)) byType.set(t.type, []);
@@ -500,7 +534,9 @@ function renderSidebar() {
     const group = document.createElement('div');
     group.className = 'session-group';
     const header = document.createElement('button');
-    header.className = 'group-header';
+    // Se collassato nasconde la scheda attiva, l'header la segnala
+    const hidesActive = collapsed && items.some((t) => t.id === activeId);
+    header.className = 'group-header' + (hidesActive ? ' has-active' : '');
     header.setAttribute('aria-expanded', String(!collapsed));
     header.innerHTML = `<span class="chevron">${collapsed ? '▸' : '▾'}</span>
       <span class="icon">${ICONS[type] || '•'}</span>

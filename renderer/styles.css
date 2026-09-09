@@ -70,10 +70,10 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 #sidebar-resizer:hover, #sidebar-resizer.dragging { background: var(--action); }
 
 .brand { display: flex; gap: 10px; align-items: center; }
+/* Logo = assets/icon.png (stessa icona dell'app/finestra) */
 .logo {
   width: 36px; height: 36px; border-radius: var(--radius);
-  display: grid; place-items: center; font-size: 20px;
-  background: var(--action); color: var(--action-ink); font-weight: 700;
+  flex: none; display: block; object-fit: contain;
 }
 .brand-name { font-weight: 600; font-size: 15px; }
 .brand-sub {
@@ -87,8 +87,13 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   letter-spacing: .12em; text-transform: uppercase;
   color: var(--text-dim); margin-top: 6px;
 }
-.side-actions { display: grid; gap: 6px; }
-.side-actions .btn { width: 100%; }
+/* Due azioni affiancate: Nuova sessione | Resume */
+.side-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.side-actions .btn {
+  width: 100%; min-width: 0;
+  padding-left: 8px; padding-right: 8px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 /* ---------- Card sessione ---------- */
 #session-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: var(--gap-xs); }
@@ -143,7 +148,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .dot.shell { background: var(--action-text); }
 .dot.opencode { background: var(--accent); }
 .dot.claude { background: var(--text-muted); }
-.side-footer { display: flex; gap: 10px; font-size: 11px; color: var(--text-dim); }
+.dot.codex { background: var(--state-ok); }
+.side-footer { display: flex; flex-wrap: wrap; gap: 6px 10px; font-size: 11px; color: var(--text-dim); }
 .side-footer.muted { color: var(--text-dim); }
 
 /* ---------- Gruppi sessioni per tipo (collassabili) ---------- */
@@ -157,6 +163,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   cursor: pointer; text-align: left;
 }
 .group-header:hover { border-color: var(--border-strong); background: var(--surface-3); }
+/* Gruppo chiuso che contiene la sessione attiva */
+.group-header.has-active { border-color: var(--accent); }
 .group-header .chevron { color: var(--text-dim); font-size: 11px; width: 14px; flex: 0 0 auto; }
 .group-header .icon { font-size: 14px; }
 .group-header .group-name { flex: 1; }
@@ -166,6 +174,9 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   border-radius: 99px; padding: 1px 8px;
 }
 .group-body { display: flex; flex-direction: column; gap: var(--gap-xs); }
+/* `display: flex` sovrascriverebbe il `display: none` dell'UA stylesheet
+   per l'attributo [hidden]: serve una regola esplicita di pari specificità. */
+.group-body[hidden] { display: none; }
 
 /* ---------- Area terminale ---------- */
 #main { flex: 1; position: relative; display: flex; background: var(--bg); }
@@ -186,23 +197,23 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .modal-backdrop[hidden] { display: none; }
 .modal {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-xl); padding: 26px;
-  width: 440px; max-width: 92vw;
+  border-radius: var(--radius-xl); padding: 32px;
+  width: 560px; max-width: 92vw; max-height: 90vh; overflow-y: auto;
   display: flex; flex-direction: column; gap: var(--gap);
   box-shadow: var(--shadow-modal);
 }
-.modal.wide { width: 620px; }
-.modal h2 { margin: 0; font-size: 19px; font-weight: 600; }
+.modal.wide { width: 820px; }
+.modal h2 { margin: 0; font-size: 21px; font-weight: 600; }
 .modal label {
-  font-size: 12px; font-weight: 500; color: var(--text-muted);
+  font-size: 13px; font-weight: 500; color: var(--text-muted);
   display: flex; flex-direction: column; gap: 6px;
 }
-/* Input spec: fondo nero, bordo forte, mono 13px, focus teal */
+/* Input spec: fondo nero, bordo forte, mono 14px, focus teal */
 .modal input, .modal select, #resume-search {
-  width: 100%; box-sizing: border-box; padding: 11px 14px;
+  width: 100%; box-sizing: border-box; padding: 12px 15px;
   border-radius: var(--radius);
   background: var(--bg); border: 1px solid var(--border-strong); color: var(--text);
-  font-family: var(--font-mono); font-size: 13px; outline: none;
+  font-family: var(--font-mono); font-size: 14px; outline: none;
 }
 .modal input::placeholder { color: var(--text-faint); }
 .modal input:focus, .modal select:focus, #resume-search:focus { border-color: var(--action); }
@@ -223,14 +234,14 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .row { display: flex; gap: 8px; } .row input { flex: 1; }
 
 /* Type cards */
-.type-cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.type-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .type-card {
   background: var(--bg); border: 1px solid var(--border-strong); color: var(--text);
-  border-radius: var(--radius); padding: 12px 8px; cursor: pointer;
-  display: flex; flex-direction: column; gap: 4px; font-size: 20px;
+  border-radius: var(--radius); padding: 14px 10px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 4px; font-size: 22px;
   font-family: var(--font-ui);
 }
-.type-card b { font-size: 13px; } .type-card span { font-size: 11px; color: var(--text-dim); }
+.type-card b { font-size: 14px; } .type-card span { font-size: 12px; color: var(--text-dim); }
 .type-card:hover { border-color: var(--action); }
 .type-card.selected {
   border-color: var(--action); background: var(--action-soft);
@@ -249,7 +260,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   background: var(--action-soft); border-color: var(--action); color: var(--text);
 }
 
-#resume-list { max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+/* La lista cresce con la finestra ma resta dentro il modale (max-height: 90vh) */
+#resume-list { max-height: min(52vh, 520px); overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
 .resume-item {
   background: var(--surface-2); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 10px;

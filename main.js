@@ -5,6 +5,7 @@ const os = require('os');
 const { execFile } = require('child_process');
 const { listCodexSessions } = require('./codex-sessions');
 const { getDefaultShell } = require('./lib/shell');
+const { getLoginPathSync } = require('./lib/login-path');
 
 // Binari delle sessioni AI gestite (lo shell non passa da resolveBinary)
 const AI_BINARIES = ['opencode', 'claude', 'codex'];
@@ -20,24 +21,6 @@ const ptys = new Map();
 let mainWindow = null;
 
 // ---------- Risoluzione binari (fix lancio da GUI/.deb con PATH minimo) ----------
-let loginPathCache = null;
-function getLoginPathSync() {
-  if (loginPathCache) return loginPathCache;
-  const parts = [process.env.PATH || '/usr/local/bin:/usr/bin:/bin'];
-  try {
-    const sh = getDefaultShell();
-    const out = require('child_process').execFileSync(sh, ['-lc', 'echo $__AIS_LOGIN_PATH__; echo $PATH'], {
-      timeout: 5000,
-      env: { ...process.env, __AIS_LOGIN_PATH__: '1' },
-    }).toString();
-    const lines = out.trim().split('\n').filter(Boolean);
-    const p = lines[lines.length - 1].trim();
-    if (p && p.includes('/')) parts.unshift(p);
-  } catch {}
-  loginPathCache = [...new Set(parts.join(':').split(':').filter(Boolean))].join(':');
-  return loginPathCache;
-}
-
 function isExecutable(p) {
   try {
     fs.accessSync(p, fs.constants.X_OK);

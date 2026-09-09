@@ -9,24 +9,31 @@ function ok(name, fn) {
   catch (e) { fail++; console.error('FAIL ' + name + ': ' + e.message); }
 }
 
-// Replica la logica di buildCommand di main.js per testarla senza Electron
+/* I comandi di avvio vengono dai profili configurabili (command-profiles.js):
+   qui si verifica che i default producano lo stesso argv di prima. */
+const profiles = require('../command-profiles');
+
+const DEFAULTS = profiles.defaultProfiles({ shell: '/bin/bash', platform: 'linux' });
+const DEFAULT_CONFIG = profiles.normalizeConfig(null, { defaults: DEFAULTS });
+
 function buildCommand(type, resumeId) {
-  if (type === 'opencode') return resumeId ? { cmd: 'opencode', args: ['--session', resumeId] } : { cmd: 'opencode', args: [] };
-  if (type === 'claude') return resumeId ? { cmd: 'claude', args: ['--resume', resumeId] } : { cmd: 'claude', args: [] };
-  if (type === 'codex') return resumeId ? { cmd: 'codex', args: ['resume', resumeId] } : { cmd: 'codex', args: [] };
-  return { cmd: 'shell', args: [] };
+  const first = profiles.listProfiles(DEFAULT_CONFIG, type)[0];
+  const r = profiles.resolveProfileCommand(first, { resumeId, home: '/home/tester' });
+  assert.strictEqual(r.ok, true, r.error || '');
+  return { cmd: r.bin, args: r.args, resumeApplied: r.resumeApplied };
 }
 
 const SESSION_TYPES = ['shell', 'opencode', 'claude', 'codex'];
 
 ok('buildCommand shell nuova', () => {
   const r = buildCommand('shell');
-  assert.strictEqual(r.cmd, 'shell');
+  assert.strictEqual(r.cmd, '/bin/bash');
+  assert.deepStrictEqual(r.args, ['-i']);
 });
 
 ok('buildCommand opencode nuova', () => {
   const r = buildCommand('opencode');
-  assert.deepStrictEqual(r, { cmd: 'opencode', args: [] });
+  assert.deepStrictEqual({ cmd: r.cmd, args: r.args }, { cmd: 'opencode', args: [] });
 });
 
 ok('buildCommand opencode resume', () => {
@@ -40,11 +47,25 @@ ok('buildCommand claude resume', () => {
 });
 
 ok('buildCommand codex nuova', () => {
-  assert.deepStrictEqual(buildCommand('codex'), { cmd: 'codex', args: [] });
+  const r = buildCommand('codex');
+  assert.deepStrictEqual({ cmd: r.cmd, args: r.args }, { cmd: 'codex', args: [] });
 });
 
 ok('buildCommand codex resume', () => {
   assert.deepStrictEqual(buildCommand('codex', '019f472a-uuid').args, ['resume', '019f472a-uuid']);
+});
+
+ok('shell su windows non riceve -i', () => {
+  const win = profiles.defaultProfiles({ shell: 'powershell.exe', platform: 'win32' });
+  const r = profiles.resolveProfileCommand(win.shell[0], {});
+  assert.deepStrictEqual(r.args, []);
+});
+
+ok('shell con spazi nel percorso resta un solo token', () => {
+  const d = profiles.defaultProfiles({ shell: '/opt/my shell/bash', platform: 'linux' });
+  const r = profiles.resolveProfileCommand(d.shell[0], {});
+  assert.strictEqual(r.bin, '/opt/my shell/bash');
+  assert.deepStrictEqual(r.args, ['-i']);
 });
 
 ok('classificazione tipi valida', () => {
@@ -54,7 +75,8 @@ ok('classificazione tipi valida', () => {
 ok('codex: main + preload + UI collegati', () => {
   const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
   assert.ok(main.includes("'list-codex-sessions'"), 'manca handler list-codex-sessions');
-  assert.ok(main.includes("['resume', resumeId]"), 'manca il comando codex resume');
+  const cp = fs.readFileSync(path.join(__dirname, '..', 'command-profiles.js'), 'utf8');
+  assert.ok(/codex:\s*'resume \{id\}'/.test(cp), 'manca il comando codex resume nei default');
   const pre = fs.readFileSync(path.join(__dirname, '..', 'preload.js'), 'utf8');
   assert.ok(pre.includes('listCodex'), 'manca listCodex nel preload');
   const html = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'index.html'), 'utf8');
@@ -105,6 +127,19 @@ ok('sidebar: unico pulsante nuova sessione (niente data-new)', () => {
   assert.ok(html.includes('id="btn-new"'), 'manca #btn-new');
   assert.ok(!html.includes('data-new'), 'trovato data-new residuo in sidebar');
   assert.ok(html.includes('id="sidebar-resizer"'), 'manca resizer sidebar');
+});
+
+ok('sidebar: le azioni non usano il pieno teal (riservato alla conferma nei modali)', () => {
+  const root = path.join(__dirname, '..');
+  const html = fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');
+  const actions = html.match(/<div class="side-actions">[\s\S]*?<\/div>/);
+  assert.ok(actions, 'manca il blocco .side-actions');
+  assert.ok(!actions[0].includes('btn--primary'), 'un pulsante della sidebar è ancora pieno: ' + actions[0]);
+  assert.ok(actions[0].includes('btn--outline'), 'Nuova deve usare la variante outline');
+  const css = fs.readFileSync(path.join(root, 'renderer', 'styles.css'), 'utf8');
+  const hover = css.match(/\.side-actions \.btn--outline:hover\s*\{[^}]*\}/);
+  assert.ok(hover, 'manca l hover dedicato per l azione outline in sidebar');
+  assert.ok(hover[0].includes('--action-soft'), 'in hover il pulsante si riempie di teal pieno: ' + hover[0]);
 });
 
 ok('renderer: fit robusto primo tab (proposeDimensions + ResizeObserver)', () => {
@@ -252,6 +287,175 @@ ok('recenti: main + preload + UI collegati', () => {
   const css = fs.readFileSync(path.join(root, 'renderer', 'styles.css'), 'utf8');
   assert.ok(/#recent-dirs-row\[hidden\]\s*\{[^}]*display:\s*none/.test(css),
     'la riga delle directory recenti non si nasconde quando vuota');
+});
+
+/* ---------- Profili di comando configurabili ---------- */
+
+ok('comandi: tokenizer rispetta virgolette ed escape', () => {
+  assert.deepStrictEqual(profiles.tokenizeCommand('claude --model opus'), ['claude', '--model', 'opus']);
+  assert.deepStrictEqual(profiles.tokenizeCommand('"/opt/my dir/claude" --flag'), ['/opt/my dir/claude', '--flag']);
+  assert.deepStrictEqual(profiles.tokenizeCommand("claude --msg 'ciao mondo'"), ['claude', '--msg', 'ciao mondo']);
+  assert.deepStrictEqual(profiles.tokenizeCommand('claude\\ code --x'), ['claude code', '--x']);
+  assert.deepStrictEqual(profiles.tokenizeCommand('   '), []);
+  assert.deepStrictEqual(profiles.tokenizeCommand(null), []);
+});
+
+ok('comandi: la validazione blocca operatori di shell e virgolette aperte', () => {
+  const pipe = profiles.validateProfile('shell', { label: 'x', command: 'ls | wc -l' });
+  assert.strictEqual(pipe.ok, false);
+  assert.ok(/operatori di shell/i.test(pipe.error), pipe.error);
+  const sub = profiles.validateProfile('shell', { label: 'x', command: 'echo $(whoami)' });
+  assert.strictEqual(sub.ok, false, 'la sostituzione di comando va rifiutata');
+  const quote = profiles.validateProfile('claude', { label: 'x', command: 'claude "aperta' });
+  assert.strictEqual(quote.ok, false);
+  assert.ok(/virgolette/i.test(quote.error), quote.error);
+});
+
+ok('comandi: nome e riga di comando sono obbligatori', () => {
+  assert.strictEqual(profiles.validateProfile('claude', { label: '', command: 'claude' }).ok, false);
+  assert.strictEqual(profiles.validateProfile('claude', { label: 'x', command: '   ' }).ok, false);
+  assert.strictEqual(profiles.validateProfile('inesistente', { label: 'x', command: 'x' }).ok, false);
+  const good = profiles.validateProfile('claude', { label: ' Opus ', command: ' claude --model opus ' });
+  assert.strictEqual(good.ok, true, good.error);
+  assert.deepStrictEqual(
+    { label: good.profile.label, command: good.profile.command },
+    { label: 'Opus', command: 'claude --model opus' }
+  );
+});
+
+ok('comandi: normalizeConfig scarta i profili rotti e non lascia tipi vuoti', () => {
+  const cfg = profiles.normalizeConfig(
+    {
+      profiles: {
+        claude: [
+          { id: 'claude:opus', label: 'Opus', command: 'claude --model opus' },
+          { label: '', command: 'claude' },
+          { label: 'rotto', command: 'claude && ls' },
+        ],
+        codex: 'non un array',
+      },
+    },
+    { defaults: DEFAULTS }
+  );
+  assert.deepStrictEqual(cfg.profiles.claude.map((p) => p.label), ['Opus']);
+  assert.deepStrictEqual(cfg.profiles.codex.map((p) => p.label), DEFAULTS.codex.map((p) => p.label));
+  assert.deepStrictEqual(cfg.profiles.shell.map((p) => p.command), DEFAULTS.shell.map((p) => p.command));
+  for (const t of SESSION_TYPES) assert.ok(cfg.profiles[t].length >= 1, 'tipo senza comandi: ' + t);
+});
+
+ok('comandi: normalizeConfig assegna id unici e rispetta il limite per tipo', () => {
+  const dup = profiles.normalizeConfig(
+    { profiles: { claude: [
+      { id: 'claude:x', label: 'A', command: 'claude' },
+      { id: 'claude:x', label: 'B', command: 'claude' },
+    ] } },
+    { defaults: DEFAULTS }
+  );
+  const ids = dup.profiles.claude.map((p) => p.id);
+  assert.strictEqual(new Set(ids).size, ids.length, 'id duplicati: ' + ids);
+  const many = Array.from({ length: profiles.MAX_PROFILES_PER_TYPE + 5 }, (_, i) => ({ label: 'c' + i, command: 'claude' }));
+  const capped = profiles.normalizeConfig({ profiles: { claude: many } }, { defaults: DEFAULTS });
+  assert.strictEqual(capped.profiles.claude.length, profiles.MAX_PROFILES_PER_TYPE);
+});
+
+ok('comandi: normalizeConfig non muta l input', () => {
+  const raw = { profiles: { claude: [{ id: 'claude:a', label: 'A', command: 'claude' }] } };
+  const snapshot = JSON.stringify(raw);
+  profiles.normalizeConfig(raw, { defaults: DEFAULTS });
+  assert.strictEqual(JSON.stringify(raw), snapshot);
+});
+
+ok('comandi: resume in coda, inline con {id} e scartato se non serve', () => {
+  const coda = profiles.resolveProfileCommand(
+    { command: 'claude --verbose', resumeArgs: '--resume {id}' },
+    { resumeId: 'abc' }
+  );
+  assert.deepStrictEqual(coda.args, ['--verbose', '--resume', 'abc']);
+  assert.strictEqual(coda.resumeApplied, true);
+
+  const inline = profiles.resolveProfileCommand(
+    { command: 'codex resume {id} --full-auto', resumeArgs: 'resume {id}' },
+    { resumeId: 'xyz' }
+  );
+  assert.deepStrictEqual(inline.args, ['resume', 'xyz', '--full-auto'], 'il segnaposto inline deve vincere');
+  assert.strictEqual(inline.resumeApplied, true);
+
+  const pulito = profiles.resolveProfileCommand(
+    { command: 'codex resume {id}', resumeArgs: 'resume {id}' },
+    {}
+  );
+  assert.deepStrictEqual(pulito.args, ['resume'], 'senza resumeId i token con {id} vanno via');
+  assert.strictEqual(pulito.resumeApplied, false);
+});
+
+ok('comandi: resume non applicabile viene segnalato', () => {
+  const r = profiles.resolveProfileCommand({ command: 'claude', resumeArgs: '' }, { resumeId: 'abc' });
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.resumeApplied, false, 'main.js usa resumeApplied per spiegare l errore all utente');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  assert.ok(main.includes('resumeApplied'), 'main.js ignora i profili senza resume');
+});
+
+ok('comandi: la tilde viene espansa (pty.spawn non passa da una shell)', () => {
+  const r = profiles.resolveProfileCommand(
+    { command: '~/.local/bin/claude --add-dir ~/progetti', resumeArgs: '' },
+    { home: '/home/tester' }
+  );
+  assert.strictEqual(r.bin, '/home/tester/.local/bin/claude');
+  assert.deepStrictEqual(r.args, ['--add-dir', '/home/tester/progetti']);
+});
+
+ok('comandi: profilo non valido non produce un argv', () => {
+  assert.strictEqual(profiles.resolveProfileCommand(null, {}).ok, false);
+  assert.strictEqual(profiles.resolveProfileCommand({ command: '   ' }, {}).ok, false);
+  assert.strictEqual(profiles.resolveProfileCommand({ command: 'claude "x' }, {}).ok, false);
+});
+
+ok('comandi: findProfile e listProfiles restituiscono copie', () => {
+  const found = profiles.findProfile(DEFAULT_CONFIG, 'claude', 'claude:default');
+  assert.ok(found, 'profilo di default claude non trovato');
+  found.label = 'modificato';
+  assert.notStrictEqual(profiles.findProfile(DEFAULT_CONFIG, 'claude', 'claude:default').label, 'modificato');
+  assert.strictEqual(profiles.findProfile(DEFAULT_CONFIG, 'claude', 'inesistente'), null);
+  assert.deepStrictEqual(profiles.listProfiles(null, 'claude'), []);
+});
+
+ok('comandi: main + preload + UI collegati', () => {
+  const root = path.join(__dirname, '..');
+  const main = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
+  for (const h of ['get-command-profiles', 'save-command-profiles', 'reset-command-profiles']) {
+    assert.ok(main.includes(`'${h}'`), `manca handler ${h}`);
+  }
+  assert.ok(main.includes("require('./command-profiles')"), 'main.js non usa il modulo command-profiles');
+  assert.ok(/buildCommand\(type, resumeId, commandProfileId\)/.test(main), 'pty-spawn non passa il profilo scelto');
+  assert.ok(main.includes("send('menu-open-config')"), 'manca la voce di menu Configurazione comandi');
+
+  const pre = fs.readFileSync(path.join(root, 'preload.js'), 'utf8');
+  for (const f of ['getCommandProfiles', 'saveCommandProfiles', 'resetCommandProfiles', 'menu-open-config']) {
+    assert.ok(pre.includes(f), `manca ${f} nel preload`);
+  }
+
+  const html = fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');
+  assert.ok(html.includes('data-action="open-config"'), 'manca la voce Configurazione nel menu File in-app');
+  assert.ok(html.includes('id="modal-config"'), 'manca il modal di configurazione');
+  assert.ok(html.includes('id="modal-pick-command"'), 'manca il modal di scelta del comando');
+  for (const t of SESSION_TYPES) {
+    assert.ok(html.includes(`data-config-tab="${t}"`), `manca il tab di configurazione per ${t}`);
+  }
+  assert.ok(html.includes('command-config.js'), 'command-config.js non è incluso nella pagina');
+
+  const cfgJs = fs.readFileSync(path.join(root, 'renderer', 'command-config.js'), 'utf8');
+  assert.ok(cfgJs.includes('window.AisessCommands'), 'command-config.js non espone AisessCommands');
+  assert.ok(/list\.length === 1/.test(cfgJs), 'con un solo comando non si deve chiedere nulla');
+
+  const js = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
+  assert.ok(js.includes('resolveCommandProfile'), 'il renderer non risolve il comando da usare');
+  assert.ok(/if \(!picked\.ok\) return/.test(js), 'annullare la scelta deve impedire la creazione della scheda');
+  assert.ok(js.includes('commandProfileId: picked.id'), 'lo spawn non riceve il comando scelto');
+
+  const css = fs.readFileSync(path.join(root, 'renderer', 'styles.css'), 'utf8');
+  assert.ok(css.includes('.cmd-choice'), 'manca lo stile della scelta comando');
+  assert.ok(/\.config-error\[hidden\]\s*\{[^}]*display:\s*none/.test(css), 'l errore di configurazione non si nasconde');
 });
 
 console.log(`\n${pass} pass, ${fail} fail`);

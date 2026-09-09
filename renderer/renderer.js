@@ -42,10 +42,16 @@ async function init() {
   $('#btn-new').addEventListener('click', () => openNewModal());
   $('#btn-resume').addEventListener('click', openResumeModal);
 
-  // Voce del menu nativo File > Nuova sessione
+  // Voci del menu File (native e della menubar in-app)
   try {
     window.aisess.onMenu('menu-new-session', () => openNewModal());
+    window.aisess.onMenu('menu-open-config', () => window.AisessCommands.openConfig());
   } catch {}
+
+  // Comandi di avvio configurabili (renderer/command-config.js)
+  window.AisessCommands.initConfigUI();
+  window.AisessCommands.load().catch((e) => console.warn('get-command-profiles fallito', e));
+  window.onCommandProfilesChanged = () => renderSidebar();
 
   initSidebarResize();
   initMenubar(d.platform);
@@ -388,7 +394,12 @@ const RESUME_VIEWS = {
     actionClass: 'btn--secondary',
     open: () => {
       const t = ICONS[s.type] ? s.type : 'shell';
-      return createTab(t, { cwd: s.cwd, resumeId: s.resumeId, claudeAccountId: t === 'claude' ? (s.claudeAccountId || null) : null });
+      return createTab(t, {
+        cwd: s.cwd,
+        resumeId: s.resumeId,
+        claudeAccountId: t === 'claude' ? (s.claudeAccountId || null) : null,
+        commandProfileId: s.commandProfileId || undefined,
+      });
     },
   }),
 };
@@ -418,7 +429,26 @@ function createResumeItem(tab, s) {
   return el;
 }
 
-async function createTab(type, { name, cwd, resumeId, claudeAccountId } = {}) {
+/* Comando da usare per la sessione: se il tipo ha più comandi configurati la
+   scelta viene chiesta all'utente (o riusata dalla cronologia, se ancora esiste). */
+async function resolveCommandProfile(type, { commandProfileId, cwd, resumeId } = {}) {
+  const ui = window.AisessCommands;
+  if (!ui) return { ok: true, id: commandProfileId || null, label: null };
+  await ui.load();
+  if (commandProfileId) {
+    const known = ui.labelFor(type, commandProfileId);
+    if (known) {
+      ui.rememberUsed(type, commandProfileId);
+      return { ok: true, id: commandProfileId, label: known };
+    }
+    // Comando eliminato dalla configurazione: si torna a chiedere
+  }
+  return ui.choose(type, { cwd, resumeId });
+}
+
+async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId } = {}) {
+  const picked = await resolveCommandProfile(type, { commandProfileId, cwd, resumeId });
+  if (!picked.ok) return; // scelta annullata: nessuna scheda creata
   const id = 'tab-' + Date.now() + '-' + Math.floor(Math.random() * 1e6);
   const label = name || `${type} · ${counter++}`;
   if (type === 'claude') await ensureClaudeAccounts();
@@ -435,7 +465,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId } = {}) {
   // Registra e rendi visibile PRIMA di aprire il terminale: xterm misura il
   // contenitore all'apertura, quindi il wrap deve essere già laid out a
   // dimensione piena (altrimenti la prima scheda nasce 20x10).
-  const tab = { id, type, name: label, cwd, resumeId, claudeAccountId, claudeAccountName, term: null, fit: null, ro: null, wrap, alive: true };
+  const tab = { id, type, name: label, cwd, resumeId, claudeAccountId, claudeAccountName, commandProfileId: picked.id, commandProfileLabel: picked.label, term: null, fit: null, ro: null, wrap, alive: true };
   tabs.set(id, tab);
   updateEmpty();
   setActive(id);
@@ -456,7 +486,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId } = {}) {
     const dims = fit.proposeDimensions();
     if (dims && dims.cols > 0 && dims.rows > 0) { cols = dims.cols; rows = dims.rows; }
   } catch {}
-  const res = await window.aisess.spawn({ id, type, cwd, resumeId, claudeAccountId, cols, rows });
+  const res = await window.aisess.spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId: picked.id, cols, rows });
   if (!res.ok) {
     const msg = String(res.error || 'errore sconosciuto').replace(/\n/g, '\r\n');
     term.write(`\x1b[31mErrore avvio [${type}]: ${msg}\x1b[0m\r\n`);
@@ -548,8 +578,11 @@ function createSessionItem(t) {
   const isActive = t.id === activeId;
   b.className = `session-item type-${t.type}` + (isActive ? ' active' : '');
   if (isActive) b.setAttribute('aria-current', 'true');
-  const fullSub = t.claudeAccountName ? `${t.cwd || ''} · ${t.claudeAccountName}` : (t.cwd || '');
-  const displaySub = t.claudeAccountName ? `${shortPath(t.cwd)} · ${t.claudeAccountName}` : shortPath(t.cwd);
+  // Il comando si mostra solo se per quel tipo ce n'è più di uno configurato
+  const multiCommand = window.AisessCommands && window.AisessCommands.profilesFor(t.type).length > 1;
+  const extras = [t.claudeAccountName, multiCommand ? t.commandProfileLabel : null].filter(Boolean);
+  const fullSub = [t.cwd || '', ...extras].filter(Boolean).join(' · ');
+  const displaySub = [shortPath(t.cwd), ...extras].filter(Boolean).join(' · ');
   // Il marker resta nel DOM anche se invisibile: così tutte le card sono allineate
   b.innerHTML = `<span class="sel-mark" aria-hidden="true">◆</span>
     <span class="icon">${ICONS[t.type]}</span>

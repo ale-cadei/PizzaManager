@@ -11,10 +11,11 @@
 > La sopravvivenza dei processi alla chiusura dell'app è confermata fino a 15
 > minuti senza client attaccato, sia per una shell che per `claude`.
 >
-> **Requisito emerso dallo spike**: su una macchina sotto pressione di memoria le
-> sessioni staccate possono essere uccise dal sistema. Il riattacco deve quindi
-> gestire il caso «sessione sparita» come normale, non come errore — vedi
-> [i risultati](05-risultati.md), Q4.
+> Il CLI `xirp` sulla stessa macchina tiene sessioni tmux vive per ore: è la
+> dimostrazione che l'approccio funziona in condizioni reali.
+>
+> Il riattacco deve comunque gestire il caso «sessione sparita» come normale e
+> non come errore — un riavvio della macchina la fa sparire in ogni caso.
 
 ---
 

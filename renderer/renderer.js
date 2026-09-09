@@ -36,6 +36,11 @@ async function init() {
   $('#btn-new').addEventListener('click', () => openNewModal());
   $('#btn-resume').addEventListener('click', openResumeModal);
 
+  // Voce del menu nativo File > Nuova sessione
+  try {
+    window.aisess.onMenu('menu-new-session', () => openNewModal());
+  } catch {}
+
   initSidebarResize();
 
   // new modal
@@ -83,8 +88,9 @@ async function init() {
   });
 
   $$('.tab').forEach(t => t.addEventListener('click', () => {
-    $$('.tab').forEach(x => x.classList.remove('active'));
+    $$('.tab').forEach(x => { x.classList.remove('active'); x.setAttribute('aria-selected', 'false'); });
     t.classList.add('active');
+    t.setAttribute('aria-selected', 'true');
     resumeTab = t.dataset.tab;
     updateResumeAccountRow();
     renderResumeList();
@@ -230,7 +236,7 @@ function renderAccountManager(error) {
     s.className = 'src';
     s.textContent = 'API key';
     const del = document.createElement('button');
-    del.className = 'btn';
+    del.className = 'btn btn--ghost';
     del.textContent = 'Elimina';
     del.onclick = async () => {
       await window.aisess.deleteClaudeAccount(a.id);
@@ -292,9 +298,9 @@ async function renderResumeList(keepCache = false) {
     if (resumeTab === 'opencode') {
       const date = new Date(s.created).toLocaleString();
       el.innerHTML = `<div class="meta"><div class="title">⚡ ${escapeHtml(s.title || s.id)}</div>
-        <div class="sub">${escapeHtml(s.directory || '')} · ${escapeHtml(s.id)} · ${date}</div></div>`;
+        <div class="sub path"><span>${escapeHtml(s.directory || '')} · ${escapeHtml(s.id)} · ${date}</span></div></div>`;
       const btn = document.createElement('button');
-      btn.className = 'btn primary'; btn.style.width = 'auto'; btn.textContent = 'Resume';
+      btn.className = 'btn btn--primary'; btn.style.width = 'auto'; btn.textContent = 'Resume';
       btn.onclick = async () => {
         $('#modal-resume').hidden = true;
         await createTab('opencode', { name: (s.title || 'opencode').slice(0, 28), cwd: s.directory, resumeId: s.id });
@@ -303,9 +309,9 @@ async function renderResumeList(keepCache = false) {
     } else if (resumeTab === 'claude') {
       const date = new Date(s.mtime).toLocaleString();
       el.innerHTML = `<div class="meta"><div class="title">🤖 ${escapeHtml(s.title || s.id)}</div>
-        <div class="sub">${escapeHtml(s.cwd || '')} · ${escapeHtml(s.id.slice(0, 8))} · ${date}</div></div>`;
+        <div class="sub path"><span>${escapeHtml(s.cwd || '')} · ${escapeHtml(s.id.slice(0, 8))} · ${date}</span></div></div>`;
       const btn = document.createElement('button');
-      btn.className = 'btn primary'; btn.style.width = 'auto'; btn.textContent = 'Resume';
+      btn.className = 'btn btn--primary'; btn.style.width = 'auto'; btn.textContent = 'Resume';
       btn.onclick = async () => {
         $('#modal-resume').hidden = true;
         await createTab('claude', { name: (s.title || 'claude').slice(0, 28), cwd: s.cwd, resumeId: s.id, claudeAccountId: selectedResumeAccount() });
@@ -313,9 +319,9 @@ async function renderResumeList(keepCache = false) {
       el.appendChild(btn);
     } else {
       el.innerHTML = `<div class="meta"><div class="title">${ICONS[s.type] || '•'} ${escapeHtml(s.cmd || s.type)}</div>
-        <div class="sub">${escapeHtml(s.cwd || '')} · ${escapeHtml(s.lastOpened || '')}</div></div>`;
+        <div class="sub path"><span>${escapeHtml(s.cwd || '')} · ${escapeHtml(s.lastOpened || '')}</span></div></div>`;
       const btn = document.createElement('button');
-      btn.className = 'btn'; btn.style.width = 'auto'; btn.textContent = 'Riapri';
+      btn.className = 'btn btn--secondary'; btn.style.width = 'auto'; btn.textContent = 'Riapri';
       btn.onclick = async () => {
         $('#modal-resume').hidden = true;
         const t = s.type === 'claude' || s.type === 'opencode' ? s.type : 'shell';
@@ -349,7 +355,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId } = {}) {
   updateEmpty();
   setActive(id);
 
-  const term = new Terminal({ cursorBlink: true, fontSize: 13, fontFamily: 'JetBrains Mono, Menlo, Consolas, monospace', theme: { background: '#11111c' } });
+  const term = new Terminal({ cursorBlink: true, fontSize: 13, fontFamily: "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace", theme: { background: '#000000', foreground: '#F2EFF4', cursor: '#1FA79A', selectionBackground: '#0E2E2B', black: '#000000', brightBlack: '#7C7488', white: '#F2EFF4', brightWhite: '#FFFFFF', cyan: '#5FD8CB', brightCyan: '#31C3B4', green: '#5BC78F', red: '#E8556E', yellow: '#FF8A6B' } });
   const fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
   try { term.loadAddon(new WebLinksAddon.WebLinksAddon()); } catch {}
@@ -437,8 +443,9 @@ function renderSidebar() {
     b.className = 'session-item' + (t.id === activeId ? ' active' : '');
     const sub = t.claudeAccountName ? `${t.cwd || ''} · ${t.claudeAccountName}` : (t.cwd || '');
     b.innerHTML = `<span class="icon">${ICONS[t.type]}</span>
+      ${t.alive ? '<span class="live-dot" title="In esecuzione"></span>' : ''}
       <span class="meta"><span class="name">${escapeHtml(t.name)}${t.alive ? '' : ' (terminata)'}</span><br>
-      <span class="sub">${escapeHtml(sub)}</span></span>
+      <span class="sub path"><span>${escapeHtml(sub)}</span></span></span>
       <span class="badge ${t.type}">${t.type}</span>`;
     b.onclick = () => setActive(t.id);
     const x = document.createElement('span');

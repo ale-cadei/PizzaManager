@@ -16,4 +16,9 @@ contextBridge.exposeInMainWorld('aisess', {
   addClaudeAccount: ({ name, apiKey }) => ipcRenderer.invoke('add-claude-account', { name, apiKey }),
   deleteClaudeAccount: (id) => ipcRenderer.invoke('delete-claude-account', { id }),
   pickCwd: () => ipcRenderer.invoke('dialog-cwd'),
+  onMenu: (channel, cb) => {
+    const allowed = ['menu-new-session'];
+    if (!allowed.includes(channel)) return;
+    ipcRenderer.on(channel, () => cb());
+  },
 });

@@ -125,14 +125,68 @@ ok('renderer: fit robusto primo tab (proposeDimensions + ResizeObserver)', () =>
   assert.ok(order[0] < order[1] && order[1] < order[2] && order[2] < order[3], 'ordine createTab errato');
 });
 
-ok('main: IPC account claude + ANTHROPIC_API_KEY mai in chiaro alla UI', () => {
-  const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
-  for (const h of ['list-claude-accounts', 'add-claude-account', 'delete-claude-account']) {
-    assert.ok(main.includes(`'${h}'`), `manca handler ${h}`);
-  }
-  assert.ok(main.includes('ANTHROPIC_API_KEY'), 'manca override ANTHROPIC_API_KEY');
-  assert.ok(main.includes('0o600'), 'manca chmod 600 per il file account');
-  assert.ok(main.includes('map(a => ({ id: a.id, name: a.name'), 'la lista deve proiettare solo id+nome (niente chiavi)');
+ok('account claude: la lista non espone mai le API key', () => {
+  // Arrange: uno store su directory temporanea, con dentro una chiave
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-acc-'));
+  const { createAccountStore } = require('../lib/accounts');
+  const store = createAccountStore({ dir });
+  assert.deepStrictEqual(store.add({ name: 'lavoro', apiKey: 'sk-ant-segreto' }), { ok: true });
+
+  // Act
+  const exposed = store.list();
+
+  // Assert: ne' la chiave ne' il campo che la contiene devono uscire
+  assert.strictEqual(exposed.length, 1);
+  assert.deepStrictEqual(Object.keys(exposed[0]).sort(), ['createdAt', 'id', 'name']);
+  assert.ok(!JSON.stringify(exposed).includes('sk-ant-segreto'), 'la API key e finita nella proiezione per la UI');
+
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+ok('account claude: il file delle chiavi non e leggibile da altri utenti', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-acc-'));
+  const { createAccountStore } = require('../lib/accounts');
+  const store = createAccountStore({ dir });
+  store.add({ name: 'a', apiKey: 'sk-ant-x' });
+  const mode = fs.statSync(store.file).mode & 0o777;
+  assert.strictEqual(mode, 0o600, `permessi ${mode.toString(8)} invece di 600`);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+ok('account claude: la chiave arriva al pty solo via ANTHROPIC_API_KEY', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-acc-'));
+  const { createAccountStore } = require('../lib/accounts');
+  const store = createAccountStore({ dir });
+  store.add({ name: 'lavoro', apiKey: 'sk-ant-segreto' });
+  const id = store.list()[0].id;
+
+  assert.deepStrictEqual(store.envFor(id).vars, { ANTHROPIC_API_KEY: 'sk-ant-segreto' });
+  assert.deepStrictEqual(store.envFor('oauth').vars, {}, 'con OAuth non si deve iniettare nessuna chiave');
+  assert.ok(store.envFor('acc_inesistente').error, 'un account eliminato deve dare errore, non env vuoto');
+
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+ok('account claude: nomi duplicati rifiutati senza distinzione di maiuscole', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-acc-'));
+  const { createAccountStore } = require('../lib/accounts');
+  const store = createAccountStore({ dir });
+  store.add({ name: 'Lavoro', apiKey: 'sk-1' });
+  const dup = store.add({ name: 'lavoro', apiKey: 'sk-2' });
+  assert.strictEqual(dup.ok, false);
+  assert.strictEqual(store.list().length, 1);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+ok('account claude: rimozione', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-acc-'));
+  const { createAccountStore } = require('../lib/accounts');
+  const store = createAccountStore({ dir });
+  store.add({ name: 'a', apiKey: 'sk-1' });
+  store.add({ name: 'b', apiKey: 'sk-2' });
+  store.remove(store.list().find((a) => a.name === 'a').id);
+  assert.deepStrictEqual(store.list().map((a) => a.name), ['b']);
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 ok('preload: espone IPC account claude', () => {

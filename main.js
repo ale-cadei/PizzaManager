@@ -9,6 +9,7 @@ const { getLoginPathSync } = require('./lib/login-path');
 const { resolveBinary, resolveAllBinaries, augmentedEnv } = require('./lib/binaries');
 const { buildCommand, installHint } = require('./lib/commands');
 const { createHistoryStore } = require('./lib/history');
+const { createAccountStore } = require('./lib/accounts');
 
 let pty = null;
 try {
@@ -28,51 +29,13 @@ function history() {
   return _history;
 }
 
+let _accounts = null;
+function accounts() {
+  if (!_accounts) _accounts = createAccountStore({ dir: app.getPath('userData') });
+  return _accounts;
+}
+
 // ---------- Risoluzione binari (fix lancio da GUI/.deb con PATH minimo) ----------
-// ---------- Account Claude multipli ----------
-// Claude Code non ha profili integrati: un solo login OAuth in
-// ~/.claude/.credentials.json (claudeAiOauth) oppure ANTHROPIC_API_KEY.
-// Qui gestiamo: rilevamento OAuth + profili API key salvati in locale (600).
-function claudeAccountsFile() {
-  return path.join(app.getPath('userData'), 'claude-accounts.json');
-}
-
-function loadClaudeKeyAccounts() {
-  try {
-    const f = claudeAccountsFile();
-    if (!fs.existsSync(f)) return [];
-    const arr = JSON.parse(fs.readFileSync(f, 'utf8'));
-    return Array.isArray(arr) ? arr.filter(a => a && a.id && a.apiKey) : [];
-  } catch { return []; }
-}
-
-function saveClaudeKeyAccounts(acc) {
-  fs.writeFileSync(claudeAccountsFile(), JSON.stringify(acc, null, 2), { mode: 0o600 });
-  try { fs.chmodSync(claudeAccountsFile(), 0o600); } catch {}
-}
-
-function detectClaudeOauth() {
-  try {
-    const f = path.join(os.homedir(), '.claude', '.credentials.json');
-    if (!fs.existsSync(f)) return { available: false };
-    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
-    const o = d && d.claudeAiOauth;
-    if (o && (o.accessToken || o.refreshToken)) {
-      return { available: true, label: o.subscriptionType ? `login corrente (${o.subscriptionType})` : 'login corrente' };
-    }
-  } catch {}
-  return { available: false };
-}
-
-function claudeAccountEnv(accountId) {
-  // Restituisce { vars, name } — vars da fondere nell'env del pty
-  if (!accountId || accountId === 'oauth') return { vars: {}, name: 'OAuth' };
-  const acc = loadClaudeKeyAccounts().find(a => a.id === accountId);
-  if (!acc) return { vars: {}, name: null, error: 'Account Claude non trovato (forse eliminato).' };
-  // ANTHROPIC_API_KEY ha precedenza sul login OAuth di Claude Code
-  return { vars: { ANTHROPIC_API_KEY: acc.apiKey }, name: acc.name };
-}
-
 function buildAppMenu() {
   const template = [
     {
@@ -227,12 +190,12 @@ ipcMain.handle('pty-spawn', async (event, { id, type, cwd, resumeId, claudeAccou
   let extraVars = {};
   let accountName = null;
   if (type === 'claude' && claudeAccountId && claudeAccountId !== 'oauth') {
-    const ae = claudeAccountEnv(claudeAccountId);
+    const ae = accounts().envFor(claudeAccountId);
     if (ae.error) return { ok: false, error: ae.error };
     extraVars = ae.vars;
     accountName = ae.name;
   } else if (type === 'claude') {
-    const o = detectClaudeOauth();
+    const o = accounts().detectOauth();
     accountName = o.available ? 'OAuth' : null;
   }
   try {
@@ -294,36 +257,13 @@ ipcMain.handle('get-history', async () => history().load());
 // ---------- Account Claude: lista / aggiungi / elimina ----------
 // Nota: le chiavi API non lasciano mai il main process; alla UI vanno solo id+nomi.
 ipcMain.handle('list-claude-accounts', async () => ({
-  oauth: detectClaudeOauth(),
-  accounts: loadClaudeKeyAccounts().map(a => ({ id: a.id, name: a.name, createdAt: a.createdAt || null })),
+  oauth: accounts().detectOauth(),
+  accounts: accounts().list(),
 }));
 
-ipcMain.handle('add-claude-account', async (event, { name, apiKey } = {}) => {
-  const n = String(name || '').trim();
-  const k = String(apiKey || '').trim();
-  if (!n) return { ok: false, error: 'Nome account obbligatorio.' };
-  if (!k) return { ok: false, error: 'API key obbligatoria.' };
-  const acc = loadClaudeKeyAccounts();
-  if (acc.some(a => a.name.toLowerCase() === n.toLowerCase()))
-    return { ok: false, error: `Esiste già un account chiamato "${n}".` };
-  acc.push({ id: 'acc_' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36), name: n, apiKey: k, createdAt: new Date().toISOString() });
-  try {
-    saveClaudeKeyAccounts(acc);
-  } catch (e) {
-    return { ok: false, error: 'Salvataggio fallito: ' + (e.message || e) };
-  }
-  return { ok: true };
-});
+ipcMain.handle('add-claude-account', async (event, payload = {}) => accounts().add(payload));
 
-ipcMain.handle('delete-claude-account', async (event, { id } = {}) => {
-  const acc = loadClaudeKeyAccounts().filter(a => a.id !== id);
-  try {
-    saveClaudeKeyAccounts(acc);
-  } catch (e) {
-    return { ok: false, error: 'Eliminazione fallita: ' + (e.message || e) };
-  }
-  return { ok: true };
-});
+ipcMain.handle('delete-claude-account', async (event, { id } = {}) => accounts().remove(id));
 
 ipcMain.handle('dialog-cwd', async () => {
   const { dialog } = require('electron');

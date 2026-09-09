@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('aisess', {
   getDefaults: () => ipcRenderer.invoke('get-defaults'),
   checkDeps: () => ipcRenderer.invoke('check-deps'),
   getHistory: () => ipcRenderer.invoke('get-history'),
+  getRecentDirs: (limit) => ipcRenderer.invoke('get-recent-dirs', { limit }),
   listOpencode: (limit) => ipcRenderer.invoke('list-opencode-sessions', { limit }),
   listClaude: (limit) => ipcRenderer.invoke('list-claude-sessions', { limit }),
   listCodex: (limit) => ipcRenderer.invoke('list-codex-sessions', { limit }),

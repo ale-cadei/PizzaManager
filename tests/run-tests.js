@@ -192,5 +192,67 @@ ok('ogni tipo di sessione ha un colore identita distinto', () => {
   assert.ok(green && !colors.includes(green.toUpperCase()), 'un tipo usa il verde di --state-ok');
 });
 
+/* ---------- Directory di lavoro recenti ---------- */
+const { computeRecentDirs, normalizeDir } = require('../recent-dirs');
+
+ok('recenti: deduplica mantenendo l ordine di recenza e conta gli usi', () => {
+  const history = [
+    { cwd: '/a/uno', type: 'claude', lastOpened: '2026-01-03T10:00:00Z' },
+    { cwd: '/b/due', type: 'shell', lastOpened: '2026-01-02T10:00:00Z' },
+    { cwd: '/a/uno', type: 'shell', lastOpened: '2026-01-01T10:00:00Z' },
+  ];
+  const r = computeRecentDirs(history, { exists: () => true });
+  assert.deepStrictEqual(r.map(d => d.path), ['/a/uno', '/b/due']);
+  assert.strictEqual(r[0].uses, 2);
+  assert.strictEqual(r[0].type, 'claude', 'deve vincere la voce piu recente');
+});
+
+ok('recenti: scarta le directory non piu esistenti', () => {
+  const history = [{ cwd: '/esiste' }, { cwd: '/spazzata' }];
+  const r = computeRecentDirs(history, { exists: (p) => p === '/esiste' });
+  assert.deepStrictEqual(r.map(d => d.path), ['/esiste']);
+});
+
+ok('recenti: rispetta il limite e ignora voci non valide', () => {
+  const history = [
+    { cwd: '   ' }, { cwd: 'relativo/path' }, { cwd: null }, {},
+    { cwd: '/x/1' }, { cwd: '/x/2' }, { cwd: '/x/3' },
+  ];
+  const r = computeRecentDirs(history, { limit: 2, exists: () => true });
+  assert.deepStrictEqual(r.map(d => d.path), ['/x/1', '/x/2']);
+  assert.deepStrictEqual(computeRecentDirs(null), []);
+});
+
+ok('recenti: normalizza lo slash finale', () => {
+  assert.strictEqual(normalizeDir('/home/utente/progetto/'), '/home/utente/progetto');
+  assert.strictEqual(normalizeDir('/'), '/');
+  assert.strictEqual(normalizeDir('progetto'), null);
+});
+
+ok('recenti: exists che lancia non fa cadere il calcolo', () => {
+  const r = computeRecentDirs([{ cwd: '/boom' }, { cwd: '/ok' }], {
+    exists: (p) => { if (p === '/boom') throw new Error('EACCES'); return true; },
+  });
+  assert.deepStrictEqual(r.map(d => d.path), ['/ok']);
+});
+
+ok('recenti: main + preload + UI collegati', () => {
+  const root = path.join(__dirname, '..');
+  const main = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
+  assert.ok(main.includes("'get-recent-dirs'"), 'manca handler get-recent-dirs');
+  assert.ok(main.includes("require('./recent-dirs')"), 'main.js non usa il modulo recent-dirs');
+  const pre = fs.readFileSync(path.join(root, 'preload.js'), 'utf8');
+  assert.ok(pre.includes('getRecentDirs'), 'manca getRecentDirs nel preload');
+  const html = fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');
+  assert.ok(html.includes('id="recent-dirs"'), 'manca il contenitore delle directory recenti');
+  const js = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
+  assert.ok(js.includes('renderRecentDirs'), 'il renderer non mostra le directory recenti');
+  assert.ok(/openNewModal[\s\S]{0,400}renderRecentDirs\(\)/.test(js),
+    'le directory recenti non vengono aggiornate all apertura del modal');
+  const css = fs.readFileSync(path.join(root, 'renderer', 'styles.css'), 'utf8');
+  assert.ok(/#recent-dirs-row\[hidden\]\s*\{[^}]*display:\s*none/.test(css),
+    'la riga delle directory recenti non si nasconde quando vuota');
+});
+
 console.log(`\n${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

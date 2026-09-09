@@ -60,8 +60,12 @@ async function init() {
   $('#new-cancel').addEventListener('click', () => $('#modal-new').hidden = true);
   $('#btn-browse').addEventListener('click', async () => {
     const p = await window.aisess.pickCwd();
-    if (p) $('#new-cwd').value = p;
+    if (p) {
+      $('#new-cwd').value = p;
+      markSelectedRecentDir();
+    }
   });
+  $('#new-cwd').addEventListener('input', () => markSelectedRecentDir());
   $('#new-confirm').addEventListener('click', async () => {
     const name = $('#new-name').value.trim();
     const cwd = $('#new-cwd').value.trim() || undefined;
@@ -133,6 +137,54 @@ function openNewModal(type) {
   $$('.type-card').forEach(x => x.classList.toggle('selected', x.dataset.type === pendingNewType));
   updateClaudeAccountRow();
   $('#modal-new').hidden = false;
+  renderRecentDirs();
+}
+
+/* ---------- Directory di lavoro recenti ---------- */
+const RECENT_DIRS_LIMIT = 8;
+
+async function renderRecentDirs() {
+  const row = $('#recent-dirs-row');
+  const box = $('#recent-dirs');
+  if (!row || !box) return;
+  let dirs = [];
+  try {
+    dirs = await window.aisess.getRecentDirs(RECENT_DIRS_LIMIT);
+  } catch (e) {
+    console.warn('get-recent-dirs fallito', e);
+  }
+  if (!Array.isArray(dirs) || dirs.length === 0) {
+    row.hidden = true;
+    box.replaceChildren();
+    return;
+  }
+  const chips = dirs.map(d => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'dir-chip';
+    b.dataset.path = d.path;
+    b.title = d.lastOpened ? `${d.path}\nUltimo uso: ${fmtDate(d.lastOpened)}` : d.path;
+    const icon = document.createElement('span');
+    icon.className = 'dir-chip-type';
+    icon.textContent = ICONS[d.type] || '📁';
+    const label = document.createElement('span');
+    label.className = 'dir-chip-path';
+    label.textContent = shortPath(d.path);
+    b.append(icon, label);
+    b.addEventListener('click', () => {
+      $('#new-cwd').value = d.path;
+      markSelectedRecentDir();
+    });
+    return b;
+  });
+  box.replaceChildren(...chips);
+  row.hidden = false;
+  markSelectedRecentDir();
+}
+
+function markSelectedRecentDir() {
+  const current = ($('#new-cwd').value || '').trim().replace(/(.)\/+$/, '$1');
+  $$('#recent-dirs .dir-chip').forEach(c => c.classList.toggle('selected', c.dataset.path === current));
 }
 
 async function openResumeModal() {

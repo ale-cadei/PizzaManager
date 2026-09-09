@@ -36,6 +36,7 @@
       "main.js",
       "preload.js",
       "codex-sessions.js",
+      "recent-dirs.js",
       "renderer/**/*",
       "assets/**/*",
       "!assets/generate-icon.py",

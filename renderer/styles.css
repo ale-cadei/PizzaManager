@@ -245,6 +245,21 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 #resume-account-row label { font-size: 13px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
 .row { display: flex; gap: 8px; } .row input { flex: 1; }
 
+/* Directory recenti (modal nuova sessione) */
+#recent-dirs-row { display: flex; flex-direction: column; gap: 6px; }
+#recent-dirs-row[hidden] { display: none; }
+.dir-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.dir-chip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  background: var(--bg); border: 1px solid var(--border-strong); color: var(--text);
+  border-radius: 999px; padding: 4px 10px; cursor: pointer;
+  font-family: var(--font-mono); font-size: 11px; line-height: 1.6;
+}
+.dir-chip:hover { border-color: var(--action); background: var(--action-soft); }
+.dir-chip.selected { border-color: var(--action); background: var(--action-soft); }
+.dir-chip .dir-chip-type { font-family: var(--font-ui); color: var(--text-dim); }
+.dir-chip .dir-chip-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* Type cards */
 .type-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .type-card {

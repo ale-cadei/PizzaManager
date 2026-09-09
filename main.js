@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const { execFile } = require('child_process');
 const { listCodexSessions } = require('./codex-sessions');
+const { computeRecentDirs } = require('./recent-dirs');
 
 // Binari delle sessioni AI gestite (lo shell non passa da resolveBinary)
 const AI_BINARIES = ['opencode', 'claude', 'codex'];
@@ -466,6 +467,23 @@ ipcMain.handle('check-deps', async () => ({
 }));
 
 ipcMain.handle('get-history', async () => loadHistory());
+
+// Directory recenti: derivate dalla cronologia, filtrate su quelle ancora esistenti
+ipcMain.handle('get-recent-dirs', async (event, { limit } = {}) => {
+  const isDir = (p) => {
+    try {
+      return fs.statSync(p).isDirectory();
+    } catch {
+      return false;
+    }
+  };
+  try {
+    return computeRecentDirs(loadHistory(), { limit, exists: isDir });
+  } catch (e) {
+    console.error('get-recent-dirs fallito:', e);
+    return [];
+  }
+});
 
 // ---------- Account Claude: lista / aggiungi / elimina ----------
 // Nota: le chiavi API non lasciano mai il main process; alla UI vanno solo id+nomi.

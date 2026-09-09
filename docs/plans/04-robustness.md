@@ -62,6 +62,31 @@ meno, senza che nessuno lo sappia.
 non crashare** — ma il degrado va dichiarato: contare gli scarti e dirlo
 («3 sessioni non leggibili»), invece di sparire.
 
+### 3-bis. I titoli delle sessioni Claude non vengono mai letti (misurato)
+
+Difetto preesistente, scoperto durante il branch 2 misurando il parser sui dati
+reali. Nel dialog Resume le sessioni Claude mostrano un ID esadecimale invece
+del titolo: la funzione è di fatto inutilizzabile per ritrovare una sessione.
+
+La causa sono i due limiti che il parser si impone: legge le prime **40 righe**
+entro i primi **64 KB** del file. Nei `.jsonl` attuali le prime righe sono
+record di metadati (`mode`, `permissionMode`, `atis`), e il primo messaggio
+utente arriva molto più in basso:
+
+| Sessione | Primo messaggio utente |
+|---|---|
+| `2234643d` | riga 373, a ~957 KB dall'inizio |
+| `23697684` | riga 26, ma a ~89 KB — oltre il limite di byte |
+| altre due su quattro | nessun messaggio nel formato atteso |
+
+Entrambi i limiti sono da rivedere, e vanno rivisti **insieme**: alzare solo le
+righe non basta se il tetto di byte tronca prima. Attenzione a non ricadere
+nell'estremo opposto, leggendo per intero file da diversi MB per ogni sessione
+in lista.
+
+Da fare con le fixture introdotte dal branch 2, che coprono già i casi
+degenerati (file troncato, senza messaggi utente, non-JSON).
+
 ### 4. `await` mancante in `openNewModal`
 
 `renderer/renderer.js:127`:

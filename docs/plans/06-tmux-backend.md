@@ -11,8 +11,9 @@
 > La sopravvivenza dei processi alla chiusura dell'app è confermata fino a 15
 > minuti senza client attaccato, sia per una shell che per `claude`.
 >
-> Il CLI `xirp` sulla stessa macchina tiene sessioni tmux vive per ore: è la
-> dimostrazione che l'approccio funziona in condizioni reali.
+> Verificato sul campo: una sessione avviata da un terminale normale è rimasta
+> viva 46 minuti senza client attaccato. Il CLI `xirp`, sulla stessa macchina,
+> tiene sessioni tmux vive per ore. L'approccio funziona in condizioni reali.
 >
 > Il riattacco deve comunque gestire il caso «sessione sparita» come normale e
 > non come errore — un riavvio della macchina la fa sparire in ogni caso.

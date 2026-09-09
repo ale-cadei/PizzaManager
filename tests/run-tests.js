@@ -54,7 +54,13 @@ ok('classificazione tipi valida', () => {
 ok('codex: main + preload + UI collegati', () => {
   const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
   assert.ok(main.includes("'list-codex-sessions'"), 'manca handler list-codex-sessions');
-  assert.ok(main.includes("['resume', resumeId]"), 'manca il comando codex resume');
+  // Comportamento, non testo del sorgente: cosa viene davvero passato al pty.
+  const { buildCommand } = require('../lib/commands');
+  assert.deepStrictEqual(
+    buildCommand('codex', 'roll-42').args,
+    ['resume', 'roll-42'],
+    'il resume di codex deve invocare `codex resume <id>`'
+  );
   const pre = fs.readFileSync(path.join(__dirname, '..', 'preload.js'), 'utf8');
   assert.ok(pre.includes('listCodex'), 'manca listCodex nel preload');
   const html = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'index.html'), 'utf8');

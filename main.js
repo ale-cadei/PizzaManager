@@ -2,7 +2,6 @@ const { app, BrowserWindow, Menu, ipcMain, shell: electronShell } = require('ele
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { execFile } = require('child_process');
 const { listCodexSessions } = require('./codex-sessions');
 const { getDefaultShell } = require('./lib/shell');
 const { getLoginPathSync } = require('./lib/login-path');
@@ -10,6 +9,8 @@ const { resolveBinary, resolveAllBinaries, augmentedEnv } = require('./lib/binar
 const { buildCommand, installHint } = require('./lib/commands');
 const { createHistoryStore } = require('./lib/history');
 const { createAccountStore } = require('./lib/accounts');
+const { listClaudeSessions } = require('./lib/claude-sessions');
+const { listOpencodeSessions } = require('./lib/opencode-sessions');
 
 let pty = null;
 try {
@@ -273,30 +274,7 @@ ipcMain.handle('dialog-cwd', async () => {
 });
 
 // ---------- Native sessions discovery ----------
-// OpenCode: `opencode session list --format json`
-ipcMain.handle('list-opencode-sessions', async (event, { limit } = {}) => {
-  const r = resolveBinary('opencode');
-  if (!r.path) {
-    return {
-      ok: false,
-      error: `Binario 'opencode' non trovato nel PATH (${r.searchedPath || getLoginPathSync()}). Installa da https://opencode.ai o verifica ~/.opencode/bin/opencode`,
-      sessions: [],
-    };
-  }
-  return new Promise((resolve) => {
-    execFile(r.path, ['session', 'list', '--format', 'json', ...(limit ? ['-n', String(limit)] : [])],
-      { timeout: 15000, maxBuffer: 10 * 1024 * 1024, env: augmentedEnv([r.path]) },
-      (err, stdout, stderr) => {
-        if (err) return resolve({ ok: false, error: `opencode errore (${r.path}): ${stderr || err.message}`, sessions: [] });
-        try {
-          const arr = JSON.parse(stdout);
-          resolve({ ok: true, sessions: arr, binary: r.path });
-        } catch (e) {
-          resolve({ ok: false, error: 'Parse JSON opencode fallito. Output: ' + String(stdout).slice(0, 200), sessions: [] });
-        }
-      });
-  });
-});
+ipcMain.handle('list-opencode-sessions', async (event, { limit } = {}) => listOpencodeSessions(limit));
 
 // Codex CLI: scan ~/.codex/sessions/**/rollout-*.jsonl (vedi codex-sessions.js)
 ipcMain.handle('list-codex-sessions', async (event, { limit } = {}) => {
@@ -307,56 +285,11 @@ ipcMain.handle('list-codex-sessions', async (event, { limit } = {}) => {
   }
 });
 
-// Claude Code: scan ~/.claude/projects/**/*.jsonl
-function claudeProjectsDir() {
-  return path.join(os.homedir(), '.claude', 'projects');
-}
-
+// Claude Code: scan ~/.claude/projects/**/*.jsonl (vedi lib/claude-sessions.js)
 ipcMain.handle('list-claude-sessions', async (event, { limit } = {}) => {
-  const base = claudeProjectsDir();
-  const out = [];
   try {
-    if (!fs.existsSync(base)) return { ok: false, error: 'Directory ' + base + ' non trovata. Nessuna sessione Claude.', sessions: [] };
-    const projDirs = fs.readdirSync(base, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name);
-    for (const proj of projDirs) {
-      const dir = path.join(base, proj);
-      let files = [];
-      try { files = fs.readdirSync(dir).filter(f => f.endsWith('.jsonl')); } catch { continue; }
-      for (const f of files) {
-        const fp = path.join(dir, f);
-        try {
-          const stat = fs.statSync(fp);
-          const sessionId = path.basename(f, '.jsonl');
-          // Leggi prime righe per titolo: cerca primo message user con text
-          const fd = fs.openSync(fp, 'r');
-          const buf = Buffer.alloc(64 * 1024);
-          const n = fs.readSync(fd, buf, 0, buf.length, 0);
-          fs.closeSync(fd);
-          const head = buf.slice(0, n).toString('utf8');
-          const lines = head.split('\n').slice(0, 40);
-          let title = sessionId.slice(0, 8);
-          let cwd = proj.replace(/^-/, '').replace(/-/g, '/');
-          for (const line of lines) {
-            if (!line.trim().startsWith('{')) continue;
-            try {
-              const obj = JSON.parse(line);
-              if (obj.cwd) cwd = obj.cwd;
-              const msg = obj.message;
-              if (msg && msg.role === 'user' && Array.isArray(msg.content)) {
-                const t = msg.content.find(c => c.type === 'text' && c.text);
-                if (t && t.text.trim()) { title = t.text.trim().slice(0, 80); break; }
-              }
-              if (typeof obj.summary === 'string' && obj.summary) title = obj.summary.slice(0, 80);
-            } catch {}
-          }
-          out.push({ id: sessionId, title, projectDir: proj, cwd: cwd.startsWith('/') ? cwd : '/' + cwd, mtime: stat.mtimeMs, file: fp });
-        } catch {}
-      }
-    }
-    out.sort((a, b) => b.mtime - a.mtime);
-    const sliced = limit ? out.slice(0, limit) : out.slice(0, 100);
-    return { ok: true, sessions: sliced };
+    return listClaudeSessions(limit);
   } catch (e) {
-    return { ok: false, error: String(e.message), sessions: [] };
+    return { ok: false, error: String((e && e.message) || e), sessions: [] };
   }
 });

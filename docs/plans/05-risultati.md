@@ -12,7 +12,8 @@ Branch del codice usa-e-getta: `spike/tmux`, commit `699a090`. **Non va mergiato
 e i processi sopravvivono alla chiusura dell'app — verificato fino a 15 minuti
 senza alcun client attaccato.
 
-Con un'avvertenza sul comportamento in condizioni di memoria scarsa: vedi Q4.
+Le morti di sessione osservate durante le prove sono attribuibili all'ambiente
+di test dell'agente, non a tmux: vedi Q4.
 
 ---
 
@@ -97,27 +98,31 @@ un banale `zsh` in ciclo `sleep`, è morta **insieme** a quella con `claude`: un
 processo del genere non ha alcun motivo di terminare spontaneamente, quindi la
 causa è esterna a entrambi e non è un comportamento di `claude`.
 
-**Conclusione 2 — le sessioni staccate possono essere mietute dal sistema.**
-Entrambe le coppie di sessioni create durante lo spike sono morte qualche minuto
-dopo essere state verificate vive. La macchina di prova era sotto pressione di
-memoria (25% libera, ~368.000 pageout) e nella stessa sessione di lavoro macOS
-aveva già ucciso un processo Electron per memoria bassa. La correlazione è forte
-ma **non è stata dimostrata direttamente**: l'interrogazione di `log show` per
-eventi jetsam non ha restituito nulla.
+**Conclusione 2 — la causa delle morti osservate è probabilmente l'ambiente di
+test, non tmux.** Entrambe le coppie di sessioni create durante lo spike sono
+morte pochi minuti dopo essere state verificate vive. La prima ipotesi
+(pressione di memoria di macOS) **è stata scartata**: sullo stesso computer, con
+la stessa pressione, le sessioni tmux del CLI `xirp` erano attive da ore e non
+sono mai state toccate.
 
-Da notare che le sessioni tmux personali dell'utente, sullo stesso computer, sono
-sopravvissute a entrambi gli episodi — ma erano **attaccate** a un client, il che
-le rende bersagli meno probabili.
+L'ipotesi corrente è che le sessioni siano state raccolte insieme al gruppo di
+processi dell'ambiente isolato da cui erano state avviate: entrambe le morti sono
+avvenute subito dopo la conclusione di un processo in background dell'agente che
+eseguiva lo spike. Le sessioni `xirp`, nate da un terminale normale, non hanno
+mai subito la stessa sorte.
 
-**Cosa comporta per il branch 6.** Non è un ostacolo al disegno, ma cambia un
-requisito: l'app non può dare per scontato che una sessione vista ieri esista
-ancora oggi. Il riattacco deve gestire con garbo il caso «la sessione non c'è
-più» — nessun errore criptico, e la scheda va offerta come ricreabile via resume
-nativo. Questo vale a maggior ragione per le sessioni `claude` e `opencode`, il
-cui stato di conversazione è comunque persistito dalle CLI stesse.
+**La prova a favore più solida non viene dalle sonde ma da `xirp` stesso**: è
+un'applicazione che tiene sessioni tmux vive per ore sulla macchina di prova,
+cioè esattamente ciò che il branch 6 si propone di fare. Funziona.
 
-Vale la pena ripetere la misura su una macchina non sotto pressione prima di
-considerare chiusa la questione.
+**Cosa comporta per il branch 6.** Nessuna riserva sul disegno. Resta comunque
+sensato che il riattacco gestisca con garbo il caso «la sessione non c'è più»,
+perché un riavvio della macchina la fa sparire in ogni caso — ma è normale
+robustezza, non la mitigazione di un difetto.
+
+**Verifica in sospeso**: una sessione `prova-jack` è stata lasciata attiva perché
+l'utente la controlli dal proprio terminale con `tmux -L aisession ls`, fuori
+dall'ambiente dell'agente. Se sopravvive, la questione è chiusa.
 
 ---
 

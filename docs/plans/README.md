@@ -37,3 +37,26 @@ l'unica garanzia che un refactor non abbia rotto niente.
 
 I numeri di riga citati nei piani si riferiscono a `main` al 2026-09-09
 (commit `e6c551a`) e vanno presi come indicazione: cercare per nome di funzione.
+
+## Backlog — rilevato ma non assegnato a un branch
+
+Cose emerse durante l'analisi che non appartengono a nessuno dei sei branch.
+Non sono urgenti; stanno qui per non essere dimenticate.
+
+- **`aisessionmanager-tokens.css` e `renderer/tokens.css` sono identici**, copia
+  letterale byte per byte. Due file da tenere allineati a mano: prima o poi
+  divergeranno. Serve una sola fonte di verità.
+- **La palette del terminale è duplicata in due linguaggi**: esadecimali
+  hardcoded nel tema di xterm (`renderer/renderer.js`, `new Terminal({ theme: … })`)
+  e variabili in `tokens.css`. Stesso problema, stessa soluzione.
+- **`renderer/renderer.js` è a 613 righe** e cresce a ogni funzionalità. Sotto il
+  limite di 800, ma la direzione è quella sbagliata: andrebbe diviso per area
+  (schede, modali, account, resume).
+- **Scorciatoie da tastiera per le schede** (⌘T / ⌘W) e `Esc` per chiudere i
+  modali. ⌘N per la nuova sessione esiste già dal commit `e6c551a`.
+- **Icona `.icns` per macOS**: `assets/icon.png` è a risoluzione singola.
+- **`npm run dist` punta a Linux anche su Mac**; `dist:mac` esiste ma non è il
+  default.
+- **`npm audit`**: 15 vulnerabilità, tutte in `electron-builder` /
+  `electron-rebuild`, quindi devDependencies che non finiscono nel bundle. Da
+  sistemare prima di distribuire l'app.

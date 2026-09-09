@@ -98,7 +98,12 @@ un fallback leggibile.
 array esistenti. Vanno riscritte come `[nuovo, ...vecchi]` e `[...acc, nuovo]`,
 in linea con lo standard di progetto.
 
-### 7. URL segnaposto nel menu Help
+### 7. URL segnaposto del repository (in due punti)
+
+Dal commit `39772af` l'indirizzo compare **due volte**: nel menu nativo
+(`main.js:253`) e nella menubar custom in-app (`main.js:326`, caso `open-repo`).
+Vanno corretti entrambi, ed è il caso di estrarlo in una costante invece di
+ripeterlo.
 
 `main.js:253`:
 
@@ -107,7 +112,7 @@ in linea con lo standard di progetto.
 ```
 
 Quel repository non esiste: quello vero è `github.com/ale-cadei/AISessionManager`.
-La voce di menu porta l'utente su una 404.
+Entrambe le voci portano l'utente su una 404.
 
 > Nota: qui `openExternal` è usato correttamente — URL letterale fisso, nessun
 > input dell'utente. Non va rimosso, va solo corretto l'indirizzo. (Al branch 1

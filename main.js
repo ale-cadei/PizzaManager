@@ -5,6 +5,7 @@ const os = require('os');
 const { execFile } = require('child_process');
 const { listCodexSessions } = require('./codex-sessions');
 const { computeRecentDirs } = require('./recent-dirs');
+const commandProfiles = require('./command-profiles');
 
 // Binari delle sessioni AI gestite (lo shell non passa da resolveBinary)
 const AI_BINARIES = ['opencode', 'claude', 'codex'];
@@ -197,31 +198,63 @@ function saveHistoryEntry(entry) {
   } catch (e) { console.error(e); }
 }
 
-function buildCommand(type, resumeId) {
-  if (type === 'opencode') {
-    const r = resolveBinary('opencode');
-    if (!r.path) return { cmd: null, args: [], missing: 'opencode', searchedPath: r.searchedPath };
-    return resumeId
-      ? { cmd: r.path, args: ['--session', resumeId], resolvedVia: r.via }
-      : { cmd: r.path, args: [], resolvedVia: r.via };
+// ---------- Profili di comando (configurabili dall'utente) ----------
+function commandProfilesFile() {
+  return path.join(app.getPath('userData'), 'command-profiles.json');
+}
+
+function builtinProfiles() {
+  return commandProfiles.defaultProfiles({ shell: getDefaultShell(), platform: process.platform });
+}
+
+function loadCommandProfiles() {
+  const defaults = builtinProfiles();
+  try {
+    const f = commandProfilesFile();
+    if (fs.existsSync(f))
+      return commandProfiles.normalizeConfig(JSON.parse(fs.readFileSync(f, 'utf8')), { defaults });
+  } catch (e) {
+    console.error('command-profiles: lettura fallita, uso i default:', e.message || e);
   }
-  if (type === 'claude') {
-    const r = resolveBinary('claude');
-    if (!r.path) return { cmd: null, args: [], missing: 'claude', searchedPath: r.searchedPath };
-    return resumeId
-      ? { cmd: r.path, args: ['--resume', resumeId], resolvedVia: r.via }
-      : { cmd: r.path, args: [], resolvedVia: r.via };
+  return commandProfiles.normalizeConfig(null, { defaults });
+}
+
+function saveCommandProfiles(raw) {
+  const cfg = commandProfiles.normalizeConfig(raw, { defaults: builtinProfiles() });
+  fs.writeFileSync(commandProfilesFile(), JSON.stringify(cfg, null, 2));
+  return cfg;
+}
+
+/**
+ * Costruisce l'argv da lanciare per un tipo di sessione.
+ * `profileId` seleziona uno dei comandi configurati; senza id vince il primo.
+ */
+function buildCommand(type, resumeId, profileId) {
+  const cfg = loadCommandProfiles();
+  const list = commandProfiles.listProfiles(cfg, type);
+  if (!list.length) return { cmd: null, args: [], error: `Nessun comando configurato per il tipo '${type}'.` };
+  const profile = profileId ? commandProfiles.findProfile(cfg, type, profileId) : list[0];
+  if (!profile)
+    return { cmd: null, args: [], error: 'Il comando scelto non esiste più: riaprilo da File → Configurazione comandi.' };
+
+  const r = commandProfiles.resolveProfileCommand(profile, { resumeId, home: os.homedir() });
+  if (!r.ok) return { cmd: null, args: [], error: `"${profile.label}": ${r.error}` };
+  if (resumeId && !r.resumeApplied)
+    return {
+      cmd: null,
+      args: [],
+      error: `"${profile.label}" non supporta il resume: aggiungi gli argomenti di resume (es. --resume {id}) in File → Configurazione comandi.`,
+    };
+
+  // Percorso esplicito: usato così com'è. Nome nudo: risolto nel PATH.
+  if (r.bin.includes('/')) {
+    if (!isExecutable(r.bin))
+      return { cmd: null, args: [], error: `"${profile.label}": ${r.bin} non è un eseguibile valido.` };
+    return { cmd: r.bin, args: r.args, resolvedVia: 'path-esplicito', profile };
   }
-  if (type === 'codex') {
-    const r = resolveBinary('codex');
-    if (!r.path) return { cmd: null, args: [], missing: 'codex', searchedPath: r.searchedPath };
-    // `codex resume <SESSION_ID>` riapre il rollout indicato
-    return resumeId
-      ? { cmd: r.path, args: ['resume', resumeId], resolvedVia: r.via }
-      : { cmd: r.path, args: [], resolvedVia: r.via };
-  }
-  const sh = getDefaultShell();
-  return { cmd: sh, args: process.platform !== 'win32' ? ['-i'] : [] };
+  const rb = resolveBinary(r.bin);
+  if (!rb.path) return { cmd: null, args: [], missing: r.bin, searchedPath: rb.searchedPath, profile };
+  return { cmd: rb.path, args: r.args, resolvedVia: rb.via, profile };
 }
 
 // Suggerimento di installazione mostrato quando un binario non è nel PATH
@@ -241,6 +274,8 @@ function buildAppMenu() {
       label: 'File',
       submenu: [
         { label: 'Nuova sessione', accelerator: 'CmdOrCtrl+N', click: () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('menu-new-session'); } },
+        { type: 'separator' },
+        { label: 'Configurazione comandi…', accelerator: 'CmdOrCtrl+,', click: () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('menu-open-config'); } },
         { type: 'separator' },
         { role: 'quit', label: 'Esci' },
       ],
@@ -338,6 +373,7 @@ ipcMain.handle('menu-action', async (event, { action } = {}) => {
   try {
     switch (action) {
       case 'new-session': wc.send('menu-new-session'); break;
+      case 'open-config': wc.send('menu-open-config'); break;
       case 'quit': app.quit(); break;
       case 'undo': wc.undo(); break;
       case 'redo': wc.redo(); break;
@@ -376,11 +412,12 @@ app.on('window-all-closed', () => {
 });
 
 // ---------- PTY IPC ----------
-ipcMain.handle('pty-spawn', async (event, { id, type, cwd, resumeId, claudeAccountId, cols, rows }) => {
+ipcMain.handle('pty-spawn', async (event, { id, type, cwd, resumeId, claudeAccountId, commandProfileId, cols, rows }) => {
   if (!pty) return { ok: false, error: 'node-pty non installato. Esegui: npm install' };
   const workdir = cwd && fs.existsSync(cwd) ? cwd : os.homedir();
-  const { cmd, args, missing, searchedPath, resolvedVia } = buildCommand(type, resumeId);
+  const { cmd, args, missing, searchedPath, error, profile } = buildCommand(type, resumeId, commandProfileId);
   if (!cmd) {
+    if (error) return { ok: false, error };
     return {
       ok: false,
       error: `Binario '${missing}' non trovato nel PATH.\nPATH cercato: ${searchedPath}\n` + installHint(missing),
@@ -415,7 +452,16 @@ ipcMain.handle('pty-spawn', async (event, { id, type, cwd, resumeId, claudeAccou
       if (mainWindow && !mainWindow.isDestroyed())
         mainWindow.webContents.send('pty-exit', { id, exitCode, signal });
     });
-    saveHistoryEntry({ type, cwd: workdir, resumeId: resumeId || null, claudeAccountId: claudeAccountId || null, claudeAccountName: accountName, cmd: cmd + ' ' + args.join(' ') });
+    saveHistoryEntry({
+      type,
+      cwd: workdir,
+      resumeId: resumeId || null,
+      claudeAccountId: claudeAccountId || null,
+      claudeAccountName: accountName,
+      commandProfileId: (profile && profile.id) || null,
+      commandProfileLabel: (profile && profile.label) || null,
+      cmd: cmd + ' ' + args.join(' '),
+    });
     return { ok: true };
   } catch (e) {
     return { ok: false, error: String(e.message || e) };
@@ -467,6 +513,50 @@ ipcMain.handle('check-deps', async () => ({
 }));
 
 ipcMain.handle('get-history', async () => loadHistory());
+
+// ---------- Profili di comando: leggi / salva / ripristina ----------
+ipcMain.handle('get-command-profiles', async () => {
+  try {
+    return { ok: true, config: loadCommandProfiles(), defaults: builtinProfiles() };
+  } catch (e) {
+    console.error('get-command-profiles fallito:', e);
+    return { ok: false, error: String((e && e.message) || e), config: { version: 1, profiles: {} }, defaults: {} };
+  }
+});
+
+ipcMain.handle('save-command-profiles', async (event, { profiles } = {}) => {
+  // Validazione esplicita: la UI mostra il primo errore utile all'utente
+  if (!profiles || typeof profiles !== 'object') return { ok: false, error: 'Configurazione non valida.' };
+  for (const type of commandProfiles.SESSION_TYPES) {
+    const list = profiles[type];
+    if (list === undefined) continue;
+    if (!Array.isArray(list)) return { ok: false, error: `Elenco comandi non valido per '${type}'.` };
+    if (!list.length) return { ok: false, error: `Serve almeno un comando per '${type}'.` };
+    if (list.length > commandProfiles.MAX_PROFILES_PER_TYPE)
+      return { ok: false, error: `Massimo ${commandProfiles.MAX_PROFILES_PER_TYPE} comandi per tipo.` };
+    const labels = new Set();
+    for (const item of list) {
+      const v = commandProfiles.validateProfile(type, item);
+      if (!v.ok) return { ok: false, error: v.error };
+      const key = v.profile.label.toLowerCase();
+      if (labels.has(key)) return { ok: false, error: `Nome duplicato per '${type}': "${v.profile.label}".` };
+      labels.add(key);
+    }
+  }
+  try {
+    return { ok: true, config: saveCommandProfiles({ profiles }) };
+  } catch (e) {
+    return { ok: false, error: 'Salvataggio fallito: ' + String((e && e.message) || e) };
+  }
+});
+
+ipcMain.handle('reset-command-profiles', async () => {
+  try {
+    return { ok: true, config: saveCommandProfiles({ profiles: builtinProfiles() }) };
+  } catch (e) {
+    return { ok: false, error: 'Ripristino fallito: ' + String((e && e.message) || e) };
+  }
+});
 
 // Directory recenti: derivate dalla cronologia, filtrate su quelle ancora esistenti
 ipcMain.handle('get-recent-dirs', async (event, { limit } = {}) => {

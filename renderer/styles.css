@@ -87,12 +87,25 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   letter-spacing: .12em; text-transform: uppercase;
   color: var(--text-dim); margin-top: 6px;
 }
-/* Due azioni affiancate: Nuova sessione | Resume */
+/* Due azioni affiancate: Nuova sessione | Resume.
+   Nessuna delle due è piena: il pieno teal resta all'azione di conferma nei
+   modali (design-system.md: un solo pulsante pieno per schermata). "Nuova" si
+   distingue col teal del bordo/testo, "Resume" resta neutra. */
 .side-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .side-actions .btn {
   width: 100%; min-width: 0;
-  padding-left: 8px; padding-right: 8px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 8px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.btn-glyph { font-family: var(--font-mono); font-size: 14px; line-height: 1; opacity: .9; }
+/* Hover tenue invece del riempimento pieno: stesso linguaggio di tab e chip attivi */
+.side-actions .btn--outline { border-color: var(--border-strong); color: var(--action-text); }
+.side-actions .btn--outline:hover {
+  background: var(--action-soft); border-color: var(--action); color: var(--action-text);
+}
+.side-actions .btn:focus-visible {
+  outline: none; border-color: var(--action); box-shadow: 0 0 0 3px var(--action-ring);
 }
 
 /* ---------- Card sessione ---------- */
@@ -300,6 +313,40 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   direction: rtl; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
 }
+/* ---------- Comandi di avvio: configurazione e scelta ---------- */
+#config-list {
+  max-height: min(48vh, 520px); overflow-y: auto;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.cmd-row {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.cmd-row-head { display: flex; align-items: center; gap: 8px; }
+.cmd-row-num { flex: 1; font-size: 12px; color: var(--text-dim); font-family: var(--font-mono); }
+.cmd-row-head .btn { width: auto; white-space: nowrap; }
+.cmd-row-head .btn[disabled] { opacity: .4; cursor: not-allowed; }
+.cmd-field { font-size: 12px; }
+.config-error { margin: 0; font-size: 12px; color: var(--state-error); }
+.config-error[hidden] { display: none; }
+
+#pick-command-list { display: flex; flex-direction: column; gap: 8px; max-height: min(52vh, 560px); overflow-y: auto; }
+.cmd-choice {
+  background: var(--bg); border: 1px solid var(--border-strong); color: var(--text);
+  border-radius: var(--radius); padding: 12px 14px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 4px; text-align: left;
+  font-family: var(--font-ui);
+}
+.cmd-choice:hover, .cmd-choice:focus-visible { border-color: var(--action); background: var(--action-soft); outline: none; }
+.cmd-choice.last-used { border-color: var(--action); }
+.cmd-choice-label { font-size: 14px; font-weight: 600; }
+.cmd-choice-cmd {
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cmd-choice-tag { font-size: 10px; color: var(--action); text-transform: uppercase; letter-spacing: .06em; }
+
 .muted { color: var(--text-muted); font-size: 13px; }
 .muted.small { font-size: 11px; margin: 0; }
 code { background: var(--surface-3); padding: 1px 5px; border-radius: 5px; font-family: var(--font-mono); font-size: 12px; }

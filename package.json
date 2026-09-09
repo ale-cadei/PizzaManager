@@ -37,6 +37,7 @@
       "preload.js",
       "codex-sessions.js",
       "recent-dirs.js",
+      "command-profiles.js",
       "renderer/**/*",
       "assets/**/*",
       "!assets/generate-icon.py",

@@ -24,6 +24,8 @@
     <div class="mb-drop" hidden>
       <button data-action="new-session">Nuova sessione<span class="mb-acc">Ctrl+N</span></button>
       <div class="mb-sep"></div>
+      <button data-action="open-config">Configurazione comandi…<span class="mb-acc">Ctrl+,</span></button>
+      <div class="mb-sep"></div>
       <button data-action="quit">Esci</button>
     </div>
   </div>
@@ -77,8 +79,8 @@
       </div>
     </div>
     <div class="side-actions">
-      <button class="btn btn--primary" id="btn-new" title="Crea una nuova sessione (il tipo si sceglie nel dialog)">＋ Nuova</button>
-      <button class="btn btn--ghost" id="btn-resume" title="Riprendi una vecchia sessione">⟲ Resume</button>
+      <button class="btn btn--outline" id="btn-new" title="Crea una nuova sessione (il tipo si sceglie nel dialog)"><span class="btn-glyph" aria-hidden="true">+</span>Nuova</button>
+      <button class="btn btn--ghost" id="btn-resume" title="Riprendi una vecchia sessione"><span class="btn-glyph" aria-hidden="true">⟲</span>Resume</button>
     </div>
     <div class="side-section">SESSIONI APERTE <span id="count"></span></div>
     <div id="session-list"></div>
@@ -168,9 +170,52 @@
   </div>
 </div>
 
+<!-- Modal scelta del comando: appare all'avvio quando il tipo di sessione
+     ha più comandi configurati -->
+<div class="modal-backdrop" id="modal-pick-command" hidden>
+  <div class="modal">
+    <h2>Quale comando usare?</h2>
+    <p class="muted small" id="pick-command-sub"></p>
+    <div id="pick-command-list"></div>
+    <div class="modal-actions">
+      <button class="btn btn--ghost" id="pick-command-cancel">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal configurazione dei comandi di avvio, per tipo di sessione -->
+<div class="modal-backdrop" id="modal-config" hidden>
+  <div class="modal wide">
+    <h2>⚙ Configurazione comandi</h2>
+    <p class="muted small">
+      Per ogni tipo di sessione puoi definire più comandi di avvio. Se un tipo ne ha più di uno,
+      all'avvio della sessione ti viene chiesto quale usare. Il comando è eseguito direttamente
+      (senza shell): pipe, redirezioni e <code>&amp;&amp;</code> non sono supportati.
+      Usa <code>{id}</code> negli argomenti di resume per l'id della sessione da riaprire.
+    </p>
+    <div class="tabs" role="tablist" id="config-tabs">
+      <button class="tab active" role="tab" aria-selected="true" data-config-tab="shell">🖥 Terminale</button>
+      <button class="tab" role="tab" aria-selected="false" data-config-tab="opencode">⚡ OpenCode</button>
+      <button class="tab" role="tab" aria-selected="false" data-config-tab="claude">🤖 Claude</button>
+      <button class="tab" role="tab" aria-selected="false" data-config-tab="codex">✳ Codex</button>
+    </div>
+    <div id="config-list"></div>
+    <div class="row">
+      <button class="btn btn--outline" id="config-add">＋ Aggiungi comando</button>
+      <button class="btn btn--ghost" id="config-reset" title="Ripristina i comandi predefiniti per tutti i tipi">↺ Ripristina default</button>
+    </div>
+    <p class="config-error" id="config-error" hidden></p>
+    <div class="modal-actions">
+      <button class="btn btn--ghost" id="config-cancel">Annulla</button>
+      <button class="btn btn--primary" id="config-save">Salva</button>
+    </div>
+  </div>
+</div>
+
 <script src="../node_modules/@xterm/xterm/lib/xterm.js"></script>
 <script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
 <script src="../node_modules/@xterm/addon-web-links/lib/addon-web-links.js"></script>
+<script src="command-config.js"></script>
 <script src="renderer.js"></script>
 </body>
 </html>

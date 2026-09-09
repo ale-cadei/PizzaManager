@@ -441,10 +441,8 @@ ipcMain.handle('list-claude-sessions', async (event, { limit } = {}) => {
       }
     }
     out.sort((a, b) => b.mtime - a.mtime);
-    resolve_limited: {
-      const sliced = limit ? out.slice(0, limit) : out.slice(0, 100);
-      return { ok: true, sessions: sliced };
-    }
+    const sliced = limit ? out.slice(0, limit) : out.slice(0, 100);
+    return { ok: true, sessions: sliced };
   } catch (e) {
     return { ok: false, error: String(e.message), sessions: [] };
   }

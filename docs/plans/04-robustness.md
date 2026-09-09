@@ -51,6 +51,27 @@ boundary da manuale. Serve uno schema minimo, e un messaggio esplicito quando
 non torna — così l'utente legge «opencode ha restituito un formato inatteso»
 invece di trovarsi una lista vuota senza spiegazione.
 
+### 2-bis. Zero sessioni OpenCode vengono mostrate come un errore (riprodotto)
+
+Con nessuna sessione salvata, `opencode session list --format json` stampa
+**zero byte**, non `[]`. `JSON.parse('')` solleva, e nel dialog Resume l'utente
+legge:
+
+```
+Parse JSON opencode fallito. Output:
+```
+
+Un messaggio tronco e incomprensibile al posto di «nessuna sessione». Verificato
+su opencode 1.17.16: le opzioni `--format json` e `-n` esistono e sono corrette,
+e anche `opencode session list` senza flag non stampa nulla.
+
+La correzione fa parte del punto 2: un output vuoto è un risultato legittimo,
+non un errore di formato. Vanno distinti tre casi — output vuoto (nessuna
+sessione), JSON valido ma di forma inattesa (formato cambiato), JSON non
+parsabile (errore vero).
+
+C'è già una fixture del comportamento in `tests/integration.test.js`.
+
 ### 3. Il parser JSONL di Claude fallisce in silenzio
 
 `main.js`, handler `list-claude-sessions`. La scansione di

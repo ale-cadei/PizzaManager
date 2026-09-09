@@ -8,11 +8,11 @@ Branch del codice usa-e-getta: `spike/tmux`, commit `699a090`. **Non va mergiato
 ## Verdetto
 
 **L'opzione B è confermata: il branch 6 si può fare.** Le TUI di `claude` e
-`opencode` attraversano tmux e xterm.js senza degrado, il prefisso si disattiva
-e i processi sopravvivono alla chiusura dell'app.
+`opencode` attraversano tmux e xterm.js senza degrado, il prefisso si disattiva,
+e i processi sopravvivono alla chiusura dell'app — verificato fino a 15 minuti
+senza alcun client attaccato.
 
-Con una riserva aperta, in fondo a questa pagina, che va chiusa prima di
-cominciare il branch 6.
+Con un'avvertenza sul comportamento in condizioni di memoria scarsa: vedi Q4.
 
 ---
 
@@ -66,7 +66,7 @@ trasmesse al terminale, quindi "non fa niente" a prescindere da tmux.
 
 ## Q4 — Sopravvivenza alla chiusura dell'app
 
-**Osservato positivo**, con una riserva.
+**Confermata.**
 
 Chiusa la finestra dell'app:
 
@@ -77,16 +77,47 @@ claude:                      pid 5509, in esecuzione da 5:05
 scrollback:                  intatto
 ```
 
-**La riserva**: qualche minuto dopo quella verifica la sessione era sparita, e
-non è stato catturato il perché. Le ipotesi sono due — `claude` che esce da solo
-quando nessun client è attaccato, oppure il gestore di memoria del sistema, che
-in quella finestra temporale aveva già ucciso un altro processo per memoria bassa.
+La sessione era però sparita qualche minuto dopo, senza causa evidente. Poiché
+una funzionalità che tiene vive le sessioni cinque minuti e poi le perde sarebbe
+**peggio** di non averla, la cosa è stata verificata con due sonde parallele
+senza alcun client attaccato:
 
-**Distinguerle è obbligatorio prima del branch 6**: una funzionalità che tiene
-vive le sessioni per cinque minuti e poi le perde è peggio di non averla, perché
-l'utente ci fa affidamento. Verifica in corso con due sonde parallele senza
-client attaccato: un processo banale con heartbeat (se muore, è tmux o il
-sistema) e un `claude` (se muore solo lui, è comportamento di claude).
+| Sonda | Contenuto | Dopo 15 minuti |
+|---|---|---|
+| `probe-shell` | ciclo che scrive un heartbeat ogni 2s | ✅ viva, pid 7609, 16:03 di esecuzione |
+| `probe-claude` | `claude` | ✅ viva, pid 7612, 16:03 di esecuzione |
+
+469 heartbeat con intervalli di **esattamente 2 secondi e nessun buco**: il
+processo non si è mai fermato né è stato sospeso. Il pane di `claude` risponde
+ancora e mostra la sua interfaccia.
+
+**Conclusione 1 — l'ipotesi pericolosa è esclusa.** `claude` non esce da solo
+quando nessun client è attaccato. Il discriminante è che la sonda `probe-shell`,
+un banale `zsh` in ciclo `sleep`, è morta **insieme** a quella con `claude`: un
+processo del genere non ha alcun motivo di terminare spontaneamente, quindi la
+causa è esterna a entrambi e non è un comportamento di `claude`.
+
+**Conclusione 2 — le sessioni staccate possono essere mietute dal sistema.**
+Entrambe le coppie di sessioni create durante lo spike sono morte qualche minuto
+dopo essere state verificate vive. La macchina di prova era sotto pressione di
+memoria (25% libera, ~368.000 pageout) e nella stessa sessione di lavoro macOS
+aveva già ucciso un processo Electron per memoria bassa. La correlazione è forte
+ma **non è stata dimostrata direttamente**: l'interrogazione di `log show` per
+eventi jetsam non ha restituito nulla.
+
+Da notare che le sessioni tmux personali dell'utente, sullo stesso computer, sono
+sopravvissute a entrambi gli episodi — ma erano **attaccate** a un client, il che
+le rende bersagli meno probabili.
+
+**Cosa comporta per il branch 6.** Non è un ostacolo al disegno, ma cambia un
+requisito: l'app non può dare per scontato che una sessione vista ieri esista
+ancora oggi. Il riattacco deve gestire con garbo il caso «la sessione non c'è
+più» — nessun errore criptico, e la scheda va offerta come ricreabile via resume
+nativo. Questo vale a maggior ragione per le sessioni `claude` e `opencode`, il
+cui stato di conversazione è comunque persistito dalle CLI stesse.
+
+Vale la pena ripetere la misura su una macchina non sotto pressione prima di
+considerare chiusa la questione.
 
 ---
 

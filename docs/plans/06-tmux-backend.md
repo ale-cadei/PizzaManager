@@ -2,17 +2,19 @@
 
 **Dipende da**: branch 2 e branch 5. **Taglia stimata**: 3-5 giorni.
 
-> ## Stato: sbloccato dallo spike, con una riserva
+> ## Stato: sbloccato, si può cominciare
 >
-> Lo [spike](05-spike-tmux.md) è stato eseguito il 2026-09-09 e ha dato esito
-> positivo su tutte e quattro le domande: vedi [i risultati](05-risultati.md).
-> Le sezioni qui sotto sono state riscritte con la configurazione reale.
+> Lo [spike](05-spike-tmux.md) è stato eseguito il 2026-09-09 con esito positivo
+> su tutte e quattro le domande: vedi [i risultati](05-risultati.md). Le sezioni
+> qui sotto contengono la configurazione reale, verificata sul campo.
 >
-> **Resta una riserva da chiudere prima di cominciare**: la sessione di prova è
-> sopravvissuta alla chiusura dell'app (verificato: app a zero processi, `claude`
-> vivo da 5 minuti), ma è sparita qualche minuto dopo per una causa non
-> identificata. Se `claude` esce da solo quando nessun client è attaccato,
-> l'intero branch perde senso e va ripensato. Vedi «Riserva aperta» in fondo.
+> La sopravvivenza dei processi alla chiusura dell'app è confermata fino a 15
+> minuti senza client attaccato, sia per una shell che per `claude`.
+>
+> **Requisito emerso dallo spike**: su una macchina sotto pressione di memoria le
+> sessioni staccate possono essere uccise dal sistema. Il riattacco deve quindi
+> gestire il caso «sessione sparita» come normale, non come errore — vedi
+> [i risultati](05-risultati.md), Q4.
 
 ---
 
@@ -117,24 +119,6 @@ trovato una strada migliore:
 - Senza tmux installato l'app funziona come oggi, con un avviso.
 - Non è possibile lasciare sessioni tmux orfane senza essersene accorti.
 
-## Riserva aperta — da chiudere prima di cominciare
-
-Durante lo spike la sessione è sopravvissuta alla chiusura dell'app (verificato
-oggettivamente), ma è morta qualche minuto più tardi. Due ipotesi:
-
-1. `claude` esce da solo quando nessun client tmux è attaccato;
-2. il gestore di memoria di macOS l'ha ucciso — nella stessa finestra temporale
-   aveva già ucciso un processo Electron per memoria bassa.
-
-Se vale la 1, il branch va ripensato: una funzionalità che tiene le sessioni vive
-cinque minuti e poi le perde è **peggio** di non averla, perché l'utente ci fa
-affidamento.
-
-Il modo per distinguerle è quello usato nello spike: due sessioni senza client
-attaccato, una con un processo banale che scrive un heartbeat e una con `claude`,
-e si guarda quale muore. Se muore solo `claude`, è comportamento suo; se muoiono
-entrambe, è il sistema.
-
 ## Ancora da definire
 
 - Lo schema di naming delle sessioni (deve sopravvivere ai riavvii e mappare
@@ -144,3 +128,5 @@ entrambe, è il sistema.
   senza problemi evidenti, ma non è un test rigoroso. Da verificare presto,
   perché tocca `refitTab` e la logica di `ResizeObserver` già esistente.
 - Il disegno delle due azioni **stacca** / **termina** in UI.
+- Il comportamento quando una sessione attesa non esiste più (mietuta dal
+  sistema): va degradata a «ricreabile via resume», senza errori criptici.

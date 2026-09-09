@@ -259,22 +259,28 @@ function buildAppMenu() {
 }
 
 function createWindow() {
-  buildAppMenu();
+  const iconPath = path.join(__dirname, 'assets', 'icon.png');
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 900,
     minHeight: 600,
     title: 'AISessionManager',
+    icon: fs.existsSync(iconPath) ? iconPath : undefined,
     // Barra superiore in tema con il resto dell'app (nera):
     // - backgroundColor nero per il flash di avvio
     // - darkTheme: dice al SO/Chromium di usare controlli e menu scuri
-    // - titleBarOverlay nera dove supportata (Win/Linux): mantiene i
+    // - titleBarOverlay nera dove supportata (Win): mantiene i
     //   controlli nativi ma con fondo nero e simboli chiari
-    // - autoHideMenuBar: false così File/Edit/View/Window/Help restano visibili
     backgroundColor: '#000000',
     darkTheme: true,
-    autoHideMenuBar: false,
+    // NOTA Linux: la menubar nativa (File/Edit/View/…) è disegnata dal
+    // tema GTK del desktop e resta chiara anche con darkTheme. Per avere
+    // una barra scura si nasconde quella nativa (il menu resta attivo per
+    // gli acceleratori come Ctrl+N) e si usa la menubar in-app nel renderer
+    // (scura, vedi renderer/index.html#menubar). Su macOS il menu nativo
+    // segue già il tema scuro e va tenuto visibile.
+    autoHideMenuBar: process.platform !== 'darwin',
     titleBarOverlay: { color: '#000000', symbolColor: '#F2EFF4' },
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -282,9 +288,49 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
+  buildAppMenu();
+  // Nasconde la menubar nativa su Linux/Windows (resta richiamabile con Alt).
+  // Su macOS il menu vive nella barra di sistema: non toccarlo.
+  if (process.platform !== 'darwin') {
+    try { mainWindow.setMenuBarVisibility(false); } catch {}
+  }
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   // mainWindow.webContents.openDevTools(); // scommentare per debug
 }
+
+// Azioni della menubar scura in-app (renderer/index.html#menubar).
+// Replica i ruoli del menu nativo così File/Edit/View/Window/Help
+// funzionano anche con la menubar nativa nascosta.
+ipcMain.handle('menu-action', async (event, { action } = {}) => {
+  if (!mainWindow || mainWindow.isDestroyed()) return { ok: false, error: 'finestra non disponibile' };
+  const wc = mainWindow.webContents;
+  try {
+    switch (action) {
+      case 'new-session': wc.send('menu-new-session'); break;
+      case 'quit': app.quit(); break;
+      case 'undo': wc.undo(); break;
+      case 'redo': wc.redo(); break;
+      case 'cut': wc.cut(); break;
+      case 'copy': wc.copy(); break;
+      case 'paste': wc.paste(); break;
+      case 'selectAll': wc.selectAll(); break;
+      case 'reload': wc.reload(); break;
+      case 'forceReload': wc.reloadIgnoringCache(); break;
+      case 'devtools': wc.toggleDevTools(); break;
+      case 'resetZoom': wc.setZoomLevel(0); break;
+      case 'zoomIn': wc.setZoomLevel(wc.getZoomLevel() + 0.5); break;
+      case 'zoomOut': wc.setZoomLevel(wc.getZoomLevel() - 0.5); break;
+      case 'fullscreen': mainWindow.setFullScreen(!mainWindow.isFullScreen()); break;
+      case 'minimize': mainWindow.minimize(); break;
+      case 'close': mainWindow.close(); break;
+      case 'open-repo': await electronShell.openExternal('https://github.com/aisessionmanager/aisessionmanager'); break;
+      default: return { ok: false, error: `azione menu sconosciuta: ${action}` };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
+  }
+});
 
 app.whenReady().then(() => {
   createWindow();

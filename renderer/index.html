@@ -6,6 +6,7 @@
 <meta name="color-scheme" content="dark" />
 <meta name="theme-color" content="#000000" />
 <title>AISessionManager</title>
+<link rel="icon" type="image/png" href="../assets/icon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" />
@@ -69,14 +70,14 @@
 <div id="app">
   <aside id="sidebar">
     <div class="brand">
-      <div class="logo">◈</div>
+      <img class="logo" src="../assets/icon.png" alt="AISessionManager" />
       <div>
         <div class="brand-name">AISessionManager</div>
         <div class="brand-sub" id="platform-label">linux</div>
       </div>
     </div>
     <div class="side-actions">
-      <button class="btn btn--primary" id="btn-new" title="Crea una nuova sessione (il tipo si sceglie nel dialog)">＋ Nuova sessione</button>
+      <button class="btn btn--primary" id="btn-new" title="Crea una nuova sessione (il tipo si sceglie nel dialog)">＋ Nuova</button>
       <button class="btn btn--ghost" id="btn-resume" title="Riprendi una vecchia sessione">⟲ Resume</button>
     </div>
     <div class="side-section">SESSIONI APERTE <span id="count"></span></div>
@@ -85,6 +86,7 @@
       <span class="legend"><i class="dot shell"></i>shell</span>
       <span class="legend" id="dep-opencode" title="stato binario opencode"><i class="dot opencode"></i>opencode</span>
       <span class="legend" id="dep-claude" title="stato binario claude"><i class="dot claude"></i>claude</span>
+      <span class="legend" id="dep-codex" title="stato binario codex"><i class="dot codex"></i>codex</span>
     </div>
     <div class="side-footer muted" id="deps-status" style="font-size:11px"></div>
   </aside>
@@ -105,6 +107,7 @@
       <button class="type-card selected" data-type="shell">🖥<b>Terminale</b><span>shell semplice</span></button>
       <button class="type-card" data-type="opencode">⚡<b>OpenCode</b><span>opencode TUI</span></button>
       <button class="type-card" data-type="claude">🤖<b>Claude</b><span>claude TUI</span></button>
+      <button class="type-card" data-type="codex">✳<b>Codex</b><span>codex TUI</span></button>
     </div>
     <label>Nome (opzionale)<input class="input" id="new-name" placeholder="es. backend, fix-auth…" /></label>
     <label>Directory di lavoro
@@ -144,6 +147,7 @@
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-tab="opencode">⚡ OpenCode</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="claude">🤖 Claude Code</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="codex">✳ Codex</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="history">🕘 Cronologia app</button>
     </div>
     <input class="input" id="resume-search" placeholder="Cerca per titolo, directory o id…" />

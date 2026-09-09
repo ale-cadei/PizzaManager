@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('aisess', {
   getHistory: () => ipcRenderer.invoke('get-history'),
   listOpencode: (limit) => ipcRenderer.invoke('list-opencode-sessions', { limit }),
   listClaude: (limit) => ipcRenderer.invoke('list-claude-sessions', { limit }),
+  listCodex: (limit) => ipcRenderer.invoke('list-codex-sessions', { limit }),
   listClaudeAccounts: () => ipcRenderer.invoke('list-claude-accounts'),
   addClaudeAccount: ({ name, apiKey }) => ipcRenderer.invoke('add-claude-account', { name, apiKey }),
   deleteClaudeAccount: (id) => ipcRenderer.invoke('delete-claude-account', { id }),

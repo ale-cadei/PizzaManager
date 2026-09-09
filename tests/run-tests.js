@@ -13,8 +13,11 @@ function ok(name, fn) {
 function buildCommand(type, resumeId) {
   if (type === 'opencode') return resumeId ? { cmd: 'opencode', args: ['--session', resumeId] } : { cmd: 'opencode', args: [] };
   if (type === 'claude') return resumeId ? { cmd: 'claude', args: ['--resume', resumeId] } : { cmd: 'claude', args: [] };
+  if (type === 'codex') return resumeId ? { cmd: 'codex', args: ['resume', resumeId] } : { cmd: 'codex', args: [] };
   return { cmd: 'shell', args: [] };
 }
+
+const SESSION_TYPES = ['shell', 'opencode', 'claude', 'codex'];
 
 ok('buildCommand shell nuova', () => {
   const r = buildCommand('shell');
@@ -36,8 +39,42 @@ ok('buildCommand claude resume', () => {
   assert.deepStrictEqual(r.args, ['--resume', 'uuid-123']);
 });
 
+ok('buildCommand codex nuova', () => {
+  assert.deepStrictEqual(buildCommand('codex'), { cmd: 'codex', args: [] });
+});
+
+ok('buildCommand codex resume', () => {
+  assert.deepStrictEqual(buildCommand('codex', '019f472a-uuid').args, ['resume', '019f472a-uuid']);
+});
+
 ok('classificazione tipi valida', () => {
-  for (const t of ['shell', 'opencode', 'claude']) assert.ok(['shell', 'opencode', 'claude'].includes(t));
+  for (const t of SESSION_TYPES) assert.ok(SESSION_TYPES.includes(t));
+});
+
+ok('codex: main + preload + UI collegati', () => {
+  const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  assert.ok(main.includes("'list-codex-sessions'"), 'manca handler list-codex-sessions');
+  assert.ok(main.includes("['resume', resumeId]"), 'manca il comando codex resume');
+  const pre = fs.readFileSync(path.join(__dirname, '..', 'preload.js'), 'utf8');
+  assert.ok(pre.includes('listCodex'), 'manca listCodex nel preload');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'index.html'), 'utf8');
+  assert.ok(html.includes('data-type="codex"'), 'manca la type-card codex');
+  assert.ok(html.includes('data-tab="codex"'), 'manca il tab codex nel resume');
+  const js = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'renderer.js'), 'utf8');
+  assert.ok(js.includes("codex: '✳'"), 'manca l\'icona codex');
+});
+
+ok('codex-sessions: scan rollout senza crash', () => {
+  const { listCodexSessions, sessionsDir } = require('../codex-sessions');
+  const r = listCodexSessions(5);
+  assert.ok(typeof r.ok === 'boolean' && Array.isArray(r.sessions));
+  if (!fs.existsSync(sessionsDir())) { console.log('  (skip: nessuna dir codex)'); return; }
+  assert.strictEqual(r.ok, true, r.error || '');
+  assert.ok(r.sessions.length <= 5, 'limit non rispettato');
+  for (const s of r.sessions) {
+    assert.ok(s.id && s.title, 'sessione senza id/title');
+    assert.ok(typeof s.mtime === 'number', 'mtime mancante');
+  }
 });
 
 ok('opencode session list --format json e parsabile', () => {
@@ -103,6 +140,28 @@ ok('dialog nuova sessione: selettore account claude', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'index.html'), 'utf8');
   assert.ok(html.includes('id="new-claude-account"'), 'manca select account nel modal');
   assert.ok(html.includes('id="resume-claude-account"'), 'manca select account nel resume');
+});
+
+ok('build.files include ogni modulo richiesto da main.js', () => {
+  const root = path.join(__dirname, '..');
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  const files = (pkg.build && pkg.build.files) || [];
+  const main = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
+  const localRequires = [...main.matchAll(/require\('\.\/([^']+)'\)/g)].map((m) => m[1]);
+  assert.ok(localRequires.length, 'nessun require locale trovato in main.js');
+  for (const mod of localRequires) {
+    const candidates = [mod, `${mod}.js`];
+    assert.ok(
+      candidates.some((c) => files.includes(c)),
+      `${mod} richiesto da main.js ma assente da build.files: l'app installata crasha all'avvio`
+    );
+  }
+});
+
+ok('group-body collassato e nascosto anche con display flex', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'styles.css'), 'utf8');
+  const rule = /\.group-body\[hidden\]\s*\{[^}]*display:\s*none/;
+  assert.ok(rule.test(css), 'manca .group-body[hidden] { display: none } : il gruppo non si collassa');
 });
 
 console.log(`\n${pass} pass, ${fail} fail`);

@@ -6,9 +6,7 @@ const { execFile } = require('child_process');
 const { listCodexSessions } = require('./codex-sessions');
 const { getDefaultShell } = require('./lib/shell');
 const { getLoginPathSync } = require('./lib/login-path');
-
-// Binari delle sessioni AI gestite (lo shell non passa da resolveBinary)
-const AI_BINARIES = ['opencode', 'claude', 'codex'];
+const { resolveBinary, resolveAllBinaries, augmentedEnv } = require('./lib/binaries');
 
 let pty = null;
 try {
@@ -21,90 +19,6 @@ const ptys = new Map();
 let mainWindow = null;
 
 // ---------- Risoluzione binari (fix lancio da GUI/.deb con PATH minimo) ----------
-function isExecutable(p) {
-  try {
-    fs.accessSync(p, fs.constants.X_OK);
-    const st = fs.statSync(p);
-    return st.isFile();
-  } catch { return false; }
-}
-
-// Percorsi tipici dei tool installati via npm/volta/asdf/nvm/homebrew
-function nodeToolCandidates(name) {
-  const home = os.homedir();
-  const list = [
-    path.join(home, '.local', 'bin', name),
-    '/usr/local/bin/' + name,
-    '/opt/homebrew/bin/' + name,
-    '/home/linuxbrew/.linuxbrew/bin/' + name,
-    path.join(home, '.npm-global', 'bin', name),
-    path.join(home, '.volta', 'bin', name),
-    path.join(home, '.asdf', 'shims', name),
-  ];
-  // nvm: ~/.nvm/versions/node/*/bin/<name>
-  try {
-    const base = path.join(home, '.nvm', 'versions', 'node');
-    if (fs.existsSync(base)) {
-      for (const v of fs.readdirSync(base)) list.push(path.join(base, v, 'bin', name));
-    }
-  } catch {}
-  return list;
-}
-
-function candidatesFor(name) {
-  const home = os.homedir();
-  if (name === 'opencode') {
-    return [
-      path.join(home, '.opencode', 'bin', 'opencode'),
-      path.join(home, '.local', 'bin', 'opencode'),
-      '/usr/local/bin/opencode',
-      '/opt/opencode/opencode',
-      '/snap/bin/opencode',
-      '/opt/homebrew/bin/opencode',
-      '/home/linuxbrew/.linuxbrew/bin/opencode',
-    ];
-  }
-  if (name === 'claude') return nodeToolCandidates('claude');
-  // Codex CLI: npm @openai/codex, homebrew, o binario in ~/.codex/bin
-  if (name === 'codex') return [path.join(home, '.codex', 'bin', 'codex'), ...nodeToolCandidates('codex')];
-  return [];
-}
-
-function resolveBinary(name) {
-  // 1. PATH corrente + login shell PATH
-  const searchPath = getLoginPathSync();
-  for (const dir of searchPath.split(':')) {
-    const full = path.join(dir, name);
-    if (isExecutable(full)) return { path: full, via: 'PATH:' + dir };
-  }
-  // 2. candidati noti
-  for (const c of candidatesFor(name)) {
-    if (isExecutable(c)) return { path: c, via: 'candidate' };
-    // symlink rotti? prova realpath
-    try {
-      const rp = fs.realpathSync(c);
-      if (isExecutable(rp)) return { path: rp, via: 'candidate-realpath' };
-    } catch {}
-  }
-  return { path: null, via: null, searchedPath: searchPath };
-}
-
-function augmentedEnv(extraBins, extraVars) {
-  const loginPath = getLoginPathSync();
-  const dirs = new Set([...(process.env.PATH || '').split(':'), ...loginPath.split(':')]);
-  for (const b of (extraBins || [])) {
-    if (b) dirs.add(path.dirname(b));
-  }
-  // assicurati che le dir dei binari risolti ci siano
-  for (const n of AI_BINARIES) {
-    try {
-      const r = resolveBinary(n);
-      if (r.path) dirs.add(path.dirname(r.path));
-    } catch {}
-  }
-  return { ...process.env, ...(extraVars || {}), PATH: [...dirs].filter(Boolean).join(':'), TERM: 'xterm-256color', COLORTERM: 'truecolor' };
-}
-
 // ---------- Account Claude multipli ----------
 // Claude Code non ha profili integrati: un solo login OAuth in
 // ~/.claude/.credentials.json (claudeAiOauth) oppure ANTHROPIC_API_KEY.
@@ -409,21 +323,6 @@ ipcMain.handle('pty-kill', async (event, { id }) => {
   if (p) { try { p.kill(); } catch {} ptys.delete(id); }
   return { ok: true };
 });
-
-// Stato di tutti i binari AI, nella forma attesa dalla UI
-function resolveAllBinaries() {
-  const out = {};
-  for (const name of AI_BINARIES) {
-    const r = resolveBinary(name);
-    out[name] = {
-      found: !!r.path,
-      path: r.path,
-      via: r.via,
-      searchedPath: r.searchedPath || getLoginPathSync(),
-    };
-  }
-  return out;
-}
 
 ipcMain.handle('get-defaults', async () => ({
   shell: getDefaultShell(),

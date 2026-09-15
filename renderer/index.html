@@ -32,13 +32,13 @@
   <div class="mb-menu" data-menu>
     <button class="mb-label" tabindex="0">Edit</button>
     <div class="mb-drop" hidden>
-      <button data-action="undo">Annulla<span class="mb-acc">Ctrl+Z</span></button>
-      <button data-action="redo">Ripeti<span class="mb-acc">Ctrl+Y</span></button>
+      <button data-action="undo">Annulla</button>
+      <button data-action="redo">Ripeti</button>
       <div class="mb-sep"></div>
-      <button data-action="cut">Taglia<span class="mb-acc">Ctrl+X</span></button>
-      <button data-action="copy">Copia<span class="mb-acc">Ctrl+C</span></button>
-      <button data-action="paste">Incolla<span class="mb-acc">Ctrl+V</span></button>
-      <button data-action="selectAll">Seleziona tutto<span class="mb-acc">Ctrl+A</span></button>
+      <button data-action="cut">Taglia</button>
+      <button data-action="copy">Copia<span class="mb-acc">Ctrl+Shift+C</span></button>
+      <button data-action="paste">Incolla<span class="mb-acc">Ctrl+Shift+V</span></button>
+      <button data-action="selectAll">Seleziona tutto</button>
     </div>
   </div>
   <div class="mb-menu" data-menu>
@@ -106,10 +106,10 @@
   <div class="modal">
     <h2>Nuova sessione</h2>
     <div class="type-cards">
-      <button class="type-card selected" data-type="shell">🖥<b>Terminale</b><span>shell semplice</span></button>
-      <button class="type-card" data-type="opencode">⚡<b>OpenCode</b><span>opencode TUI</span></button>
-      <button class="type-card" data-type="claude">🤖<b>Claude</b><span>claude TUI</span></button>
-      <button class="type-card" data-type="codex">✳<b>Codex</b><span>codex TUI</span></button>
+      <button class="type-card selected" data-type="shell"><span class="type-glyph" data-icon="shell"></span><b>Terminale</b><span>shell semplice</span></button>
+      <button class="type-card" data-type="opencode"><span class="type-glyph" data-icon="opencode"></span><b>OpenCode</b><span>opencode TUI</span></button>
+      <button class="type-card" data-type="claude"><span class="type-glyph" data-icon="claude"></span><b>Claude</b><span>claude TUI</span></button>
+      <button class="type-card" data-type="codex"><span class="type-glyph" data-icon="codex"></span><b>Codex</b><span>codex TUI</span></button>
     </div>
     <label>Nome (opzionale)<input class="input" id="new-name" placeholder="es. backend, fix-auth…" /></label>
     <label>Directory di lavoro
@@ -151,9 +151,9 @@
   <div class="modal wide">
     <h2>⟲ Resume di una sessione precedente</h2>
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" aria-selected="true" data-tab="opencode">⚡ OpenCode</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="claude">🤖 Claude Code</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="codex">✳ Codex</button>
+      <button class="tab" role="tab" aria-selected="true" data-tab="opencode"><span class="tab-glyph" data-icon="opencode"></span> OpenCode</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="claude"><span class="tab-glyph" data-icon="claude"></span> Claude Code</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="codex"><span class="tab-glyph" data-icon="codex"></span> Codex</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="history">🕘 Cronologia app</button>
     </div>
     <input class="input" id="resume-search" placeholder="Cerca per titolo, directory o id…" />
@@ -194,10 +194,10 @@
       Usa <code>{id}</code> negli argomenti di resume per l'id della sessione da riaprire.
     </p>
     <div class="tabs" role="tablist" id="config-tabs">
-      <button class="tab active" role="tab" aria-selected="true" data-config-tab="shell">🖥 Terminale</button>
-      <button class="tab" role="tab" aria-selected="false" data-config-tab="opencode">⚡ OpenCode</button>
-      <button class="tab" role="tab" aria-selected="false" data-config-tab="claude">🤖 Claude</button>
-      <button class="tab" role="tab" aria-selected="false" data-config-tab="codex">✳ Codex</button>
+      <button class="tab active" role="tab" aria-selected="true" data-config-tab="shell"><span class="tab-glyph" data-icon="shell"></span> Terminale</button>
+      <button class="tab" role="tab" aria-selected="false" data-config-tab="opencode"><span class="tab-glyph" data-icon="opencode"></span> OpenCode</button>
+      <button class="tab" role="tab" aria-selected="false" data-config-tab="claude"><span class="tab-glyph" data-icon="claude"></span> Claude</button>
+      <button class="tab" role="tab" aria-selected="false" data-config-tab="codex"><span class="tab-glyph" data-icon="codex"></span> Codex</button>
     </div>
     <div id="config-list"></div>
     <div class="row">
@@ -215,6 +215,8 @@
 <script src="../node_modules/@xterm/xterm/lib/xterm.js"></script>
 <script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
 <script src="../node_modules/@xterm/addon-web-links/lib/addon-web-links.js"></script>
+<script src="agent-icons.js"></script>
+<script src="term-clipboard.js"></script>
 <script src="command-config.js"></script>
 <script src="renderer.js"></script>
 </body>

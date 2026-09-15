@@ -10,7 +10,7 @@
   const $$ = (s) => [...document.querySelectorAll(s)];
 
   const TYPE_LABELS = { shell: 'Terminale', opencode: 'OpenCode', claude: 'Claude', codex: 'Codex' };
-  const TYPE_ICONS = { shell: '🖥', opencode: '⚡', claude: '🤖', codex: '✳' };
+  const Icons = window.AisessIcons; // marchi ufficiali (renderer/agent-icons.js)
   const TYPES = ['shell', 'opencode', 'claude', 'codex'];
   const LAST_USED_KEY = 'aisess.commandProfile.';
 
@@ -115,7 +115,10 @@
         b.title = p.command;
         const head = document.createElement('span');
         head.className = 'cmd-choice-label';
-        head.textContent = `${TYPE_ICONS[type] || '•'} ${p.label}`;
+        const glyph = document.createElement('span');
+        glyph.className = 'cmd-choice-icon';
+        glyph.innerHTML = Icons.markup(type); // markup statico, nessun dato utente
+        head.append(glyph, document.createTextNode(p.label));
         const cmd = document.createElement('span');
         cmd.className = 'cmd-choice-cmd';
         cmd.textContent = p.command;

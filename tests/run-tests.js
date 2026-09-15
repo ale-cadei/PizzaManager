@@ -82,8 +82,94 @@ ok('codex: main + preload + UI collegati', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'index.html'), 'utf8');
   assert.ok(html.includes('data-type="codex"'), 'manca la type-card codex');
   assert.ok(html.includes('data-tab="codex"'), 'manca il tab codex nel resume');
+  const icons = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'agent-icons.js'), 'utf8');
+  assert.ok(/codex:\s*\{/.test(icons), 'manca l\'icona codex');
+});
+
+ok('icone: ogni tipo ha il marchio ufficiale ed è incluso nella pagina', () => {
+  const root = path.join(__dirname, '..');
+  const icons = fs.readFileSync(path.join(root, 'renderer', 'agent-icons.js'), 'utf8');
+  assert.ok(icons.includes('window.AisessIcons'), 'agent-icons.js non espone AisessIcons');
+  for (const t of SESSION_TYPES) {
+    assert.ok(new RegExp(`\\n\\s{4}${t}:\\s*\\{`).test(icons), `manca il marchio per ${t}`);
+  }
+  // Marchi ufficiali riconoscibili dal loro tracciato/colore
+  assert.ok(icons.includes('M22 24H2V0h20zM17 4.8H7v14.4h10z'), 'il marchio OpenCode non è quello ufficiale');
+  assert.ok(icons.includes('M22.2819 9.8211'), 'il marchio Codex (OpenAI) non è quello ufficiale');
+  assert.ok(icons.includes('m4.7144 15.9555'), 'il marchio Claude non è quello ufficiale');
+
+  const html = fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');
+  assert.ok(html.includes('agent-icons.js'), 'agent-icons.js non è incluso nella pagina');
+  for (const t of SESSION_TYPES) {
+    assert.ok(html.includes(`data-icon="${t}"`), `manca il segnaposto icona per ${t}`);
+  }
+  const js = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
+  assert.ok(js.includes('Icons.hydrate(document)'), 'i segnaposto icona non vengono riempiti');
+  assert.ok(!/ICONS\s*=\s*\{/.test(js), 'restano icone emoji hardcoded nel renderer');
+
+  const tokens = fs.readFileSync(path.join(root, 'renderer', 'tokens.css'), 'utf8');
+  assert.ok(/--brand-claude:\s*#D97757/i.test(tokens), 'manca il colore ufficiale del marchio Claude');
+  const css = fs.readFileSync(path.join(root, 'renderer', 'styles.css'), 'utf8');
+  assert.ok(/\.agent-icon\s*\{[^}]*fill:\s*currentColor/.test(css), 'le icone non ereditano il colore');
+});
+
+ok('sessioni: la card lampeggia quando l assistente ha finito e si spegne alla selezione', () => {
+  const root = path.join(__dirname, '..');
+  const js = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
+  assert.ok(js.includes('ATTENTION_IDLE_MS'), 'manca la soglia di inattività per rilevare la fine del turno');
+  assert.ok(/onData\(\(\{ id, data \}\)[\s\S]{0,200}noteActivity/.test(js),
+    'l output del terminale non alimenta il rilevamento');
+  assert.ok(js.includes('term.onBell'), 'il bell dell agente non viene usato come segnale di fine turno');
+  assert.ok(/function setActive\(id\)[\s\S]{0,300}clearAttention\(id\)/.test(js),
+    'selezionare la sessione non spegne il lampeggio');
+  assert.ok(/t\.id === activeId\) return/.test(js), 'la scheda in primo piano non deve lampeggiare');
+  assert.ok(js.includes("t.needsAttention ? ' needs-attention' : ''"), 'la card non riceve la classe di lampeggio');
+
+  const css = fs.readFileSync(path.join(root, 'renderer', 'styles.css'), 'utf8');
+  assert.ok(/@keyframes attention-pulse/.test(css), 'manca l animazione di lampeggio');
+  assert.ok(/\.session-item\.needs-attention[\s\S]{0,160}animation:\s*attention-pulse/.test(css),
+    'la card non usa l animazione di lampeggio');
+  assert.ok(/prefers-reduced-motion[\s\S]{0,400}animation:\s*none/.test(css),
+    'il lampeggio non rispetta prefers-reduced-motion');
+});
+
+ok('terminale: copia/incolla passano dalla selezione di xterm, non dal documento', () => {
+  const root = path.join(__dirname, '..');
+  const clip = fs.readFileSync(path.join(root, 'renderer', 'term-clipboard.js'), 'utf8');
+  assert.ok(clip.includes('window.AisessClipboard'), 'term-clipboard.js non espone AisessClipboard');
+  assert.ok(clip.includes('term.getSelection()'), 'la copia non legge la selezione del terminale');
+  assert.ok(clip.includes('clipboardWrite'), 'la copia non scrive negli appunti di sistema');
+  assert.ok(clip.includes('term.paste('), 'l incolla non passa da term.paste (bracketed paste)');
+  assert.ok(/!e\.shiftKey && !isMac && !term\.hasSelection\(\)\) return true/.test(clip),
+    'Ctrl+C senza selezione deve restare SIGINT');
+
+  const main = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
+  assert.ok(main.includes("'clipboard-write'") && main.includes("'clipboard-read'"), 'mancano gli handler appunti');
+  const edit = main.match(/label: 'Edit',[\s\S]*?\n {4}\},/);
+  assert.ok(edit, 'manca il menu Edit');
+  assert.ok(!/role: '(copy|paste|cut|undo|redo|selectAll)'/.test(edit[0]),
+    'il menu Edit usa ancora i ruoli nativi, che ignorano la selezione dei terminali: ' + edit[0]);
+  // Ctrl+C / Ctrl+Z / Ctrl+X devono restare al processo nel terminale
+  assert.ok(!/accelerator: 'Ctrl\+(C|Z|X)'/.test(edit[0]), 'un acceleratore ruba una scorciatoia della shell');
+
+  const pre = fs.readFileSync(path.join(root, 'preload.js'), 'utf8');
+  for (const f of ['clipboardWrite', 'clipboardRead', 'onMenuEdit']) {
+    assert.ok(pre.includes(f), `manca ${f} nel preload`);
+  }
+  const js = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
+  assert.ok(js.includes('AisessClipboard.attach(term, inner)'), 'il terminale non aggancia copia/incolla');
+  assert.ok(js.includes('runEditAction'), 'il menu Edit non viene smistato verso il terminale');
+  const html = fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');
+  assert.ok(html.includes('term-clipboard.js'), 'term-clipboard.js non è incluso nella pagina');
+});
+
+ok('sidebar: gruppo per tipo anche con una sola sessione', () => {
   const js = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'renderer.js'), 'utf8');
-  assert.ok(js.includes("codex: '✳'"), 'manca l\'icona codex');
+  const body = js.slice(js.indexOf('function renderSidebar'));
+  assert.ok(!/items\.length === 1/.test(body),
+    'con una sola sessione il gruppo collassabile viene ancora saltato');
+  assert.ok(body.includes('group-header'), 'manca l header di gruppo');
+  assert.ok(body.includes("collapsed ? '▸' : '▾'"), 'manca la freccina di collasso');
 });
 
 ok('codex-sessions: scan rollout senza crash', () => {

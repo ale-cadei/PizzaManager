@@ -33,6 +33,11 @@
   --type-claude:   #C39BF5;
   --type-codex:    #7FB2FF;
 
+  /* colori dei marchi ufficiali, usati solo dalle icone degli agenti */
+  --brand-claude:   #D97757;  /* arancio Anthropic */
+  --brand-opencode: #F2EFF4;  /* marchio monocromatico, su fondo scuro = chiaro */
+  --brand-codex:    #F2EFF4;  /* marchio OpenAI, monocromatico */
+
   /* testo */
   --text:          #F2EFF4;
   --text-2:        #D8D3DE;

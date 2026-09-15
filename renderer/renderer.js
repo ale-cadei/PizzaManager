@@ -10,7 +10,8 @@ const emptyResumeCache = () => ({ opencode: null, claude: null, codex: null, his
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 
-const ICONS = { shell: '🖥', opencode: '⚡', claude: '🤖', codex: '✳' };
+// Marchi ufficiali degli agenti (renderer/agent-icons.js)
+const Icons = window.AisessIcons;
 // Tipi con un binario esterno da risolvere (lo shell è sempre disponibile)
 const AI_TYPES = ['opencode', 'claude', 'codex'];
 
@@ -19,6 +20,7 @@ const TERM_FONT_SIZE = 15;
 const TERM_LINE_HEIGHT = 1.2;
 
 async function init() {
+  Icons.hydrate(document);
   const d = await window.aisess.getDefaults();
   $('#platform-label').textContent = d.platform + ' · ' + d.shell;
   $('#new-cwd').value = d.homedir;
@@ -46,6 +48,7 @@ async function init() {
   try {
     window.aisess.onMenu('menu-new-session', () => openNewModal());
     window.aisess.onMenu('menu-open-config', () => window.AisessCommands.openConfig());
+    window.aisess.onMenuEdit((action) => runEditAction(action));
   } catch {}
 
   // Comandi di avvio configurabili (renderer/command-config.js)
@@ -121,12 +124,15 @@ async function init() {
 
   window.aisess.onData(({ id, data }) => {
     const t = tabs.get(id);
-    if (t) t.term.write(data);
+    if (!t) return;
+    t.term.write(data);
+    noteActivity(t, data ? data.length : 0);
   });
   window.aisess.onExit(({ id, exitCode }) => {
     const t = tabs.get(id);
     if (t) {
       t.alive = false;
+      clearAttention(id);
       t.term.write(`\r\n\x1b[90m[processo terminato con codice ${exitCode}] — puoi chiudere la scheda ✕\x1b[0m\r\n`);
       renderSidebar();
     }
@@ -172,7 +178,8 @@ async function renderRecentDirs() {
     b.title = d.lastOpened ? `${d.path}\nUltimo uso: ${fmtDate(d.lastOpened)}` : d.path;
     const icon = document.createElement('span');
     icon.className = 'dir-chip-type';
-    icon.textContent = ICONS[d.type] || '📁';
+    if (Icons.has(d.type)) icon.innerHTML = Icons.markup(d.type);
+    else icon.textContent = '📁';
     const label = document.createElement('span');
     label.className = 'dir-chip-path';
     label.textContent = shortPath(d.path);
@@ -367,33 +374,37 @@ async function renderResumeList(keepCache = false) {
    `date` è la data da mostrare, `open()` avvia la scheda corrispondente. */
 const RESUME_VIEWS = {
   opencode: (s) => ({
-    title: `${ICONS.opencode} ${s.title || s.id}`,
+    icon: 'opencode',
+    title: s.title || s.id,
     sub: [s.directory, s.id, fmtDate(s.created)],
     action: 'Resume',
     actionClass: 'btn--primary',
     open: () => createTab('opencode', { name: (s.title || 'opencode').slice(0, 28), cwd: s.directory, resumeId: s.id }),
   }),
   claude: (s) => ({
-    title: `${ICONS.claude} ${s.title || s.id}`,
+    icon: 'claude',
+    title: s.title || s.id,
     sub: [s.cwd, s.id.slice(0, 8), fmtDate(s.mtime)],
     action: 'Resume',
     actionClass: 'btn--primary',
     open: () => createTab('claude', { name: (s.title || 'claude').slice(0, 28), cwd: s.cwd, resumeId: s.id, claudeAccountId: selectedResumeAccount() }),
   }),
   codex: (s) => ({
-    title: `${ICONS.codex} ${s.title || s.id}`,
+    icon: 'codex',
+    title: s.title || s.id,
     sub: [s.cwd, s.id.slice(0, 8), fmtDate(s.mtime)],
     action: 'Resume',
     actionClass: 'btn--primary',
     open: () => createTab('codex', { name: (s.title || 'codex').slice(0, 28), cwd: s.cwd, resumeId: s.id }),
   }),
   history: (s) => ({
-    title: `${ICONS[s.type] || '•'} ${s.cmd || s.type}`,
+    icon: Icons.has(s.type) ? s.type : null,
+    title: s.cmd || s.type,
     sub: [s.cwd, s.lastOpened],
     action: 'Riapri',
     actionClass: 'btn--secondary',
     open: () => {
-      const t = ICONS[s.type] ? s.type : 'shell';
+      const t = Icons.has(s.type) ? s.type : 'shell';
       return createTab(t, {
         cwd: s.cwd,
         resumeId: s.resumeId,
@@ -415,7 +426,9 @@ function createResumeItem(tab, s) {
   const el = document.createElement('div');
   el.className = 'resume-item';
   const sub = view.sub.filter(Boolean).join(' · ');
-  el.innerHTML = `<div class="meta"><div class="title">${escapeHtml(view.title)}</div>
+  // L'icona è markup statico del modulo icone; solo i dati della sessione vanno escapati
+  const icon = view.icon ? `<span class="icon">${Icons.markup(view.icon)}</span>` : '';
+  el.innerHTML = `<div class="meta"><div class="title">${icon}${escapeHtml(view.title)}</div>
     <div class="sub path" title="${escapeHtml(sub)}"><span>${escapeHtml(sub)}</span></div></div>`;
   const btn = document.createElement('button');
   btn.className = 'btn ' + view.actionClass;
@@ -465,7 +478,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   // Registra e rendi visibile PRIMA di aprire il terminale: xterm misura il
   // contenitore all'apertura, quindi il wrap deve essere già laid out a
   // dimensione piena (altrimenti la prima scheda nasce 20x10).
-  const tab = { id, type, name: label, cwd, resumeId, claudeAccountId, claudeAccountName, commandProfileId: picked.id, commandProfileLabel: picked.label, term: null, fit: null, ro: null, wrap, alive: true };
+  const tab = { id, type, name: label, cwd, resumeId, claudeAccountId, claudeAccountName, commandProfileId: picked.id, commandProfileLabel: picked.label, term: null, fit: null, ro: null, wrap, alive: true, needsAttention: false, idleTimer: null, pendingBytes: 0 };
   tabs.set(id, tab);
   updateEmpty();
   setActive(id);
@@ -479,6 +492,10 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   tab.fit = fit;
 
   term.onData((d) => window.aisess.write(id, d));
+  // Copia/incolla: la selezione di xterm non è una selezione del documento
+  window.AisessClipboard.attach(term, inner);
+  // Il bell è il "ho finito" esplicito degli agenti: vale senza attendere l'idle
+  try { term.onBell(() => flagAttention(tab, { force: true })); } catch {}
 
   // Dimensioni iniziali misurate sul contenitore reale già visibile
   let cols = 80, rows = 24;
@@ -508,9 +525,25 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   renderSidebar();
 }
 
+/* ---------- Menu Edit: terminale o resto della pagina ----------
+   Con il fuoco (o una selezione) sul terminale attivo copia/incolla passano da
+   xterm; altrove restano le azioni native, che funzionano su input e testo. */
+const EDIT_ACTIONS = ['undo', 'redo', 'cut', 'copy', 'paste', 'selectAll'];
+
+function runEditAction(action) {
+  if (!EDIT_ACTIONS.includes(action)) return false;
+  const t = activeId ? tabs.get(activeId) : null;
+  const onTerminal = !!t && !!t.term && (t.wrap.contains(document.activeElement) || t.term.hasSelection());
+  if (onTerminal && window.AisessClipboard.applyEditAction(t.term, action)) return true;
+  window.aisess.menuAction(action).catch((e) => console.warn('azione edit fallita', e));
+  return true;
+}
+
 function setActive(id) {
   activeId = id;
   tabs.forEach((t) => t.wrap.classList.toggle('active', t.id === id));
+  // Selezionare la sessione è la conferma che l'utente ha visto il lavoro finito
+  clearAttention(id);
   // Selezionare una scheda espande il suo gruppo, così la card resta visibile.
   // Va fatto SOLO qui e non in renderSidebar(), altrimenti il click sull'header
   // richiuderebbe e riaprirebbe subito il gruppo della scheda attiva.
@@ -535,10 +568,51 @@ function fitActive() {
   if (activeId) refitTab(activeId);
 }
 
+/* ---------- "L'assistente ha finito": card che lampeggia ----------
+   Un agente TUI scrive senza sosta mentre lavora: quando il flusso si ferma
+   per ATTENTION_IDLE_MS su una scheda non in primo piano, il turno è finito e
+   la card lampeggia finché l'utente non la seleziona. Il bell del terminale
+   (\x07, emesso dagli agenti a fine turno) è un segnale esplicito e vale
+   subito, senza attendere la soglia di byte. */
+const ATTENTION_IDLE_MS = 1500;
+const ATTENTION_MIN_BYTES = 40; // sotto questa soglia è solo ridisegno della TUI
+
+function noteActivity(t, bytes) {
+  if (t.type === 'shell') return;   // nessun assistente: niente da segnalare
+  if (t.id === activeId) return;    // già sotto gli occhi dell'utente
+  t.pendingBytes += bytes;
+  clearTimeout(t.idleTimer);
+  t.idleTimer = setTimeout(() => flagAttention(t), ATTENTION_IDLE_MS);
+}
+
+function flagAttention(t, { force = false } = {}) {
+  clearTimeout(t.idleTimer);
+  t.idleTimer = null;
+  const bytes = t.pendingBytes;
+  t.pendingBytes = 0;
+  if (t.type === 'shell' || t.id === activeId || t.needsAttention) return;
+  if (!force && bytes < ATTENTION_MIN_BYTES) return;
+  t.needsAttention = true;
+  renderSidebar();
+}
+
+/** Azzera la segnalazione di una scheda. @returns {boolean} true se lampeggiava */
+function clearAttention(id) {
+  const t = tabs.get(id);
+  if (!t) return false;
+  clearTimeout(t.idleTimer);
+  t.idleTimer = null;
+  t.pendingBytes = 0;
+  if (!t.needsAttention) return false;
+  t.needsAttention = false;
+  return true;
+}
+
 async function closeTab(id) {
   const t = tabs.get(id);
   if (!t) return;
   await window.aisess.kill(id);
+  clearAttention(id);
   try { if (t.ro) t.ro.disconnect(); } catch {}
   try { if (t.term) t.term.dispose(); } catch {}
   t.wrap.remove();
@@ -576,8 +650,9 @@ function shortPath(cwd) {
 function createSessionItem(t) {
   const b = document.createElement('button');
   const isActive = t.id === activeId;
-  b.className = `session-item type-${t.type}` + (isActive ? ' active' : '');
+  b.className = `session-item type-${t.type}` + (isActive ? ' active' : '') + (t.needsAttention ? ' needs-attention' : '');
   if (isActive) b.setAttribute('aria-current', 'true');
+  if (t.needsAttention) b.title = 'L\'assistente ha finito: apri la sessione per vedere il risultato';
   // Il comando si mostra solo se per quel tipo ce n'è più di uno configurato
   const multiCommand = window.AisessCommands && window.AisessCommands.profilesFor(t.type).length > 1;
   const extras = [t.claudeAccountName, multiCommand ? t.commandProfileLabel : null].filter(Boolean);
@@ -585,7 +660,7 @@ function createSessionItem(t) {
   const displaySub = [shortPath(t.cwd), ...extras].filter(Boolean).join(' · ');
   // Il marker resta nel DOM anche se invisibile: così tutte le card sono allineate
   b.innerHTML = `<span class="sel-mark" aria-hidden="true">◆</span>
-    <span class="icon">${ICONS[t.type]}</span>
+    <span class="icon">${Icons.markup(t.type)}</span>
     ${t.alive ? '<span class="live-dot" title="In esecuzione"></span>' : ''}
     <span class="meta"><span class="name">${escapeHtml(t.name)}${t.alive ? '' : ' (terminata)'}</span><br>
     <span class="sub path" title="${escapeHtml(fullSub)}"><span>${escapeHtml(displaySub)}</span></span></span>`;
@@ -613,23 +688,22 @@ function renderSidebar() {
   for (const type of byType.keys()) {
     const items = byType.get(type);
     if (!items.length) continue;
-    // Una sola sessione di questo tipo: card singola, senza gruppo
-    if (items.length === 1) {
-      list.appendChild(createSessionItem(items[0]));
-      continue;
-    }
-    // Più sessioni dello stesso tipo: gruppo espandibile/collassabile
+    // Gruppo espandibile/collassabile sempre, anche con una sola sessione:
+    // la posizione delle card resta stabile quando il gruppo cresce.
     const collapsed = collapsedGroups.has(type);
     const group = document.createElement('div');
     group.className = 'session-group';
     const header = document.createElement('button');
-    // Se collassato nasconde la scheda attiva, l'header la segnala
+    // Se collassato nasconde la scheda attiva (o una che lampeggia), l'header lo segnala
     const hidesActive = collapsed && items.some((t) => t.id === activeId);
-    header.className = `group-header type-${type}` + (hidesActive ? ' has-active' : '');
+    const hidesAttention = collapsed && items.some((t) => t.needsAttention);
+    header.className = `group-header type-${type}`
+      + (hidesActive ? ' has-active' : '')
+      + (hidesAttention ? ' needs-attention' : '');
     header.setAttribute('aria-expanded', String(!collapsed));
     header.innerHTML = `<span class="chevron">${collapsed ? '▸' : '▾'}</span>
       <span class="sel-mark" aria-hidden="true">◆</span>
-      <span class="icon">${ICONS[type] || '•'}</span>
+      <span class="icon">${Icons.markup(type)}</span>
       <span class="group-name">${escapeHtml(GROUP_LABELS[type] || type)}</span>
       <span class="group-count">${items.length}</span>`;
     header.onclick = () => {
@@ -692,6 +766,8 @@ function initMenubar(platform) {
   });
   bar.querySelectorAll('[data-action]').forEach((b) => b.addEventListener('click', async () => {
     closeAll();
+    // Le voci di Edit possono riguardare il terminale attivo: le smista runEditAction
+    if (runEditAction(b.dataset.action)) return;
     try { await window.aisess.menuAction(b.dataset.action); } catch {}
   }));
 }

@@ -22,6 +22,9 @@ contextBridge.exposeInMainWorld('aisess', {
   resetCommandProfiles: () => ipcRenderer.invoke('reset-command-profiles'),
   pickCwd: () => ipcRenderer.invoke('dialog-cwd'),
   menuAction: (action) => ipcRenderer.invoke('menu-action', { action }),
+  clipboardWrite: (text) => ipcRenderer.invoke('clipboard-write', { text }),
+  clipboardRead: () => ipcRenderer.invoke('clipboard-read'),
+  onMenuEdit: (cb) => ipcRenderer.on('menu-edit', (_e, action) => cb(action)),
   onMenu: (channel, cb) => {
     const allowed = ['menu-new-session', 'menu-open-config'];
     if (!allowed.includes(channel)) return;

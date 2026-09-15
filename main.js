@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, shell: electronShell } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, clipboard, shell: electronShell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -268,6 +268,13 @@ function installHint(name) {
   return INSTALL_HINTS[name] || `Verifica che '${name}' sia installato e nel PATH.`;
 }
 
+const isMac = process.platform === 'darwin';
+
+/** Inoltra un'azione di Edit al renderer, che sa se il fuoco è su un terminale. */
+function sendEdit(action) {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('menu-edit', action);
+}
+
 function buildAppMenu() {
   const template = [
     {
@@ -281,15 +288,21 @@ function buildAppMenu() {
       ],
     },
     {
+      // Le voci di Edit NON usano i `role` nativi: quelli agiscono sulla
+      // selezione del documento, che nei terminali xterm non esiste (la
+      // selezione vive dentro il canvas). Il renderer sa se il fuoco è su un
+      // terminale e copia/incolla di conseguenza (renderer/term-clipboard.js).
+      // Gli acceleratori sono solo quelli che NON servono alla shell:
+      // Ctrl+C/Ctrl+Z/Ctrl+X restano al processo (SIGINT, sospensione, nano).
       label: 'Edit',
       submenu: [
-        { role: 'undo', label: 'Annulla' },
-        { role: 'redo', label: 'Ripeti' },
+        { label: 'Annulla', click: () => sendEdit('undo') },
+        { label: 'Ripeti', click: () => sendEdit('redo') },
         { type: 'separator' },
-        { role: 'cut', label: 'Taglia' },
-        { role: 'copy', label: 'Copia' },
-        { role: 'paste', label: 'Incolla' },
-        { role: 'selectAll', label: 'Seleziona tutto' },
+        { label: 'Taglia', click: () => sendEdit('cut') },
+        { label: 'Copia', accelerator: isMac ? 'Cmd+C' : 'Ctrl+Shift+C', click: () => sendEdit('copy') },
+        { label: 'Incolla', accelerator: isMac ? 'Cmd+V' : 'Ctrl+Shift+V', click: () => sendEdit('paste') },
+        { label: 'Seleziona tutto', accelerator: isMac ? 'Cmd+A' : undefined, click: () => sendEdit('selectAll') },
       ],
     },
     {
@@ -367,6 +380,28 @@ function createWindow() {
 // Azioni della menubar scura in-app (renderer/index.html#menubar).
 // Replica i ruoli del menu nativo così File/Edit/View/Window/Help
 // funzionano anche con la menubar nativa nascosta.
+/* Appunti di sistema: il renderer li usa per la selezione dei terminali, che
+   non è una selezione del documento e quindi non passa da webContents.copy(). */
+ipcMain.handle('clipboard-write', (event, { text } = {}) => {
+  if (typeof text !== 'string' || !text) return { ok: false, error: 'niente da copiare' };
+  try {
+    clipboard.writeText(text);
+    return { ok: true };
+  } catch (e) {
+    console.error('[clipboard-write]', e);
+    return { ok: false, error: String((e && e.message) || e) };
+  }
+});
+
+ipcMain.handle('clipboard-read', () => {
+  try {
+    return { ok: true, text: clipboard.readText() || '' };
+  } catch (e) {
+    console.error('[clipboard-read]', e);
+    return { ok: false, error: String((e && e.message) || e), text: '' };
+  }
+});
+
 ipcMain.handle('menu-action', async (event, { action } = {}) => {
   if (!mainWindow || mainWindow.isDestroyed()) return { ok: false, error: 'finestra non disponibile' };
   const wc = mainWindow.webContents;

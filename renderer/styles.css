@@ -108,6 +108,25 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   outline: none; border-color: var(--action); box-shadow: 0 0 0 3px var(--action-ring);
 }
 
+/* ---------- Icone ufficiali degli agenti (renderer/agent-icons.js) ---------- */
+.agent-icon {
+  width: 1em; height: 1em; display: block;
+  fill: currentColor; flex: 0 0 auto;
+}
+/* Il marchio porta il proprio colore; lo shell segue l'identità di tipo */
+.agent-icon--claude   { color: var(--brand-claude); }
+.agent-icon--opencode { color: var(--brand-opencode); }
+.agent-icon--codex    { color: var(--brand-codex); }
+.agent-icon--shell    { color: var(--type-shell); }
+/* Contenitori: l'icona eredita la dimensione dal font del contesto */
+.session-item .icon, .group-header .icon, .resume-item .icon,
+.dir-chip-type, .cmd-choice-icon, .type-glyph, .tab-glyph {
+  display: inline-flex; align-items: center; flex: 0 0 auto;
+}
+.resume-item .icon, .cmd-choice-icon { margin-right: 7px; vertical-align: -0.15em; }
+.type-glyph { margin-bottom: 4px; }
+.tab-glyph { vertical-align: -0.15em; }
+
 /* ---------- Card sessione ---------- */
 #session-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: var(--gap-xs); }
 .session-item {
@@ -155,6 +174,30 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .session-item .sub > span { direction: ltr; unicode-bidi: embed; }
 /* punto "in esecuzione": il verde si usa SOLO qui */
 .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--state-ok); flex: 0 0 auto; }
+
+/* ---------- "L'assistente ha finito": lampeggio flebile della card ----------
+   Pulsazione lenta e a basso contrasto (nessun colore di stato nuovo: solo il
+   teal d'azione a bassa opacità). Si spegne quando l'utente apre la sessione. */
+@keyframes attention-pulse {
+  0%, 100% { background: var(--surface-2); box-shadow: none; }
+  50%      { background: var(--action-soft); box-shadow: inset 0 0 0 1px var(--action-ring); }
+}
+.session-item.needs-attention,
+.group-header.needs-attention {
+  animation: attention-pulse 2.4s ease-in-out infinite;
+}
+/* Il pallino "in esecuzione" pulsa con la card, senza cambiare colore */
+@keyframes attention-dot { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+.session-item.needs-attention .live-dot { animation: attention-dot 2.4s ease-in-out infinite; }
+/* Barra di tipo piena: la card si fa notare anche senza percepire l'animazione */
+.session-item.needs-attention::before { opacity: .85; }
+@media (prefers-reduced-motion: reduce) {
+  .session-item.needs-attention,
+  .group-header.needs-attention,
+  .session-item.needs-attention .live-dot { animation: none; }
+  .session-item.needs-attention,
+  .group-header.needs-attention { background: var(--action-soft); }
+}
 
 .close-x { border: none; background: transparent; color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 6px; }
 .close-x:hover { color: var(--state-error); }

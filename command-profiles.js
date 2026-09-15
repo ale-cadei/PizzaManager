@@ -33,6 +33,13 @@ const DEFAULT_RESUME_ARGS = {
 const OPERATOR_CHARS = new Set(['|', '&', ';', '<', '>', '`']);
 const ID_RE = /^[A-Za-z0-9:_.-]{1,64}$/;
 
+/* Assegnamenti d'ambiente in testa al comando, come `VAR=valore comando`.
+ * Servono perché gli alias di shell (es. `alias claudep="CLAUDE_CONFIG_DIR=…
+ * claude"` in ~/.zshrc) non esistono per pty.spawn: qui l'alias si riscrive
+ * per esteso nel profilo. */
+const ENV_ASSIGN_RE = /^([A-Za-z_][A-Za-z0-9_]*)=([\s\S]*)$/;
+const VAR_REF_RE = /\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))/g;
+
 /** Racchiude tra virgolette i percorsi con spazi, così il tokenizer li ricompone. */
 function quoteIfNeeded(value) {
   const s = String(value || '');
@@ -115,6 +122,37 @@ function expandHome(token, home) {
   return token;
 }
 
+/**
+ * Espande `$VAR` e `${VAR}` con i valori dati. Le variabili non definite
+ * restano letterali: meglio un `$` visibile che un valore sparito in silenzio.
+ */
+function expandVars(value, vars) {
+  if (typeof value !== 'string' || !vars) return value;
+  return value.replace(VAR_REF_RE, (whole, braced, bare) => {
+    const name = braced || bare;
+    return Object.prototype.hasOwnProperty.call(vars, name) ? String(vars[name]) : whole;
+  });
+}
+
+/**
+ * Separa gli assegnamenti `VAR=valore` in testa dal comando vero e proprio.
+ * Come in una shell, contano solo quelli che precedono il primo token normale.
+ *
+ * @param {string[]} tokens
+ * @returns {{ assignments: Array<[string, string]>, rest: string[] }}
+ */
+function splitEnvAssignments(tokens) {
+  const list = Array.isArray(tokens) ? tokens : [];
+  const assignments = [];
+  let i = 0;
+  for (; i < list.length; i++) {
+    const m = ENV_ASSIGN_RE.exec(list[i]);
+    if (!m) break;
+    assignments.push([m[1], m[2]]);
+  }
+  return { assignments, rest: list.slice(i) };
+}
+
 function checkCommandString(value, { field }) {
   const scan = scanCommand(value);
   if (scan.unbalanced) return `${field}: virgolette non chiuse.`;
@@ -141,7 +179,10 @@ function validateProfile(type, raw) {
 
   const cmdErr = checkCommandString(command, { field: `"${label}"` });
   if (cmdErr) return { ok: false, error: cmdErr };
-  if (!tokenizeCommand(command).length) return { ok: false, error: `"${label}": comando vuoto.` };
+  const cmdTokens = tokenizeCommand(command);
+  if (!cmdTokens.length) return { ok: false, error: `"${label}": comando vuoto.` };
+  if (!splitEnvAssignments(cmdTokens).rest.length)
+    return { ok: false, error: `"${label}": dopo le variabili d'ambiente manca il comando da eseguire.` };
 
   if (resumeArgs) {
     if (resumeArgs.length > MAX_COMMAND_LEN) return { ok: false, error: `"${label}": gli argomenti di resume superano ${MAX_COMMAND_LEN} caratteri.` };
@@ -205,20 +246,32 @@ function findProfile(config, type, id) {
  * L'id di sessione finisce dove c'è `{id}` nel comando, altrimenti in coda
  * usando `resumeArgs`.
  *
+ * Gli eventuali `VAR=valore` in testa non finiscono nell'argv: tornano in
+ * `env`, da passare a pty.spawn. È la riscrittura esplicita di un alias di
+ * shell, che pty.spawn non vedrebbe.
+ *
  * @param {{ command: string, resumeArgs?: string }} profile
- * @param {{ resumeId?: string|null, home?: string }} [options]
- * @returns {{ ok: true, bin: string, args: string[], resumeApplied: boolean } | { ok: false, error: string }}
+ * @param {{ resumeId?: string|null, home?: string, env?: object }} [options]
+ * @returns {{ ok: true, bin: string, args: string[], env: object, resumeApplied: boolean } | { ok: false, error: string }}
  */
 function resolveProfileCommand(profile, options = {}) {
-  const { resumeId, home } = options;
+  const { resumeId, home, env: vars } = options;
   if (!profile || typeof profile.command !== 'string')
     return { ok: false, error: 'Profilo di comando non valido.' };
   const scan = scanCommand(profile.command);
   if (scan.unbalanced) return { ok: false, error: 'Comando non valido: virgolette non chiuse.' };
   if (!scan.tokens.length) return { ok: false, error: 'Comando vuoto.' };
 
-  const inlineResume = scan.tokens.some((t) => t.includes(RESUME_PLACEHOLDER));
-  let tokens = scan.tokens;
+  const split = splitEnvAssignments(scan.tokens);
+  if (!split.rest.length)
+    return { ok: false, error: "Dopo le variabili d'ambiente manca il comando da eseguire." };
+  const env = {};
+  for (const [name, value] of split.assignments) {
+    env[name] = expandHome(expandVars(value, vars), home);
+  }
+
+  const inlineResume = split.rest.some((t) => t.includes(RESUME_PLACEHOLDER));
+  let tokens = split.rest;
   if (resumeId) {
     tokens = inlineResume
       ? tokens.map((t) => t.split(RESUME_PLACEHOLDER).join(String(resumeId)))
@@ -237,7 +290,7 @@ function resolveProfileCommand(profile, options = {}) {
       resumeApplied = true;
     }
   }
-  return { ok: true, bin: expandHome(tokens[0], home), args, resumeApplied };
+  return { ok: true, bin: expandHome(tokens[0], home), args, env, resumeApplied };
 }
 
 module.exports = {
@@ -252,6 +305,8 @@ module.exports = {
   scanCommand,
   tokenizeCommand,
   expandHome,
+  expandVars,
+  splitEnvAssignments,
   validateProfile,
   normalizeConfig,
   listProfiles,

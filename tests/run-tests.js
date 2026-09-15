@@ -96,7 +96,14 @@ ok('icone: ogni tipo ha il marchio ufficiale ed è incluso nella pagina', () => 
   // Marchi ufficiali riconoscibili dal loro tracciato/colore
   assert.ok(icons.includes('M22 24H2V0h20zM17 4.8H7v14.4h10z'), 'il marchio OpenCode non è quello ufficiale');
   assert.ok(icons.includes('M22.2819 9.8211'), 'il marchio Codex (OpenAI) non è quello ufficiale');
-  assert.ok(icons.includes('m4.7144 15.9555'), 'il marchio Claude non è quello ufficiale');
+  // Claude: l'insetto di Claude Code, ricalcato da assets/claude-code.png
+  const claude = icons.match(/\n {4}claude:\s*\{[\s\S]*?\n {4}\},/);
+  assert.ok(claude, 'manca il marchio Claude');
+  assert.ok(claude[0].includes('M4 4H20V8H24V12H20V20H18V16H16V20H14V16H10V20H8V16H6V20H4V12H0V8H4Z'),
+    'la sagoma dell insetto Claude non corrisponde a assets/claude-code.png');
+  assert.ok(/rule:\s*'evenodd'/.test(claude[0]), 'occhi e zampe dell insetto Claude non sono ritagliati');
+  assert.ok(fs.existsSync(path.join(root, 'assets', 'claude-code.png')),
+    'manca l immagine sorgente assets/claude-code.png');
 
   const html = fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');
   assert.ok(html.includes('agent-icons.js'), 'agent-icons.js non è incluso nella pagina');
@@ -489,6 +496,61 @@ ok('comandi: la tilde viene espansa (pty.spawn non passa da una shell)', () => {
   );
   assert.strictEqual(r.bin, '/home/tester/.local/bin/claude');
   assert.deepStrictEqual(r.args, ['--add-dir', '/home/tester/progetti']);
+});
+
+ok('comandi: le variabili in testa diventano env, non argv (alias di shell riscritti)', () => {
+  const r = profiles.resolveProfileCommand(
+    { command: 'CLAUDE_CONFIG_DIR=~/.claude-personal claude --model opus', resumeArgs: '--resume {id}' },
+    { home: '/Users/jack' }
+  );
+  assert.ok(r.ok);
+  assert.strictEqual(r.bin, 'claude');
+  assert.deepStrictEqual(r.args, ['--model', 'opus']);
+  assert.deepStrictEqual(r.env, { CLAUDE_CONFIG_DIR: '/Users/jack/.claude-personal' });
+
+  // $HOME e ${VAR} presi dall'ambiente passato; variabili ignote restano letterali
+  const v = profiles.resolveProfileCommand(
+    { command: 'A=$HOME/.x B=${FOO}-1 C=$IGNOTA claude' },
+    { home: '/h', env: { HOME: '/Users/jack', FOO: 'bar' } }
+  );
+  assert.deepStrictEqual(v.env, { A: '/Users/jack/.x', B: 'bar-1', C: '$IGNOTA' });
+  assert.strictEqual(v.bin, 'claude');
+
+  // il resume continua a funzionare col prefisso davanti
+  const res = profiles.resolveProfileCommand(
+    { command: 'CLAUDE_CONFIG_DIR=/p claude', resumeArgs: '--resume {id}' },
+    { resumeId: 'abc123' }
+  );
+  assert.deepStrictEqual(res.args, ['--resume', 'abc123']);
+  assert.strictEqual(res.resumeApplied, true);
+
+  // solo variabili, nessun comando: errore sia in resolve sia in validazione
+  assert.strictEqual(profiles.resolveProfileCommand({ command: 'FOO=bar' }, {}).ok, false);
+  const bad = profiles.validateProfile('claude', { label: 'x', command: 'FOO=bar' });
+  assert.strictEqual(bad.ok, false);
+  assert.match(bad.error, /manca il comando/i);
+
+  // un token con '=' dopo il comando resta un argomento
+  const arg = profiles.resolveProfileCommand({ command: 'claude FOO=bar' }, {});
+  assert.deepStrictEqual(arg.args, ['FOO=bar']);
+  assert.deepStrictEqual(arg.env, {});
+});
+
+ok('comandi: main passa le variabili del profilo al pty', () => {
+  const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  assert.ok(/\.\.\.\(profileEnv \|\| \{\}\)/.test(main), 'pty.spawn non riceve le variabili del profilo');
+  assert.ok(/alias della shell/i.test(main), 'l errore di binario mancante non spiega il caso alias');
+});
+
+ok('claude: il login viene letto nella config dir del profilo, non sempre in ~/.claude', () => {
+  const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  assert.ok(/function detectClaudeOauth\(configDir\)/.test(main), 'detectClaudeOauth ignora la config dir del profilo');
+  assert.ok(/profileEnv && profileEnv\.CLAUDE_CONFIG_DIR/.test(main), 'pty-spawn non ricava CLAUDE_CONFIG_DIR dal profilo');
+  // macOS: il token sta nel Keychain, l'account si ricava da .claude.json
+  assert.ok(/oauthAccount/.test(main), 'manca il fallback su oauthAccount (macOS: token nel Keychain)');
+  // ANTHROPIC_API_KEY + config dir dedicata = isolamento solo apparente
+  assert.ok(/ANTHROPIC_API_KEY ha la precedenza sul login del profilo/.test(main),
+    'il conflitto fra account a chiave API e profilo CLAUDE_CONFIG_DIR non viene bloccato');
 });
 
 ok('comandi: profilo non valido non produce un argv', () => {

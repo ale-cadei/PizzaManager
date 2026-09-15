@@ -190,7 +190,10 @@
     <p class="muted small">
       Per ogni tipo di sessione puoi definire più comandi di avvio. Se un tipo ne ha più di uno,
       all'avvio della sessione ti viene chiesto quale usare. Il comando è eseguito direttamente
-      (senza shell): pipe, redirezioni e <code>&amp;&amp;</code> non sono supportati.
+      (senza shell): pipe, redirezioni e <code>&amp;&amp;</code> non sono supportati, e
+      <b>gli alias di <code>~/.zshrc</code> o <code>~/.bashrc</code> non esistono</b>.
+      Puoi però mettere in testa delle variabili d'ambiente, che è quello che l'alias fa davvero:
+      <code>CLAUDE_CONFIG_DIR=~/.claude-personal claude</code> (valgono <code>~</code>, <code>$HOME</code> e le altre variabili già esportate).
       Usa <code>{id}</code> negli argomenti di resume per l'id della sessione da riaprire.
     </p>
     <div class="tabs" role="tablist" id="config-tabs">

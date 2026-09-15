@@ -156,14 +156,42 @@ function saveClaudeKeyAccounts(acc) {
   try { fs.chmodSync(claudeAccountsFile(), 0o600); } catch {}
 }
 
-function detectClaudeOauth() {
+const DEFAULT_CLAUDE_CONFIG_DIR = () => path.join(os.homedir(), '.claude');
+
+/* Dove Claude Code tiene `.claude.json`: accanto alla config dir quando è
+ * personalizzata con CLAUDE_CONFIG_DIR, in ~/.claude.json col default. */
+function claudeGlobalConfigFile(configDir) {
+  const dir = configDir || DEFAULT_CLAUDE_CONFIG_DIR();
+  if (path.resolve(dir) === path.resolve(DEFAULT_CLAUDE_CONFIG_DIR()))
+    return path.join(os.homedir(), '.claude.json');
+  return path.join(dir, '.claude.json');
+}
+
+/**
+ * Chi è loggato in una config dir di Claude Code.
+ * La dir dipende dal profilo (CLAUDE_CONFIG_DIR): con due profili, leggere
+ * sempre ~/.claude darebbe la risposta dell'account sbagliato.
+ * Su macOS il token sta nel Keychain e `.credentials.json` non esiste: lì
+ * l'account si ricava da `oauthAccount` in `.claude.json`.
+ */
+function detectClaudeOauth(configDir) {
+  const dir = configDir || DEFAULT_CLAUDE_CONFIG_DIR();
   try {
-    const f = path.join(os.homedir(), '.claude', '.credentials.json');
-    if (!fs.existsSync(f)) return { available: false };
-    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
-    const o = d && d.claudeAiOauth;
-    if (o && (o.accessToken || o.refreshToken)) {
-      return { available: true, label: o.subscriptionType ? `login corrente (${o.subscriptionType})` : 'login corrente' };
+    const f = path.join(dir, '.credentials.json');
+    if (fs.existsSync(f)) {
+      const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+      const o = d && d.claudeAiOauth;
+      if (o && (o.accessToken || o.refreshToken)) {
+        return { available: true, label: o.subscriptionType ? `login corrente (${o.subscriptionType})` : 'login corrente' };
+      }
+    }
+  } catch {}
+  try {
+    const g = claudeGlobalConfigFile(dir);
+    if (fs.existsSync(g)) {
+      const d = JSON.parse(fs.readFileSync(g, 'utf8'));
+      const email = d && d.oauthAccount && d.oauthAccount.emailAddress;
+      if (email) return { available: true, label: `login corrente (${email})` };
     }
   } catch {}
   return { available: false };
@@ -237,7 +265,11 @@ function buildCommand(type, resumeId, profileId) {
   if (!profile)
     return { cmd: null, args: [], error: 'Il comando scelto non esiste più: riaprilo da File → Configurazione comandi.' };
 
-  const r = commandProfiles.resolveProfileCommand(profile, { resumeId, home: os.homedir() });
+  const r = commandProfiles.resolveProfileCommand(profile, {
+    resumeId,
+    home: os.homedir(),
+    env: process.env,
+  });
   if (!r.ok) return { cmd: null, args: [], error: `"${profile.label}": ${r.error}` };
   if (resumeId && !r.resumeApplied)
     return {
@@ -250,11 +282,11 @@ function buildCommand(type, resumeId, profileId) {
   if (r.bin.includes('/')) {
     if (!isExecutable(r.bin))
       return { cmd: null, args: [], error: `"${profile.label}": ${r.bin} non è un eseguibile valido.` };
-    return { cmd: r.bin, args: r.args, resolvedVia: 'path-esplicito', profile };
+    return { cmd: r.bin, args: r.args, profileEnv: r.env, resolvedVia: 'path-esplicito', profile };
   }
   const rb = resolveBinary(r.bin);
   if (!rb.path) return { cmd: null, args: [], missing: r.bin, searchedPath: rb.searchedPath, profile };
-  return { cmd: rb.path, args: r.args, resolvedVia: rb.via, profile };
+  return { cmd: rb.path, args: r.args, profileEnv: r.env, resolvedVia: rb.via, profile };
 }
 
 // Suggerimento di installazione mostrato quando un binario non è nel PATH
@@ -264,8 +296,17 @@ const INSTALL_HINTS = {
   codex: 'Installa con: npm i -g @openai/codex (oppure brew install codex)',
 };
 
+/* Gli alias di shell (~/.zshrc, ~/.bashrc) esistono solo dentro una shell
+ * interattiva: pty.spawn lancia il binario direttamente, quindi non li vede
+ * mai. Caso tipico: `alias claudep="CLAUDE_CONFIG_DIR=… claude"`. */
+function aliasHint(name) {
+  return `\nSe '${name}' è un alias della shell (~/.zshrc, ~/.bashrc) non può funzionare: `
+    + 'il comando viene eseguito senza shell. Riscrivilo per esteso nel profilo, '
+    + 'es. CLAUDE_CONFIG_DIR=~/.claude-personal claude';
+}
+
 function installHint(name) {
-  return INSTALL_HINTS[name] || `Verifica che '${name}' sia installato e nel PATH.`;
+  return (INSTALL_HINTS[name] || `Verifica che '${name}' sia installato e nel PATH.`) + aliasHint(name);
 }
 
 const isMac = process.platform === 'darwin';
@@ -450,7 +491,7 @@ app.on('window-all-closed', () => {
 ipcMain.handle('pty-spawn', async (event, { id, type, cwd, resumeId, claudeAccountId, commandProfileId, cols, rows }) => {
   if (!pty) return { ok: false, error: 'node-pty non installato. Esegui: npm install' };
   const workdir = cwd && fs.existsSync(cwd) ? cwd : os.homedir();
-  const { cmd, args, missing, searchedPath, error, profile } = buildCommand(type, resumeId, commandProfileId);
+  const { cmd, args, profileEnv, missing, searchedPath, error, profile } = buildCommand(type, resumeId, commandProfileId);
   if (!cmd) {
     if (error) return { ok: false, error };
     return {
@@ -460,14 +501,27 @@ ipcMain.handle('pty-spawn', async (event, { id, type, cwd, resumeId, claudeAccou
   }
   let extraVars = {};
   let accountName = null;
+  // Il profilo può spostare la config dir (CLAUDE_CONFIG_DIR): è lì che sta
+  // il login di quel profilo, non per forza in ~/.claude.
+  const profileConfigDir = (profileEnv && profileEnv.CLAUDE_CONFIG_DIR) || null;
   if (type === 'claude' && claudeAccountId && claudeAccountId !== 'oauth') {
     const ae = claudeAccountEnv(claudeAccountId);
     if (ae.error) return { ok: false, error: ae.error };
+    // ANTHROPIC_API_KEY scavalca il login OAuth: con una config dir dedicata
+    // l'isolamento fra profili sarebbe solo apparente, e si pagherebbe a consumo.
+    if (profileConfigDir)
+      return {
+        ok: false,
+        error: `Il comando "${profile.label}" usa già un profilo Claude separato (CLAUDE_CONFIG_DIR=${profileConfigDir}), `
+          + `ma hai scelto l'account a chiave API "${ae.name}".\nANTHROPIC_API_KEY ha la precedenza sul login del profilo: `
+          + "l'isolamento non varrebbe e il consumo verrebbe addebitato sulla chiave.\n"
+          + "Scegli l'account \"OAuth (login corrente)\" per usare il login del profilo, oppure un comando senza CLAUDE_CONFIG_DIR.",
+      };
     extraVars = ae.vars;
     accountName = ae.name;
   } else if (type === 'claude') {
-    const o = detectClaudeOauth();
-    accountName = o.available ? 'OAuth' : null;
+    const o = detectClaudeOauth(profileConfigDir);
+    accountName = o.available ? (profileConfigDir ? `OAuth (${profileConfigDir})` : 'OAuth') : null;
   }
   try {
     const p = pty.spawn(cmd, args, {
@@ -475,7 +529,9 @@ ipcMain.handle('pty-spawn', async (event, { id, type, cwd, resumeId, claudeAccou
       cols: cols || 80,
       rows: rows || 24,
       cwd: workdir,
-      env: augmentedEnv([cmd], extraVars),
+      // Le variabili del profilo vengono per ultime: sono la scelta esplicita
+      // dell'utente (es. CLAUDE_CONFIG_DIR) e devono vincere sui default.
+      env: { ...augmentedEnv([cmd], extraVars), ...(profileEnv || {}) },
     });
     ptys.set(id, p);
     p.onData((data) => {
@@ -495,7 +551,11 @@ ipcMain.handle('pty-spawn', async (event, { id, type, cwd, resumeId, claudeAccou
       claudeAccountName: accountName,
       commandProfileId: (profile && profile.id) || null,
       commandProfileLabel: (profile && profile.label) || null,
-      cmd: cmd + ' ' + args.join(' '),
+      cmd: [
+        ...Object.entries(profileEnv || {}).map(([k, v]) => `${k}=${v}`),
+        cmd,
+        ...args,
+      ].join(' '),
     });
     return { ok: true };
   } catch (e) {

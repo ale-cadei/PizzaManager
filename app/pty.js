@@ -100,7 +100,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     if (!pty) return { ok: false, error: 'node-pty non installato. Esegui: npm install' };
 
     const workdir = resolveWorkdir(cwd);
-    const { cmd, args, profileEnv, missing, searchedPath, error, profile } = buildCommand(type, resumeId, commandProfileId, { profiles });
+    const { cmd, args, commandLine, profileEnv, missing, searchedPath, error, profile } = buildCommand(type, resumeId, commandProfileId, { profiles });
     if (!cmd) {
       if (error) return { ok: false, error };
       return {
@@ -140,7 +140,10 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
         // Il pty e' sempre e solo un client: uguale per sessioni nuove e riattaccate.
         p = openPty(tmux.bin, tmuxLib.attachArgs({ confPath: tmux.confPath, socket: tmux.socket, name: session }), { cols, rows, cwd: workdir, env });
       } else {
-        p = openPty(cmd, args, { cols, rows, cwd: workdir, env });
+        // Su Windows un .cmd passa da cmd.exe con la riga gia' composta
+        // (lib/win-command.js): node-pty la usa cosi' com'e' invece di
+        // ricomporla dall'argv con regole che cmd.exe non capirebbe.
+        p = openPty(cmd, commandLine || args, { cols, rows, cwd: workdir, env });
       }
       track(id, p, session);
       if (session) syncSnapshot();

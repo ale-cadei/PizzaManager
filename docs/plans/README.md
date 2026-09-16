@@ -15,6 +15,8 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 6 | [`feat/tmux-backend`](06-tmux-backend.md) | 2, 5 | 1 g | ✅ fatto |
 | 8 | `feat/restore-after-reboot` | 6 | ½ g | ✅ fatto (vedi sotto) |
 | 7 | [`feat/claude-account-login`](07-account-claude-login.md) | — | 1-2 gg | proposto, non pianificato |
+| 8 | [`feat/raggruppamento-per-progetto`](08-raggruppamento-sessioni.md) ([task](08-raggruppamento-sessioni-tasks.md)) | 2 | ~½ g | ✅ fatto |
+| 9 | [ordinamento manuale](09-ordinamento-manuale.md) — sul branch dell'8 | 8 | ~2h | ✅ fatto |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già
@@ -90,9 +92,9 @@ Non sono urgenti; stanno qui per non essere dimenticate.
 - **La palette del terminale è duplicata in due linguaggi**: esadecimali
   hardcoded nel tema di xterm (`renderer/renderer.js`, `new Terminal({ theme: … })`)
   e variabili in `tokens.css`. Stesso problema, stessa soluzione.
-- **`renderer/renderer.js` è a 613 righe** e cresce a ogni funzionalità. Sotto il
-  limite di 800, ma la direzione è quella sbagliata: andrebbe diviso per area
-  (schede, modali, account, resume).
+- **`renderer/renderer.js` è a 996 righe**, quindi ormai sopra il limite di 800,
+  e cresce a ogni funzionalità: andrebbe diviso per area (schede, modali,
+  account, resume). Il branch 8 ne stacca la sidebar, il resto rimane qui.
 - **Scorciatoie da tastiera per le schede** (⌘T / ⌘W) e `Esc` per chiudere i
   modali. ⌘N per la nuova sessione esiste già dal commit `e6c551a`.
 - **Icona `.icns` per macOS**: `assets/icon.png` è a risoluzione singola.

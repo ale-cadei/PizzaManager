@@ -52,7 +52,8 @@ ok('sessioni: la card lampeggia quando l assistente ha finito e si spegne alla s
   assert.ok(/function setActive\(id\)[\s\S]{0,300}clearAttention\(id\)/.test(js),
     'selezionare la sessione non spegne il lampeggio');
   assert.ok(/t\.id === activeId\) return/.test(js), 'la scheda in primo piano non deve lampeggiare');
-  assert.ok(js.includes("t.needsAttention ? ' needs-attention' : ''"), 'la card non riceve la classe di lampeggio');
+  const sidebar = fs.readFileSync(path.join(root, 'renderer', 'sidebar.js'), 'utf8');
+  assert.ok(sidebar.includes("t.needsAttention ? ' needs-attention' : ''"), 'la card non riceve la classe di lampeggio');
 
   const css = fs.readFileSync(path.join(root, 'renderer', 'styles.css'), 'utf8');
   assert.ok(/@keyframes attention-pulse/.test(css), 'manca l animazione di lampeggio');
@@ -62,13 +63,20 @@ ok('sessioni: la card lampeggia quando l assistente ha finito e si spegne alla s
     'il lampeggio non rispetta prefers-reduced-motion');
 });
 
-ok('sidebar: gruppo per tipo anche con una sola sessione', () => {
-  const js = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'renderer.js'), 'utf8');
-  const body = js.slice(js.indexOf('function renderSidebar'));
+ok('sidebar: i gruppi arrivano dal modulo, non da una Map costruita a mano', () => {
+  const root = path.join(__dirname, '..');
+  const js = fs.readFileSync(path.join(root, 'renderer', 'sidebar.js'), 'utf8');
+  const body = js.slice(js.indexOf('function render('));
   assert.ok(!/items\.length === 1/.test(body),
     'con una sola sessione il gruppo collassabile viene ancora saltato');
-  assert.ok(body.includes('group-header'), 'manca l header di gruppo');
+  assert.ok(body.includes('group-header'), "manca l'header di gruppo");
   assert.ok(body.includes("collapsed ? '▸' : '▾'"), 'manca la freccina di collasso');
+  assert.ok(/groupSessions\(/.test(body), 'la sidebar raggruppa ancora per conto suo');
+  assert.ok(!/new Map\(GROUP_ORDER/.test(js), 'resta il raggruppamento per tipo cablato nel renderer');
+  assert.ok(!/const GROUP_LABELS\s*=/.test(js), 'le etichette dei tipi sono duplicate nel renderer');
+
+  const html = fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');
+  assert.ok(html.includes('session-groups.js'), 'session-groups.js non è incluso nella pagina');
 });
 
 ok('sidebar: le azioni non usano il pieno teal (riservato alla conferma nei modali)', () => {
@@ -82,4 +90,32 @@ ok('sidebar: le azioni non usano il pieno teal (riservato alla conferma nei moda
   const hover = css.match(/\.side-actions \.btn--outline:hover\s*\{[^}]*\}/);
   assert.ok(hover, 'manca l hover dedicato per l azione outline in sidebar');
   assert.ok(hover[0].includes('--action-soft'), 'in hover il pulsante si riempie di teal pieno: ' + hover[0]);
+});
+
+ok('sidebar: in modalità progetto la card non ripete il path già scritto nell header', () => {
+  const js = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'sidebar.js'), 'utf8');
+  const body = js.slice(js.indexOf('function createSessionItem'), js.indexOf('function render('));
+  assert.ok(/relativeSubpath\(/.test(body), 'la card non mostra il path relativo al progetto');
+  assert.ok(/groupMode === 'project'/.test(body), 'il sottotitolo non cambia con la modalità');
+  assert.ok(/TYPE_LABELS\[t\.type\]/.test(body),
+    'in modalità progetto la card non dice di che tipo è la sessione');
+  assert.ok(/title="\$\{escapeHtml\(fullSub\)\}"/.test(body),
+    'il tooltip non mostra più la cwd completa');
+});
+
+ok('sidebar: il modulo della sidebar non conosce lo stato delle schede', () => {
+  const root = path.join(__dirname, '..');
+  const js = fs.readFileSync(path.join(root, 'renderer', 'sidebar.js'), 'utf8');
+  assert.ok(js.includes('window.AisessSidebar') || js.includes('AisessSidebar = api'),
+    'sidebar.js non espone AisessSidebar');
+  assert.ok(!/\btabs\.(get|set|delete|forEach|values)\b/.test(js),
+    'la sidebar accede alla mappa delle schede invece di riceverla');
+  assert.ok(!/\bactiveId\b\s*=/.test(js), 'la sidebar scrive lo stato di selezione');
+  for (const cb of ['onSelect', 'onClose', 'onRename']) {
+    assert.ok(js.includes(cb), `manca la callback ${cb}`);
+  }
+  const main = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
+  assert.ok(!/function renderSidebar\(/.test(main), 'renderSidebar è ancora in renderer.js');
+  assert.ok(fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8').includes('sidebar.js'),
+    'sidebar.js non è incluso nella pagina');
 });

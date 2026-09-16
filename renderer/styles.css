@@ -174,9 +174,20 @@ button:focus-visible, input:focus-visible, select:focus-visible {
    della metà in cui sta il cursore. Si usa `box-shadow` e non un bordo vero: il
    bordo cambierebbe l'altezza della card e farebbe saltare la lista sotto il
    cursore proprio mentre si mira. */
-.session-item.dragging { opacity: .45; }
-.session-item.drop-before { box-shadow: 0 -2px 0 0 var(--accent); }
-.session-item.drop-after  { box-shadow: 0  2px 0 0 var(--accent); }
+/* Riordino vivo: la card presa in mano resta nel DOM come segnaposto — uno
+   slot tratteggiato, della sua stessa altezza, nel punto dove finirebbe. La
+   card "vera" che segue il cursore e' l'immagine di trascinamento del browser. */
+.session-item.dragging {
+  background: transparent;
+  border: 1px dashed var(--action, var(--accent));
+  box-shadow: none;
+}
+.session-item.dragging::before { opacity: 0; }
+/* Il contenuto resta leggibile ma sbiadito: si vede QUALE card sta andando li'. */
+.session-item.dragging > * { opacity: .3; }
+/* Le altre card scorrono per fare spazio (FLIP: partono da dove erano). */
+.group-body.reordering .session-item { transition: transform .16s ease; }
+.group-body.reordering .session-item.dragging { transition: none; }
 
 /* `visibility` invece di `display`: lo spazio resta occupato, le card non si spostano */
 .sel-mark {

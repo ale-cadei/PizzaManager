@@ -13,6 +13,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 4 | [`fix/robustness`](04-robustness.md) | 2 | ~4h | parziale: menubar in-app ✅ |
 | 5 | [`spike/tmux`](05-spike-tmux.md) | — | ~4h | ✅ fatto, [risultati](05-risultati.md) |
 | 6 | [`feat/tmux-backend`](06-tmux-backend.md) | 2, 5 | 1 g | ✅ fatto |
+| 8 | `feat/restore-after-reboot` | 6 | ½ g | ✅ fatto (vedi sotto) |
 | 7 | [`feat/claude-account-login`](07-account-claude-login.md) | — | 1-2 gg | proposto, non pianificato |
 | 8 | [`feat/raggruppamento-per-progetto`](08-raggruppamento-sessioni.md) ([task](08-raggruppamento-sessioni-tasks.md)) | 2 | ~½ g | ✅ fatto |
 | 9 | [ordinamento manuale](09-ordinamento-manuale.md) — sul branch dell'8 | 8 | ~2h | ✅ fatto |
@@ -54,19 +55,31 @@ l'unica garanzia che un refactor non abbia rotto niente.
 I numeri di riga citati nei piani si riferiscono a `main` al 2026-09-09
 (commit `e6c551a`) e vanno presi come indicazione: cercare per nome di funzione.
 
-## Possibile branch 8 — ripristino dopo un riavvio della macchina
+## Branch 8 — ripristino dopo un riavvio della macchina ✅ fatto (2026-09-16)
 
-tmux protegge dalla chiusura dell'app, non dal riavvio del computer: le
-sessioni sono processi in memoria e un reboot le termina tutte. Le CLI AI
-conservano la conversazione nei loro file (si riprende dal Resume, a schermo
-pulito); le shell si perdono.
+tmux protegge dalla chiusura dell'app, non dal riavvio del computer. Ora:
 
-Si può fare di meglio lato app: allo stacco (chiusura scheda o finestra)
-scrivere su disco i metadati che già stanno in tmux; all'avvio, se tmux non ha
-sessioni ma lo snapshot sì, chiedere «Ripristinare le N sessioni di prima?» e
-ricrearle — `claude --resume <id>` nella stessa directory con lo stesso profilo,
-una shell nella stessa directory per il tipo shell. Mezza giornata. Vale la pena
-solo se riavviare con sessioni aperte capita davvero.
+- **Registro** `live-sessions.json` in userData: specchio di tmux, riscritto a
+  ogni spawn / stacco / termina / cambio titolo o id (`lib/live-sessions.js`).
+  Non è la cronologia: è l'insieme delle sessioni aperte adesso.
+- **L'id della conversazione arriva appena noto**: subito se la sessione nasce
+  da un Resume; altrimenti quando il titolo automatico (`session-titles.js`)
+  trova il `.jsonl` — quel punto scriveva già l'id nella scheda, ora lo spedisce
+  anche a tmux (`@ais_resume_id`) e quindi al registro. È il pezzo che rende
+  ripristinabili le sessioni nate "nuove", cioè quasi tutte.
+- **All'avvio**: se tmux è vuoto e il registro no → modal «Ripristinare le
+  sessioni di prima?» con spunte. Con id → `--resume` nella stessa directory,
+  stesso profilo e account; senza → sessione pulita dello stesso tipo nella
+  stessa directory; shell → shell nella stessa directory. «Non ora» svuota il
+  registro. Se tmux ha ancora *qualche* sessione, quelle mancanti sono state
+  uccise di proposito: niente da proporre, registro riallineato.
+
+Verificato sull'app: Claude nata nuova → id scoperto dal titolo → ⌘Q →
+`kill-server` (= riavvio) → riapertura → modal → Ripristina →
+`claude --resume <quell'id>`. Coperto dal test d'integrazione su tmux reale.
+
+Fuori, volutamente: lo scrollback (si potrebbe salvare con `capture-pane` e
+ricopiarlo grigio al ripristino; è un trucco visivo, il processo è nuovo).
 
 ## Backlog — rilevato ma non assegnato a un branch
 

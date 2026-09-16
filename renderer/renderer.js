@@ -156,6 +156,7 @@ async function init() {
   updateEmpty();
   ensureClaudeAccounts();
   await reattachLiveSessions();
+  await offerRestore();
 }
 
 function openNewModal(type) {
@@ -546,7 +547,12 @@ async function refreshAutoTitles() {
         ? (data.sessions || []).find((x) => x.id === t.resumeId)
         : Titles.pickAutoSession(data.sessions, { cwd: t.cwd, since: t.startedAt - 5000 });
       if (!s) continue;
-      if (!t.resumeId) t.resumeId = s.id;
+      if (!t.resumeId) {
+        t.resumeId = s.id;
+        // Appena l'id e' noto lo si salva sulla sessione tmux: e' cio' che rende
+        // ripristinabile dopo un riavvio una scheda nata "nuova".
+        if (t.session && t.alive) window.aisess.setMeta(t.id, { resumeId: s.id });
+      }
       // Nome già preso dal prompt digitato: si lega alla conversazione appena
       // se ne conosce l'id, così sopravvive al resume. Il titolo del CLI perde.
       if (t.namedFromPrompt) {
@@ -880,6 +886,87 @@ async function reattachLiveSessions() {
   }
 }
 
+/**
+ * Dopo un riavvio della macchina tmux e' vuoto ma il registro no: si propone
+ * di ricreare quelle sessioni. Con l'id della conversazione si riprende
+ * (`--resume`); senza, si riparte pulita nella stessa directory. Si chiede,
+ * non si fa da soli: N processi che partono senza permesso sono invadenti.
+ */
+async function offerRestore() {
+  if (!tmuxAvailable) return;
+  let lost = [];
+  try { lost = await window.aisess.restorable(); } catch (e) { console.warn('restorable-sessions fallito', e); return; }
+  if (!lost.length) return;
+
+  const backdrop = $('#modal-restore');
+  const list = $('#restore-list');
+  const sub = $('#restore-sub');
+  if (!backdrop || !list) return;
+  list.innerHTML = '';
+  sub.textContent = lost.length === 1
+    ? 'Una sessione era aperta quando il computer si è spento o l\'app è stata chiusa dal sistema.'
+    : `${lost.length} sessioni erano aperte quando il computer si è spento o l'app è stata chiusa dal sistema.`;
+
+  // Stessa card della sidebar (scatola, barra colorata del tipo, icona), con
+  // una spunta a sinistra. Un div e non un <label>: nei modal i label sono in
+  // colonna per i campi dei form e metterebbero la spunta sopra.
+  const rows = lost.map((s) => {
+    const plan = restorePlanFor(s);
+    const type = s.type || 'shell';
+    const row = document.createElement('div');
+    row.className = `session-item type-${type} restore-row`;
+    row.setAttribute('role', 'checkbox');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.checked = true; cb.className = 'restore-check';
+    const icon = document.createElement('span');
+    icon.className = 'icon';
+    icon.innerHTML = Icons.markup(type); // markup statico, nessun dato utente
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = s.label || type;
+    const sub = document.createElement('span');
+    sub.className = 'sub';
+    const how = plan.mode === 'resume' ? 'riprende la conversazione' : (type === 'shell' ? 'nuova shell' : 'ripartirà pulita, senza id');
+    sub.textContent = [Groups.shortPath(s.cwd), how].filter(Boolean).join(' · ');
+    sub.title = [s.cwd || '', how].filter(Boolean).join(' · ');
+    meta.appendChild(name); meta.appendChild(sub);
+    row.appendChild(cb); row.appendChild(icon); row.appendChild(meta);
+    const sync = () => { row.setAttribute('aria-checked', String(cb.checked)); row.classList.toggle('is-off', !cb.checked); };
+    row.onclick = (e) => { if (e.target !== cb) cb.checked = !cb.checked; sync(); };
+    cb.onchange = sync;
+    sync();
+    list.appendChild(row);
+    return { cb, plan };
+  });
+
+  await new Promise((resolve) => {
+    const done = () => { backdrop.hidden = true; confirmBtn.onclick = null; dismissBtn.onclick = null; resolve(); };
+    const confirmBtn = $('#restore-confirm');
+    const dismissBtn = $('#restore-dismiss');
+    confirmBtn.onclick = async () => {
+      const chosen = rows.filter((r) => r.cb.checked).map((r) => r.plan);
+      done();
+      // Il registro si ricostruisce da solo con le nuove sessioni; quelle non scelte spariscono.
+      await window.aisess.discardRestorable();
+      for (const plan of chosen) {
+        await createTab(plan.type, { name: plan.name, cwd: plan.cwd, resumeId: plan.resumeId, claudeAccountId: plan.claudeAccountId, commandProfileId: plan.commandProfileId });
+      }
+    };
+    dismissBtn.onclick = async () => { done(); await window.aisess.discardRestorable(); };
+    backdrop.hidden = false;
+  });
+}
+
+/** Stessa logica di lib/live-sessions.js#restorePlan, lato renderer (che non puo' importarla). */
+function restorePlanFor(s) {
+  const type = s.type || 'shell';
+  const base = { type, cwd: s.cwd || undefined, commandProfileId: s.profileId || null, claudeAccountId: s.accountId || null, name: s.label || null };
+  if (type !== 'shell' && s.resumeId) return { ...base, resumeId: s.resumeId, mode: 'resume' };
+  return { ...base, resumeId: null, mode: 'fresh' };
+}
+
 /* ---------- Sidebar delle sessioni aperte ----------
    Il modulo non conosce le schede: le riceve a ogni render e restituisce le
    azioni come callback. Qui restano `tabs` e `activeId`, che sono suoi — e
@@ -901,7 +988,6 @@ const sidebar = Sidebar.createSidebar({
     renderSidebar();
   },
 });
-
 /* Ordine manuale delle card, deciso trascinandole. Vive qui insieme a `tabs`
    perché è una proprietà delle schede aperte, non della sidebar: il modulo
    riceve già la lista ordinata. Le schede nuove entrano in coda. */

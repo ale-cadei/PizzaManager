@@ -20,6 +20,8 @@
   /* Soglia del doppio click sulle card, tenuta fuori dal DOM perché le card
      vengono ricreate a ogni render. */
   const DOUBLE_CLICK_MS = 450;
+  /* Finestra in cui un click che segue un trascinamento viene ignorato. */
+  const DRAG_CLICK_GUARD_MS = 250;
 
   function readSet(storage, key) {
     try {
@@ -38,12 +40,14 @@
    *   Groups: object, Commands: object, escapeHtml: (s: string) => string,
    *   modeButtons?: {type: Element, project: Element},
    *   onSelect: (id: string) => void, onClose: (id: string) => void,
-   *   onRename: (session: object) => void}} deps
+   *   onRename: (session: object) => void,
+   *   onReorder?: (movedId: string, targetId: string, opts: {before: boolean}) => void}} deps
    */
   function createSidebar(deps) {
     const { list, count, storage, Icons, Groups, escapeHtml, onSelect, onClose, onRename } = deps;
     const Commands = deps.Commands || null;
     const modeButtons = deps.modeButtons || {};
+    const onReorder = typeof deps.onReorder === 'function' ? deps.onReorder : null;
 
     /* Collassi in liste separate per modalità: collassare "Claude" e collassare
        "aisessionmanager" sono scelte diverse e nella stessa chiave
@@ -57,6 +61,10 @@
     } catch {}
 
     let lastCardClick = { id: null, at: 0 };
+    /* Card in corso di trascinamento e istante dell'ultimo drag concluso: il
+       secondo serve a non far passare per "click" il rilascio del mouse. */
+    let dragging = null;
+    let dragEndedAt = 0;
 
     /** Insieme dei gruppi collassati della modalità corrente. */
     function collapsedSet() {
@@ -97,7 +105,61 @@
       return true;
     }
 
-    function createSessionItem(t, activeId) {
+    /* Trascinamento delle card. Si riordina SOLO dentro il gruppo: il gruppo di
+       una sessione dipende dal suo tipo o dal suo progetto, non da dove sta
+       nella lista, quindi trascinarla altrove non potrebbe essere onorato. Il
+       drop fuori dal gruppo di partenza semplicemente non viene accettato
+       (niente preventDefault → il cursore mostra "vietato"). */
+    function clearDropMarks() {
+      for (const el of list.querySelectorAll('.drop-before, .drop-after')) {
+        el.classList.remove('drop-before', 'drop-after');
+      }
+    }
+
+    function attachDrag(b, t, groupKey) {
+      if (!onReorder) return;
+      b.draggable = true;
+      b.addEventListener('dragstart', (e) => {
+        dragging = { id: t.id, groupKey };
+        b.classList.add('dragging');
+        if (e.dataTransfer) {
+          e.dataTransfer.effectAllowed = 'move';
+          // Alcuni browser non avviano il drag senza un payload
+          try { e.dataTransfer.setData('text/plain', t.id); } catch {}
+        }
+      });
+      b.addEventListener('dragend', () => {
+        dragging = null;
+        dragEndedAt = Date.now();
+        b.classList.remove('dragging');
+        clearDropMarks();
+      });
+      const accepts = () => dragging && dragging.groupKey === groupKey && dragging.id !== t.id;
+      b.addEventListener('dragover', (e) => {
+        if (!accepts()) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+        const rect = b.getBoundingClientRect();
+        const before = e.clientY < rect.top + rect.height / 2;
+        b.classList.toggle('drop-before', before);
+        b.classList.toggle('drop-after', !before);
+      });
+      b.addEventListener('dragleave', () => b.classList.remove('drop-before', 'drop-after'));
+      b.addEventListener('drop', (e) => {
+        if (!accepts()) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const rect = b.getBoundingClientRect();
+        const before = e.clientY < rect.top + rect.height / 2;
+        const movedId = dragging.id;
+        dragging = null;
+        dragEndedAt = Date.now();
+        clearDropMarks();
+        onReorder(movedId, t.id, { before });
+      });
+    }
+
+    function createSessionItem(t, activeId, groupKey) {
       const b = document.createElement('button');
       const isActive = t.id === activeId;
       b.className = `session-item type-${t.type}` + (isActive ? ' active' : '') + (t.needsAttention ? ' needs-attention' : '');
@@ -125,6 +187,8 @@
       // scatta mai: il doppio click va riconosciuto a mano, fuori dal DOM.
       b.onclick = () => {
         const now = Date.now();
+        // Il rilascio di un trascinamento non deve selezionare né rinominare
+        if (now - dragEndedAt <= DRAG_CLICK_GUARD_MS) return;
         const isDouble = lastCardClick.id === t.id && now - lastCardClick.at <= DOUBLE_CLICK_MS;
         lastCardClick = { id: t.id, at: isDouble ? 0 : now };
         if (isDouble) { onRename(t); return; }
@@ -135,6 +199,7 @@
       x.className = 'close-x'; x.textContent = '✕'; x.title = 'Chiudi';
       x.onclick = (e) => { e.stopPropagation(); onClose(t.id); };
       b.appendChild(x);
+      attachDrag(b, t, groupKey);
       return b;
     }
 
@@ -188,7 +253,7 @@
         const body = document.createElement('div');
         body.className = 'group-body';
         if (collapsed) body.hidden = true;
-        for (const t of g.items) body.appendChild(createSessionItem(t, activeId));
+        for (const t of g.items) body.appendChild(createSessionItem(t, activeId, g.key));
         group.appendChild(body);
         list.appendChild(group);
       }

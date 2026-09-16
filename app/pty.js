@@ -172,6 +172,9 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     if (!viaTmux) return { ok: false, error: 'tmux non disponibile: niente a cui riattaccarsi.' };
     if (!tmuxLib.isAisSession(session)) return { ok: false, error: `Sessione non riconosciuta: ${session}` };
     if (!(await tmux.control.has(session))) return { ok: false, gone: true, error: `La sessione ${session} non esiste più.` };
+    // Un client gia' attaccato a questa sessione appartiene a un renderer che
+    // non c'e' piu' (hard refresh): si chiude, e la scheda nuova prende il suo posto.
+    for (const [oldId, c] of clients) if (c.session === session) close(oldId);
     try {
       const p = openPty(tmux.bin, tmuxLib.attachArgs({ confPath: tmux.confPath, socket: tmux.socket, name: session }), {
         cols, rows, cwd: os.homedir(), env: augmentedEnv([tmux.bin]),

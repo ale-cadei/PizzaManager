@@ -55,9 +55,9 @@ function fail(prefix, e) {
 ipcMain.handle('menu-action', async (event, { action } = {}) => runMenuAction(action, mainWindow));
 
 app.whenReady().then(() => {
-  mainWindow = createWindow();
+  mainWindow = createWindow({ onRendererReload: () => ptys.closeAll() });
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow({ onRendererReload: () => ptys.closeAll() });
   });
 });
 

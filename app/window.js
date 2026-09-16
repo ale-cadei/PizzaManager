@@ -31,7 +31,7 @@ const WINDOW_OPTIONS = {
  * menubar in-app nel renderer. Su macOS il menu nativo segue gia' il tema
  * scuro e va tenuto visibile.
  */
-function createWindow({ platform = process.platform } = {}) {
+function createWindow({ platform = process.platform, onRendererReload = null } = {}) {
   const iconPath = path.join(ROOT, 'assets', 'icon.png');
   const isMac = platform === 'darwin';
   const win = new BrowserWindow({
@@ -51,6 +51,18 @@ function createWindow({ platform = process.platform } = {}) {
   });
   if (!isMac) {
     try { win.setMenuBarVisibility(false); } catch {}
+  }
+  // Un ricaricamento del renderer (Ricarica, Ricarica forzata) distrugge le
+  // schede ma non i pty nel main: quei client resterebbero attaccati a un
+  // renderer morto e il nuovo li vedrebbe come "gia' aperti". Si chiudono
+  // qui; con tmux le sessioni sopravvivono e il renderer nuovo le riaggancia.
+  if (onRendererReload) {
+    let firstLoad = true;
+    win.webContents.on('did-start-navigation', (details) => {
+      if (details && details.isSameDocument) return;
+      if (firstLoad) { firstLoad = false; return; }
+      onRendererReload();
+    });
   }
   win.loadFile(path.join(ROOT, 'renderer', 'index.html'));
   return win;

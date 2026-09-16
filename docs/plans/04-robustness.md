@@ -92,7 +92,7 @@ const date = new Date(s.created).toLocaleString();
 Se `opencode` rinomina il campo, in lista compare `Invalid Date`. Va gestito con
 un fallback leggibile.
 
-### 6. Mutazioni in place
+### 6. ✅ Mutazioni in place (fatto nel branch 2; i push/sort residui sono su accumulatori locali)
 
 `main.js:183` (`h.unshift(...)`) e `main.js:409` (`acc.push(...)`) modificano
 array esistenti. Vanno riscritte come `[nuovo, ...vecchi]` e `[...acc, nuovo]`,

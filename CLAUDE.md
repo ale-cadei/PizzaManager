@@ -1,4 +1,4 @@
-# AISessionManager — convenzioni per chi tocca il codice
+# PizzaManager — convenzioni per chi tocca il codice
 
 App Electron che gestisce sessioni di terminale in schede: shell, `opencode`,
 `claude`, `codex`. Ogni sessione è un PTY reale (`node-pty` + `xterm.js`).
@@ -72,6 +72,15 @@ pty è solo un client. Regole:
 - Le API key non lasciano il main process: alla UI vanno solo id e nomi.
 - I comandi dei profili vanno in `pty.spawn` **senza shell**: niente pipe,
   redirezioni, alias. La validazione li rifiuta apposta, non li esegue diversamente.
+
+## Dati dell'utente
+
+- La cartella dei dati è **fissa** (`app.setPath('userData', …/AISessionManager)`
+  in `main.js`) e non segue `productName`. Rinominare l'app senza questo
+  sposterebbe i dati in una cartella nuova e vuota: profili, cronologia e
+  account "spariti". È successo col rebrand.
+- Gli store (`lib/accounts.js`, `history.js`, `profiles.js`, `live-sessions.js`)
+  ricevono la cartella come parametro: mai chiamare `app.getPath` dentro `lib/`.
 
 ## Processo
 

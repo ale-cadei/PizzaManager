@@ -67,7 +67,7 @@ function buildAppMenu({ sendToRenderer, platform = process.platform } = {}) {
     {
       label: 'Help',
       submenu: [
-        { label: 'Repository AISessionManager', click: () => electronShell.openExternal(REPO_URL) },
+        { label: 'Repository PizzaManager', click: () => electronShell.openExternal(REPO_URL) },
       ],
     },
   ];

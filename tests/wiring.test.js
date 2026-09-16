@@ -241,3 +241,12 @@ ok('raggruppamento: il selettore esiste, persiste e non usa handler inline', () 
   assert.ok(!/collapsedGroups\.has\(t\.type\)/.test(js),
     'setActive espande ancora il gruppo per tipo anche in modalità progetto');
 });
+
+// ---------- Dati dell'utente ----------
+ok('la cartella dei dati e fissa e non segue productName: un rebrand non deve resettare l app', () => {
+  const main = read('main.js');
+  assert.ok(/app\.setPath\('userData'/.test(main), 'main.js non fissa userData: Electron la ricava da productName');
+  assert.ok(/USER_DATA_DIR_NAME = 'AISessionManager'/.test(main), 'il nome della cartella dati deve restare AISessionManager, qualunque sia il nome dell app');
+  // deve avvenire prima di qualunque uso degli store (che leggono app.getPath('userData'))
+  assert.ok(main.indexOf("app.setPath('userData'") < main.indexOf("app.getPath('userData')"), 'setPath deve precedere il primo getPath');
+});

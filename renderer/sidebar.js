@@ -37,6 +37,7 @@
 
   /**
    * @param {{list: Element, count: Element, storage: Storage, Icons: object,
+   *   Slice: {markup: () => string},
    *   Groups: object, Commands: object, escapeHtml: (s: string) => string,
    *   modeButtons?: {type: Element, project: Element},
    *   onSelect: (id: string) => void, onClose: (id: string) => void,
@@ -46,7 +47,7 @@
    *   onReorder?: (movedId: string, targetId: string, opts: {before: boolean}) => void}} deps
    */
   function createSidebar(deps) {
-    const { list, count, storage, Icons, Groups, escapeHtml, onSelect, onClose, onRename } = deps;
+    const { list, count, storage, Icons, Slice, Groups, escapeHtml, onSelect, onClose, onRename } = deps;
     const Commands = deps.Commands || null;
     const modeButtons = deps.modeButtons || {};
     const onReorder = typeof deps.onReorder === 'function' ? deps.onReorder : null;
@@ -324,7 +325,8 @@
         // In modalità progetto il marchio dell'agente non c'entra: serve un glifo
         // neutro, lo stesso già usato dai chip delle directory recenti.
         const groupIcon = g.kind === 'type' ? Icons.markup(g.key) : '📁';
-        header.innerHTML = `<span class="chevron">${collapsed ? '▸' : '▾'}</span>
+        // La fetta punta a destra; aperta la ruota la CSS, non un secondo glifo
+        header.innerHTML = `<span class="chevron">${Slice.markup()}</span>
       <span class="sel-mark" aria-hidden="true">◆</span>
       <span class="icon">${groupIcon}</span>
       <span class="group-name">${escapeHtml(g.label)}</span>

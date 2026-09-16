@@ -1,11 +1,11 @@
 {
   "name": "aisessionmanager",
-  "productName": "AISessionManager",
+  "productName": "PizzaManager",
   "version": "1.0.0",
   "description": "Gestore unificato di terminali, sessioni OpenCode e Claude Code in un'unica finestra",
   "main": "main.js",
   "homepage": "https://github.com/aisessionmanager/aisessionmanager",
-  "author": "AISessionManager <support@example.com>",
+  "author": "PizzaManager <support@example.com>",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
@@ -29,7 +29,7 @@
   },
   "build": {
     "appId": "com.aisessionmanager.app",
-    "productName": "AISessionManager",
+    "productName": "PizzaManager",
     "directories": {
       "output": "dist"
     },
@@ -50,11 +50,11 @@
         "deb",
         "AppImage"
       ],
-      "maintainer": "AISessionManager <support@example.com>",
+      "maintainer": "PizzaManager <support@example.com>",
       "category": "Development",
       "icon": "assets/icons",
       "desktop": {
-        "Name": "AISessionManager",
+        "Name": "PizzaManager",
         "Comment": "Gestore unificato terminali, OpenCode e Claude Code",
         "Categories": "Development;Utility;"
       }

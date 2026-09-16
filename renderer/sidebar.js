@@ -44,6 +44,7 @@
    *   onRename: (session: object) => void,
    *   canDetach?: (session: object) => boolean,
    *   onTerminate?: (id: string) => void,
+   *   onNewInProject?: (projectRoot: string) => void,
    *   onReorder?: (movedId: string, targetId: string, opts: {before: boolean}) => void}} deps
    */
   function createSidebar(deps) {
@@ -57,6 +58,9 @@
        di tmux. */
     const canDetach = typeof deps.canDetach === 'function' ? deps.canDetach : () => false;
     const onTerminate = typeof deps.onTerminate === 'function' ? deps.onTerminate : null;
+    /* Creare una sessione è affare del renderer (dialog, tipo, account): la
+       sidebar segnala solo in quale radice l'utente la vuole. */
+    const onNewInProject = typeof deps.onNewInProject === 'function' ? deps.onNewInProject : null;
 
     /* Collassi in liste separate per modalità: collassare "Claude" e collassare
        "aisessionmanager" sono scelte diverse e nella stessa chiave
@@ -290,6 +294,18 @@
       return b;
     }
 
+    /** Il «+» nell'header di un progetto: nuova sessione in quella radice. */
+    function createAddButton(g) {
+      const add = document.createElement('span');
+      add.className = 'group-add';
+      add.textContent = '+';
+      add.setAttribute('role', 'button');
+      add.title = `Nuova sessione in ${g.title}`;
+      // Come la ✕ delle card: il click non deve arrivare all'header e collassare il gruppo
+      add.onclick = (e) => { e.stopPropagation(); onNewInProject(g.key); };
+      return add;
+    }
+
     /**
      * @param {object[]} sessions schede aperte, nell'ordine di apertura
      * @param {string|null} activeId scheda in primo piano
@@ -338,6 +354,9 @@
           saveCollapsed();
           render(sessions, activeId);
         };
+        // «+» solo dove c'è una radice in cui creare: il gruppo «Senza
+        // directory» (chiave vuota) non ce l'ha, e per tipo la directory non è nota.
+        if (onNewInProject && g.kind === 'project' && g.key) header.appendChild(createAddButton(g));
         group.appendChild(header);
         const body = document.createElement('div');
         body.className = 'group-body';

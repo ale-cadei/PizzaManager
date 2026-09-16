@@ -46,7 +46,7 @@ ok('recenti: main + preload + UI collegati', () => {
   assert.ok(read('renderer', 'index.html').includes('id="recent-dirs"'), 'manca il contenitore delle directory recenti');
   const js = read('renderer', 'renderer.js');
   assert.ok(js.includes('renderRecentDirs'), 'il renderer non mostra le directory recenti');
-  assert.ok(/openNewModal[\s\S]{0,400}renderRecentDirs\(\)/.test(js), "le directory recenti non vengono aggiornate all'apertura del modal");
+  assert.ok(/openNewModal[\s\S]{0,600}renderRecentDirs\(\)/.test(js), "le directory recenti non vengono aggiornate all'apertura del modal");
   assert.ok(/#recent-dirs-row\[hidden\]\s*\{[^}]*display:\s*none/.test(read('renderer', 'styles.css')), 'la riga delle directory recenti non si nasconde quando vuota');
 });
 

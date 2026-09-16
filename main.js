@@ -3,7 +3,9 @@ const fs = require('fs');
 const os = require('os');
 const { getDefaultShell } = require('./lib/shell');
 const { getLoginPathSync } = require('./lib/login-path');
+const path = require('path');
 const { resolveAllBinaries } = require('./lib/binaries');
+const { detectTmux } = require('./lib/tmux');
 const { createHistoryStore } = require('./lib/history');
 const { createAccountStore } = require('./lib/accounts');
 const { createProfileStore } = require('./lib/profiles');
@@ -29,7 +31,11 @@ const history = lazy(() => createHistoryStore({ dir: app.getPath('userData') }))
 const accounts = lazy(() => createAccountStore({ dir: app.getPath('userData') }));
 const profiles = lazy(() => createProfileStore({ dir: app.getPath('userData') }));
 
-const ptys = createPtyManager({ accounts, history, profiles: { load: () => profiles().load() }, sendToRenderer });
+// tmux, se c'e', fa vivere le sessioni fuori dall'app (docs/plans/06-tmux-backend.md).
+// Senza, si ricade sul comportamento classico: il processo muore con la finestra.
+const tmux = detectTmux({ confPath: path.join(__dirname, 'app', 'tmux.conf') });
+
+const ptys = createPtyManager({ accounts, history, profiles: { load: () => profiles().load() }, sendToRenderer, tmux });
 
 function fail(prefix, e) {
   return { ok: false, error: prefix + String((e && e.message) || e) };
@@ -46,15 +52,22 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  ptys.killAll();
+  // Con tmux e' uno stacco: le sessioni restano vive e si ritrovano alla riapertura.
+  ptys.closeAll();
   if (process.platform !== 'darwin') app.quit();
 });
 
 // ---------- PTY ----------
 ipcMain.handle('pty-spawn', async (event, opts) => ptys.spawn(opts));
+ipcMain.handle('pty-attach', async (event, opts) => ptys.attach(opts));
 ipcMain.on('pty-write', (event, { id, data }) => ptys.write(id, data));
 ipcMain.on('pty-resize', (event, { id, cols, rows }) => ptys.resize(id, cols, rows));
-ipcMain.handle('pty-kill', async (event, { id }) => ptys.kill(id));
+// 'pty-kill' chiude il pty della scheda: con tmux e' uno stacco, il processo resta.
+ipcMain.handle('pty-kill', async (event, { id }) => ptys.close(id));
+ipcMain.handle('pty-terminate', async (event, { id }) => ptys.terminate(id));
+ipcMain.handle('list-live-sessions', async () => ptys.listLive());
+ipcMain.on('pty-set-label', (event, { id, label }) => ptys.setLabel(id, label));
+ipcMain.handle('terminate-session', async (event, { session } = {}) => ptys.terminateSession(session));
 
 // ---------- Ambiente ----------
 ipcMain.handle('get-defaults', async () => ({
@@ -63,6 +76,7 @@ ipcMain.handle('get-defaults', async () => ({
   platform: process.platform,
   path: getLoginPathSync(),
   binaries: resolveAllBinaries(),
+  tmux: { available: ptys.viaTmux, path: tmux ? tmux.bin : null },
 }));
 
 ipcMain.handle('check-deps', async () => ({ ...resolveAllBinaries(), path: getLoginPathSync() }));

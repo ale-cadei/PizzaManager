@@ -13,7 +13,7 @@ lib/           Logica pura. NESSUN require('electron'): è ciò che rende i modu
                importabili da Node e quindi verificabili. Un test lo verifica.
 app/           Ciò che dipende da Electron per natura e non ha senso testare in
                isolamento: finestra (window.js), menu (menu.js), ciclo di vita
-               dei pty (pty.js).
+               dei pty (pty.js), config tmux distribuita (tmux.conf).
 renderer/      UI: HTML, CSS, JS della finestra. Gira sandboxed, parla col main
                solo tramite preload.js.
 tests/         Runner di Node (`npm run test:unit`, `npm run test:coverage`).
@@ -41,6 +41,19 @@ quella di Electron, i test una tmpdir. Modelli: `lib/accounts.js`, `lib/history.
   installati stanno in `tests/integration.test.js` e si dichiarano saltati
   (`t.skip`) quando il tool manca — non fingono di passare.
 - Prima di aprire una PR: `npm run test:unit` verde e uno smoke test dell'app.
+
+## Sessioni dentro tmux
+
+Con `tmux` installato ogni sessione vive nel server tmux dell'app (socket
+`aisession`, config `app/tmux.conf`) e sopravvive alla chiusura dell'app; il
+pty è solo un client. Regole:
+- **Ogni comando tmux passa da `-L aisession`.** Senza socket colpiresti le
+  sessioni personali dell'utente (e un `kill-server` le distruggerebbe).
+- I metadati delle sessioni stanno in tmux (`@ais_*`): non creare registri
+  paralleli.
+- L'ambiente per il processo va passato con `new-session -e`: il server tmux
+  cattura l'ambiente alla sua nascita e le sessioni dopo erediterebbero quello.
+- Nei test usa un socket di prova (`socket: 'aistest-…'`), mai `aisession`.
 
 ## Sicurezza (programma locale, ma ci teniamo)
 

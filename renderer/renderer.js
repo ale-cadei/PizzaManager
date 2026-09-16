@@ -183,8 +183,14 @@ async function init() {
   await offerRestore();
 }
 
-async function openNewModal(type) {
+/**
+ * @param {string} [type] tipo preselezionato (dal menu o dall'ultimo uso)
+ * @param {{cwd?: string}} [opts] directory da proporre al posto dell'ultima digitata:
+ *   è quello che fa il «+» di un gruppo progetto nella sidebar
+ */
+async function openNewModal(type, { cwd } = {}) {
   if (type) pendingNewType = type;
+  if (cwd) $('#new-cwd').value = cwd;
   $$('.type-card').forEach(x => x.classList.toggle('selected', x.dataset.type === pendingNewType));
   // Il modal si apre DOPO che la riga account e' pronta: prima compariva un
   // istante senza, e con piu' account Claude la riga arrivava a modal gia' aperto.
@@ -1019,6 +1025,9 @@ const sidebar = Sidebar.createSidebar({
   onRename: (t) => { renameTab(t).catch(() => {}); },
   canDetach: (t) => Boolean(tmuxAvailable && t.session && t.alive),
   onTerminate: (id) => { terminateTab(id).catch(() => {}); },
+  // Il «+» di un gruppo progetto: stesso dialog, directory già impostata sulla
+  // radice; il tipo lo si sceglie lì come sempre.
+  onNewInProject: (root) => { openNewModal(undefined, { cwd: root }).catch(() => {}); },
   onReorder: (movedId, targetId, opts) => {
     const next = Order.moveAdjacent(sessionOrder, movedId, targetId, opts);
     if (next === sessionOrder) return;

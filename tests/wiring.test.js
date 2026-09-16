@@ -28,6 +28,11 @@ ok('terminale: copia/incolla passano dalla selezione di xterm, non dal documento
   assert.ok(edit, 'manca il menu Edit');
   assert.ok(!/role: '(copy|paste|cut|undo|redo|selectAll)'/.test(edit[0]), 'il menu Edit usa i ruoli nativi, che ignorano la selezione dei terminali');
   assert.ok(!/accelerator: 'Ctrl\+(C|Z|X)'/.test(edit[0]), 'un acceleratore ruba una scorciatoia della shell');
+  // La menubar in-app (Linux/Windows) deve fare la stessa cosa del menu nativo:
+  // niente wc.copy()/wc.paste(), che non vedono la selezione dei terminali.
+  const inApp = menu.slice(menu.indexOf('function runMenuAction'));
+  assert.ok(!/wc\.(copy|paste|cut|undo|redo|selectAll)\(\)/.test(inApp), 'la menubar in-app usa i metodi nativi di webContents per Edit');
+  assert.ok(/case 'copy'[\s\S]{0,200}send\('menu-edit'/.test(inApp), 'la menubar in-app non passa da menu-edit');
 
   const pre = read('preload.js');
   for (const f of ['clipboardWrite', 'clipboardRead', 'onMenuEdit']) assert.ok(pre.includes(f), `manca ${f} nel preload`);

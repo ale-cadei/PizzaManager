@@ -18,6 +18,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 8 | [`feat/raggruppamento-per-progetto`](08-raggruppamento-sessioni.md) ([task](08-raggruppamento-sessioni-tasks.md)) | 2 | ~½ g | ✅ fatto |
 | 9 | [ordinamento manuale](09-ordinamento-manuale.md) — sul branch dell'8 | 8 | ~2h | ✅ fatto |
 | 10 | [`feat/pizza-branding`](10-pizza-branding.md) | — | ~1h | in corso |
+| 11 | [`feat/nuova-sessione-nel-progetto`](11-nuova-sessione-nel-progetto.md) | 8 | ~1h | ✅ fatto |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

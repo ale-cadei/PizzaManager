@@ -326,6 +326,15 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   background: var(--surface-3); border: 1px solid var(--border-strong);
   border-radius: 99px; padding: 1px 8px;
 }
+/* «+» in coda all'header dei progetti: nuova sessione in quella radice. Stesso
+   trattamento della ✕ delle card (discreto, si accende al passaggio), ma con
+   l'arancione dell'azione invece del rosso: non distrugge, crea. */
+.group-add {
+  flex: 0 0 auto; margin-left: 2px; padding: 0 6px; border-radius: 6px;
+  color: var(--text-dim); font-size: 15px; font-weight: 500; line-height: 1; cursor: pointer;
+}
+.group-header:hover .group-add { color: var(--text-muted); }
+.group-add:hover { color: var(--action); background: var(--action-soft); }
 .group-body { display: flex; flex-direction: column; gap: var(--gap-xs); }
 /* `display: flex` sovrascriverebbe il `display: none` dell'UA stylesheet
    per l'attributo [hidden]: serve una regola esplicita di pari specificità. */

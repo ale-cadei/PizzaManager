@@ -14,7 +14,8 @@ function render(sessions, { canDetach }) {
   const terminated = [];
   const sidebar = createSidebar({
     list, count: createElement('span'), storage: createStorage(),
-    Icons: { markup: () => '' }, Groups, escapeHtml: (s) => String(s),
+    Icons: { markup: () => '' }, Slice: { markup: () => '' },
+    Groups, escapeHtml: (s) => String(s),
     onSelect: () => {}, onRename: () => {},
     onClose: (id) => closed.push(id),
     canDetach,

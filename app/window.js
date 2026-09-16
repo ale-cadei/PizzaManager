@@ -11,7 +11,7 @@ const WINDOW_OPTIONS = {
   height: 800,
   minWidth: 900,
   minHeight: 600,
-  title: 'AISessionManager',
+  title: 'PizzaManager',
   // Barra superiore in tema col resto dell'app (nera):
   // - backgroundColor nero per il flash di avvio
   // - darkTheme: dice al SO/Chromium di usare controlli e menu scuri

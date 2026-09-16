@@ -10,6 +10,7 @@ const Groups = require('../renderer/session-groups');
 const { createSidebar } = require('../renderer/sidebar');
 
 const Icons = { markup: () => '' };
+const Slice = { markup: () => '' };
 const escapeHtml = (s) => String(s);
 
 function setup(sessions) {
@@ -19,7 +20,7 @@ function setup(sessions) {
   const selected = [];
   const sidebar = createSidebar({
     list, count: createElement('span'), storage: createStorage(),
-    Icons, Groups, escapeHtml,
+    Icons, Slice, Groups, escapeHtml,
     onSelect: (id) => selected.push(id),
     onClose: () => {},
     onRename: () => {},
@@ -198,7 +199,7 @@ ok('drag: in modalità progetto il gruppo è il progetto, non il tipo', () => {
     const reorders = [];
     const sidebar = createSidebar({
       list, count: createElement('span'), storage: createStorage(),
-      Icons, Groups, escapeHtml,
+      Icons, Slice, Groups, escapeHtml,
       onSelect: () => {}, onClose: () => {}, onRename: () => {},
       onReorder: (movedId, targetId, opts) => reorders.push([movedId, targetId, opts.before]),
     });

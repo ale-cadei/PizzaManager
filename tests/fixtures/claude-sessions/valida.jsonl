@@ -1,0 +1,4 @@
+{"type":"mode","sessionId":"aaaa1111-2222-3333-4444-555566667777","mode":"default"}
+{"type":"permissionMode","sessionId":"aaaa1111-2222-3333-4444-555566667777","permissionMode":"auto"}
+{"cwd":"/Users/tizio/progetti/backend","message":{"role":"user","content":[{"type":"text","text":"Sistema il login che va in timeout"}]}}
+{"cwd":"/Users/tizio/progetti/backend","message":{"role":"assistant","content":[{"type":"text","text":"Guardo subito."}]}}

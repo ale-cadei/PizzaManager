@@ -183,10 +183,12 @@ async function init() {
   await offerRestore();
 }
 
-function openNewModal(type) {
+async function openNewModal(type) {
   if (type) pendingNewType = type;
   $$('.type-card').forEach(x => x.classList.toggle('selected', x.dataset.type === pendingNewType));
-  updateClaudeAccountRow();
+  // Il modal si apre DOPO che la riga account e' pronta: prima compariva un
+  // istante senza, e con piu' account Claude la riga arrivava a modal gia' aperto.
+  await updateClaudeAccountRow();
   $('#modal-new').hidden = false;
   renderRecentDirs();
 }

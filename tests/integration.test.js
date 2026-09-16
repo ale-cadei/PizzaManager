@@ -61,8 +61,10 @@ ok('tmux: la sessione sopravvive allo stacco del client e si riattacca con i met
   const cfg = profiles.load();
   cfg.profiles.shell = [{ id: 'shell:t', label: 'Shell di prova', command: '/bin/sh', resumeArgs: '' }];
   profiles.save(cfg);
+  const { createLiveSessionsStore } = require('../lib/live-sessions');
+  const liveStore = () => createLiveSessionsStore({ dir });
   const mk = () => createPtyManager({
-    accounts: () => createAccountStore({ dir }), history: () => createHistoryStore({ dir }), profiles, sendToRenderer: () => {}, tmux,
+    accounts: () => createAccountStore({ dir }), history: () => createHistoryStore({ dir }), profiles, sendToRenderer: () => {}, tmux, liveStore,
   });
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -80,6 +82,14 @@ ok('tmux: la sessione sopravvive allo stacco del client e si riattacca con i met
     assert.strictEqual(live[0].type, 'shell');
     assert.strictEqual(live[0].label, 'la mia shell');
     assert.strictEqual(live[0].attachedHere, true);
+    await wait(200);
+    assert.deepStrictEqual(liveStore().read().map((x) => x.name), [r.session], 'il registro su disco deve rispecchiare tmux');
+
+    // l'id della conversazione, scoperto dopo, finisce in tmux e nel registro
+    app1.setMeta('tab1', { resumeId: 'uuid-scoperto' });
+    await wait(300);
+    assert.strictEqual((await app1.listLive())[0].resumeId, 'uuid-scoperto');
+    assert.strictEqual(liveStore().read()[0].resumeId, 'uuid-scoperto', 'il registro deve avere l id per il ripristino');
 
     // 2. stacco (la ✕, o la chiusura della finestra): il processo resta
     app1.setLabel('tab1', 'rinominata');
@@ -91,6 +101,7 @@ ok('tmux: la sessione sopravvive allo stacco del client e si riattacca con i met
 
     // 3. "riapertura": un manager nuovo la ritrova e si riattacca, col titolo aggiornato
     const app2 = mk();
+    assert.deepStrictEqual(await app2.restorable(), [], 'con tmux ancora vivo non c e niente da ripristinare');
     live = await app2.listLive();
     assert.strictEqual(live.length, 1);
     assert.strictEqual(live[0].attachedHere, false, 'nessun client di questo manager e attaccato');
@@ -110,6 +121,15 @@ ok('tmux: la sessione sopravvive allo stacco del client e si riattacca con i met
     await wait(300);
     assert.strictEqual(await control.has(r.session), false, 'dopo terminate la sessione deve essere morta');
     assert.deepStrictEqual(await app2.listLive(), []);
+    assert.deepStrictEqual(liveStore().read(), [], 'terminata con ⏻: sparisce anche dal registro, non va proposta al riavvio');
+
+    // 6. "riavvio": registro pieno, tmux vuoto → si propone il ripristino con l id
+    liveStore().write([{ name: 'ais-claude-persa', type: 'claude', cwd: dir, resumeId: 'uuid-x', label: 'Persa' }]);
+    const lost = await mk().restorable();
+    assert.strictEqual(lost.length, 1);
+    assert.strictEqual(lost[0].resumeId, 'uuid-x');
+    mk().discardRestorable();
+    assert.deepStrictEqual(liveStore().read(), [], '"Non ora" svuota il registro');
   } finally {
     const { execFileSync } = require('child_process');
     try { execFileSync(found.bin, ['-L', socket, 'kill-server']); } catch {}

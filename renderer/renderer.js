@@ -13,6 +13,7 @@ const $$ = (s) => [...document.querySelectorAll(s)];
 // Marchi ufficiali degli agenti (renderer/agent-icons.js)
 const Icons = window.AisessIcons;
 const Groups = window.AisessGroups;
+const Order = window.AisessOrder;
 const Sidebar = window.AisessSidebar;
 const Titles = window.AisessTitles;
 const PromptCapture = window.AisessPromptCapture;
@@ -833,8 +834,23 @@ const sidebar = Sidebar.createSidebar({
   onSelect: (id) => setActive(id),
   onClose: (id) => { closeTab(id).catch(() => {}); },
   onRename: (t) => { renameTab(t).catch(() => {}); },
+  onReorder: (movedId, targetId, opts) => {
+    const next = Order.moveAdjacent(sessionOrder, movedId, targetId, opts);
+    if (next === sessionOrder) return;
+    sessionOrder = next;
+    renderSidebar();
+  },
 });
-const renderSidebar = () => sidebar.render([...tabs.values()], activeId);
+
+/* Ordine manuale delle card, deciso trascinandole. Vive qui insieme a `tabs`
+   perché è una proprietà delle schede aperte, non della sidebar: il modulo
+   riceve già la lista ordinata. Le schede nuove entrano in coda. */
+let sessionOrder = [];
+
+const renderSidebar = () => {
+  sessionOrder = Order.syncOrder(sessionOrder, [...tabs.keys()]);
+  sidebar.render(Order.applyOrder([...tabs.values()], sessionOrder), activeId);
+};
 
 function updateEmpty() {
   const el = $('#empty');

@@ -168,6 +168,16 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 /* Selezione segnalata dal marker ◆ + fondo elevato, MAI dal bordo colorato */
 .session-item.active { background: var(--surface-3); }
 .session-item.active::before { opacity: 1; width: 4px; }
+
+/* Riordino per trascinamento. La card trascinata sbiadisce; il punto di
+   rilascio è una riga sul bordo della card sorvolata, sopra o sotto a seconda
+   della metà in cui sta il cursore. Si usa `box-shadow` e non un bordo vero: il
+   bordo cambierebbe l'altezza della card e farebbe saltare la lista sotto il
+   cursore proprio mentre si mira. */
+.session-item.dragging { opacity: .45; }
+.session-item.drop-before { box-shadow: 0 -2px 0 0 var(--accent); }
+.session-item.drop-after  { box-shadow: 0  2px 0 0 var(--accent); }
+
 /* `visibility` invece di `display`: lo spazio resta occupato, le card non si spostano */
 .sel-mark {
   flex: 0 0 auto; width: 12px; text-align: center;

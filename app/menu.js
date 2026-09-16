@@ -87,16 +87,12 @@ async function runMenuAction(action, win) {
       case 'new-session': wc.send('menu-new-session'); break;
       case 'open-config': wc.send('menu-open-config'); break;
       case 'quit': app.quit(); break;
-      // NOTA: qui si usano ancora i metodi nativi di webContents, che agiscono
-      // sulla selezione del documento e non su quella di xterm. Il menu nativo
-      // sopra manda invece 'menu-edit' al renderer. Comportamento preservato
-      // dal refactor; l'incoerenza e' registrata nel piano 04.
-      case 'undo': wc.undo(); break;
-      case 'redo': wc.redo(); break;
-      case 'cut': wc.cut(); break;
-      case 'copy': wc.copy(); break;
-      case 'paste': wc.paste(); break;
-      case 'selectAll': wc.selectAll(); break;
+      // Stessa strada del menu nativo: il renderer sa se il fuoco e' su un
+      // terminale e usa la selezione di xterm (renderer/term-clipboard.js).
+      // I metodi nativi di webContents agirebbero sulla selezione del documento,
+      // che dentro un terminale non esiste.
+      case 'undo': case 'redo': case 'cut': case 'copy': case 'paste': case 'selectAll':
+        wc.send('menu-edit', action); break;
       case 'reload': wc.reload(); break;
       case 'forceReload': wc.reloadIgnoringCache(); break;
       case 'devtools': wc.toggleDevTools(); break;

@@ -73,6 +73,15 @@ pty è solo un client. Regole:
 - I comandi dei profili vanno in `pty.spawn` **senza shell**: niente pipe,
   redirezioni, alias. La validazione li rifiuta apposta, non li esegue diversamente.
 
+## Dati dell'utente
+
+- La cartella dei dati è **fissa** (`app.setPath('userData', …/AISessionManager)`
+  in `main.js`) e non segue `productName`. Rinominare l'app senza questo
+  sposterebbe i dati in una cartella nuova e vuota: profili, cronologia e
+  account "spariti". È successo col rebrand.
+- Gli store (`lib/accounts.js`, `history.js`, `profiles.js`, `live-sessions.js`)
+  ricevono la cartella come parametro: mai chiamare `app.getPath` dentro `lib/`.
+
 ## Processo
 
 - **Un branch di refactor si merge il giorno stesso.** Se aspetta, diverge da

@@ -897,7 +897,10 @@ async function reattachLiveSessions() {
   let live = [];
   try { live = await window.aisess.listLive(); } catch (e) { console.warn('list-live-sessions fallito', e); return; }
   for (const s of live) {
-    if (s.attachedHere) continue;
+    // Si salta solo cio' che questo renderer ha gia' in una scheda. Un client
+    // attaccato nel main senza una scheda qui e' di un renderer precedente
+    // (hard refresh): va riagganciato, e attach() chiude quello vecchio.
+    if ([...tabs.values()].some((t) => t.session === s.name)) continue;
     await createTab(s.type || 'shell', {
       name: s.label || null,
       cwd: s.cwd || undefined,

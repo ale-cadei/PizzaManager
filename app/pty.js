@@ -1,7 +1,9 @@
 'use strict';
+const os = require('os');
 const { buildCommand, installHint } = require('../lib/commands');
 const { augmentedEnv } = require('../lib/binaries');
 const { resolveWorkdir } = require('../lib/workdir');
+const tmuxLib = require('../lib/tmux');
 
 let pty = null;
 try {
@@ -16,13 +18,19 @@ const DEFAULT_ROWS = 24;
 /**
  * Ciclo di vita dei processi in pty.
  *
- * Sta in app/ e non in lib/ perche' dipende da node-pty e dal canale verso il
- * renderer. E' anche il modulo che il branch 6 riscrivera' per far vivere le
- * sessioni dentro tmux: averlo isolato e' il motivo per cui vale la pena
- * tenerlo separato dal wiring IPC.
+ * Con `tmux` disponibile ogni sessione vive dentro il server tmux dell'app
+ * (socket dedicato) e il pty che l'app apre e' solo un *client* attaccato:
+ * chiudere la scheda o la finestra stacca il client, il processo continua.
+ * All'avvio successivo `listLive()` ritrova le sessioni e `attach()` le
+ * riaggancia. Senza tmux si ricade sul comportamento classico: il processo
+ * e' figlio dell'app e muore con lei.
+ *
+ * Sta in app/ perche' dipende da node-pty e dal canale verso il renderer.
  */
-function createPtyManager({ accounts, history, profiles, sendToRenderer }) {
-  const ptys = new Map();
+function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = null }) {
+  /** id scheda -> { p: pty, session: nome tmux | null } */
+  const clients = new Map();
+  const viaTmux = Boolean(tmux && tmux.bin && tmux.control && pty);
 
   /**
    * Variabili d'ambiente e nome dell'account per una sessione Claude.
@@ -60,7 +68,26 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer }) {
     return { vars: {}, name: o.available ? (profileConfigDir ? `OAuth (${profileConfigDir})` : 'OAuth') : null };
   }
 
-  function spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId, cols, rows }) {
+  function track(id, p, session) {
+    clients.set(id, { p, session });
+    p.onData((data) => sendToRenderer('pty-data', { id, data }));
+    p.onExit(({ exitCode, signal }) => {
+      clients.delete(id);
+      sendToRenderer('pty-exit', { id, exitCode, signal, session });
+    });
+  }
+
+  function openPty(cmd, args, { cols, rows, cwd, env }) {
+    return pty.spawn(cmd, args, {
+      name: 'xterm-color',
+      cols: cols || DEFAULT_COLS,
+      rows: rows || DEFAULT_ROWS,
+      cwd,
+      env,
+    });
+  }
+
+  async function spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId, label, cols, rows }) {
     if (!pty) return { ok: false, error: 'node-pty non installato. Esegui: npm install' };
 
     const workdir = resolveWorkdir(cwd);
@@ -76,22 +103,37 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer }) {
     const identity = claudeIdentity(type, claudeAccountId, profile, profileEnv);
     if (identity.error) return { ok: false, error: identity.error };
 
+    // Le variabili del profilo vengono per ultime: sono la scelta esplicita
+    // dell'utente (es. CLAUDE_CONFIG_DIR) e devono vincere sui default.
+    const env = { ...augmentedEnv([cmd], identity.vars), ...(profileEnv || {}) };
+    const session = viaTmux ? tmuxLib.sessionName(type) : null;
+
     try {
-      const p = pty.spawn(cmd, args, {
-        name: 'xterm-color',
-        cols: cols || DEFAULT_COLS,
-        rows: rows || DEFAULT_ROWS,
-        cwd: workdir,
-        // Le variabili del profilo vengono per ultime: sono la scelta esplicita
-        // dell'utente (es. CLAUDE_CONFIG_DIR) e devono vincere sui default.
-        env: { ...augmentedEnv([cmd], identity.vars), ...(profileEnv || {}) },
-      });
-      ptys.set(id, p);
-      p.onData((data) => sendToRenderer('pty-data', { id, data }));
-      p.onExit(({ exitCode, signal }) => {
-        ptys.delete(id);
-        sendToRenderer('pty-exit', { id, exitCode, signal });
-      });
+      let p;
+      if (viaTmux) {
+        // Al processo dentro tmux arrivano esplicitamente le variabili che
+        // contano; il resto lo eredita dal server (vedi lib/tmux.js, spawnArgs).
+        const sessionEnv = { PATH: env.PATH, COLORTERM: env.COLORTERM, ...identity.vars, ...(profileEnv || {}) };
+        const created = await tmux.control.create({
+          name: session, cmd, args, cwd: workdir, env: sessionEnv,
+          meta: {
+            type,
+            cwd: workdir,
+            label: label || null,
+            profile_id: (profile && profile.id) || null,
+            profile_label: (profile && profile.label) || null,
+            resume_id: resumeId || null,
+            account_id: claudeAccountId || null,
+            account_name: identity.name,
+          },
+        });
+        if (!created.ok) return { ok: false, error: 'tmux: ' + created.error };
+        // Il pty e' sempre e solo un client: uguale per sessioni nuove e riattaccate.
+        p = openPty(tmux.bin, tmuxLib.attachArgs({ confPath: tmux.confPath, socket: tmux.socket, name: session }), { cols, rows, cwd: workdir, env });
+      } else {
+        p = openPty(cmd, args, { cols, rows, cwd: workdir, env });
+      }
+      track(id, p, session);
       history().append({
         type,
         cwd: workdir,
@@ -100,45 +142,105 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer }) {
         claudeAccountName: identity.name,
         commandProfileId: (profile && profile.id) || null,
         commandProfileLabel: (profile && profile.label) || null,
+        tmuxSession: session,
         cmd: [...Object.entries(profileEnv || {}).map(([k, v]) => `${k}=${v}`), cmd, ...args].join(' '),
       });
       // La directory risolta torna alla scheda: e' quella su cui il titolo
       // automatico cerca la conversazione, non quella digitata dall'utente.
-      return { ok: true, cwd: workdir };
+      return { ok: true, cwd: workdir, session };
     } catch (e) {
       return { ok: false, error: String(e.message || e) };
     }
   }
 
-  function write(id, data) {
-    const p = ptys.get(id);
-    if (p) p.write(data);
-  }
-
-  function resize(id, cols, rows) {
-    const p = ptys.get(id);
-    if (!p || !(cols > 0) || !(rows > 0)) return;
-    try { p.resize(cols, rows); } catch {}
-  }
-
-  function kill(id) {
-    const p = ptys.get(id);
-    if (p) {
-      try { p.kill(); } catch {}
-      ptys.delete(id);
+  /**
+   * Riaggancia una sessione tmux esistente (riapertura dell'app).
+   * Una sessione sparita nel frattempo e' un caso normale, non un errore:
+   * il chiamante la degrada a "ricreabile via resume".
+   */
+  async function attach({ id, session, cols, rows }) {
+    if (!viaTmux) return { ok: false, error: 'tmux non disponibile: niente a cui riattaccarsi.' };
+    if (!tmuxLib.isAisSession(session)) return { ok: false, error: `Sessione non riconosciuta: ${session}` };
+    if (!(await tmux.control.has(session))) return { ok: false, gone: true, error: `La sessione ${session} non esiste più.` };
+    try {
+      const p = openPty(tmux.bin, tmuxLib.attachArgs({ confPath: tmux.confPath, socket: tmux.socket, name: session }), {
+        cols, rows, cwd: os.homedir(), env: augmentedEnv([tmux.bin]),
+      });
+      track(id, p, session);
+      return { ok: true, session };
+    } catch (e) {
+      return { ok: false, error: String(e.message || e) };
     }
+  }
+
+  /** Aggiorna l'etichetta salvata sulla sessione tmux: cosi' il titolo torna al riattacco. */
+  function setLabel(id, label) {
+    const c = clients.get(id);
+    if (!c || !c.session) return { ok: false };
+    tmux.control.setMeta(c.session, { label: String(label || '') }).catch(() => {});
     return { ok: true };
   }
 
-  /** Chiamata alla chiusura dell'ultima finestra. Il branch 6 la sostituira'. */
-  function killAll() {
-    for (const [, p] of ptys) {
-      try { p.kill(); } catch {}
-    }
-    ptys.clear();
+  /** Sessioni vive nel server tmux dell'app, con i loro metadati. Vuoto senza tmux. */
+  async function listLive() {
+    if (!viaTmux) return [];
+    const attachedNow = new Set([...clients.values()].map((c) => c.session).filter(Boolean));
+    return (await tmux.control.list()).map((s) => ({ ...s, attachedHere: attachedNow.has(s.name) }));
   }
 
-  return { spawn, write, resize, kill, killAll, get size() { return ptys.size; } };
+  function write(id, data) {
+    const c = clients.get(id);
+    if (c) c.p.write(data);
+  }
+
+  function resize(id, cols, rows) {
+    const c = clients.get(id);
+    if (!c || !(cols > 0) || !(rows > 0)) return;
+    try { c.p.resize(cols, rows); } catch {}
+  }
+
+  /**
+   * Chiude il pty della scheda. Con tmux e' uno *stacco*: il client se ne va,
+   * la sessione e il suo processo restano. Senza tmux il processo muore.
+   */
+  function close(id) {
+    const c = clients.get(id);
+    if (c) {
+      try { c.p.kill(); } catch {}
+      clients.delete(id);
+    }
+    return { ok: true, detached: Boolean(c && c.session) };
+  }
+
+  /** Termina davvero: uccide la sessione tmux (e con lei il processo), poi il client. */
+  async function terminate(id) {
+    const c = clients.get(id);
+    if (c && c.session) await tmux.control.kill(c.session);
+    return close(id);
+  }
+
+  /** Termina una sessione tmux a cui non si e' attaccati (ripulitura dalla lista). */
+  async function terminateSession(session) {
+    if (!viaTmux || !tmuxLib.isAisSession(session)) return { ok: false };
+    for (const [id, c] of clients) if (c.session === session) close(id);
+    return { ok: await tmux.control.kill(session) };
+  }
+
+  /** Alla chiusura dell'ultima finestra: stacca tutti i client. Con tmux le sessioni sopravvivono. */
+  function closeAll() {
+    for (const [, c] of clients) {
+      try { c.p.kill(); } catch {}
+    }
+    clients.clear();
+  }
+
+  return {
+    spawn, attach, listLive, setLabel, write, resize, close, terminate, terminateSession, closeAll,
+    get viaTmux() { return viaTmux; },
+    get size() { return clients.size; },
+    // compatibilita' con il nome precedente
+    kill: close, killAll: closeAll,
+  };
 }
 
 module.exports = { createPtyManager, isPtyAvailable: () => !!pty };

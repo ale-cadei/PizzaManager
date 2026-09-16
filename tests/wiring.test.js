@@ -91,7 +91,7 @@ ok('claude: il login viene letto nella config dir del profilo, non sempre in ~/.
   fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(dir2, { recursive: true, force: true });
 });
 
-ok('claude: account a chiave API + profilo con CLAUDE_CONFIG_DIR viene bloccato prima dello spawn', () => {
+ok('claude: account a chiave API + profilo con CLAUDE_CONFIG_DIR viene bloccato prima dello spawn', async () => {
   const { createPtyManager } = require('../app/pty');
   const { createAccountStore } = require('../lib/accounts');
   const { createHistoryStore } = require('../lib/history');
@@ -109,7 +109,7 @@ ok('claude: account a chiave API + profilo con CLAUDE_CONFIG_DIR viene bloccato 
 
   const sent = [];
   const mgr = createPtyManager({ accounts: () => accounts, history: () => history, profiles, sendToRenderer: (c, p) => sent.push(c) });
-  const r = mgr.spawn({ id: 't1', type: 'claude', cwd: dir, claudeAccountId: accId, commandProfileId: 'claude:iso' });
+  const r = await mgr.spawn({ id: 't1', type: 'claude', cwd: dir, claudeAccountId: accId, commandProfileId: 'claude:iso' });
 
   assert.strictEqual(r.ok, false);
   assert.ok(/ANTHROPIC_API_KEY ha la precedenza sul login del profilo/.test(r.error), r.error);
@@ -133,7 +133,7 @@ ok('profili: il file puo contenere segreti e non e leggibile da altri utenti', (
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-ok('claude: ANTHROPIC_API_KEY nel profilo + account a chiave API viene bloccato come il caso CLAUDE_CONFIG_DIR', () => {
+ok('claude: ANTHROPIC_API_KEY nel profilo + account a chiave API viene bloccato come il caso CLAUDE_CONFIG_DIR', async () => {
   const { createPtyManager } = require('../app/pty');
   const { createAccountStore } = require('../lib/accounts');
   const { createHistoryStore } = require('../lib/history');
@@ -149,13 +149,13 @@ ok('claude: ANTHROPIC_API_KEY nel profilo + account a chiave API viene bloccato 
   profiles.save(cfg);
 
   const mgr = createPtyManager({ accounts: () => accounts, history: () => history, profiles, sendToRenderer: () => {} });
-  const r = mgr.spawn({ id: 't2', type: 'claude', cwd: dir, claudeAccountId: accId, commandProfileId: 'claude:k' });
+  const r = await mgr.spawn({ id: 't2', type: 'claude', cwd: dir, claudeAccountId: accId, commandProfileId: 'claude:k' });
   assert.strictEqual(r.ok, false);
   assert.ok(/imposta già ANTHROPIC_API_KEY/.test(r.error), r.error);
   assert.strictEqual(mgr.size, 0);
 
   // con OAuth invece il profilo con la chiave e' legittimo: e' la scelta esplicita dell'utente
-  const ok2 = mgr.spawn({ id: 't3', type: 'claude', cwd: dir, claudeAccountId: 'oauth', commandProfileId: 'claude:k' });
+  const ok2 = await mgr.spawn({ id: 't3', type: 'claude', cwd: dir, claudeAccountId: 'oauth', commandProfileId: 'claude:k' });
   assert.strictEqual(ok2.ok, true, ok2.error);
   mgr.kill('t3');
   fs.rmSync(dir, { recursive: true, force: true });
@@ -184,7 +184,7 @@ ok('nomi: la scheda adotta la directory davvero usata dal pty', () => {
   assert.strictEqual(resolveWorkdir('~/progetto', { home, isDir }), '/home/tizio/progetto', 'la tilde non viene espansa');
   assert.strictEqual(resolveWorkdir('/non/esiste', { home, isDir }), home, 'una directory inesistente non ripiega sulla home');
   assert.strictEqual(resolveWorkdir('', { home, isDir }), home);
-  assert.ok(/return \{ ok: true, cwd: workdir \}/.test(read('app', 'pty.js')), 'pty.spawn non restituisce la directory risolta');
+  assert.ok(/return \{ ok: true, cwd: workdir\b/.test(read('app', 'pty.js')), 'pty.spawn non restituisce la directory risolta');
   assert.ok(/res\.cwd/.test(read('renderer', 'renderer.js')), 'il renderer non adotta la directory risolta dal main');
 });
 

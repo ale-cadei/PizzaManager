@@ -875,26 +875,36 @@ async function offerRestore() {
     ? 'Una sessione era aperta quando il computer si è spento o l\'app è stata chiusa dal sistema.'
     : `${lost.length} sessioni erano aperte quando il computer si è spento o l'app è stata chiusa dal sistema.`;
 
+  // Stessa card della sidebar (scatola, barra colorata del tipo, icona), con
+  // una spunta a sinistra. Un div e non un <label>: nei modal i label sono in
+  // colonna per i campi dei form e metterebbero la spunta sopra.
   const rows = lost.map((s) => {
     const plan = restorePlanFor(s);
-    const row = document.createElement('label');
-    row.className = 'resume-item restore-row';
+    const type = s.type || 'shell';
+    const row = document.createElement('div');
+    row.className = `session-item type-${type} restore-row`;
+    row.setAttribute('role', 'checkbox');
     const cb = document.createElement('input');
-    cb.type = 'checkbox'; cb.checked = true;
-    const meta = document.createElement('div');
+    cb.type = 'checkbox'; cb.checked = true; cb.className = 'restore-check';
+    const icon = document.createElement('span');
+    icon.className = 'icon';
+    icon.innerHTML = Icons.markup(type); // markup statico, nessun dato utente
+    const meta = document.createElement('span');
     meta.className = 'meta';
-    const title = document.createElement('div');
-    title.className = 'title';
-    const glyph = document.createElement('span');
-    glyph.className = 'icon';
-    glyph.innerHTML = Icons.markup(s.type); // markup statico, nessun dato utente
-    title.appendChild(glyph);
-    title.appendChild(document.createTextNode(s.label || s.type));
-    const desc = document.createElement('div');
-    desc.className = 'sub';
-    desc.textContent = `${s.cwd || ''} · ${plan.mode === 'resume' ? 'riprende la conversazione' : (s.type === 'shell' ? 'nuova shell nella stessa directory' : 'ripartirà pulita: la conversazione non aveva ancora un id')}`;
-    meta.appendChild(title); meta.appendChild(desc);
-    row.appendChild(cb); row.appendChild(meta);
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = s.label || type;
+    const sub = document.createElement('span');
+    sub.className = 'sub';
+    const how = plan.mode === 'resume' ? 'riprende la conversazione' : (type === 'shell' ? 'nuova shell' : 'ripartirà pulita, senza id');
+    sub.textContent = [shortPath(s.cwd), how].filter(Boolean).join(' · ');
+    sub.title = [s.cwd || '', how].filter(Boolean).join(' · ');
+    meta.appendChild(name); meta.appendChild(sub);
+    row.appendChild(cb); row.appendChild(icon); row.appendChild(meta);
+    const sync = () => { row.setAttribute('aria-checked', String(cb.checked)); row.classList.toggle('is-off', !cb.checked); };
+    row.onclick = (e) => { if (e.target !== cb) cb.checked = !cb.checked; sync(); };
+    cb.onchange = sync;
+    sync();
     list.appendChild(row);
     return { cb, plan };
   });

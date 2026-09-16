@@ -404,7 +404,12 @@ a, .link { color: var(--accent); }
 /* Termina (solo con tmux): distinto dalla ✕ che stacca */
 .terminate-x { margin-left: 2px; opacity: .55; }
 .terminate-x:hover { opacity: 1; color: var(--state-error, #E8556E); }
-/* Ripristino dopo riavvio: righe con spunta, stesso aspetto del Resume */
+/* Ripristino dopo riavvio: le stesse card della sidebar, con una spunta a sinistra */
 #restore-list { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
-.restore-row { cursor: pointer; }
-.restore-row input[type=checkbox] { width: auto; flex: 0 0 auto; margin: 0; }
+.restore-row { user-select: none; }
+.restore-row .restore-check { width: 15px; height: 15px; flex: 0 0 auto; margin: 0; accent-color: var(--action, var(--accent)); cursor: pointer; }
+.restore-row .meta { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
+.restore-row .name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.restore-row .sub { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.restore-row.is-off { opacity: .5; }
+.restore-row.is-off .name { text-decoration: line-through; }

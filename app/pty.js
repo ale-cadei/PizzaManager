@@ -30,7 +30,8 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer }) {
    * Il profilo di comando puo' spostare la config dir (CLAUDE_CONFIG_DIR): e'
    * li' che sta il login di quel profilo, non per forza in ~/.claude.
    */
-  function claudeIdentity(type, claudeAccountId, profile, profileConfigDir) {
+  function claudeIdentity(type, claudeAccountId, profile, profileEnv) {
+    const profileConfigDir = (profileEnv && profileEnv.CLAUDE_CONFIG_DIR) || null;
     if (type !== 'claude') return { vars: {}, name: null };
     if (claudeAccountId && claudeAccountId !== 'oauth') {
       const ae = accounts().envFor(claudeAccountId);
@@ -43,6 +44,15 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer }) {
             + `ma hai scelto l'account a chiave API "${ae.name}".\nANTHROPIC_API_KEY ha la precedenza sul login del profilo: `
             + "l'isolamento non varrebbe e il consumo verrebbe addebitato sulla chiave.\n"
             + "Scegli l'account \"OAuth (login corrente)\" per usare il login del profilo, oppure un comando senza CLAUDE_CONFIG_DIR.",
+        };
+      }
+      // Stesso conflitto, con la chiave scritta direttamente nel profilo: l'env del
+      // profilo viene applicato per ultimo e scavalcherebbe l'account scelto in silenzio.
+      if (profileEnv && profileEnv.ANTHROPIC_API_KEY) {
+        return {
+          error: `Il comando "${profile.label}" imposta già ANTHROPIC_API_KEY, ma hai scelto anche l'account a chiave API "${ae.name}".\n`
+            + "Vincerebbe la chiave del comando e il consumo verrebbe addebitato lì, non sull'account scelto.\n"
+            + "Scegli \"OAuth (login corrente)\" oppure togli ANTHROPIC_API_KEY dal comando.",
         };
       }
       return ae;
@@ -64,8 +74,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer }) {
       };
     }
 
-    const profileConfigDir = (profileEnv && profileEnv.CLAUDE_CONFIG_DIR) || null;
-    const identity = claudeIdentity(type, claudeAccountId, profile, profileConfigDir);
+    const identity = claudeIdentity(type, claudeAccountId, profile, profileEnv);
     if (identity.error) return { ok: false, error: identity.error };
 
     try {

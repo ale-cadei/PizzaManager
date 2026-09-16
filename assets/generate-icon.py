@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Genera le icone di AISessionManager.
+"""Genera le icone di PizzaManager.
 
 Produce:
 - assets/icon.png (1024x1024), usato da BrowserWindow, dal renderer e dal
@@ -9,22 +9,26 @@ Produce:
   i pannelli che non riscalano (dock, launcher, alt-tab) mostrano l'icona
   sgranata o quella generica.
 
-Disegno ("node"): quadrato scuro con bordo teal, anello teal spezzato da una
-fascia orizzontale e nodo corallo al centro. Ricalca assets/icon-node-384.png
-in forma vettoriale: il sorgente e' 392x392, sotto il minimo per generare il
-set completo, e un upscale sfocherebbe i bordi.
+Disegno ("pizza"): quadrato scuro con bordo teal e una pizza tagliata in
+spicchi, ciascuno scostato radialmente dal centro cosi' che i tagli restino
+leggibili anche a 16x16. Ogni spicchio e' un settore di cornicione con sopra
+un settore piu' piccolo di formaggio e due dischetti di salame.
 
-Colori allineati ai token del design system (--action, --accent).
+Colori allineati ai token del design system (--action per il bordo,
+--accent per il salame).
 
 Uso: python3 assets/generate-icon.py
 """
+import math
 import os
 from PIL import Image, ImageDraw
 
 # Colori (vedi renderer/tokens.css)
-BG = (11, 10, 14, 255)        # fondo scuro, in tema con --bg
-TEAL = (31, 167, 154, 255)    # --action  #1FA79A
-CORAL = (255, 138, 107, 255)  # --accent  #FF8A6B
+BG = (11, 10, 14, 255)           # fondo scuro, in tema con --bg
+TEAL = (31, 167, 154, 255)       # --action  #1FA79A
+PEPPERONI = (255, 138, 107, 255)  # --accent  #FF8A6B
+CRUST = (214, 154, 78, 255)      # cornicione
+CHEESE = (247, 201, 106, 255)    # formaggio
 
 SIZE = 1024
 SUPERSAMPLE = 4  # disegna 4x e riduci: bordi antialiasati
@@ -32,10 +36,15 @@ SUPERSAMPLE = 4  # disegna 4x e riduci: bordi antialiasati
 # Geometria in frazioni del lato, cosi' la resa e' identica a ogni risoluzione
 CORNER_RADIUS = 0.2015
 BORDER_WIDTH = 0.0102
-RING_OUTER = 0.2219
-RING_INNER = 0.1531
-GAP_HALF_HEIGHT = 0.0740  # meta' altezza della fascia che spezza l'anello
-DOT_RADIUS = 0.0702
+PIZZA_RADIUS = 0.355        # raggio del cornicione
+CHEESE_RATIO = 0.84         # il formaggio lascia scoperto il bordo esterno
+SLICES = 8
+SLICE_GAP_DEG = 5.0         # taglio fra due spicchi
+SLICE_EXPLODE = 0.022       # scostamento radiale di ogni spicchio
+PEPPERONI_RADIUS = 0.035
+# Posizione dei salami dentro lo spicchio: (frazione del raggio, scarto in gradi
+# dalla bisettrice). Due per spicchio, sfalsati, cosi' non sembrano allineati.
+PEPPERONI_SPOTS = ((0.42, 0.0), (0.68, -9.0))
 
 OUTPUT = 'assets/icon.png'
 ICON_SET_DIR = 'assets/icons'
@@ -46,11 +55,40 @@ def _circle(draw: ImageDraw.ImageDraw, cx: float, cy: float, r: float, fill) -> 
     draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=fill)
 
 
+def _sector(draw: ImageDraw.ImageDraw, cx: float, cy: float, r: float,
+            start: float, end: float, fill) -> None:
+    draw.pieslice((cx - r, cy - r, cx + r, cy + r), start, end, fill=fill)
+
+
+def draw_slice(draw: ImageDraw.ImageDraw, side: int, index: int) -> None:
+    """Disegna lo spicchio `index`, scostato dal centro lungo la sua bisettrice."""
+    center = (side - 1) / 2
+    step = 360 / SLICES
+    start = index * step + SLICE_GAP_DEG / 2
+    end = (index + 1) * step - SLICE_GAP_DEG / 2
+    middle = math.radians((start + end) / 2)
+
+    # Lo spicchio ha un centro tutto suo: e' cosi' che nasce lo stacco fra le fette
+    cx = center + math.cos(middle) * SLICE_EXPLODE * side
+    cy = center + math.sin(middle) * SLICE_EXPLODE * side
+    radius = PIZZA_RADIUS * side
+
+    _sector(draw, cx, cy, radius, start, end, CRUST)
+    _sector(draw, cx, cy, radius * CHEESE_RATIO, start, end, CHEESE)
+
+    for distance, offset_deg in PEPPERONI_SPOTS:
+        angle = math.radians((start + end) / 2 + offset_deg)
+        _circle(draw,
+                cx + math.cos(angle) * radius * distance,
+                cy + math.sin(angle) * radius * distance,
+                PEPPERONI_RADIUS * side,
+                PEPPERONI)
+
+
 def draw_icon(side: int) -> Image.Image:
     """Ritorna una nuova immagine RGBA con l'icona disegnata a lato `side`."""
     img = Image.new('RGBA', (side, side), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-    center = (side - 1) / 2
 
     # Fondo scuro con bordo teal
     draw.rounded_rectangle(
@@ -61,16 +99,8 @@ def draw_icon(side: int) -> Image.Image:
         width=max(1, round(BORDER_WIDTH * side)),
     )
 
-    # Anello: disco teal svuotato al centro
-    _circle(draw, center, center, RING_OUTER * side, TEAL)
-    _circle(draw, center, center, RING_INNER * side, BG)
-
-    # Fascia orizzontale che spezza l'anello in due archi
-    gap = GAP_HALF_HEIGHT * side
-    draw.rectangle((0, center - gap, side - 1, center + gap), fill=BG)
-
-    # Nodo centrale
-    _circle(draw, center, center, DOT_RADIUS * side, CORAL)
+    for index in range(SLICES):
+        draw_slice(draw, side, index)
     return img
 
 

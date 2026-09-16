@@ -1,4 +1,4 @@
-# AISessionManager — design system
+# PizzaManager — design system
 
 Palette **Teal notturno**: fondo nero, azione teal, accento corallo.
 

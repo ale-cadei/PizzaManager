@@ -1,4 +1,4 @@
-/* AISessionManager renderer */
+/* PizzaManager renderer */
 const tabs = new Map();
 let activeId = null;
 /* Con tmux le sessioni sopravvivono alla chiusura: la ✕ stacca, «Termina» uccide. */
@@ -48,7 +48,7 @@ async function init() {
     };
     for (const n of AI_TYPES) mark('#dep-' + n, deps[n]);
     if (AI_TYPES.some(n => !deps[n] || !deps[n].found)) {
-      console.warn('[AISessionManager] binari mancanti:', deps);
+      console.warn('[PizzaManager] binari mancanti:', deps);
     }
   } catch (e) { console.warn('check-deps fallito', e); }
 
@@ -974,7 +974,8 @@ function restorePlanFor(s) {
    invece che terminare. */
 const sidebar = Sidebar.createSidebar({
   list: $('#session-list'), count: $('#count'),
-  storage: window.localStorage, Icons, Groups, Commands: window.AisessCommands, escapeHtml,
+  storage: window.localStorage, Icons, Slice: window.PizzaSlice,
+  Groups, Commands: window.AisessCommands, escapeHtml,
   modeButtons: { type: $('#group-mode-type'), project: $('#group-mode-project') },
   onSelect: (id) => setActive(id),
   onClose: (id) => { closeTab(id).catch(() => {}); },

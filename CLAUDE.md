@@ -1,4 +1,4 @@
-# AISessionManager — convenzioni per chi tocca il codice
+# PizzaManager — convenzioni per chi tocca il codice
 
 App Electron che gestisce sessioni di terminale in schede: shell, `opencode`,
 `claude`, `codex`. Ogni sessione è un PTY reale (`node-pty` + `xterm.js`).

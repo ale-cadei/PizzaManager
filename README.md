@@ -1,4 +1,4 @@
-# AISessionManager
+# PizzaManager
 
 Gestore unificato di **terminali, sessioni OpenCode, Claude Code e Codex** in un'unica finestra desktop.
 Compatibile con **Linux (.deb / AppImage)** e **macOS (.dmg / .zip)**.
@@ -43,4 +43,4 @@ npm run dist:linux
 npm run dist:mac
 ```
 
-Il `.deb` installa voce di menu `AISessionManager` (categoria Development).
+Il `.deb` installa voce di menu `PizzaManager` (categoria Development).

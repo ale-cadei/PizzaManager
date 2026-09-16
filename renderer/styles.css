@@ -1,4 +1,4 @@
-/* AISessionManager — applicazione del design system "Teal notturno".
+/* PizzaManager — applicazione del design system "Teal notturno".
    I token vivono in tokens.css (copia di aisessionmanager-tokens.css in root);
    qui sotto solo gli stili specifici dell'app, che usano esclusivamente i token. */
 @import url('tokens.css');
@@ -271,7 +271,15 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .group-header:hover { border-color: var(--border-strong); background: var(--surface-3); }
 /* Gruppo chiuso che contiene la sessione attiva: stesso marker delle card */
 .group-header.has-active .sel-mark { visibility: visible; }
-.group-header .chevron { color: var(--text-dim); font-size: 11px; width: 14px; flex: 0 0 auto; }
+/* La fetta di pizza al posto della freccina: il tracciato punta a destra
+   (gruppo chiuso) e ruota di 90° quando il gruppo è aperto, così il verso lo dà
+   lo stato ARIA dell'header e non un secondo glifo. */
+.group-header .chevron { width: 14px; height: 14px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; }
+.group-header .chevron svg { transform: rotate(0deg); transition: transform 120ms ease; }
+.group-header[aria-expanded="true"] .chevron svg { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) {
+  .group-header .chevron svg { transition: none; }
+}
 .group-header .icon { font-size: 14px; }
 .group-header .group-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .group-count {

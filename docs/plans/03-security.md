@@ -1,7 +1,23 @@
 # Branch 3 — `fix/security`
 
-**Dipende da**: branch 2 (serve la factory `createAccountStore` iniettabile).
-**Parallelo a**: branch 4. **Taglia**: ~4h. **Rischio**: medio — tocca dati esistenti dell'utente.
+**Dipende da**: branch 2. **Taglia**: ~1h. **Rischio**: basso.
+
+> **Stato: fatto** (2026-09-16), in forma ridotta rispetto al piano originale.
+> Decisione presa con il proprietario del prodotto: è un programma locale a
+> utente singolo, non ancora distribuito. Le modifiche che rendono più sicuro
+> senza complicare sviluppo o uso sono entrate; `safeStorage` è stato differito
+> (vedi backlog nel README). Fatto:
+>
+> - `command-profiles.json` a 600 come `claude-accounts.json` — i profili
+>   accettano `VAR=valore`, incluso `ANTHROPIC_API_KEY=…`, e il file era a 644
+> - blocco di «`ANTHROPIC_API_KEY` nel profilo + account a chiave API», lo
+>   stesso conflitto già gestito per `CLAUDE_CONFIG_DIR`: l'env del profilo
+>   vince in silenzio e l'addebito finisce dove l'utente non si aspetta
+> - CSP in `renderer/index.html` (`style-src` ammette l'inline per xterm.js,
+>   `script-src` no)
+> - `escapeHtml` su `oauth.label`
+>
+> Il testo che segue è il piano originale, conservato per il ragionamento.
 
 ---
 

@@ -10,7 +10,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 1 | `chore/cleanup` | — | ~1h | ✅ mergiato (PR #1) |
 | 2 | [`refactor/extract-modules`](02-extract-modules.md) | 1 | 1 g | ✅ fatto (2ª volta, vedi nota) |
 | 3 | [`fix/security`](03-security.md) | 2 | ~1h | ✅ fatto (ridotto, vedi 03) |
-| 4 | [`fix/robustness`](04-robustness.md) | 2 | ~4h | parziale: menubar in-app ✅ |
+| 4 | [`fix/robustness`](04-robustness.md) | 2 | ~4h | ✅ fatto |
 | 5 | [`spike/tmux`](05-spike-tmux.md) | — | ~4h | ✅ fatto, [risultati](05-risultati.md) |
 | 6 | [`feat/tmux-backend`](06-tmux-backend.md) | 2, 5 | 1 g | ✅ fatto |
 | 8 | `feat/restore-after-reboot` | 6 | ½ g | ✅ fatto (vedi sotto) |

@@ -2,6 +2,8 @@
 
 **Dipende da**: branch 2. **Parallelo a**: branch 3. **Taglia**: ~4h. **Rischio**: basso.
 
+> **Stato: fatto** (2026-09-16, branch `fix/robustness`). Tutti i punti chiusi; il 5 lo aveva già sistemato il collega.
+
 ---
 
 ## Contesto
@@ -14,7 +16,7 @@ Sono indipendenti fra loro: un commit ciascuno, in qualsiasi ordine.
 
 ---
 
-### 1. `getLoginPathSync` blocca il main process
+### ✅ 1. `getLoginPathSync` blocca il main process
 
 `main.js:30`. Per trovare `opencode` e `claude` anche quando l'app è lanciata
 dalla GUI (dove il `PATH` è minimo), l'app chiede il PATH a una shell di login:
@@ -36,7 +38,7 @@ due chiamate concorrenti all'avvio lanciano due `zsh -lc` in parallelo.
 Nota minore, gratis già che ci si è: `echo $__AIS_LOGIN_PATH__` non serve a
 niente — si legge solo l'ultima riga dell'output.
 
-### 2. L'output di `opencode` non è validato
+### ✅ 2. L'output di `opencode` non è validato
 
 `main.js:452`:
 
@@ -51,7 +53,7 @@ boundary da manuale. Serve uno schema minimo, e un messaggio esplicito quando
 non torna — così l'utente legge «opencode ha restituito un formato inatteso»
 invece di trovarsi una lista vuota senza spiegazione.
 
-### 3. Il parser JSONL di Claude fallisce in silenzio
+### ✅ 3. Il parser JSONL di Claude fallisce in silenzio
 
 `main.js`, handler `list-claude-sessions`. La scansione di
 `~/.claude/projects/**/*.jsonl` è piena di `catch {}` vuoti: un file illeggibile,
@@ -62,7 +64,7 @@ meno, senza che nessuno lo sappia.
 non crashare** — ma il degrado va dichiarato: contare gli scarti e dirlo
 («3 sessioni non leggibili»), invece di sparire.
 
-### 4. `await` mancante in `openNewModal`
+### ✅ 4. `await` mancante in `openNewModal`
 
 `renderer/renderer.js:127`:
 
@@ -98,7 +100,7 @@ un fallback leggibile.
 array esistenti. Vanno riscritte come `[nuovo, ...vecchi]` e `[...acc, nuovo]`,
 in linea con lo standard di progetto.
 
-### 6-bis. Tokenizer dei profili: due divergenze dalla shell (rilevate il 2026-09-15)
+### 6-bis. ✅ Tokenizer dei profili: due divergenze dalla shell (rilevate il 2026-09-15)
 
 Il commento in testa a `lib/command-profiles.js` promette «come in una shell»,
 ma due casi divergono:
@@ -119,7 +121,7 @@ Il menu nativo mandava `menu-edit` al renderer (selezione di xterm); la menubar
 in-app — quella visibile su Linux/Windows — chiamava ancora `wc.copy()` nativo,
 che nei terminali non vede niente. Allineate. Il test di cablaggio copre entrambe.
 
-### 7. URL segnaposto del repository (in due punti)
+### ✅ 7. URL segnaposto del repository (in due punti)
 
 Dopo il branch 2 l'indirizzo è in **un solo punto**: la costante `REPO_URL` in
 `app/menu.js`, usata sia dal menu nativo che dalla menubar in-app. Resta

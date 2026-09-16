@@ -8,11 +8,11 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | # | Branch | Dipende da | Taglia | Stato |
 |---|--------|-----------|--------|-------|
 | 1 | `chore/cleanup` | — | ~1h | ✅ mergiato (PR #1) |
-| 2 | [`refactor/extract-modules`](02-extract-modules.md) | 1 | 1-2 gg | da fare |
-| 3 | [`fix/security`](03-security.md) | 2 | ~4h | da fare |
-| 4 | [`fix/robustness`](04-robustness.md) | 2 | ~4h | da fare |
-| 5 | [`spike/tmux`](05-spike-tmux.md) | — | ~4h | da fare |
-| 6 | [`feat/tmux-backend`](06-tmux-backend.md) | 2, 5 | 3-5 gg | bloccato dal 5 |
+| 2 | [`refactor/extract-modules`](02-extract-modules.md) | 1 | 1 g | ✅ fatto (2ª volta, vedi nota) |
+| 3 | [`fix/security`](03-security.md) | 2 | ~1h | ✅ fatto (ridotto, vedi 03) |
+| 4 | [`fix/robustness`](04-robustness.md) | 2 | ~4h | parziale: menubar in-app ✅ |
+| 5 | [`spike/tmux`](05-spike-tmux.md) | — | ~4h | ✅ fatto, [risultati](05-risultati.md) |
+| 6 | [`feat/tmux-backend`](06-tmux-backend.md) | 2, 5 | 3-5 gg | sbloccato, da fare |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **5 non dipende da niente**: si può fare in qualsiasi momento, anche subito.
@@ -27,6 +27,17 @@ su 13 sono `grep` sul testo dei sorgenti. Se domani qualcuno rompe la vera
 `buildCommand`, i test restano verdi.
 
 Finché non è risolto, ogni altra modifica si fa senza rete.
+
+## Nota sul branch 2: fatto due volte
+
+La prima esecuzione (PR #5) è rimasta aperta una settimana; nel frattempo
+`main` ha ricevuto i profili di comando (+200 righe in `main.js`, +434 in un
+file test qui rinominato) e la PR non era più mergiabile. Ricomporla costava
+quanto rifarla: è stata chiusa e l'estrazione rifatta sulla base nuova — più
+corta, perché `command-profiles`, `recent-dirs` e `codex-sessions` erano già
+moduli separati. **Un branch di refactor si merge il giorno stesso.**
+
+Le convenzioni che ne derivano stanno in [`CLAUDE.md`](../../CLAUDE.md).
 
 ## Regola comune a tutti i branch
 
@@ -57,6 +68,14 @@ Non sono urgenti; stanno qui per non essere dimenticate.
 - **Icona `.icns` per macOS**: `assets/icon.png` è a risoluzione singola.
 - **`npm run dist` punta a Linux anche su Mac**; `dist:mac` esiste ma non è il
   default.
+- **`safeStorage` per le API key** (era nel branch 3, differito). Su macOS lega
+  l'accesso alla firma dell'app: un'app in sviluppo non è firmata e ogni rebuild
+  può perdere l'accesso alla chiave, facendo sparire gli account. Il file su
+  disco diventa opaco. Per un programma non ancora distribuito è più fastidio che
+  protezione: torna in gioco quando si firma l'app per distribuirla.
+- **Google Fonts caricati da rete** (`renderer/index.html`): IBM Plex Mono e
+  Inter arrivano da fonts.googleapis.com. Offline si ricade sul fallback locale,
+  ma è una dipendenza di rete in un'app desktop; valutare di includerli.
 - **`npm audit`**: 15 vulnerabilità, tutte in `electron-builder` /
   `electron-rebuild`, quindi devDependencies che non finiscono nel bundle. Da
   sistemare prima di distribuire l'app.

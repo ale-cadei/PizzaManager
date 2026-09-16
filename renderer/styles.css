@@ -6,7 +6,12 @@
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
 :root { color-scheme: dark; }
+/* Colonna: menubar sopra, app che prende tutto il resto. L'altezza dell'app non
+   si puo' cablare (era `calc(100vh - 33px)`): dove il SO disegna la sua menubar
+   nativa #menubar sta nascosta, e quei 33px restavano vuoti in fondo alla
+   pagina — con la riga che separa sidebar e terminale che si fermava li'. */
 body {
+  display: flex; flex-direction: column;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-ui);
@@ -19,13 +24,13 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   outline-offset: 2px;
 }
 
-#app { display: flex; height: calc(100vh - 33px); background: var(--bg); }
+#app { display: flex; flex: 1; min-height: 0; background: var(--bg); }
 
 /* ---------- Menubar scura in-app (sostituisce la menubar nativa,
    nascosta su Linux/Windows dove il tema di sistema la disegna chiara) ---------- */
 #menubar {
   display: flex; align-items: stretch; gap: 2px;
-  height: 32px; padding: 0 8px;
+  flex: 0 0 auto; height: 32px; padding: 0 8px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   font-size: 12px; user-select: none;

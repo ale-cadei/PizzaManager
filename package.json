@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Gestore unificato di terminali, sessioni OpenCode e Claude Code in un'unica finestra",
   "main": "main.js",
-  "homepage": "https://github.com/aisessionmanager/aisessionmanager",
+  "homepage": "https://github.com/ale-cadei/AISessionManager",
   "author": "PizzaManager <support@example.com>",
   "license": "MIT",
   "scripts": {

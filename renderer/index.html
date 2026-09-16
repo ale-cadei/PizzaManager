@@ -211,6 +211,20 @@
   </div>
 </div>
 
+<!-- Modal ripristino dopo riavvio: le sessioni che il registro dava per vive
+     e che tmux non ha più (docs/plans/README.md, branch 8) -->
+<div class="modal-backdrop" id="modal-restore" hidden>
+  <div class="modal">
+    <h2>Ripristinare le sessioni di prima?</h2>
+    <p class="muted small" id="restore-sub"></p>
+    <div id="restore-list"></div>
+    <div class="modal-actions">
+      <button class="btn btn--ghost" id="restore-dismiss">Non ora</button>
+      <button class="btn primary" id="restore-confirm">Ripristina</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal rinomina sessione: window.prompt() non è supportato in Electron -->
 <div class="modal-backdrop" id="modal-rename" hidden>
   <div class="modal">

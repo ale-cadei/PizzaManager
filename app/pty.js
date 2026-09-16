@@ -27,7 +27,7 @@ const DEFAULT_ROWS = 24;
  *
  * Sta in app/ perche' dipende da node-pty e dal canale verso il renderer.
  */
-function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = null }) {
+function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = null, liveStore = null }) {
   /** id scheda -> { p: pty, session: nome tmux | null } */
   const clients = new Map();
   const viaTmux = Boolean(tmux && tmux.bin && tmux.control && pty);
@@ -66,6 +66,15 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     }
     const o = accounts().detectOauth(profileConfigDir);
     return { vars: {}, name: o.available ? (profileConfigDir ? `OAuth (${profileConfigDir})` : 'OAuth') : null };
+  }
+
+  /**
+   * Riscrive il registro su disco con le sessioni vive di tmux. Fire-and-forget:
+   * un riavvio non avvisa, quindi il file deve essere sempre aggiornato.
+   */
+  function syncSnapshot() {
+    if (!viaTmux || !liveStore) return Promise.resolve();
+    return tmux.control.list().then((live) => { liveStore().write(live); }).catch(() => {});
   }
 
   function track(id, p, session) {
@@ -134,6 +143,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
         p = openPty(cmd, args, { cols, rows, cwd: workdir, env });
       }
       track(id, p, session);
+      if (session) syncSnapshot();
       history().append({
         type,
         cwd: workdir,
@@ -167,18 +177,31 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
         cols, rows, cwd: os.homedir(), env: augmentedEnv([tmux.bin]),
       });
       track(id, p, session);
+      syncSnapshot();
       return { ok: true, session };
     } catch (e) {
       return { ok: false, error: String(e.message || e) };
     }
   }
 
-  /** Aggiorna l'etichetta salvata sulla sessione tmux: cosi' il titolo torna al riattacco. */
-  function setLabel(id, label) {
+  /**
+   * Aggiorna i metadati salvati sulla sessione tmux. L'etichetta cosi' torna al
+   * riattacco; l'id della conversazione (resume_id) arriva qui quando il
+   * titolo automatico lo scopre — e' cio' che rende ripristinabile dopo un
+   * riavvio una sessione nata "nuova".
+   */
+  function setMeta(id, { label, resumeId } = {}) {
     const c = clients.get(id);
     if (!c || !c.session) return { ok: false };
-    tmux.control.setMeta(c.session, { label: String(label || '') }).catch(() => {});
+    const meta = {};
+    if (label !== undefined) meta.label = String(label || '');
+    if (resumeId !== undefined) meta.resume_id = String(resumeId || '');
+    tmux.control.setMeta(c.session, meta).then(syncSnapshot).catch(() => {});
     return { ok: true };
+  }
+
+  function setLabel(id, label) {
+    return setMeta(id, { label });
   }
 
   /** Sessioni vive nel server tmux dell'app, con i loro metadati. Vuoto senza tmux. */
@@ -212,18 +235,44 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     return { ok: true, detached: Boolean(c && c.session) };
   }
 
+  /** Dopo una kill-session tmux ha bisogno di un attimo per riflettere la lista. */
+  const settle = () => new Promise((r) => setTimeout(r, 150));
+
   /** Termina davvero: uccide la sessione tmux (e con lei il processo), poi il client. */
   async function terminate(id) {
     const c = clients.get(id);
     if (c && c.session) await tmux.control.kill(c.session);
-    return close(id);
+    const r = close(id);
+    if (c && c.session) { await settle(); await syncSnapshot(); }
+    return r;
   }
 
   /** Termina una sessione tmux a cui non si e' attaccati (ripulitura dalla lista). */
   async function terminateSession(session) {
     if (!viaTmux || !tmuxLib.isAisSession(session)) return { ok: false };
     for (const [id, c] of clients) if (c.session === session) close(id);
-    return { ok: await tmux.control.kill(session) };
+    const ok = await tmux.control.kill(session);
+    await settle(); await syncSnapshot();
+    return { ok };
+  }
+
+  /**
+   * Sessioni da proporre in ripristino all'avvio: quelle nel registro che tmux
+   * non ha piu'. Riallinea il registro nel farlo. Vedi lib/live-sessions.js.
+   */
+  async function restorable() {
+    if (!viaTmux || !liveStore) return [];
+    const { restorableSessions } = require('../lib/live-sessions');
+    const live = await tmux.control.list();
+    const { restorable: lost, reconciled } = restorableSessions(liveStore().read(), live);
+    if (reconciled.length !== liveStore().read().length) liveStore().write(reconciled);
+    return lost;
+  }
+
+  /** L'utente ha detto "non ora": il registro si svuota, altrimenti lo richiederebbe a ogni avvio. */
+  function discardRestorable() {
+    if (liveStore) liveStore().clear();
+    return { ok: true };
   }
 
   /** Alla chiusura dell'ultima finestra: stacca tutti i client. Con tmux le sessioni sopravvivono. */
@@ -235,7 +284,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
   }
 
   return {
-    spawn, attach, listLive, setLabel, write, resize, close, terminate, terminateSession, closeAll,
+    spawn, attach, listLive, setLabel, setMeta, restorable, discardRestorable, write, resize, close, terminate, terminateSession, closeAll,
     get viaTmux() { return viaTmux; },
     get size() { return clients.size; },
     // compatibilita' con il nome precedente

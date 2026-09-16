@@ -81,7 +81,7 @@ aggiunge un profilo a chiave.
 Da notare che ora `openNewModal` è raggiungibile anche da `File > Nuova sessione`
 (⌘N) oltre che dal bottone.
 
-### 5. Data non validata nel resume
+### 5. ✅ Data non validata nel resume (fatto dal collega)
 
 `renderer/renderer.js:299`:
 

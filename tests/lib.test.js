@@ -170,11 +170,31 @@ ok('i file che non sono .jsonl vengono ignorati', () => {
 // ---------- lib/opencode-sessions ----------
 const { listOpencodeSessions } = require('../lib/opencode-sessions');
 
-ok('un output JSON non valido di opencode diventa un errore leggibile', async () => {
+ok('opencode: zero sessioni (output vuoto) e un risultato, non un errore', async () => {
+  // opencode con nessuna sessione non stampa nemmeno "[]": prima l'utente leggeva "Parse JSON fallito"
+  const r = await listOpencodeSessions(5, { run: (c, a, o, cb) => cb(null, '', '') });
+  assert.strictEqual(r.ok, true);
+  assert.deepStrictEqual(r.sessions, []);
+});
+
+ok('opencode: un output non JSON e un errore che dice cosa e arrivato', async () => {
   const r = await listOpencodeSessions(5, { run: (c, a, o, cb) => cb(null, 'non e json', '') });
   assert.strictEqual(r.ok, false);
-  assert.ok(r.error.includes('Parse JSON'), r.error);
-  assert.deepStrictEqual(r.sessions, []);
+  assert.ok(r.error.includes('non è JSON') && r.error.includes('non e json'), r.error);
+});
+
+ok('opencode: JSON valido ma non un elenco = formato cambiato, segnalato come tale', async () => {
+  const r = await listOpencodeSessions(5, { run: (c, a, o, cb) => cb(null, '{"sessions": []}', '') });
+  assert.strictEqual(r.ok, false);
+  assert.ok(/formato inatteso/.test(r.error), r.error);
+});
+
+ok('opencode: le voci senza id vengono scartate e contate, le altre passano', async () => {
+  const out = JSON.stringify([{ id: 'ses_1', title: 'ok' }, { title: 'senza id' }, null, { id: 'ses_2' }]);
+  const r = await listOpencodeSessions(5, { run: (c, a, o, cb) => cb(null, out, '') });
+  assert.strictEqual(r.ok, true);
+  assert.deepStrictEqual(r.sessions.map((s) => s.id), ['ses_1', 'ses_2']);
+  assert.strictEqual(r.skipped, 2);
 });
 
 ok('un errore di esecuzione di opencode riporta lo stderr', async () => {

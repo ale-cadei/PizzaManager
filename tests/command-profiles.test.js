@@ -189,3 +189,27 @@ ok('shell su windows non riceve -i', () => {
   const r = profiles.resolveProfileCommand(win.shell[0], {});
   assert.deepStrictEqual(r.args, []);
 });
+
+// ---------- Divergenze dalla shell corrette (piano 04, 6-bis) ----------
+ok('comandi: dentro le virgolette doppie il backslash scappa solo $ ` " \\, come in POSIX', () => {
+  assert.deepStrictEqual(profiles.tokenizeCommand('"C:\\Users\\x"'), ['C:\\Users\\x'], 'un percorso Windows non deve perdere i backslash');
+  assert.deepStrictEqual(profiles.tokenizeCommand('"a\\"b"'), ['a"b'], 'la virgoletta scappata resta letterale');
+  assert.deepStrictEqual(profiles.tokenizeCommand('"x\\$y"'), ['x$y'], 'il dollaro scappato resta letterale');
+  assert.deepStrictEqual(profiles.tokenizeCommand('"p\\\\q"'), ['p\\q'], 'doppio backslash = un backslash');
+  // fuori dalle virgolette il backslash scappa qualunque cosa, come prima
+  assert.deepStrictEqual(profiles.tokenizeCommand('a\\ b'), ['a b']);
+});
+
+ok('comandi: $VAR e ${VAR} si espandono anche negli argomenti, le ignote restano letterali', () => {
+  const r = profiles.resolveProfileCommand(
+    { command: 'claude --model $MODEL --dir ${WORK}/src --keep $IGNOTA', resumeArgs: '--resume {id} --from $MODEL' },
+    { env: { MODEL: 'opus', WORK: '/w' }, resumeId: 'abc' }
+  );
+  assert.strictEqual(r.ok, true);
+  assert.deepStrictEqual(r.args, ['--model', 'opus', '--dir', '/w/src', '--keep', '$IGNOTA', '--resume', 'abc', '--from', 'opus']);
+});
+
+ok('comandi: anche il binario puo venire da una variabile', () => {
+  const r = profiles.resolveProfileCommand({ command: '$BIN --x' }, { env: { BIN: '/opt/tools/claude' } });
+  assert.strictEqual(r.bin, '/opt/tools/claude');
+});

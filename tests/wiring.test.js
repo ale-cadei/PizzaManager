@@ -196,7 +196,8 @@ ok('nomi: rinomina manuale, titoli automatici e primo prompt collegati alla UI',
   assert.ok(js.includes('AisessTitles'), 'il renderer non usa lo store dei nomi');
   // La sidebar si ricostruisce al primo click, quindi il dblclick del browser
   // non scatta: serve il riconoscimento manuale del doppio click.
-  assert.ok(/DOUBLE_CLICK_MS/.test(js) && /renameTab\(/.test(js), 'manca la rinomina manuale col doppio click');
+  assert.ok(/DOUBLE_CLICK_MS/.test(read('renderer', 'sidebar.js')) && /renameTab\(/.test(js),
+    'manca la rinomina manuale col doppio click');
   // window.prompt() lancia un errore in Electron: serve il modal interno
   assert.ok(!/window\.prompt\(/.test(js), 'window.prompt() non e supportato in Electron');
   assert.ok(html.includes('modal-rename'), 'manca il modal di rinomina');
@@ -206,4 +207,37 @@ ok('nomi: rinomina manuale, titoli automatici e primo prompt collegati alla UI',
   assert.ok(/namedFromPrompt/.test(js), 'il titolo del CLI puo sovrascrivere il prompt digitato');
   // Finche' manca il prompt, il titolo e' solo l'id di ripiego: non va usato
   assert.ok(/s\.titled === false/.test(js), 'il renderer applica anche i titoli di ripiego');
+});
+
+// ---------- Raggruppamento delle sessioni ----------
+ok('raggruppamento: la radice di progetto arriva dal main alle schede', () => {
+  const main = read('main.js');
+  assert.ok(main.includes("'resolve-project'"), 'manca handler resolve-project');
+  assert.ok(main.includes("require('./lib/project-root')"), 'main.js non usa il modulo project-root');
+  assert.ok(read('preload.js').includes('resolveProject'), 'manca resolveProject nel preload');
+
+  const js = read('renderer', 'renderer.js');
+  assert.ok(/projectRoot/.test(js), 'la scheda non tiene la radice di progetto');
+  // La cwd vera la decide il main (resolveWorkdir): risolvere prima dello
+  // spawn legherebbe la scheda a una directory che non è quella usata.
+  assert.ok(/res\.cwd[\s\S]{0,400}resolveProjectRoot/.test(js),
+    'la radice di progetto non viene risolta sulla directory restituita dal main');
+});
+
+ok('raggruppamento: il selettore esiste, persiste e non usa handler inline', () => {
+  const html = read('renderer', 'index.html');
+  assert.ok(html.includes('id="group-mode-type"') && html.includes('id="group-mode-project"'),
+    'manca il selettore Tipo | Progetto');
+  const seg = html.match(/<div class="seg"[\s\S]*?<\/div>/);
+  assert.ok(seg, 'manca il contenitore .seg del selettore');
+  assert.ok(!/on(click|change)=/.test(seg[0]), 'handler inline: la CSP lo blocca');
+  assert.ok(/aria-pressed/.test(seg[0]), 'il selettore non dice quale modalità è attiva');
+
+  const js = read('renderer', 'sidebar.js');
+  assert.ok(js.includes("'aisess.groupMode'"), 'la modalità non viene persistita');
+  assert.ok(js.includes("'aisess.collapsedProjects'"),
+    'i collassi dei progetti condividono la chiave con quelli dei tipi');
+  assert.ok(/groupKeyFor\(/.test(js), 'il collasso non segue la modalità corrente');
+  assert.ok(!/collapsedGroups\.has\(t\.type\)/.test(js),
+    'setActive espande ancora il gruppo per tipo anche in modalità progetto');
 });

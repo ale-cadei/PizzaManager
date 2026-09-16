@@ -51,7 +51,7 @@ raggruppamento cablato su `t.type` a una funzione parametrica.
   accetta solo path assoluti, toglie lo slash finale, ritorna `null` sul resto).
 - Produce: `findProjectRoot(dir, { exists })` → `string | null`. La usa il task 3.
 
-- [ ] **Passo 1: scrivi il test che fallisce**
+- [x] **Passo 1: scrivi il test che fallisce**
 
 Crea `tests/project-root.test.js`:
 
@@ -110,12 +110,12 @@ ok('progetto: un errore del filesystem non fa saltare la risalita', () => {
 });
 ```
 
-- [ ] **Passo 2: lancia il test e verifica che fallisca**
+- [x] **Passo 2: lancia il test e verifica che fallisca**
 
 Esegui: `node --test tests/project-root.test.js`
 Atteso: FAIL — `Cannot find module '../lib/project-root'`.
 
-- [ ] **Passo 3: scrivi l'implementazione minima**
+- [x] **Passo 3: scrivi l'implementazione minima**
 
 Crea `lib/project-root.js`:
 
@@ -160,12 +160,12 @@ function findProjectRoot(dir, options = {}) {
 module.exports = { findProjectRoot };
 ```
 
-- [ ] **Passo 4: lancia il test e verifica che passi**
+- [x] **Passo 4: lancia il test e verifica che passi**
 
 Esegui: `node --test tests/project-root.test.js`
 Atteso: PASS, 5 test.
 
-- [ ] **Passo 5: commit**
+- [x] **Passo 5: commit**
 
 ```bash
 git add lib/project-root.js tests/project-root.test.js
@@ -198,7 +198,7 @@ gruppo. Senza .git il progetto è la directory stessa."
   oggi hardcoded come `GROUP_ORDER`/`GROUP_LABELS` in `renderer/renderer.js`:
   qui diventano l'unica fonte.
 
-- [ ] **Passo 1: scrivi il test che fallisce**
+- [x] **Passo 1: scrivi il test che fallisce**
 
 Crea `tests/session-groups.test.js`:
 
@@ -293,12 +293,12 @@ ok('sottopath: si mostra solo quando la sessione non sta nella radice del proget
 });
 ```
 
-- [ ] **Passo 2: lancia il test e verifica che fallisca**
+- [x] **Passo 2: lancia il test e verifica che fallisca**
 
 Esegui: `node --test tests/session-groups.test.js`
 Atteso: FAIL — `Cannot find module '../renderer/session-groups'`.
 
-- [ ] **Passo 3: scrivi l'implementazione minima**
+- [x] **Passo 3: scrivi l'implementazione minima**
 
 Crea `renderer/session-groups.js`:
 
@@ -405,12 +405,12 @@ Crea `renderer/session-groups.js`:
 });
 ```
 
-- [ ] **Passo 4: lancia il test e verifica che passi**
+- [x] **Passo 4: lancia il test e verifica che passi**
 
 Esegui: `node --test tests/session-groups.test.js`
 Atteso: PASS, 8 test.
 
-- [ ] **Passo 5: commit**
+- [x] **Passo 5: commit**
 
 ```bash
 git add renderer/session-groups.js tests/session-groups.test.js
@@ -436,7 +436,7 @@ dei nomi omonimi verificati dai test."
 - Produce: `window.aisess.resolveProject(cwd)` → `Promise<{ok: boolean, root: string|null, error?: string}>`
   e il campo `tab.projectRoot` (string|null) su ogni scheda. Li usano i task 5 e 6.
 
-- [ ] **Passo 1: scrivi il test che fallisce**
+- [x] **Passo 1: scrivi il test che fallisce**
 
 In fondo a `tests/wiring.test.js`:
 
@@ -457,12 +457,12 @@ ok('raggruppamento: la radice di progetto arriva dal main alle schede', () => {
 });
 ```
 
-- [ ] **Passo 2: lancia il test e verifica che fallisca**
+- [x] **Passo 2: lancia il test e verifica che fallisca**
 
 Esegui: `node --test tests/wiring.test.js`
 Atteso: FAIL — `manca handler resolve-project`.
 
-- [ ] **Passo 3: scrivi l'implementazione minima**
+- [x] **Passo 3: scrivi l'implementazione minima**
 
 In `main.js`, accanto agli altri import di `lib/` (dopo la riga di `recent-dirs`):
 
@@ -534,12 +534,12 @@ Sempre in `createTab`, nel ramo di successo dello spawn, subito dopo
     }).catch(() => {});
 ```
 
-- [ ] **Passo 4: lancia i test e verifica che passino**
+- [x] **Passo 4: lancia i test e verifica che passino**
 
 Esegui: `npm run test:unit`
 Atteso: PASS, nessun test rotto.
 
-- [ ] **Passo 5: verifica manuale**
+- [x] **Passo 5: verifica manuale**
 
 Esegui: `npm start`, apri una sessione shell in una sottocartella di questo
 repository e, nella console del renderer (Ctrl+Shift+I → Console), digita:
@@ -551,7 +551,7 @@ await window.aisess.resolveProject('/percorso/di/questo/repo/renderer')
 Atteso: `{ ok: true, root: '/percorso/di/questo/repo' }` — la radice, non la
 sottocartella.
 
-- [ ] **Passo 6: commit**
+- [x] **Passo 6: commit**
 
 ```bash
 git add main.js preload.js renderer/renderer.js tests/wiring.test.js
@@ -580,7 +580,7 @@ della logica, non la funzionalità nuova.
 - Produce: `renderSidebar()` che disegna a partire da `Group[]`, con
   `collapsedGroups` indicizzato sulla chiave del gruppo. Lo usano i task 5 e 6.
 
-- [ ] **Passo 1: scrivi il test che fallisce**
+- [x] **Passo 1: scrivi il test che fallisce**
 
 In `tests/ui.test.js`, sostituisci il test `sidebar: gruppo per tipo anche con
 una sola sessione` con:
@@ -603,12 +603,12 @@ ok('sidebar: i gruppi arrivano dal modulo, non da una Map costruita a mano', () 
 });
 ```
 
-- [ ] **Passo 2: lancia il test e verifica che fallisca**
+- [x] **Passo 2: lancia il test e verifica che fallisca**
 
 Esegui: `node --test tests/ui.test.js`
 Atteso: FAIL — `la sidebar raggruppa ancora per conto suo`.
 
-- [ ] **Passo 3: scrivi l'implementazione minima**
+- [x] **Passo 3: scrivi l'implementazione minima**
 
 In `renderer/index.html`, accanto agli altri script del renderer (prima di
 `renderer.js`, che li usa):
@@ -685,18 +685,18 @@ fino alla chiusura del `for`) con:
   }
 ```
 
-- [ ] **Passo 4: lancia i test e verifica che passino**
+- [x] **Passo 4: lancia i test e verifica che passino**
 
 Esegui: `npm run test:unit`
 Atteso: PASS.
 
-- [ ] **Passo 5: verifica manuale**
+- [x] **Passo 5: verifica manuale**
 
 Esegui `npm start`, apri tre sessioni di due tipi diversi: gruppi, conteggi,
 collasso e marker devono essere **identici** a prima. Chiudi e riapri l'app: i
 gruppi collassati restano collassati.
 
-- [ ] **Passo 6: commit**
+- [x] **Passo 6: commit**
 
 ```bash
 git add renderer/index.html renderer/renderer.js tests/ui.test.js
@@ -721,7 +721,7 @@ renderSidebar: è la funzione pura del modulo, quella coperta dai test."
 - Produce: `groupMode` (`'type'|'project'`), `groupKeyFor(tab)`, `setGroupMode(mode)`.
   Li usa il task 6.
 
-- [ ] **Passo 1: scrivi il test che fallisce**
+- [x] **Passo 1: scrivi il test che fallisce**
 
 In `tests/wiring.test.js`, aggiungi dopo il test del task 3:
 
@@ -745,12 +745,12 @@ ok('raggruppamento: il selettore esiste, persiste e non usa handler inline', () 
 });
 ```
 
-- [ ] **Passo 2: lancia il test e verifica che fallisca**
+- [x] **Passo 2: lancia il test e verifica che fallisca**
 
 Esegui: `node --test tests/wiring.test.js`
 Atteso: FAIL — `manca il selettore Tipo | Progetto`.
 
-- [ ] **Passo 3: scrivi l'implementazione minima**
+- [x] **Passo 3: scrivi l'implementazione minima**
 
 In `renderer/index.html`, sostituisci la riga della sezione:
 
@@ -891,12 +891,12 @@ In `setActive`, sostituisci il blocco che espande il gruppo:
   }
 ```
 
-- [ ] **Passo 4: lancia i test e verifica che passino**
+- [x] **Passo 4: lancia i test e verifica che passino**
 
 Esegui: `npm run test:unit`
 Atteso: PASS.
 
-- [ ] **Passo 5: verifica manuale**
+- [x] **Passo 5: verifica manuale**
 
 Esegui `npm start` e apri quattro sessioni: due in sottocartelle diverse di uno
 stesso repository, una in un altro repository, una in una directory senza `.git`
@@ -912,7 +912,7 @@ stesso repository, una in un altro repository, una in una directory senza `.git`
 5. chiudi e riapri l'app: riparte in modalità **Progetto**, con gli stessi
    collassi.
 
-- [ ] **Passo 6: commit**
+- [x] **Passo 6: commit**
 
 ```bash
 git add renderer/index.html renderer/styles.css renderer/renderer.js tests/wiring.test.js
@@ -935,7 +935,7 @@ collassati sono liste separate, una per modalità."
 - Consuma: `groupMode` (task 5), `Groups.relativeSubpath` e `Groups.TYPE_LABELS` (task 2).
 - Produce: niente di nuovo.
 
-- [ ] **Passo 1: scrivi il test che fallisce**
+- [x] **Passo 1: scrivi il test che fallisce**
 
 In `tests/ui.test.js`, in fondo:
 
@@ -952,12 +952,12 @@ ok('sidebar: in modalità progetto la card non ripete il path già scritto nell 
 });
 ```
 
-- [ ] **Passo 2: lancia il test e verifica che fallisca**
+- [x] **Passo 2: lancia il test e verifica che fallisca**
 
 Esegui: `node --test tests/ui.test.js`
 Atteso: FAIL — `la card non mostra il path relativo al progetto`.
 
-- [ ] **Passo 3: scrivi l'implementazione minima**
+- [x] **Passo 3: scrivi l'implementazione minima**
 
 In `createSessionItem`, sostituisci le due righe che calcolano i sottotitoli:
 
@@ -972,19 +972,19 @@ In `createSessionItem`, sostituisci le due righe che calcolano i sottotitoli:
   const displaySub = displayParts.filter(Boolean).join(' · ');
 ```
 
-- [ ] **Passo 4: lancia i test e verifica che passino**
+- [x] **Passo 4: lancia i test e verifica che passino**
 
 Esegui: `npm run test:unit`
 Atteso: PASS.
 
-- [ ] **Passo 5: verifica manuale**
+- [x] **Passo 5: verifica manuale**
 
 `npm start`, modalità **Progetto**: la card di una sessione nella radice mostra
 solo il tipo (più account/comando se ci sono); quella in una sottocartella
 mostra `Tipo · sottocartella`. Il tooltip su entrambe mostra la cwd completa.
 Torna su **Tipo**: i sottotitoli tornano a mostrare il path corto.
 
-- [ ] **Passo 6: commit**
+- [x] **Passo 6: commit**
 
 ```bash
 git add renderer/renderer.js tests/ui.test.js
@@ -1027,7 +1027,7 @@ La sidebar non conosce `tabs` né `activeId`: li riceve a ogni `render`. Le
 azioni tornano indietro come callback (`onSelect`, `onClose`, `onRename`). È
 questo che rompe la dipendenza circolare tra i due file.
 
-- [ ] **Passo 1: aggiorna i test perché puntino al file nuovo**
+- [x] **Passo 1: aggiorna i test perché puntino al file nuovo**
 
 In `tests/ui.test.js` e `tests/wiring.test.js`, nelle asserzioni sulla sidebar,
 sostituisci la lettura di `renderer/renderer.js` con `renderer/sidebar.js` per:
@@ -1058,12 +1058,12 @@ ok('sidebar: il modulo della sidebar non conosce lo stato delle schede', () => {
 });
 ```
 
-- [ ] **Passo 2: lancia i test e verifica che falliscano**
+- [x] **Passo 2: lancia i test e verifica che falliscano**
 
 Esegui: `node --test tests/ui.test.js`
 Atteso: FAIL — `ENOENT ... renderer/sidebar.js`.
 
-- [ ] **Passo 3: sposta il codice**
+- [x] **Passo 3: sposta il codice**
 
 Crea `renderer/sidebar.js` con il wrapper UMD di `session-groups.js` (globale
 `AisessSidebar`) e una factory che tiene solo lo stato dei gruppi:
@@ -1114,18 +1114,18 @@ E in `setActive`, al posto della manipolazione diretta dei collassi:
 I due bottoni del selettore, in `init()`, chiamano `sidebar.setMode('type')` e
 `sidebar.setMode('project')` seguiti da `renderSidebar()`.
 
-- [ ] **Passo 4: lancia i test e verifica che passino**
+- [x] **Passo 4: lancia i test e verifica che passino**
 
 Esegui: `npm run test:unit`
 Atteso: PASS, tutti i test dei task 1-6 compresi.
 
-- [ ] **Passo 5: verifica manuale**
+- [x] **Passo 5: verifica manuale**
 
 `npm start` e ripeti la lista di verifiche del task 5, più: doppio click su una
 card la rinomina, la ✕ la chiude, la card lampeggia a fine turno di un agente e
 smette quando la selezioni. Nessuna di queste deve essere cambiata.
 
-- [ ] **Passo 6: commit**
+- [x] **Passo 6: commit**
 
 ```bash
 git add renderer/sidebar.js renderer/renderer.js renderer/index.html tests/ui.test.js tests/wiring.test.js

@@ -1,8 +1,9 @@
 /* Fetta di pizza: il glifo che apre e chiude i gruppi della sidebar.
  *
- * Sostituisce le vecchie freccine ▸/▾: il tracciato punta a destra (gruppo
- * chiuso) e la CSS lo ruota di 90° quando il gruppo è aperto, così il verso
- * resta quello di un chevron e la rotazione è una sola regola in styles.css.
+ * Sostituisce le vecchie freccine ▸/▾: la punta guarda a destra (gruppo chiuso)
+ * e la CSS ruota di 90° in senso orario quando il gruppo è aperto, portandola in
+ * basso. Così il verso resta quello di un chevron, e la rotazione è una sola
+ * regola in styles.css invece di due disegni.
  *
  * I colori ricalcano quelli dell'icona dell'app (assets/generate-icon.py):
  * cornicione, formaggio, salame.
@@ -18,21 +19,22 @@
   if (root) root.PizzaSlice = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : null, function () {
-  const CRUST = '#D69A4E';
-  const CHEESE = '#F7C96A';
-  const PEPPERONI = '#FF8A6B';
+  const CRUST = '#E7A33C';
+  const CHEESE = '#F5C45A';
+  const PEPPERONI = '#E2412A';
 
-  /* Punta in (3.2, 8), cornicione sull'arco di destra: l'arco ha centro sulla
-     punta, quindi la fetta è un settore vero e non un triangolo smussato. */
-  const TIP = 'M3.2 8 L12.4 3.6 A10.2 10.2 0 0 1 12.4 12.4 Z';
-  const RIND = 'M12.4 3.6A10.2 10.2 0 0 1 12.4 12.4';
+  /* Punta in (12.8, 8), cornicione sull'arco di sinistra: la fetta punta a
+     destra, cioè dove si aprirà il gruppo. L'arco ha centro sulla punta, quindi
+     è un settore vero e non un triangolo smussato. */
+  const TIP = 'M12.8 8 L3.6 3.6 A10.2 10.2 0 0 0 3.6 12.4 Z';
+  const RIND = 'M3.6 3.6A10.2 10.2 0 0 0 3.6 12.4';
 
   const MARKUP = `<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false">`
     + `<path d="${TIP}" fill="${CHEESE}" />`
     + `<path d="${RIND}" fill="none" stroke="${CRUST}" stroke-width="2.4" stroke-linecap="round" />`
-    + `<circle cx="7.8" cy="8" r="1.1" fill="${PEPPERONI}" />`
-    + `<circle cx="10.4" cy="6.1" r="0.9" fill="${PEPPERONI}" />`
-    + `<circle cx="10.2" cy="10.2" r="0.9" fill="${PEPPERONI}" />`
+    + `<circle cx="8.2" cy="8" r="1.1" fill="${PEPPERONI}" />`
+    + `<circle cx="5.6" cy="6.1" r="0.9" fill="${PEPPERONI}" />`
+    + `<circle cx="5.8" cy="10.2" r="0.9" fill="${PEPPERONI}" />`
     + `</svg>`;
 
   /** SVG della fetta, orientata a destra. Il verso "aperto" lo dà la CSS. */

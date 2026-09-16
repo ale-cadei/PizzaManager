@@ -276,9 +276,9 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .group-header:hover { border-color: var(--border-strong); background: var(--surface-3); }
 /* Gruppo chiuso che contiene la sessione attiva: stesso marker delle card */
 .group-header.has-active .sel-mark { visibility: visible; }
-/* La fetta di pizza al posto della freccina: il tracciato punta a destra
-   (gruppo chiuso) e ruota di 90° quando il gruppo è aperto, così il verso lo dà
-   lo stato ARIA dell'header e non un secondo glifo. */
+/* La fetta di pizza al posto della freccina: la punta guarda a destra (gruppo
+   chiuso) e ruota di 90° in senso orario quando il gruppo è aperto, finendo in
+   basso. Il verso lo dà lo stato ARIA dell'header, non un secondo glifo. */
 .group-header .chevron { width: 14px; height: 14px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; }
 .group-header .chevron svg { transform: rotate(0deg); transition: transform 120ms ease; }
 .group-header[aria-expanded="true"] .chevron svg { transform: rotate(90deg); }

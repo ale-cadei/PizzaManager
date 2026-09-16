@@ -42,6 +42,17 @@ ok('gruppi: la fetta di pizza sta nell header, aperto o chiuso che sia', () => {
   } finally { restore(); }
 });
 
+/* Il verso e' meta' disegno e meta' CSS, quindi nessuno dei due da solo lo
+   garantisce: qui si guarda dove sta la punta nel tracciato. Chiuso deve
+   puntare a destra, perche' la rotazione oraria di 90° la porta in basso; con
+   la punta a sinistra (come nella prima versione) finirebbe in alto. */
+ok('gruppi: chiusa la fetta punta a destra, cosi la rotazione la manda in basso', () => {
+  const svg = Slice.markup();
+  const [, tipX, arcX] = svg.match(/d="M([\d.]+) [\d.]+ L([\d.]+) /);
+  assert.ok(Number(tipX) > Number(arcX),
+    `la punta (x=${tipX}) deve stare a destra del cornicione (x=${arcX})`);
+});
+
 ok('gruppi: la fetta ruota con lo stato ARIA, non con un secondo glifo', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'styles.css'), 'utf8');
   assert.ok(/\.group-header\[aria-expanded="true"\] \.chevron svg[\s\S]{0,80}rotate\(90deg\)/.test(css),

@@ -58,9 +58,18 @@ findProjectRoot(dir, { exists }) -> string | null
 - non lancia mai: un errore del filesystem (permessi) interrompe la risalita e
   fa ritornare la `dir` di partenza.
 
-Nessun `require('electron')`, come tutto ciò che sta in `lib/`.
+Nessun `require('electron')`, come tutto ciò che sta in `lib/`. Questo modulo
+gira nel main process, che è l'unico ad avere accesso al filesystem.
 
-### `lib/session-groups.js` — nuovo, puro
+### `renderer/session-groups.js` — nuovo, puro
+
+Sta in `renderer/` e non in `lib/` per un vincolo, non per gusto: il renderer
+gira sandboxed e non ha `require`, quindi non potrebbe mai importare un modulo
+di `lib/`. Usa lo stesso wrapper UMD di `renderer/session-titles.js` e
+`renderer/prompt-capture.js` — globale `AisessGroups` nella pagina,
+`module.exports` sotto Node — che è ciò che li rende testabili senza browser.
+Restano qui anche le costanti di presentazione `TYPE_ORDER` e `TYPE_LABELS`,
+oggi duplicate come `GROUP_ORDER`/`GROUP_LABELS` in `renderer.js`.
 
 ```
 groupSessions(sessions, { mode, typeOrder, typeLabels }) -> Group[]
@@ -177,11 +186,17 @@ test).
 - l'array in ingresso non viene mutato e i gruppi sono strutture nuove.
 
 `tests/ui.test.js` (esistente, già ispeziona `renderSidebar`)
-- i bottoni del selettore esistono in `index.html`;
-- nessun handler inline nel markup aggiunto.
+- la sidebar disegna i gruppi che le passa il modulo, non una `Map` costruita
+  a mano;
+- in modalità progetto la card mostra tipo e sottocartella, non di nuovo il path.
 
 `tests/wiring.test.js` (esistente)
-- `resolve-project` registrato in `main.js` e delegato a `lib/project-root.js`.
+- `resolve-project` registrato in `main.js` e delegato a `lib/project-root.js`;
+- i bottoni del selettore esistono in `index.html`, senza handler inline;
+- modalità e collassi persistiti su chiavi separate.
+
+Piano di esecuzione passo per passo:
+[`08-raggruppamento-sessioni-tasks.md`](08-raggruppamento-sessioni-tasks.md).
 
 **Smoke manuale prima della PR**: due sessioni nello stesso repo (una in una
 sottocartella) più una in un altro repo e una fuori da git; switch avanti e

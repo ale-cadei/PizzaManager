@@ -1,46 +1,192 @@
-# PizzaManager
+<p align="center">
+  <img src="assets/icons/256x256.png" width="128" alt="Logo di PizzaManager: una pizza tagliata a spicchi">
+</p>
 
-Gestore unificato di **terminali, sessioni OpenCode, Claude Code e Codex** in un'unica finestra desktop.
-Compatibile con **Linux (.deb / AppImage)** e **macOS (.dmg / .zip)**.
+<h1 align="center">PizzaManager</h1>
 
-## Funzionalità
+<p align="center">
+  Tutte le tue sessioni di Claude Code, Codex, OpenCode e terminale in una finestra sola.<br>
+  Ogni scheda è un terminale vero. Con tmux, le sessioni sopravvivono anche alla chiusura dell'app.
+</p>
 
-- 🖥 **Terminale semplice** (bash su Linux, zsh/bash su macOS)
-- ⚡ **Sessione OpenCode** — avvia `opencode` in un pty dedicato
-- 🤖 **Sessione Claude Code** — avvia `claude` in un pty dedicato
-- ✳ **Sessione Codex** — avvia `codex` in un pty dedicato
-- 🧭 **Navbar a sinistra** con classificazione per tipo (badge + icona), switch e chiusura schede; **ridimensionabile** via trascinamento (larghezza ricordata)
-- ➕ **Pulsante unico «Nuova sessione»** in sidebar: il tipo (terminale / OpenCode / Claude / Codex) si sceglie nel dialog
-- ⚙ **Configurazione comandi** (`File → Configurazione comandi…`, `Ctrl+,`): per ogni tipo di sessione si possono definire **più comandi di avvio** (nome, riga di comando, argomenti di resume con segnaposto `{id}`). Se un tipo ha più comandi, all'avvio della sessione viene chiesto quale usare. I comandi sono in `userData/command-profiles.json` e vengono eseguiti direttamente, senza shell (pipe/redirezioni non supportate).
-- 👤 **Account Claude multipli**: rilevamento del login OAuth corrente + profili API key aggiuntivi (⚙ nel dialog, salvati in locale con permessi 600); se ce n'è più di uno, il dialog chiede quale usare (`ANTHROPIC_API_KEY` per le sessioni con chiave)
-- ⟲ **Dialog Resume**: ripristina vecchie sessioni
-  - OpenCode via `opencode session list --format json` → resume con `opencode --session <id>`
-  - Claude Code via scan `~/.claude/projects/**/*.jsonl` → resume con `claude --resume <id>`
-  - Codex via scan `~/.codex/sessions/**/rollout-*.jsonl` (titoli da `~/.codex/session_index.jsonl`) → resume con `codex resume <id>`
-  - Cronologia app (ultime 200 aperture, in `userData/sessions-history.json`)
-- Terminali reali basati su **node-pty + xterm.js** (supporto TUI fullscreen)
+<p align="center">
+  <a href="#installazione">Installazione</a> ·
+  <a href="#cosa-fa">Cosa fa</a> ·
+  <a href="#guida-rapida">Guida rapida</a> ·
+  <a href="#configurazione">Configurazione</a> ·
+  <a href="#quando-qualcosa-non-va">Problemi</a> ·
+  <a href="#sviluppo">Sviluppo</a>
+</p>
 
-## Requisiti
+<p align="center">
+  <img src="https://img.shields.io/github/package-json/v/ale-cadei/PizzaManager?label=versione&color=F04E23" alt="Versione">
+  <img src="https://img.shields.io/badge/macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-black" alt="macOS, Linux e Windows">
+  <img src="https://img.shields.io/badge/Electron-33-47848F?logo=electron&logoColor=white" alt="Electron 33">
+  <img src="https://img.shields.io/badge/licenza-MIT-green" alt="Licenza MIT">
+</p>
 
-- Node.js 20+
-- `opencode`, `claude` e/o `codex` installati nel PATH per le rispettive sessioni
+<p align="center">
+  <img src="docs/assets/readme/screenshot.png" width="880" alt="La finestra di PizzaManager: sidebar con le sessioni raggruppate per progetto a sinistra, un terminale con Claude Code a destra">
+</p>
 
-## Sviluppo
+Se lavori con più agenti AI da terminale, finisci con dieci finestre aperte, nessuna che dice cosa sta facendo, e ogni tanto una che chiudi per sbaglio a metà lavoro. PizzaManager le mette in una finestra sola, con una sidebar che ti dice **quale agente, in quale progetto, e se ha finito**. Nessun account, nessun servizio in mezzo: gira sul tuo computer e lancia i binari che hai già installato.
+
+|  |  |
+|---|---|
+| 🍕 **Un posto per tutto** | Terminale, [Claude Code](https://github.com/anthropics/claude-code), [Codex](https://github.com/openai/codex), [OpenCode](https://opencode.ai) e [Antigravity](https://antigravity.google) in schede, con l'icona di ciascuno |
+| 🔥 **Le sessioni non muoiono** | Con `tmux` ogni sessione vive fuori dall'app: chiudi la finestra, riapri, è ancora lì. Dopo un riavvio del computer ti propone di ripristinarle |
+| 🗂 **Raggruppate come pensi** | Per agente o per progetto (la radice del repository). Il `+` di un progetto apre una sessione nuova direttamente lì |
+| 🔔 **Sai quando ha finito** | Una scheda in secondo piano lampeggia quando l'agente smette di scrivere: il turno è tuo |
+| ⟲ **Resume** | Riprendi una conversazione di Claude, Codex, OpenCode o Antigravity dal suo elenco, col titolo giusto |
+| 👤 **Più account Claude** | Login OAuth più chiavi API aggiuntive, o profili separati con `CLAUDE_CONFIG_DIR`; scegli a ogni sessione |
+| ⚙️ **Comandi tuoi** | Per ogni tipo puoi definire più comandi di avvio (`claude --model opus`, variabili d'ambiente, ecc.) |
+
+## Installazione
+
+> **Pacchetti pronti (`.dmg`, `.deb`, `AppImage`, installer Windows): in arrivo.** Per ora si avvia dal sorgente, che sono tre comandi.
+
+### Cosa serve
+
+| | Obbligatorio | Consigliato |
+|---|---|---|
+| **Tutti** | [Node.js](https://nodejs.org) 20 o più recente | Almeno uno fra `claude`, `codex`, `opencode`, `agy` nel PATH |
+| **macOS** | Xcode Command Line Tools (`xcode-select --install`, per compilare `node-pty`) | `brew install tmux` |
+| **Linux** | `build-essential` e `python3` (per `node-pty`) | `sudo apt install tmux` (o l'equivalente della tua distro) |
+| **Windows** | [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) con il carico di lavoro C++ (per `node-pty`) | — |
+
+Senza `tmux` l'app funziona lo stesso: le sessioni però muoiono con la finestra. Su Windows `tmux` non esiste, quindi lì è sempre così.
+
+### Dal sorgente
 
 ```bash
+git clone https://github.com/ale-cadei/PizzaManager.git
+cd PizzaManager
 npm install
-npm run test:unit
 npm start
 ```
 
-## Build
+`npm install` compila `node-pty` per la tua piattaforma: è l'unico passaggio che può fallire, e quasi sempre perché manca il compilatore (tabella sopra).
+
+### Build dei pacchetti
 
 ```bash
-# Linux: produce dist/*.deb + AppImage
-npm run dist:linux
-
-# macOS (su Mac): produce dist/*.dmg + .zip
-npm run dist:mac
+npm run dist:mac     # su macOS: dist/*.dmg e *.zip
+npm run dist:linux   # su Linux: dist/*.deb e *.AppImage
 ```
 
-Il `.deb` installa voce di menu `PizzaManager` (categoria Development).
+I pacchetti non sono firmati: macOS dirà che l'app «è danneggiata» o «di uno sviluppatore non identificato». Tasto destro → **Apri** la prima volta, oppure `xattr -cr /Applications/PizzaManager.app`.
+
+## Cosa fa
+
+### Sessioni
+
+Ogni scheda è un terminale vero ([node-pty](https://github.com/microsoft/node-pty) + [xterm.js](https://xtermjs.org)): le TUI a schermo intero, i colori a 24 bit e le scorciatoie funzionano come nel terminale di sistema. **Nuova** (`⌘N` / `Ctrl+N`) chiede tipo, nome e directory di lavoro; le directory usate di recente sono a un click.
+
+Il nome della scheda si assegna da solo: la prima riga che digiti, oppure il titolo che l'agente dà alla conversazione appena lo salva. Doppio click sulla scheda per rinominarla; il nome resta anche dopo un riavvio.
+
+### Le sessioni sopravvivono all'app
+
+Con `tmux` installato ogni sessione vive nel server tmux di PizzaManager (socket dedicato `aisession`, così non tocca le tue sessioni tmux personali). L'app è solo un client attaccato:
+
+- **✕** stacca la scheda: il processo continua, lo ritrovi alla riapertura.
+- **⏻** termina davvero.
+- Dopo un **riavvio del computer** l'app sa cosa c'era aperto e propone di ripristinarlo: le conversazioni con un id noto ripartono con `--resume`, le altre come sessioni nuove nella stessa directory.
+
+Puoi anche attaccarti da un terminale qualsiasi: `tmux -L aisession ls`.
+
+### Sidebar
+
+Due modi di raggruppare, con un interruttore: **per tipo** (Claude, Codex, …) o **per progetto**, cioè per radice del repository. I gruppi si aprono e chiudono; le schede si riordinano trascinandole. In modalità progetto ogni gruppo ha un `+` che apre il dialog con la directory già impostata.
+
+Una scheda in secondo piano **lampeggia** quando l'agente ha smesso di scrivere da un secondo e mezzo (o ha suonato il campanello): non serve andare a controllare.
+
+### Resume
+
+**Resume** elenca le conversazioni salvate da ogni CLI, con titolo, directory e data, e le riapre con il comando di resume giusto:
+
+| | Dove le legge | Come riapre |
+|---|---|---|
+| Claude Code | `~/.claude/projects/**/*.jsonl` | `claude --resume <id>` |
+| Codex | `~/.codex/sessions/**/rollout-*.jsonl` | `codex resume <id>` |
+| OpenCode | `opencode session list --format json` | `opencode --session <id>` |
+| Antigravity | `~/.gemini/antigravity-cli/conversations` | `agy --conversation <id>` |
+| Cronologia | le ultime 200 aperture dall'app | stesso comando, stessa directory |
+
+### Account Claude
+
+Il login OAuth corrente viene rilevato da solo. Puoi aggiungere account con **chiave API** (⚙ nel dialog): le chiavi restano sul tuo disco, in un file leggibile solo da te, e arrivano al processo solo come `ANTHROPIC_API_KEY`. Se vuoi due login OAuth davvero separati (lavoro / personale), definisci un comando con `CLAUDE_CONFIG_DIR=~/.claude-personal claude`: PizzaManager riconosce il profilo e lo mostra in sidebar.
+
+### Comandi configurabili
+
+`File → Configurazione comandi…` (`⌘,` / `Ctrl+,`). Per ogni tipo di sessione puoi avere più comandi: nome, riga di comando, argomenti di resume con il segnaposto `{id}`. Con più comandi per tipo, all'avvio ti chiede quale. Le variabili in testa (`VAR=valore comando`) e `$VAR` negli argomenti si espandono; `~` pure.
+
+I comandi vengono eseguiti **senza shell**: niente pipe, redirezioni o alias. Se hai un alias in `.zshrc`, riscrivilo per esteso nel profilo.
+
+## Guida rapida
+
+1. **Nuova** → scegli *Claude*, una directory con un `.git`, conferma.
+2. Scrivi il primo prompt: la scheda prende quel nome.
+3. Passa a **Progetto** nella sidebar: la scheda è nel gruppo del repository. Premi il `+` del gruppo per aprire un terminale nella stessa directory.
+4. Chiudi l'app. Riaprila: con `tmux` la sessione è ancora lì, con Claude a metà risposta.
+5. **Resume** → *Claude*: la conversazione è in elenco, anche se l'hai iniziata dal terminale e non da qui.
+
+## Configurazione
+
+Tutto sta nella cartella dati dell'app, che **non cambia** anche se l'app viene rinominata:
+
+| Sistema | Cartella |
+|---|---|
+| macOS | `~/Library/Application Support/AISessionManager` |
+| Linux | `~/.config/AISessionManager` |
+| Windows | `%APPDATA%\AISessionManager` |
+
+| File | Contenuto |
+|---|---|
+| `command-profiles.json` | i comandi di avvio (modificabile anche dalla UI) |
+| `claude-accounts.json` | gli account a chiave API — permessi `600` |
+| `sessions-history.json` | le ultime 200 sessioni aperte (per Resume e directory recenti) |
+| `live-sessions.json` | specchio delle sessioni tmux vive, per il ripristino dopo un riavvio |
+
+Niente telemetria e nessun account. L'app stessa fa una sola richiesta di rete, i font (IBM Plex Mono e Inter da Google Fonts; offline usa quelli di sistema); tutto il resto sono le connessioni delle CLI che avvii.
+
+### Su Windows
+
+Funziona con PowerShell come terminale e con le CLI installate via `npm i -g` (`claude.cmd`, `codex.cmd`) o con l'installer nativo di Claude. Differenze rispetto a macOS/Linux:
+
+- niente `tmux`: le sessioni muoiono con la finestra e non c'è ripristino dopo il riavvio;
+- Antigravity CLI non è distribuita per Windows;
+- il file delle chiavi API non ha permessi `600` (su Windows contano le ACL della cartella utente).
+
+## Quando qualcosa non va
+
+**«Binario `claude` non trovato nel PATH».** Le app avviate dal Finder o dal menu non ereditano il PATH della tua shell. PizzaManager lo chiede alla shell di login e cerca nei posti tipici (nvm, volta, Homebrew, `~/.local/bin`, `%APPDATA%\npm`), ma se il tuo è altrove scrivi il percorso completo nel comando (`File → Configurazione comandi…`). Il tooltip della legenda in basso a sinistra dice dove ha cercato.
+
+**Il comando funziona nel terminale ma non qui.** Probabilmente è un alias o una funzione di shell: qui i comandi girano senza shell. Riscrivilo per esteso, variabili comprese.
+
+**`npm install` fallisce su `node-pty`.** Manca il compilatore: Xcode CLT su macOS, `build-essential` su Linux, Build Tools con C++ su Windows. Poi `npm rebuild node-pty`.
+
+**Le sessioni spariscono chiudendo l'app.** `tmux` non è installato o non è nel PATH; la legenda in basso lo dice. Dopo averlo installato riavvia l'app.
+
+**Una sessione tmux resta appesa.** `tmux -L aisession ls` per vederle, `tmux -L aisession kill-session -t <nome>` per una sola. Mai `kill-server` senza `-L aisession`: colpiresti le tue sessioni personali.
+
+## Sviluppo
+
+```
+main.js        solo cablaggio: handler IPC, store, avvio
+lib/           logica pura, senza Electron — è ciò che si testa
+app/           finestra, menu, ciclo di vita dei pty, config tmux
+renderer/      la UI (sandboxed, parla col main solo via preload.js)
+tests/         node --test, nessun framework
+docs/plans/    un piano per branch
+```
+
+```bash
+npm run test:unit       # tutti i test (~2 s)
+npm run test:coverage   # con la copertura di Node
+```
+
+I test importano il codice vero e girano anche i casi Windows da macOS/Linux, iniettando `platform: 'win32'`. Le convenzioni (dove va un pezzo di codice, regole su tmux, sicurezza, percorsi) sono in [`CLAUDE.md`](CLAUDE.md); il lavoro in corso e quello fatto in [`docs/plans/`](docs/plans/README.md).
+
+## Licenza
+
+MIT.

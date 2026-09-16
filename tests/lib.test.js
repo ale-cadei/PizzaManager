@@ -8,7 +8,7 @@ const { test: ok } = require('node:test');
 const { candidatesFor, nodeToolCandidates, isExecutable, resolveBinary, augmentedEnv, AI_BINARIES } = require('../lib/binaries');
 
 ok('i candidati di ogni tool AI sono percorsi assoluti e non vuoti', () => {
-  for (const tool of AI_BINARIES) {
+  for (const tool of Object.values(AI_BINARIES)) {
     const list = candidatesFor(tool, '/home/tizio');
     assert.ok(list.length, `nessun candidato per ${tool}`);
     for (const c of list) assert.ok(path.isAbsolute(c), `candidato relativo: ${c}`);

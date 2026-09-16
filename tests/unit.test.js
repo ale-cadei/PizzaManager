@@ -6,7 +6,8 @@ const { test: ok } = require('node:test');
 
 const { buildCommand, installHint, aliasHint, INSTALL_HINTS } = require('../lib/commands');
 const { createProfileStore } = require('../lib/profiles');
-const { SESSION_TYPES } = require('../lib/command-profiles');
+const { SESSION_TYPES, defaultProfiles, resolveProfileCommand } = require('../lib/command-profiles');
+const { AI_BINARIES } = require('../lib/binaries');
 
 const FIXTURES = path.join(__dirname, 'fixtures', 'claude-sessions');
 
@@ -99,18 +100,34 @@ ok('ogni tipo AI ha un suggerimento di installazione dedicato, piu la nota sugli
   assert.ok(installHint('tool-inesistente').includes('sia installato e nel PATH'));
 });
 
-ok('i tipi di sessione supportati sono shell piu i tre tool AI', () => {
-  assert.deepStrictEqual([...SESSION_TYPES].sort(), ['claude', 'codex', 'opencode', 'shell']);
-  assert.deepStrictEqual(Object.keys(INSTALL_HINTS).sort(), ['claude', 'codex', 'opencode']);
+ok('i tipi di sessione supportati sono shell piu i quattro tool AI', () => {
+  assert.deepStrictEqual([...SESSION_TYPES].sort(), ['antigravity', 'claude', 'codex', 'opencode', 'shell']);
+  // I suggerimenti sono per binario, non per tipo: la CLI di Antigravity e' `agy`
+  assert.deepStrictEqual(Object.keys(INSTALL_HINTS).sort(), ['agy', 'claude', 'codex', 'opencode']);
+});
+
+/* `antigravity` e' l'IDE (fork di VS Code, apre una finestra grafica): nel pty
+ * serve `agy`, la CLI vera. Tipo di sessione e nome del binario quindi non
+ * coincidono, ed e' un errore facile da reintrodurre. */
+ok('il tipo antigravity usa il binario agy, non l eseguibile dell IDE', () => {
+  assert.strictEqual(AI_BINARIES.antigravity, 'agy');
+  const prof = defaultProfiles({ shell: '/bin/bash', platform: 'linux' }).antigravity[0];
+  const r = resolveProfileCommand(prof, { resumeId: 'abc123', home: '/home/tizio' });
+  assert.ok(r.ok, r.error || '');
+  assert.strictEqual(r.bin, 'agy');
+  assert.deepStrictEqual(r.args, ['--conversation', 'abc123']);
 });
 
 ok('i file e i moduli caricati dall app esistono tutti', () => {
   const attesi = [
     'main.js', 'preload.js', 'package.json',
     'app/menu.js', 'app/window.js',
-    'lib/accounts.js', 'lib/binaries.js', 'lib/claude-sessions.js', 'lib/codex-sessions.js',
-    'lib/commands.js', 'lib/history.js', 'lib/login-path.js', 'lib/opencode-sessions.js', 'lib/shell.js',
-    'renderer/index.html', 'renderer/renderer.js', 'renderer/styles.css', 'renderer/tokens.css',
+    'app/pty.js',
+    'lib/accounts.js', 'lib/antigravity-sessions.js', 'lib/binaries.js', 'lib/claude-sessions.js',
+    'lib/codex-sessions.js', 'lib/commands.js', 'lib/history.js', 'lib/login-path.js',
+    'lib/opencode-sessions.js', 'lib/shell.js', 'lib/workdir.js',
+    'renderer/index.html', 'renderer/renderer.js', 'renderer/prompt-capture.js',
+    'renderer/session-titles.js', 'renderer/styles.css', 'renderer/tokens.css',
     'assets/icon.png',
   ];
   for (const f of attesi) {
@@ -273,18 +290,19 @@ ok('ogni tipo di sessione ha un colore identita distinto', () => {
 });
 
 // ---------- Parser delle sessioni Claude, su fixture ----------
-const { parseSessionHead } = require('../lib/claude-sessions');
+const { sessionFromLines, cwdFromProjectDir, TITLE_MAX } = require('../lib/claude-sessions');
 
 function parseFixture(name, projectDirName = '-Users-tizio-fallback') {
-  return parseSessionHead(fs.readFileSync(path.join(FIXTURES, name), 'utf8'), {
-    sessionId: 'abcdef1234-0000',
-    projectDirName,
+  return sessionFromLines(fs.readFileSync(path.join(FIXTURES, name), 'utf8').split('\n'), {
+    id: 'abcdef1234-0000',
+    fallbackCwd: cwdFromProjectDir(projectDirName),
   });
 }
 
 ok('sessione valida: titolo dal primo messaggio utente, cwd dal file', () => {
   assert.deepStrictEqual(parseFixture('valida.jsonl'), {
     title: 'Sistema il login che va in timeout',
+    titled: true,
     cwd: '/Users/tizio/progetti/backend',
   });
 });
@@ -292,6 +310,7 @@ ok('sessione valida: titolo dal primo messaggio utente, cwd dal file', () => {
 ok('file troncato a meta riga: ripiega senza sollevare eccezioni', () => {
   assert.deepStrictEqual(parseFixture('troncata.jsonl'), {
     title: 'abcdef12',
+    titled: false,
     cwd: '/Users/tizio/fallback',
   });
 });
@@ -299,6 +318,7 @@ ok('file troncato a meta riga: ripiega senza sollevare eccezioni', () => {
 ok('nessun messaggio utente: titolo dall id, cwd dal nome della cartella', () => {
   assert.deepStrictEqual(parseFixture('senza-messaggi.jsonl'), {
     title: 'abcdef12',
+    titled: false,
     cwd: '/Users/tizio/fallback',
   });
 });
@@ -306,6 +326,7 @@ ok('nessun messaggio utente: titolo dall id, cwd dal nome della cartella', () =>
 ok('un summary fa da titolo quando manca il messaggio utente', () => {
   assert.deepStrictEqual(parseFixture('con-summary.jsonl'), {
     title: 'Rifattorizzazione del modulo di autenticazione',
+    titled: true,
     cwd: '/srv/app',
   });
 });
@@ -313,14 +334,14 @@ ok('un summary fa da titolo quando manca il messaggio utente', () => {
 ok('righe non-JSON vengono saltate senza fermare la lettura', () => {
   assert.deepStrictEqual(parseFixture('sporca.jsonl'), {
     title: 'prima riga valida',
+    titled: true,
     cwd: '/tmp/z',
   });
 });
 
 ok('il titolo viene troncato invece di riempire la sidebar', () => {
-  const { TITLE_MAX } = require('../lib/claude-sessions');
   const lungo = JSON.stringify({ message: { role: 'user', content: [{ type: 'text', text: 'x'.repeat(500) }] } });
-  assert.strictEqual(parseSessionHead(lungo, { sessionId: 'z', projectDirName: 'p' }).title.length, TITLE_MAX);
+  assert.strictEqual(sessionFromLines([lungo], { id: 'z' }).title.length, TITLE_MAX);
 });
 
 // ---------- Invarianti della struttura ----------

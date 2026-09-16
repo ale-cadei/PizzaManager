@@ -12,8 +12,13 @@ const $$ = (s) => [...document.querySelectorAll(s)];
 
 // Marchi ufficiali degli agenti (renderer/agent-icons.js)
 const Icons = window.AisessIcons;
+const Titles = window.AisessTitles;
+const PromptCapture = window.AisessPromptCapture;
+/* I nomi rinominati a mano sopravvivono alla chiusura dell'app: stanno in
+   localStorage, non nello stato in memoria delle schede. */
+const titleStore = Titles.createTitleStore(window.localStorage);
 // Tipi con un binario esterno da risolvere (lo shell è sempre disponibile)
-const AI_TYPES = ['opencode', 'claude', 'codex'];
+const AI_TYPES = ['opencode', 'claude', 'codex', 'antigravity'];
 
 // Corpo del testo dei terminali (shell, opencode, claude)
 const TERM_FONT_SIZE = 15;
@@ -342,6 +347,9 @@ async function ensureResumeData(tab) {
   } else if (tab === 'codex') {
     const r = await window.aisess.listCodex(100);
     resumeCache.codex = r;
+  } else if (tab === 'antigravity') {
+    const r = await window.aisess.listAntigravity(100);
+    resumeCache.antigravity = r;
   } else {
     const h = await window.aisess.getHistory();
     resumeCache.history = { ok: true, sessions: h };
@@ -375,27 +383,35 @@ async function renderResumeList(keepCache = false) {
 const RESUME_VIEWS = {
   opencode: (s) => ({
     icon: 'opencode',
-    title: s.title || s.id,
-    sub: [s.directory, s.id, fmtDate(s.created)],
+    title: Titles.displayName(titleStore, 'opencode', s.id, s.title || s.id),
+    sub: [titleStore.nameFor('opencode', s.id) ? s.title : null, s.directory, s.id, fmtDate(s.created)],
     action: 'Resume',
     actionClass: 'btn--primary',
-    open: () => createTab('opencode', { name: (s.title || 'opencode').slice(0, 28), cwd: s.directory, resumeId: s.id }),
+    open: () => createTab('opencode', { name: Titles.displayName(titleStore, 'opencode', s.id, s.title || 'opencode').slice(0, 28), cwd: s.directory, resumeId: s.id }),
   }),
   claude: (s) => ({
     icon: 'claude',
-    title: s.title || s.id,
-    sub: [s.cwd, s.id.slice(0, 8), fmtDate(s.mtime)],
+    title: Titles.displayName(titleStore, 'claude', s.id, s.title || s.id),
+    sub: [titleStore.nameFor('claude', s.id) ? s.title : null, s.cwd, s.id.slice(0, 8), fmtDate(s.mtime)],
     action: 'Resume',
     actionClass: 'btn--primary',
-    open: () => createTab('claude', { name: (s.title || 'claude').slice(0, 28), cwd: s.cwd, resumeId: s.id, claudeAccountId: selectedResumeAccount() }),
+    open: () => createTab('claude', { name: Titles.displayName(titleStore, 'claude', s.id, s.title || 'claude').slice(0, 28), cwd: s.cwd, resumeId: s.id, claudeAccountId: selectedResumeAccount() }),
   }),
   codex: (s) => ({
     icon: 'codex',
-    title: s.title || s.id,
-    sub: [s.cwd, s.id.slice(0, 8), fmtDate(s.mtime)],
+    title: Titles.displayName(titleStore, 'codex', s.id, s.title || s.id),
+    sub: [titleStore.nameFor('codex', s.id) ? s.title : null, s.cwd, s.id.slice(0, 8), fmtDate(s.mtime)],
     action: 'Resume',
     actionClass: 'btn--primary',
-    open: () => createTab('codex', { name: (s.title || 'codex').slice(0, 28), cwd: s.cwd, resumeId: s.id }),
+    open: () => createTab('codex', { name: Titles.displayName(titleStore, 'codex', s.id, s.title || 'codex').slice(0, 28), cwd: s.cwd, resumeId: s.id }),
+  }),
+  antigravity: (s) => ({
+    icon: 'antigravity',
+    title: Titles.displayName(titleStore, 'antigravity', s.id, s.title || s.id),
+    sub: [titleStore.nameFor('antigravity', s.id) ? s.title : null, s.cwd, s.id.slice(0, 8), fmtDate(s.mtime)],
+    action: 'Resume',
+    actionClass: 'btn--primary',
+    open: () => createTab('antigravity', { name: Titles.displayName(titleStore, 'antigravity', s.id, s.title || 'antigravity').slice(0, 28), cwd: s.cwd, resumeId: s.id }),
   }),
   history: (s) => ({
     icon: Icons.has(s.type) ? s.type : null,
@@ -459,6 +475,145 @@ async function resolveCommandProfile(type, { commandProfileId, cwd, resumeId } =
   return ui.choose(type, { cwd, resumeId });
 }
 
+/* ---------- Nomi delle sessioni ----------
+   Automatici dal titolo che il CLI dà alla conversazione, finché l'utente non
+   ne sceglie uno suo: da lì in poi vince il suo e l'automatico non lo tocca. */
+const AUTO_TITLE_MS = 20000;
+let autoTitleTimer = null;
+
+function listSessionsFor(type) {
+  if (type === 'opencode') return window.aisess.listOpencode(100);
+  if (type === 'claude') return window.aisess.listClaude(100);
+  if (type === 'codex') return window.aisess.listCodex(100);
+  if (type === 'antigravity') return window.aisess.listAntigravity(100);
+  return null; // lo shell non ha conversazioni
+}
+
+function applyTitle(tab, title) {
+  const next = String(title || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+  if (!next || next === tab.name) return false;
+  tab.name = next;
+  return true;
+}
+
+/**
+ * Nome dal primo prompt digitato. Vale per ogni tipo di sessione, anche per
+ * quelli di cui non sappiamo leggere le conversazioni, e arriva subito: non
+ * serve aspettare che il CLI scriva il suo file.
+ */
+function applyTypedPrompt(tab, data) {
+  if (!tab.promptCapture) return;
+  let line = null;
+  try { line = tab.promptCapture.feed(data); } catch { return; }
+  if (!line) return;
+  tab.promptCapture = null;
+  if (!tab.autoNamed) return; // l'utente ha già scelto un nome suo
+  // Il titolo del CLI non deve più scavalcare il prompt scritto dall'utente
+  tab.namedFromPrompt = true;
+  if (tab.resumeId) titleStore.setName(tab.type, tab.resumeId, line);
+  if (applyTitle(tab, line)) renderSidebar();
+}
+
+/** Aggiorna nome e id conversazione delle schede che non sono state rinominate. */
+async function refreshAutoTitles() {
+  const targets = [...tabs.values()].filter((t) => t.autoNamed && t.type !== 'shell');
+  if (!targets.length) return;
+  const byType = new Map();
+  for (const t of targets) if (!byType.has(t.type)) byType.set(t.type, listSessionsFor(t.type));
+  let changed = false;
+  for (const [type, promise] of byType) {
+    let data = null;
+    try { data = await promise; } catch { continue; }
+    if (!data || !data.ok) continue;
+    for (const t of targets.filter((x) => x.type === type)) {
+      // Con un resume l'id è noto; per una scheda nuova va riconosciuto
+      const s = t.resumeId
+        ? (data.sessions || []).find((x) => x.id === t.resumeId)
+        : Titles.pickAutoSession(data.sessions, { cwd: t.cwd, since: t.startedAt - 5000 });
+      if (!s) continue;
+      if (!t.resumeId) t.resumeId = s.id;
+      // Nome già preso dal prompt digitato: si lega alla conversazione appena
+      // se ne conosce l'id, così sopravvive al resume. Il titolo del CLI perde.
+      if (t.namedFromPrompt) {
+        if (!titleStore.nameFor(t.type, t.resumeId)) titleStore.setName(t.type, t.resumeId, t.name);
+        continue;
+      }
+      // Conversazione appena creata, senza ancora un prompt: il suo "titolo" è
+      // solo l'id. Meglio tenere il nome provvisorio e riprovare al giro dopo.
+      if (s.titled === false) continue;
+      const custom = titleStore.nameFor(t.type, t.resumeId);
+      if (custom) { t.autoNamed = false; changed = applyTitle(t, custom) || changed; continue; }
+      changed = applyTitle(t, s.title) || changed;
+    }
+  }
+  if (changed) renderSidebar();
+}
+
+function startAutoTitles() {
+  if (autoTitleTimer) return;
+  autoTitleTimer = setInterval(() => { refreshAutoTitles().catch(() => {}); }, AUTO_TITLE_MS);
+}
+
+/**
+ * Chiede il nuovo nome con un modal interno: in Electron la prompt() del
+ * browser lancia "prompt() is and will not be supported.".
+ * @returns {Promise<string|null>} null se annullato
+ */
+function askSessionName(tab) {
+  const backdrop = $('#modal-rename');
+  const input = $('#rename-input');
+  const confirmBtn = $('#rename-confirm');
+  const cancelBtn = $('#rename-cancel');
+  if (!backdrop || !input || !confirmBtn || !cancelBtn) return Promise.resolve(null);
+
+  const sub = $('#rename-sub');
+  if (sub) sub.textContent = [GROUP_LABELS[tab.type] || tab.type, shortPath(tab.cwd)].filter(Boolean).join(' · ');
+  input.value = tab.name || '';
+  backdrop.hidden = false;
+  input.focus();
+  input.select();
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      backdrop.hidden = true;
+      resolve(value);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') finish(null);
+      else if (e.key === 'Enter' && e.target === input) finish(input.value);
+    };
+    const onBackdrop = (e) => { if (e.target === backdrop) finish(null); };
+    const onConfirm = () => finish(input.value);
+    const onCancel = () => finish(null);
+    const cleanup = () => {
+      document.removeEventListener('keydown', onKey);
+      backdrop.removeEventListener('click', onBackdrop);
+      confirmBtn.removeEventListener('click', onConfirm);
+      cancelBtn.removeEventListener('click', onCancel);
+    };
+    document.addEventListener('keydown', onKey);
+    backdrop.addEventListener('click', onBackdrop);
+    confirmBtn.addEventListener('click', onConfirm);
+    cancelBtn.addEventListener('click', onCancel);
+  });
+}
+
+/** Rinomina manuale: il nome resta legato alla conversazione, non alla scheda. */
+async function renameTab(tab) {
+  const current = await askSessionName(tab);
+  if (current === null) return; // annullato
+  const clean = String(current).replace(/\s+/g, ' ').trim();
+  if (tab.resumeId) titleStore.setName(tab.type, tab.resumeId, clean);
+  if (clean) { tab.name = clean.slice(0, 40); tab.autoNamed = false; }
+  else { tab.autoNamed = true; }
+  renderSidebar();
+  if (!clean) refreshAutoTitles().catch(() => {});
+}
+
 async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId } = {}) {
   const picked = await resolveCommandProfile(type, { commandProfileId, cwd, resumeId });
   if (!picked.ok) return; // scelta annullata: nessuna scheda creata
@@ -478,12 +633,13 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   // Registra e rendi visibile PRIMA di aprire il terminale: xterm misura il
   // contenitore all'apertura, quindi il wrap deve essere già laid out a
   // dimensione piena (altrimenti la prima scheda nasce 20x10).
-  const tab = { id, type, name: label, cwd, resumeId, claudeAccountId, claudeAccountName, commandProfileId: picked.id, commandProfileLabel: picked.label, term: null, fit: null, ro: null, wrap, alive: true, needsAttention: false, idleTimer: null, pendingBytes: 0 };
+  const tab = { id, type, name: label, cwd, resumeId, startedAt: Date.now(), autoNamed: !name,
+    promptCapture: PromptCapture.createPromptCapture(), namedFromPrompt: false, claudeAccountId, claudeAccountName, commandProfileId: picked.id, commandProfileLabel: picked.label, term: null, fit: null, ro: null, wrap, alive: true, needsAttention: false, idleTimer: null, pendingBytes: 0 };
   tabs.set(id, tab);
   updateEmpty();
   setActive(id);
 
-  const term = new Terminal({ cursorBlink: true, fontSize: TERM_FONT_SIZE, lineHeight: TERM_LINE_HEIGHT, fontFamily: "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace", theme: { background: '#000000', foreground: '#F2EFF4', cursor: '#1FA79A', selectionBackground: '#0E2E2B', black: '#000000', brightBlack: '#7C7488', white: '#F2EFF4', brightWhite: '#FFFFFF', cyan: '#5FD8CB', brightCyan: '#31C3B4', green: '#5BC78F', red: '#E8556E', yellow: '#FF8A6B' } });
+  const term = new Terminal({ cursorBlink: true, fontSize: TERM_FONT_SIZE, lineHeight: TERM_LINE_HEIGHT, fontFamily: "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace", theme: { background: '#000000', foreground: '#EFF2F6', cursor: '#1FA79A', selectionBackground: '#0E2E2B', black: '#000000', brightBlack: '#74808F', white: '#EFF2F6', brightWhite: '#FFFFFF', cyan: '#5FD8CB', brightCyan: '#31C3B4', green: '#5BC78F', red: '#E8556E', yellow: '#FF8A6B' } });
   const fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
   try { term.loadAddon(new WebLinksAddon.WebLinksAddon()); } catch {}
@@ -491,7 +647,10 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   tab.term = term;
   tab.fit = fit;
 
-  term.onData((d) => window.aisess.write(id, d));
+  term.onData((d) => {
+    window.aisess.write(id, d);
+    applyTypedPrompt(tab, d);
+  });
   // Copia/incolla: la selezione di xterm non è una selezione del documento
   window.AisessClipboard.attach(term, inner);
   // Il bell è il "ho finito" esplicito degli agenti: vale senza attendere l'idle
@@ -510,6 +669,10 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
     term.write(`\x1b[90mSuggerimento: apri un Terminale e verifica con: which ${type === 'shell' ? 'bash' : type} && ${type === 'shell' ? 'echo ok' : type + ' --version'}\x1b[0m\r\n`);
     tab.alive = false;
   } else {
+    // Il main può spostare la sessione (cwd vuota, con ~ o inesistente finisce
+    // nella home): senza la directory vera il titolo automatico non troverebbe
+    // mai la conversazione, che viene riconosciuta proprio dalla directory.
+    if (res.cwd) tab.cwd = res.cwd;
     // Fit definitivo a layout assestato (doppio rAF)
     requestAnimationFrame(() => requestAnimationFrame(() => refitTab(id)));
   }
@@ -523,6 +686,9 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   } catch {}
   term.focus();
   renderSidebar();
+  startAutoTitles();
+  // Primo giro ravvicinato: il CLI scrive la conversazione poco dopo l'avvio
+  setTimeout(() => { refreshAutoTitles().catch(() => {}); }, 4000);
 }
 
 /* ---------- Menu Edit: terminale o resto della pagina ----------
@@ -628,8 +794,8 @@ async function closeTab(id) {
 }
 
 /* ---------- Raggruppamento card per tipo (gruppi collassabili) ---------- */
-const GROUP_ORDER = ['shell', 'opencode', 'claude', 'codex'];
-const GROUP_LABELS = { shell: 'Terminale', opencode: 'OpenCode', claude: 'Claude', codex: 'Codex' };
+const GROUP_ORDER = ['shell', 'opencode', 'claude', 'codex', 'antigravity'];
+const GROUP_LABELS = { shell: 'Terminale', opencode: 'OpenCode', claude: 'Claude', codex: 'Codex', antigravity: 'Antigravity' };
 let collapsedGroups = new Set();
 try {
   const saved = JSON.parse(localStorage.getItem('aisess.collapsedGroups') || '[]');
@@ -647,6 +813,11 @@ function shortPath(cwd) {
   return parts.slice(-2).join('/');
 }
 
+/* Soglia del doppio click sulle card, tenuta fuori dal DOM perché le card
+   vengono ricreate a ogni render. */
+const DOUBLE_CLICK_MS = 450;
+let lastCardClick = { id: null, at: 0 };
+
 function createSessionItem(t) {
   const b = document.createElement('button');
   const isActive = t.id === activeId;
@@ -662,9 +833,19 @@ function createSessionItem(t) {
   b.innerHTML = `<span class="sel-mark" aria-hidden="true">◆</span>
     <span class="icon">${Icons.markup(t.type)}</span>
     ${t.alive ? '<span class="live-dot" title="In esecuzione"></span>' : ''}
-    <span class="meta"><span class="name">${escapeHtml(t.name)}${t.alive ? '' : ' (terminata)'}</span><br>
+    <span class="meta"><span class="name">${escapeHtml(t.name)}${t.alive ? '' : ' (terminata)'}</span>
     <span class="sub path" title="${escapeHtml(fullSub)}"><span>${escapeHtml(displaySub)}</span></span></span>`;
-  b.onclick = () => setActive(t.id);
+  // Il primo click rifà la sidebar (setActive → renderSidebar), quindi il
+  // secondo click arriva su un bottone nuovo e l'evento dblclick del browser
+  // non scatta mai: il doppio click va riconosciuto a mano, fuori dal DOM.
+  b.onclick = () => {
+    const now = Date.now();
+    const isDouble = lastCardClick.id === t.id && now - lastCardClick.at <= DOUBLE_CLICK_MS;
+    lastCardClick = { id: t.id, at: isDouble ? 0 : now };
+    if (isDouble) { renameTab(t).catch(() => {}); return; }
+    setActive(t.id);
+  };
+  b.title = b.title || 'Doppio click per rinominare';
   const x = document.createElement('span');
   x.className = 'close-x'; x.textContent = '✕'; x.title = 'Chiudi';
   x.onclick = (e) => { e.stopPropagation(); closeTab(t.id); };

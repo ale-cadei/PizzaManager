@@ -13,8 +13,11 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 4 | [`fix/robustness`](04-robustness.md) | 2 | ~4h | parziale: menubar in-app ✅ |
 | 5 | [`spike/tmux`](05-spike-tmux.md) | — | ~4h | ✅ fatto, [risultati](05-risultati.md) |
 | 6 | [`feat/tmux-backend`](06-tmux-backend.md) | 2, 5 | 3-5 gg | sbloccato, da fare |
+| 7 | [`feat/claude-account-login`](07-account-claude-login.md) | — | 1-2 gg | proposto, non pianificato |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
+**7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già
+risolto a mano dalla configurazione comandi. Si fa se e quando si decide.
 **5 non dipende da niente**: si può fare in qualsiasi momento, anche subito.
 **6 non si pianifica prima che il 5 abbia risposto** — vedi il file.
 

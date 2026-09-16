@@ -412,6 +412,14 @@ async function renderResumeList(keepCache = false) {
   }
   box.innerHTML = '';
   for (const s of items.slice(0, 80)) box.appendChild(createResumeItem(resumeTab, s));
+  // Il lister puo' aver scartato file illeggibili o in un formato inatteso:
+  // meglio dirlo che lasciar credere che la lista sia completa.
+  if (data.skipped > 0) {
+    const note = document.createElement('p');
+    note.className = 'muted small';
+    note.textContent = data.skipped === 1 ? '1 sessione non leggibile, esclusa dall\'elenco.' : `${data.skipped} sessioni non leggibili, escluse dall'elenco.`;
+    box.appendChild(note);
+  }
 }
 
 /* Descrittori per tab: come mostrare una voce e come riaprirla.

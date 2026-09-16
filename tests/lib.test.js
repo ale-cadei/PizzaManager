@@ -244,3 +244,21 @@ ok('computeLoginPathAsync: legge solo l ultima riga, le rc possono stampare', as
   const p = await computeLoginPathAsync({ env: { PATH: '/bin' }, run: (s, a, o, cb) => cb(null, 'Benvenuto!\n/opt/bin:/usr/bin\n'), shell: '/bin/zsh' });
   assert.strictEqual(p, '/opt/bin:/usr/bin:/bin');
 });
+
+ok('claude-sessions: i file illeggibili vengono contati, non nascosti', () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-proj-'));
+  const proj = path.join(base, '-Users-tizio-app');
+  fs.mkdirSync(proj);
+  fs.writeFileSync(path.join(proj, 'buona.jsonl'), '{"summary":"ok"}\n');
+  // una directory di progetto illeggibile (permessi) va contata come scarto
+  const chiusa = path.join(base, '-Users-tizio-chiusa');
+  fs.mkdirSync(chiusa, { mode: 0o000 });
+  const { listClaudeSessions } = require('../lib/claude-sessions');
+  const r = listClaudeSessions(null, { base });
+  fs.chmodSync(chiusa, 0o755);
+  fs.rmSync(base, { recursive: true, force: true });
+  if (process.getuid && process.getuid() === 0) return; // root legge tutto: il caso non si riproduce
+  assert.strictEqual(r.ok, true);
+  assert.deepStrictEqual(r.sessions.map((s) => s.id), ['buona']);
+  assert.strictEqual(r.skipped, 1, 'la directory illeggibile doveva essere contata');
+});

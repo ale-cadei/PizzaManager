@@ -2,6 +2,31 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8" />
+<!--
+  Content-Security-Policy: rete di sicurezza sotto escapeHtml/textContent.
+  Il renderer mostra testo che arriva da fuori (titoli delle sessioni dai .jsonl,
+  output di opencode, etichette dei profili scritte dall'utente): se un escape
+  manca, uno script iniettato non parte comunque.
+
+  Se aggiungi uno script inline, un handler onclick= nell'HTML o una risorsa da
+  un dominio nuovo, la CSP lo blocca e la console del renderer dice perche':
+  aggiorna la policy qui invece di aggirarla.
+
+  - script-src 'self'          solo i .js dell'app: MAI 'unsafe-inline' qui
+  - style-src  'unsafe-inline' serve a xterm.js, che inietta <style> a runtime
+  - fonts.googleapis/gstatic   IBM Plex Mono e Inter (con fallback locale)
+-->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self';
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src 'self' https://fonts.gstatic.com;
+  img-src 'self' data:;
+  connect-src 'none';
+  object-src 'none';
+  base-uri 'none';
+  form-action 'none';
+" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="color-scheme" content="dark" />
 <meta name="theme-color" content="#000000" />
@@ -90,7 +115,7 @@
       <span class="legend" id="dep-claude" title="stato binario claude"><i class="dot claude"></i>claude</span>
       <span class="legend" id="dep-codex" title="stato binario codex"><i class="dot codex"></i>codex</span>
     </div>
-    <div class="side-footer muted" id="deps-status" style="font-size:11px"></div>
+    <div class="side-footer muted" id="deps-status"></div>
   </aside>
   <div id="sidebar-resizer" title="Trascina per ridimensionare la sidebar (doppio clic per ripristinare)"></div>
   <main id="main">

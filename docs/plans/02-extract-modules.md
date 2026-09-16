@@ -1,6 +1,13 @@
 # Branch 2 — `refactor/extract-modules`
 
-**Dipende da**: branch 1 (mergiato). **Taglia**: 1-2 giorni. **Rischio**: basso, ma è il branch da cui dipende tutto il resto.
+**Dipende da**: branch 1 (mergiato). **Taglia**: 1 giorno. **Rischio**: basso, ma è il branch da cui dipende tutto il resto.
+
+> **Stato: fatto** (seconda esecuzione, 2026-09-16). La prima (PR #5) era
+> diventata non mergiabile: vedi la nota nel README. Rispetto al piano
+> originale è comparso `lib/profiles.js` (store dei profili di comando, sul
+> modello di accounts/history) e `lib/commands.js` costruisce il comando dai
+> profili invece che da una tabella fissa. `main.js`: 801 → 137 righe, 85 test,
+> copertura 90%.
 
 ---
 

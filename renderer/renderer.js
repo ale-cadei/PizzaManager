@@ -292,7 +292,7 @@ function renderAccountManager(error) {
   }
   const oauthRow = document.createElement('div');
   oauthRow.className = 'account-row';
-  oauthRow.innerHTML = `<span class="meta">OAuth — ${(claudeAccounts.oauth && claudeAccounts.oauth.label) || 'login corrente'}</span>`;
+  oauthRow.innerHTML = `<span class="meta">OAuth — ${escapeHtml((claudeAccounts.oauth && claudeAccounts.oauth.label) || 'login corrente')}</span>`;
   const src = document.createElement('span');
   src.className = 'src';
   src.textContent = (claudeAccounts.oauth && claudeAccounts.oauth.available) ? 'rilevato' : 'non rilevato';

@@ -189,3 +189,38 @@ ok('un elenco valido viene restituito cosi com e', async () => {
   assert.strictEqual(r.ok, true);
   assert.deepStrictEqual(r.sessions, sessioni);
 });
+
+// ---------- lib/login-path: mai bloccare il main ----------
+const { primeLoginPath, getLoginPathSync, resetLoginPathCache, computeLoginPathAsync } = require('../lib/login-path');
+
+ok('getLoginPathSync non interroga mai la shell: a cache fredda da il PATH del processo, subito', () => {
+  resetLoginPathCache();
+  const p = getLoginPathSync({ env: { PATH: '/bin:/usr/bin' } });
+  assert.strictEqual(p, '/bin:/usr/bin');
+});
+
+ok('primeLoginPath: chiamate concorrenti condividono UNA shell, e riempiono la cache', async () => {
+  resetLoginPathCache();
+  let calls = 0;
+  const run = (sh, args, opts, cb) => { calls++; setTimeout(() => cb(null, '/opt/homebrew/bin:/usr/bin\n'), 10); };
+  const [a, b, c] = await Promise.all([
+    primeLoginPath({ env: { PATH: '/bin' }, run, shell: '/bin/zsh' }),
+    primeLoginPath({ env: { PATH: '/bin' }, run, shell: '/bin/zsh' }),
+    primeLoginPath({ env: { PATH: '/bin' }, run, shell: '/bin/zsh' }),
+  ]);
+  assert.strictEqual(calls, 1, 'tre chiamate all avvio devono lanciare una sola shell');
+  assert.strictEqual(a, '/opt/homebrew/bin:/usr/bin:/bin');
+  assert.strictEqual(b, a); assert.strictEqual(c, a);
+  assert.strictEqual(getLoginPathSync(), a, 'dopo il prime la versione sincrona serve la cache');
+  resetLoginPathCache();
+});
+
+ok('computeLoginPathAsync: se la shell fallisce si resta col PATH del processo', async () => {
+  const p = await computeLoginPathAsync({ env: { PATH: '/bin' }, run: (s, a, o, cb) => cb(new Error('timeout')), shell: '/bin/zsh' });
+  assert.strictEqual(p, '/bin');
+});
+
+ok('computeLoginPathAsync: legge solo l ultima riga, le rc possono stampare', async () => {
+  const p = await computeLoginPathAsync({ env: { PATH: '/bin' }, run: (s, a, o, cb) => cb(null, 'Benvenuto!\n/opt/bin:/usr/bin\n'), shell: '/bin/zsh' });
+  assert.strictEqual(p, '/opt/bin:/usr/bin:/bin');
+});

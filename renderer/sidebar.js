@@ -73,6 +73,9 @@
        secondo serve a non far passare per "click" il rilascio del mouse. */
     let dragging = null;
     let dragEndedAt = 0;
+    // Un render a meta' trascinamento distruggerebbe la card che si ha in mano
+    // (list.innerHTML = ''): si rimanda a fine drag.
+    let pendingRender = null;
 
     /** Insieme dei gruppi collassati della modalità corrente. */
     function collapsedSet() {
@@ -117,57 +120,121 @@
        una sessione dipende dal suo tipo o dal suo progetto, non da dove sta
        nella lista, quindi trascinarla altrove non potrebbe essere onorato. Il
        drop fuori dal gruppo di partenza semplicemente non viene accettato
-       (niente preventDefault → il cursore mostra "vietato"). */
-    function clearDropMarks() {
-      for (const el of list.querySelectorAll('.drop-before, .drop-after')) {
-        el.classList.remove('drop-before', 'drop-after');
+       (niente preventDefault → il cursore mostra "vietato").
+
+       Riordino "vivo": mentre si trascina, la card presa in mano viene spostata
+       DAVVERO nel DOM nel punto dove finirebbe, e li' fa da segnaposto (slot
+       tratteggiato). Le altre card scorrono per fare spazio, animate con la
+       tecnica FLIP. Il rilascio conferma quello che gia' si vede: l'ordine
+       finale si legge dal DOM, non dal punto del cursore. */
+    const isCard = (el) => el && el.classList && el.classList.contains('session-item');
+    const cardsOf = (body) => [...body.children].filter(isCard);
+
+    /** FLIP: le card che cambiano posto partono da dove erano e scivolano dove sono. */
+    function shiftAnimated(body, move) {
+      const cards = cardsOf(body);
+      const before = new Map(cards.map((c) => [c, c.getBoundingClientRect().top]));
+      move();
+      if (typeof requestAnimationFrame !== 'function') return; // DOM finto nei test
+      for (const c of cards) {
+        if (c === dragging.el) continue;
+        const delta = before.get(c) - c.getBoundingClientRect().top;
+        if (!delta) continue;
+        c.style.transition = 'none';
+        c.style.transform = `translateY(${delta}px)`;
       }
+      requestAnimationFrame(() => {
+        for (const c of cards) { c.style.transition = ''; c.style.transform = ''; }
+      });
     }
 
-    function attachDrag(b, t, groupKey) {
+    /** Porta il segnaposto prima o dopo `target`, se non e' gia' li'. */
+    function placeDragged(body, target, before) {
+      const el = dragging.el;
+      const ref = before ? target : target.nextElementSibling;
+      if (ref === el || (el.nextElementSibling === ref && el.parentNode === body)) return;
+      shiftAnimated(body, () => body.insertBefore(el, ref));
+    }
+
+    /** Ordine finale letto dal DOM. Nessun riordino se la card e' dove era partita. */
+    function commitFromDom({ el, body, id, startIndex }) {
+      const cards = cardsOf(body);
+      const at = cards.indexOf(el);
+      if (at < 0 || at === startIndex) return false;
+      const next = cards[at + 1];
+      const prev = cards[at - 1];
+      if (next) onReorder(id, next.dataset.id, { before: true });
+      else if (prev) onReorder(id, prev.dataset.id, { before: false });
+      else return false;
+      return true;
+    }
+
+    function endDrag() {
+      const d = dragging;
+      dragging = null;
+      dragEndedAt = Date.now();
+      d.el.classList.remove('dragging');
+      d.body.classList.remove('reordering');
+      const pend = pendingRender;
+      pendingRender = null;
+      // onReorder fa ridisegnare la sidebar con i dati aggiornati: il render
+      // rimandato serve solo se non c'e' stato nessun riordino.
+      const reordered = commitFromDom(d);
+      if (!reordered && pend) render(...pend);
+    }
+
+    function attachDrag(b, t, groupKey, body) {
       if (!onReorder) return;
       b.draggable = true;
+      b.dataset.id = t.id;
       b.addEventListener('dragstart', (e) => {
-        dragging = { id: t.id, groupKey };
-        b.classList.add('dragging');
+        dragging = { id: t.id, groupKey, el: b, body, startIndex: cardsOf(body).indexOf(b) };
+        // L'immagine che segue il cursore viene fotografata subito dopo questo
+        // handler: la classe che trasforma la card in segnaposto va messa al
+        // frame dopo, altrimenti in mano si ha un rettangolo vuoto.
+        const mark = () => { if (dragging && dragging.el === b) { b.classList.add('dragging'); body.classList.add('reordering'); } };
+        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(mark); else mark();
         if (e.dataTransfer) {
           e.dataTransfer.effectAllowed = 'move';
           // Alcuni browser non avviano il drag senza un payload
           try { e.dataTransfer.setData('text/plain', t.id); } catch {}
         }
       });
-      b.addEventListener('dragend', () => {
-        dragging = null;
-        dragEndedAt = Date.now();
-        b.classList.remove('dragging');
-        clearDropMarks();
-      });
+      b.addEventListener('dragend', () => { if (dragging) endDrag(); });
       const accepts = () => dragging && dragging.groupKey === groupKey && dragging.id !== t.id;
       b.addEventListener('dragover', (e) => {
         if (!accepts()) return;
         e.preventDefault();
         if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
         const rect = b.getBoundingClientRect();
-        const before = e.clientY < rect.top + rect.height / 2;
-        b.classList.toggle('drop-before', before);
-        b.classList.toggle('drop-after', !before);
+        placeDragged(body, b, e.clientY < rect.top + rect.height / 2);
       });
-      b.addEventListener('dragleave', () => b.classList.remove('drop-before', 'drop-after'));
       b.addEventListener('drop', (e) => {
         if (!accepts()) return;
         e.preventDefault();
         e.stopPropagation();
-        const rect = b.getBoundingClientRect();
-        const before = e.clientY < rect.top + rect.height / 2;
-        const movedId = dragging.id;
-        dragging = null;
-        dragEndedAt = Date.now();
-        clearDropMarks();
-        onReorder(movedId, t.id, { before });
+        // L'ordine e' gia' quello che si vede: lo conferma dragend.
       });
     }
 
-    function createSessionItem(t, activeId, groupKey) {
+    /** Spazio vuoto sotto l'ultima card: trascinarci sopra manda la card in coda. */
+    function attachBodyDrag(body, groupKey) {
+      if (!onReorder) return;
+      body.addEventListener('dragover', (e) => {
+        if (!dragging || dragging.groupKey !== groupKey) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+        const cards = cardsOf(body);
+        const last = cards[cards.length - 1];
+        if (last && last !== dragging.el && e.clientY > last.getBoundingClientRect().bottom) placeDragged(body, last, false);
+      });
+      body.addEventListener('drop', (e) => {
+        if (!dragging || dragging.groupKey !== groupKey) return;
+        e.preventDefault();
+      });
+    }
+
+    function createSessionItem(t, activeId, groupKey, body) {
       const b = document.createElement('button');
       const isActive = t.id === activeId;
       b.className = `session-item type-${t.type}` + (isActive ? ' active' : '') + (t.needsAttention ? ' needs-attention' : '');
@@ -218,7 +285,7 @@
         b.appendChild(k);
       }
       b.appendChild(x);
-      attachDrag(b, t, groupKey);
+      attachDrag(b, t, groupKey, body);
       return b;
     }
 
@@ -227,6 +294,7 @@
      * @param {string|null} activeId scheda in primo piano
      */
     function render(sessions, activeId) {
+      if (dragging) { pendingRender = [sessions, activeId]; return; }
       list.innerHTML = '';
       if (count) count.textContent = sessions.length ? `(${sessions.length})` : '';
       if (!sessions.length) {
@@ -272,7 +340,8 @@
         const body = document.createElement('div');
         body.className = 'group-body';
         if (collapsed) body.hidden = true;
-        for (const t of g.items) body.appendChild(createSessionItem(t, activeId, g.key));
+        for (const t of g.items) body.appendChild(createSessionItem(t, activeId, g.key, body));
+        attachBodyDrag(body, g.key);
         group.appendChild(body);
         list.appendChild(group);
       }

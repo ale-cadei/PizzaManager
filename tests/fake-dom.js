@@ -31,7 +31,36 @@ function createElement(tag) {
     set innerHTML(v) { e.html = String(v); e.children = []; },
     setAttribute(k, v) { e.attrs[k] = String(v); },
     getAttribute(k) { return Object.prototype.hasOwnProperty.call(e.attrs, k) ? e.attrs[k] : null; },
-    appendChild(child) { child.parent = e; e.children.push(child); return child; },
+    appendChild(child) {
+      if (child.parent) child.parent.removeChild(child);
+      child.parent = e; e.children.push(child); return child;
+    },
+    // Spostamento dei nodi: serve al riordino "vivo" delle card durante il
+    // trascinamento, che muove davvero la card nel DOM invece di segnare il bersaglio.
+    removeChild(child) {
+      const i = e.children.indexOf(child);
+      if (i >= 0) { e.children.splice(i, 1); child.parent = null; }
+      return child;
+    },
+    insertBefore(child, ref) {
+      if (!ref) return e.appendChild(child);
+      if (child.parent) child.parent.removeChild(child);
+      const i = e.children.indexOf(ref);
+      child.parent = e;
+      e.children.splice(i < 0 ? e.children.length : i, 0, child);
+      return child;
+    },
+    get parentNode() { return e.parent; },
+    get nextElementSibling() {
+      if (!e.parent) return null;
+      const i = e.parent.children.indexOf(e);
+      return e.parent.children[i + 1] || null;
+    },
+    get previousElementSibling() {
+      if (!e.parent) return null;
+      const i = e.parent.children.indexOf(e);
+      return i > 0 ? e.parent.children[i - 1] : null;
+    },
     addEventListener(type, fn) {
       if (!e.listeners.has(type)) e.listeners.set(type, []);
       e.listeners.get(type).push(fn);

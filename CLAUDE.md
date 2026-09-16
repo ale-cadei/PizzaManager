@@ -73,6 +73,21 @@ pty è solo un client. Regole:
 - I comandi dei profili vanno in `pty.spawn` **senza shell**: niente pipe,
   redirezioni, alias. La validazione li rifiuta apposta, non li esegue diversamente.
 
+## Windows
+
+L'app gira anche su Windows (`docs/plans/12-windows.md`), senza tmux. Regole:
+- **Niente `split('/')`, `startsWith('/')`, `':'` per il PATH.** Separatori
+  `[\\/]`, `path.delimiter`, e `path.win32` quando si costruiscono percorsi
+  Windows su una macchina Unix (i test). Le sonde sul filesystem usano il
+  `path` della macchina.
+- Le funzioni di `lib/` prendono `platform` come parametro (default
+  `process.platform`): i casi Windows si verificano da Unix con
+  `platform: 'win32'` in `tests/windows.test.js`, mai con `if (os.platform())`
+  nel test.
+- Un binario `.cmd`/`.bat` non si lancia direttamente: `buildCommand` lo
+  avvolge in `cmd.exe /d /s /c` e produce `commandLine` per node-pty
+  (`lib/win-command.js`, regole di cross-spawn). Non ricomporre la riga altrove.
+
 ## Dati dell'utente
 
 - La cartella dei dati è **fissa** (`app.setPath('userData', …/AISessionManager)`

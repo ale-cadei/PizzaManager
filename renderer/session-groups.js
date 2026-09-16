@@ -80,20 +80,26 @@
     return out;
   }
 
+  /* I percorsi arrivano dal main con il separatore della macchina: `/` su
+     Unix, `\` su Windows. Qui si spezza su entrambi e si mostra sempre `/`,
+     che nelle etichette è più leggibile e non cambia significato. */
+  const SEP_RE = /[\\/]+/;
+  const TRAILING_SEP_RE = /[\\/]+$/;
+
   function lastSegments(p, n) {
-    const parts = String(p || '').split('/').filter(Boolean);
+    const parts = String(p || '').split(SEP_RE).filter(Boolean);
     if (!parts.length) return '/';
     return parts.slice(-n).join('/');
   }
 
   /** Path della sessione relativo alla radice del progetto; vuoto se coincidono. */
   function relativeSubpath(cwd, projectRoot) {
-    const dir = String(cwd || '').replace(/\/+$/, '');
-    const base = String(projectRoot || '').replace(/\/+$/, '');
+    const dir = String(cwd || '').replace(TRAILING_SEP_RE, '');
+    const base = String(projectRoot || '').replace(TRAILING_SEP_RE, '');
     if (!dir || !base || dir === base) return '';
-    // Il '/' finale evita che /repo-bis passi per una sottocartella di /repo
-    if (!dir.startsWith(base + '/')) return '';
-    return dir.slice(base.length + 1);
+    // Il separatore dopo la base evita che /repo-bis passi per una sottocartella di /repo
+    if (!dir.startsWith(base) || !/[\\/]/.test(dir[base.length])) return '';
+    return dir.slice(base.length + 1).split(SEP_RE).join('/');
   }
 
   /* Mostra solo parent + current (es. "progetto/backend" invece del full path) */

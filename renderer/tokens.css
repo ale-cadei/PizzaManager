@@ -1,61 +1,65 @@
 /* PizzaManager — design tokens
-   Palette: Teal notturno (azione) + corallo (accento) su blu-grigio scuro */
+   Palette "Forno": neri caldi, azione pomodoro, accento crosta.
+
+   Le superfici non sono grigi neutri ma neri virati al rosso: sotto il testo
+   caldo (#F6F1EC) un grigio neutro sembrerebbe sporco di blu. Il pomodoro è
+   l'unico colore che comanda un'azione; la crosta conta e segnala, non agisce. */
 
 :root {
-  /* superfici */
-  --bg:            #000000;  /* base app / area terminale */
-  --surface:       #05070A;  /* pannelli, sidebar, modali */
-  --surface-2:     #070A0E;  /* righe elenco */
-  --surface-3:     #0C1117;  /* elemento selezionato / elevato */
-  --border:        #121820;  /* bordo standard */
-  --border-strong: #1D2530;  /* bordo input e pulsanti secondari */
+  /* superfici (forno) */
+  --bg:            #070505;  /* base app / area terminale */
+  --surface:       #0E0B0A;  /* pannelli, sidebar, modali */
+  --surface-2:     #151010;  /* righe elenco */
+  --surface-3:     #1C1513;  /* elemento selezionato / elevato */
+  --divider:       #1A1412;  /* separatore DENTRO un pannello (più tenue del bordo) */
+  --border:        #251C19;  /* bordo standard, fra un pannello e l'altro */
+  --border-strong: #35271F;  /* bordo input e pulsanti secondari */
 
-  /* azione (teal notturno) */
-  --action:        #1FA79A;
-  --action-hover:  #31C3B4;
-  --action-soft:   #0E2E2B;  /* fondo tenue, chip attivi */
-  --action-text:   #5FD8CB;  /* testo/bordo azione su nero */
-  --action-ink:    #02201D;  /* testo sopra il pieno --action */
-  --action-ring:   rgba(31,167,154,0.22);
+  /* azione (pomodoro) */
+  --action:        #F04E23;
+  --action-hover:  #FF6A3D;
+  --action-soft:   #2B120A;  /* fondo tenue, chip e tab attivi */
+  --action-text:   #FF9B6F;  /* testo/bordo azione su fondo scuro */
+  --action-ink:    #1A0A05;  /* testo sopra il pieno --action (5.3:1) */
+  --action-ring:   rgba(240,78,35,0.22);
 
-  /* accento (corallo) */
-  --accent:        #FF8A6B;  /* badge runtime, sessione attiva, link */
-  --accent-soft:   rgba(255,138,107,0.16);
+  /* accento (crosta): badge, contatori, sessione attiva. Mai per le azioni. */
+  --accent:        #F2C14E;
+  --accent-soft:   #2A1F0C;
 
   /* stati */
-  --state-ok:      #5BC78F;
-  --state-error:   #E8556E;
+  --state-ok:      #7FC45A;  /* basilico: solo "in esecuzione" */
+  --state-error:   #FF4D74;
 
   /* identità per tipo di sessione (barra card, marker selezione, legenda).
-     Il verde resta riservato a "in esecuzione", quindi codex usa l'azzurro. */
-  --type-shell:    #5FD8CB;
-  --type-opencode: #FF8A6B;
+     Il verde resta riservato a "in esecuzione", quindi codex usa il grigio-blu. */
+  --type-shell:    #F2C14E;
+  --type-opencode: #FF8A4C;
   --type-claude:   #C39BF5;
-  --type-codex:    #7FB2FF;
+  --type-codex:    #9AA7B8;
   --type-antigravity: #4F8DF5;
 
   /* colori dei marchi ufficiali, usati solo dalle icone degli agenti */
   --brand-claude:   #D97757;  /* arancio Anthropic */
-  --brand-opencode: #F2EFF4;  /* marchio monocromatico, su fondo scuro = chiaro */
-  --brand-codex:    #F2EFF4;  /* marchio OpenAI, monocromatico */
+  --brand-opencode: #F6F1EC;  /* marchio monocromatico, su fondo scuro = chiaro */
+  --brand-codex:    #F6F1EC;  /* marchio OpenAI, monocromatico */
   --brand-antigravity: #4F8DF5;  /* marchio Google Antigravity, blu dell'arco */
 
   /* testo */
-  --text:          #EFF2F6;
-  --text-2:        #D3D9E2;
-  --text-muted:    #9FA9B8;
-  --text-dim:      #74808F;
-  --text-faint:    #68737F;
+  --text:          #F6F1EC;
+  --text-2:        #D9CDC6;
+  --text-muted:    #B8A79E;
+  --text-dim:      #9A8A82;
+  --text-faint:    #8A7A72;
 
   /* tipografia */
   --font-ui:   'IBM Plex Sans', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
   /* forma e spazio */
-  --radius-sm: 8px;
-  --radius:    10px;
-  --radius-lg: 14px;
-  --radius-xl: 16px;
+  --radius:    6px;   /* controlli, card, chip, badge */
+  --radius-lg: 8px;   /* pannelli e contenitori */
+  --radius-xl: 10px;  /* modali */
   --gap-xs: 6px;
   --gap-sm: 8px;
   --gap:    12px;
@@ -74,7 +78,7 @@
 .btn--secondary { background: var(--surface-3); border-color: var(--border-strong); color: var(--text-2); font-weight: 500; }
 .btn--secondary:hover { border-color: var(--action); }
 .btn--ghost     { background: transparent; border-color: var(--border-strong); color: var(--text-muted); font-weight: 500; }
-.btn--ghost:hover { color: var(--text); border-color: #43505F; }
+.btn--ghost:hover { color: var(--text); border-color: var(--action); }
 
 .input          { width: 100%; box-sizing: border-box; padding: 11px 14px; border-radius: var(--radius);
                   background: var(--bg); border: 1px solid var(--border-strong); color: var(--text);
@@ -84,12 +88,12 @@
 .card           { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); }
 .card--selected { background: var(--surface-3); border-color: var(--action); box-shadow: 0 0 0 3px var(--action-ring); }
 
-.tab            { padding: 9px 12px; border-radius: 9px; font-size: 13px; font-weight: 500;
+.tab            { padding: 9px 12px; border-radius: var(--radius); font-size: 13px; font-weight: 500;
                   border: 1px solid transparent; color: var(--text-dim); background: transparent; }
 .tab[aria-selected="true"] { background: var(--action-soft); border-color: var(--action); color: var(--text); }
 
 .badge          { font-family: var(--font-mono); font-size: 9px; letter-spacing: .08em;
-                  padding: 2px 6px; border-radius: 5px; color: var(--accent); background: var(--accent-soft); }
+                  padding: 2px 6px; border-radius: var(--radius); color: var(--accent); background: var(--accent-soft); }
 
 /* percorso troncato a sinistra, senza slash fantasma */
 .path           { direction: rtl; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -98,5 +102,5 @@
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #1D2530; border-radius: 99px; border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; border: 3px solid transparent; background-clip: content-box; }
 ::-webkit-scrollbar-thumb:hover { background: var(--action); background-clip: content-box; }

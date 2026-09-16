@@ -12,13 +12,14 @@ const WINDOW_OPTIONS = {
   minWidth: 900,
   minHeight: 600,
   title: 'PizzaManager',
-  // Barra superiore in tema col resto dell'app (nera):
-  // - backgroundColor nero per il flash di avvio
+  // Barra superiore in tema col resto dell'app (--bg della palette "Forno",
+  // un nero virato al caldo, non #000):
+  // - backgroundColor per il flash di avvio
   // - darkTheme: dice al SO/Chromium di usare controlli e menu scuri
-  // - titleBarOverlay nera dove supportata (Win): controlli nativi su fondo nero
-  backgroundColor: '#000000',
+  // - titleBarOverlay dove supportata (Win): controlli nativi sullo stesso fondo
+  backgroundColor: '#070505',
   darkTheme: true,
-  titleBarOverlay: { color: '#000000', symbolColor: '#F2EFF4' },
+  titleBarOverlay: { color: '#070505', symbolColor: '#F6F1EC' },
 };
 
 /**

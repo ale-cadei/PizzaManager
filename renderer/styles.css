@@ -401,3 +401,6 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 code { background: var(--surface-3); padding: 1px 5px; border-radius: 5px; font-family: var(--font-mono); font-size: 12px; }
 a, .link { color: var(--accent); }
 #deps-status { font-size: 11px; }
+/* Termina (solo con tmux): distinto dalla ✕ che stacca */
+.terminate-x { margin-left: 2px; opacity: .55; }
+.terminate-x:hover { opacity: 1; color: var(--state-error, #E8556E); }

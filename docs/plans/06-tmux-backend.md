@@ -2,21 +2,35 @@
 
 **Dipende da**: branch 2 e branch 5. **Taglia stimata**: 3-5 giorni.
 
-> ## Stato: sbloccato, si può cominciare
+> ## Stato: fatto (2026-09-16, branch `feat/tmux-backend`)
 >
-> Lo [spike](05-spike-tmux.md) è stato eseguito il 2026-09-09 con esito positivo
-> su tutte e quattro le domande: vedi [i risultati](05-risultati.md). Le sezioni
-> qui sotto contengono la configurazione reale, verificata sul campo.
+> Verificato sull'app vera, a mano e con un test d'integrazione su tmux reale:
+> crea una sessione → ⌘Q → riapri → la scheda torna da sola, col titolo e lo
+> scrollback. Il processo dentro è lo stesso di prima (stesso pid).
 >
-> La sopravvivenza dei processi alla chiusura dell'app è confermata fino a 15
-> minuti senza client attaccato, sia per una shell che per `claude`.
+> **Com'è fatto.** `lib/tmux.js` costruisce gli argomenti e legge l'output
+> (puro, 100% coperto); `app/pty.js` in modalità tmux crea la sessione
+> *staccata*, vi salva i metadati, e solo dopo apre il pty come client
+> `attach-session` — così il pty è sempre e solo un client, uguale per
+> sessioni nuove e riattaccate. `main.js` rileva tmux all'avvio e lo passa al
+> manager; senza tmux tutto ricade sul comportamento classico.
 >
-> Verificato sul campo: una sessione avviata da un terminale normale è rimasta
-> viva 46 minuti senza client attaccato. Il CLI `xirp`, sulla stessa macchina,
-> tiene sessioni tmux vive per ore. L'approccio funziona in condizioni reali.
+> **Due scoperte in corso d'opera, oltre a quelle dello spike:**
+> - **tmux cattura l'ambiente alla nascita del server** e le sessioni
+>   successive ereditano quello, non l'ambiente del client che le crea. Senza
+>   `new-session -e VAR=val` esplicito, un secondo profilo Claude prendeva in
+>   silenzio la `CLAUDE_CONFIG_DIR` del primo. Verificato e coperto.
+> - **`set-option -t` non accetta il prefisso `=`** che `has/kill/attach-session`
+>   accettano: per le opzioni il nome va nudo.
 >
-> Il riattacco deve comunque gestire il caso «sessione sparita» come normale e
-> non come errore — un riavvio della macchina la fa sparire in ogni caso.
+> **I metadati vivono in tmux** (user option `@ais_*`): tipo, directory,
+> etichetta, profilo, resume id, account. tmux è l'unica fonte di verità per le
+> sessioni vive, niente registro parallelo. Il titolo della scheda si risalva
+> quando cambia, così torna al riattacco.
+>
+> **UI**: la ✕ stacca (tooltip lo dice), un ⏻ accanto termina per davvero con
+> conferma. Una sessione sparita nel frattempo mostra un messaggio e rimanda al
+> Resume, non un errore.
 
 ---
 
@@ -114,21 +128,20 @@ trovato una strada migliore:
   resume nativo di `claude`/`opencode`. Se stanno nello stesso posto, l'utente non
   capisce perché a volte ritrova lo schermo com'era e a volte no.
 
-## Criteri di uscita (bozza)
+## Criteri di uscita — verificati
 
-- Apri tre sessioni, ⌘Q, riapri l'app: le ritrovi attaccate e con lo scrollback.
-- Ripeti uccidendo l'app da Monitoraggio Attività invece che con ⌘Q.
-- Senza tmux installato l'app funziona come oggi, con un avviso.
-- Non è possibile lasciare sessioni tmux orfane senza essersene accorti.
+- ✅ Apri una sessione, ⌘Q, riapri l'app: la ritrovi attaccata e con lo scrollback.
+- ✅ Senza tmux installato l'app funziona come oggi (`viaTmux=false`, stessi test).
+- ✅ Non è possibile lasciare sessioni tmux orfane senza accorgersene: la ✕
+  dichiara che stacca, il ⏻ termina, e all'avvio tutte le sessioni vive tornano
+  come schede.
+- ✅ Test d'integrazione su tmux reale (`tests/integration.test.js`), su un
+  socket dedicato al test: le sessioni reali dell'app non si toccano.
 
-## Ancora da definire
+## Rimasto fuori, volutamente
 
-- Lo schema di naming delle sessioni (deve sopravvivere ai riavvii e mappare
-  a tipo + directory).
-- **Il ridimensionamento a due livelli** (client tmux vs finestra tmux) non è
-  stato provato sistematicamente: nello spike la finestra è stata ridimensionata
-  senza problemi evidenti, ma non è un test rigoroso. Da verificare presto,
-  perché tocca `refitTab` e la logica di `ResizeObserver` già esistente.
-- Il disegno delle due azioni **stacca** / **termina** in UI.
-- Il comportamento quando una sessione attesa non esiste più (mietuta dal
-  sistema): va degradata a «ricreabile via resume», senza errori criptici.
+- Ridimensionamento a due livelli: con `window-size latest` in config e un solo
+  client per sessione non si è visto nessun problema, ma non è stato provato con
+  due client sulla stessa sessione (caso che l'app non produce).
+- Elenco delle sessioni vive *staccate* nel dialog Resume: oggi tornano tutte
+  come schede all'avvio, che è più semplice. Se diventano tante, andrà ripensato.

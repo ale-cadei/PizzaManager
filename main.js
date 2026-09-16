@@ -20,6 +20,13 @@ const { createWindow } = require('./app/window');
 const { runMenuAction } = require('./app/menu');
 const { createPtyManager } = require('./app/pty');
 
+// La cartella dei dati NON segue il nome dell'app. Electron la deriva da
+// productName: un rebrand ("PizzaManager") la sposterebbe in una cartella nuova
+// e vuota, e l'utente si ritroverebbe senza profili, cronologia e account —
+// e' successo. Il nome qui e' fisso per sempre, qualunque cosa dica package.json.
+const USER_DATA_DIR_NAME = 'AISessionManager';
+app.setPath('userData', path.join(app.getPath('appData'), USER_DATA_DIR_NAME));
+
 let mainWindow = null;
 
 function sendToRenderer(channel, payload) {

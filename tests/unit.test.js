@@ -126,7 +126,8 @@ ok('i file e i moduli caricati dall app esistono tutti', () => {
     'lib/accounts.js', 'lib/antigravity-sessions.js', 'lib/binaries.js', 'lib/claude-sessions.js',
     'lib/codex-sessions.js', 'lib/commands.js', 'lib/history.js', 'lib/login-path.js',
     'lib/opencode-sessions.js', 'lib/shell.js', 'lib/workdir.js',
-    'renderer/index.html', 'renderer/renderer.js', 'renderer/prompt-capture.js',
+    'renderer/index.html', 'renderer/renderer.js', 'renderer/pizza-logo.js', 'renderer/pizza-slice.js',
+    'renderer/prompt-capture.js',
     'renderer/session-titles.js', 'renderer/styles.css', 'renderer/tokens.css',
     'assets/icon.png',
   ];

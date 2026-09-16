@@ -1,4 +1,4 @@
-/* AISessionManager — applicazione del design system "Teal notturno".
+/* PizzaManager — applicazione del design system "Forno".
    I token vivono in tokens.css (copia di aisessionmanager-tokens.css in root);
    qui sotto solo gli stili specifici dell'app, che usano esclusivamente i token. */
 @import url('tokens.css');
@@ -6,7 +6,12 @@
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
 :root { color-scheme: dark; }
+/* Colonna: menubar sopra, app che prende tutto il resto. L'altezza dell'app non
+   si puo' cablare (era `calc(100vh - 33px)`): dove il SO disegna la sua menubar
+   nativa #menubar sta nascosta, e quei 33px restavano vuoti in fondo alla
+   pagina — con la riga che separa sidebar e terminale che si fermava li'. */
 body {
+  display: flex; flex-direction: column;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-ui);
@@ -19,13 +24,13 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   outline-offset: 2px;
 }
 
-#app { display: flex; height: calc(100vh - 33px); background: var(--bg); }
+#app { display: flex; flex: 1; min-height: 0; background: var(--bg); }
 
 /* ---------- Menubar scura in-app (sostituisce la menubar nativa,
    nascosta su Linux/Windows dove il tema di sistema la disegna chiara) ---------- */
 #menubar {
   display: flex; align-items: stretch; gap: 2px;
-  height: 32px; padding: 0 8px;
+  flex: 0 0 auto; height: 32px; padding: 0 8px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   font-size: 12px; user-select: none;
@@ -42,7 +47,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .mb-drop {
   position: absolute; top: 100%; left: 0; min-width: 230px;
   background: var(--surface-2); border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm); padding: 4px;
+  border-radius: var(--radius); padding: 4px;
   display: flex; flex-direction: column;
   box-shadow: var(--shadow-modal);
 }
@@ -57,52 +62,82 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .mb-acc { color: var(--text-dim); font-family: var(--font-mono); font-size: 11px; }
 .mb-sep { height: 1px; background: var(--border); margin: 4px 6px; }
 
-/* ---------- Sidebar (pannello) ---------- */
+/* ---------- Sidebar (pannello) ----------
+   Niente padding sul contenitore: ogni fascia ha il proprio, così i separatori
+   (--divider) arrivano da bordo a bordo invece di fermarsi a metà. */
 #sidebar {
-  width: 264px; min-width: 180px; max-width: 480px; flex: 0 0 auto;
+  width: 300px; min-width: 180px; max-width: 480px; flex: 0 0 auto;
   background: var(--surface);
-  border-right: 1px solid var(--border);
   display: flex; flex-direction: column;
-  padding: 14px 12px; gap: var(--gap-sm);
   overflow-x: hidden;
 }
-#sidebar-resizer { flex: 0 0 auto; width: 6px; cursor: ew-resize; background: transparent; }
-#sidebar-resizer:hover, #sidebar-resizer.dragging { background: var(--action); }
-
-.brand { display: flex; gap: 10px; align-items: center; }
-/* Logo = assets/icon.png (stessa icona dell'app/finestra) */
-.logo {
-  width: 36px; height: 36px; border-radius: var(--radius);
-  flex: none; display: block; object-fit: contain;
+/* Lo stacco fra sidebar e terminale e' il resizer stesso: una riga pomodoro
+   dentro una zona di presa di 6px. Il bordo neutro non bastava (sidebar e
+   terminale sono due neri vicini) e un secondo separatore accanto alla maniglia
+   avrebbe raddoppiato le linee verticali.
+   A riposo la riga e' smorzata: corre per tutta l'altezza della finestra, e a
+   piena saturazione il pomodoro reclamerebbe un'attenzione che un separatore
+   non merita. Il pieno resta un segnale di interazione: in hover la riga si
+   accende e si allarga alla presa, cosi' si vede dove si puo' trascinare. */
+#sidebar-resizer {
+  flex: 0 0 auto; width: 6px; cursor: ew-resize;
+  position: relative; background: transparent;
 }
-.brand-name { font-weight: 600; font-size: 15px; }
+#sidebar-resizer::before {
+  content: ''; position: absolute; inset: 0 2px;
+  background: var(--action); opacity: .45;
+}
+#sidebar-resizer:hover::before, #sidebar-resizer.dragging::before {
+  inset: 0; background: var(--action-hover); opacity: 1;
+}
+
+.brand {
+  display: flex; gap: 14px; align-items: center;
+  padding: 22px 20px 18px; border-bottom: 1px solid var(--divider);
+}
+/* Logo = pizza con la fetta sollevata (renderer/pizza-logo.js) */
+.logo { width: 56px; height: 56px; flex: none; display: block; }
+.logo .pizza-logo { width: 100%; height: 100%; display: block; }
+.brand-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.brand-name { font-weight: 700; font-size: 19px; letter-spacing: -.01em; }
 .brand-sub {
   font-family: var(--font-mono); font-size: 10px;
   letter-spacing: .12em; text-transform: uppercase; color: var(--text-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-/* Etichette di sezione: mono 10-11px maiuscolo */
+/* Etichette di sezione: mono 10-11px maiuscolo.
+   La riga ospita anche il selettore di raggruppamento; quando la sidebar è
+   stretta l'etichetta va a capo invece di schiacciare il selettore. */
 .side-section {
   font-family: var(--font-mono); font-size: 10px; font-weight: 500;
-  letter-spacing: .12em; text-transform: uppercase;
-  color: var(--text-dim); margin-top: 6px;
+  letter-spacing: .14em; text-transform: uppercase; line-height: 1.5;
+  color: var(--text-dim);
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 20px 12px;
 }
-/* La riga di sezione ospita anche il selettore di raggruppamento */
-.side-section { display: flex; align-items: center; gap: 8px; }
-.side-section .seg { margin-left: auto; display: flex; gap: 2px; }
+/* Il contatore è l'unico numero che conta a colpo d'occhio: crosta */
+#count { color: var(--accent); }
+/* Selettore segmentato: il gruppo è un contenitore incassato, il segmento
+   attivo si accende di pomodoro tenue (stesso linguaggio delle tab). */
+.side-section .seg {
+  margin-left: auto; display: flex; gap: 4px; flex: none;
+  background: var(--bg); border: 1px solid var(--divider);
+  border-radius: var(--radius); padding: 4px;
+}
 .seg-btn {
-  font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em;
   text-transform: uppercase; color: var(--text-dim);
-  background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 3px 8px; cursor: pointer;
+  background: transparent; border: 1px solid transparent;
+  border-radius: var(--radius); padding: 5px 10px; cursor: pointer;
 }
-.seg-btn:hover { border-color: var(--border-strong); color: var(--text); }
-.seg-btn[aria-pressed="true"] { background: var(--action-soft); color: var(--text); border-color: var(--border-strong); }
+.seg-btn:hover { color: var(--text-muted); }
+.seg-btn[aria-pressed="true"] { background: var(--action-soft); color: var(--text); border-color: var(--action); }
 /* Due azioni affiancate: Nuova sessione | Resume.
-   Nessuna delle due è piena: il pieno teal resta all'azione di conferma nei
+   Nessuna delle due è piena: il pieno pomodoro resta all'azione di conferma nei
    modali (design-system.md: un solo pulsante pieno per schermata). "Nuova" si
-   distingue col teal del bordo/testo, "Resume" resta neutra. */
-.side-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+   distingue col pomodoro del bordo/testo, "Resume" resta neutra. */
+.side-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 16px 20px; }
 .side-actions .btn {
   width: 100%; min-width: 0;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -111,7 +146,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .btn-glyph { font-family: var(--font-mono); font-size: 14px; line-height: 1; opacity: .9; }
 /* Hover tenue invece del riempimento pieno: stesso linguaggio di tab e chip attivi */
-.side-actions .btn--outline { border-color: var(--border-strong); color: var(--action-text); }
+.side-actions .btn--outline { border-color: var(--action); color: var(--action-text); }
 .side-actions .btn--outline:hover {
   background: var(--action-soft); border-color: var(--action); color: var(--action-text);
 }
@@ -140,7 +175,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .tab-glyph { vertical-align: -0.15em; }
 
 /* ---------- Card sessione ---------- */
-#session-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: var(--gap-xs); }
+#session-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: var(--gap-sm); padding: 0 16px; }
 .session-item {
   position: relative;
   display: flex; align-items: center; gap: var(--gap-sm);
@@ -214,7 +249,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 /* ---------- "L'assistente ha finito": lampeggio flebile della card ----------
    Pulsazione lenta e a basso contrasto (nessun colore di stato nuovo: solo il
-   teal d'azione a bassa opacità). Si spegne quando l'utente apre la sessione. */
+   pomodoro d'azione a bassa opacità). Si spegne quando l'utente apre la sessione. */
 @keyframes attention-pulse {
   0%, 100% { background: var(--surface-2); box-shadow: none; }
   50%      { background: var(--action-soft); box-shadow: inset 0 0 0 1px var(--action-ring); }
@@ -255,7 +290,11 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .dot.claude { background: var(--type-claude); }
 .dot.codex { background: var(--type-codex); }
 .dot.antigravity { background: var(--type-antigravity); }
-.side-footer { display: flex; flex-wrap: wrap; gap: 6px 10px; font-size: 11px; color: var(--text-dim); }
+/* Piede: legenda dei tipi + stato dei binari. Sono due blocchi nel markup ma
+   una fascia sola a vedersi, quindi il separatore lo porta il primo e il
+   padding inferiore il secondo. */
+.side-footer { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 12px; color: var(--text-muted); padding: 0 20px; }
+#session-list + .side-footer { border-top: 1px solid var(--divider); margin-top: 8px; padding-top: 16px; }
 .side-footer.muted { color: var(--text-dim); }
 
 /* ---------- Gruppi sessioni per tipo (collassabili) ---------- */
@@ -271,7 +310,15 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .group-header:hover { border-color: var(--border-strong); background: var(--surface-3); }
 /* Gruppo chiuso che contiene la sessione attiva: stesso marker delle card */
 .group-header.has-active .sel-mark { visibility: visible; }
-.group-header .chevron { color: var(--text-dim); font-size: 11px; width: 14px; flex: 0 0 auto; }
+/* La fetta di pizza al posto della freccina: la punta guarda a destra (gruppo
+   chiuso) e ruota di 90° in senso orario quando il gruppo è aperto, finendo in
+   basso. Il verso lo dà lo stato ARIA dell'header, non un secondo glifo. */
+.group-header .chevron { width: 14px; height: 14px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; }
+.group-header .chevron svg { transform: rotate(0deg); transition: transform 120ms ease; }
+.group-header[aria-expanded="true"] .chevron svg { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) {
+  .group-header .chevron svg { transition: none; }
+}
 .group-header .icon { font-size: 14px; }
 .group-header .group-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .group-count {
@@ -286,12 +333,14 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 /* ---------- Area terminale ---------- */
 #main { flex: 1; position: relative; display: flex; background: var(--bg); }
-#terminals { flex: 1; display: flex; padding: 10px; }
+/* Il terminale non ha cornice: nell'artboard l'area di destra e' il fondo
+   dell'app, senza pannello. Il bordo lo fa gia' la sidebar, e un riquadro
+   attorno al testo ruberebbe colonne alle righe lunghe. */
+#terminals { flex: 1; display: flex; padding: 0; }
 .term-wrap {
   flex: 1; display: none;
   background: var(--bg);
-  border: 1px solid var(--border); border-radius: var(--radius-lg);
-  padding: 8px; overflow: hidden;
+  padding: 14px 16px; overflow: hidden;
 }
 .term-wrap.active { display: block; }
 .term-wrap .xterm { height: 100%; }
@@ -314,7 +363,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   font-size: 13px; font-weight: 500; color: var(--text-muted);
   display: flex; flex-direction: column; gap: 6px;
 }
-/* Input spec: fondo nero, bordo forte, mono 14px, focus teal */
+/* Input spec: fondo nero, bordo forte, mono 14px, focus pomodoro */
 .modal input, .modal select, #resume-search {
   width: 100%; box-sizing: border-box; padding: 12px 15px;
   border-radius: var(--radius);
@@ -370,7 +419,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
-/* Tabs: gruppo su fondo nero con padding 5px; attivo teal tenue + bordo teal */
+/* Tabs: gruppo su fondo nero con padding 5px; attivo pomodoro tenue + bordo pomodoro */
 .tabs {
   display: flex; gap: 6px;
   background: var(--bg); border: 1px solid var(--border);
@@ -431,11 +480,11 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .muted { color: var(--text-muted); font-size: 13px; }
 .muted.small { font-size: 11px; margin: 0; }
 code { background: var(--surface-3); padding: 1px 5px; border-radius: 5px; font-family: var(--font-mono); font-size: 12px; }
-a, .link { color: var(--accent); }
-#deps-status { font-size: 11px; }
+a, .link { color: var(--action-text); }
+#deps-status { font-family: var(--font-mono); font-size: 11px; padding-top: 10px; padding-bottom: 16px; }
 /* Termina (solo con tmux): distinto dalla ✕ che stacca */
 .terminate-x { margin-left: 2px; opacity: .55; }
-.terminate-x:hover { opacity: 1; color: var(--state-error, #E8556E); }
+.terminate-x:hover { opacity: 1; color: var(--state-error); }
 /* Ripristino dopo riavvio: le stesse card della sidebar, con una spunta a sinistra */
 #restore-list { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
 .restore-row { user-select: none; }

@@ -1,4 +1,4 @@
-/* AISessionManager renderer */
+/* PizzaManager renderer */
 const tabs = new Map();
 let activeId = null;
 /* Con tmux le sessioni sopravvivono alla chiusura: la ✕ stacca, «Termina» uccide. */
@@ -14,6 +14,8 @@ const $$ = (s) => [...document.querySelectorAll(s)];
 
 // Marchi ufficiali degli agenti (renderer/agent-icons.js)
 const Icons = window.AisessIcons;
+// Logo dell'app: pizza con la fetta sollevata (renderer/pizza-logo.js)
+const Logo = window.PizzaLogo;
 const Groups = window.AisessGroups;
 const Order = window.AisessOrder;
 const Sidebar = window.AisessSidebar;
@@ -29,8 +31,30 @@ const AI_TYPES = ['opencode', 'claude', 'codex', 'antigravity'];
 const TERM_FONT_SIZE = 15;
 const TERM_LINE_HEIGHT = 1.2;
 
+/* Tema del terminale, allineato ai token (renderer/tokens.css): il fondo e il
+   testo sono gli stessi dell'app, e i tre colori "di stato" della palette
+   prendono il posto dei corrispondenti ANSI, così un ✔ verde del terminale è
+   lo stesso verde del pallino "in esecuzione".
+   Ciano e magenta restano quelli di default di xterm: la palette Forno non ha
+   un colore freddo da prestargli, e reinventarlo caldo li renderebbe
+   indistinguibili dal rosso. */
+const TERM_THEME = {
+  background: '#070505',        // --bg
+  foreground: '#F6F1EC',        // --text
+  cursor: '#F04E23',            // --action
+  selectionBackground: '#2B120A', // --action-soft
+  black: '#070505',
+  brightBlack: '#8A7A72',       // --text-faint
+  white: '#F6F1EC',
+  brightWhite: '#FFFFFF',
+  green: '#7FC45A',             // --state-ok
+  red: '#FF4D74',               // --state-error
+  yellow: '#F2C14E',            // --accent (crosta)
+};
+
 async function init() {
   Icons.hydrate(document);
+  Logo.hydrate(document);
   const d = await window.aisess.getDefaults();
   tmuxAvailable = Boolean(d.tmux && d.tmux.available);
   $('#platform-label').textContent = d.platform + ' · ' + d.shell;
@@ -48,7 +72,7 @@ async function init() {
     };
     for (const n of AI_TYPES) mark('#dep-' + n, deps[n]);
     if (AI_TYPES.some(n => !deps[n] || !deps[n].found)) {
-      console.warn('[AISessionManager] binari mancanti:', deps);
+      console.warn('[PizzaManager] binari mancanti:', deps);
     }
   } catch (e) { console.warn('check-deps fallito', e); }
 
@@ -687,7 +711,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   updateEmpty();
   setActive(id);
 
-  const term = new Terminal({ cursorBlink: true, fontSize: TERM_FONT_SIZE, lineHeight: TERM_LINE_HEIGHT, fontFamily: "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace", theme: { background: '#000000', foreground: '#EFF2F6', cursor: '#1FA79A', selectionBackground: '#0E2E2B', black: '#000000', brightBlack: '#74808F', white: '#EFF2F6', brightWhite: '#FFFFFF', cyan: '#5FD8CB', brightCyan: '#31C3B4', green: '#5BC78F', red: '#E8556E', yellow: '#FF8A6B' } });
+  const term = new Terminal({ cursorBlink: true, fontSize: TERM_FONT_SIZE, lineHeight: TERM_LINE_HEIGHT, fontFamily: "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace", theme: TERM_THEME });
   const fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
   try { term.loadAddon(new WebLinksAddon.WebLinksAddon()); } catch {}
@@ -974,7 +998,8 @@ function restorePlanFor(s) {
    invece che terminare. */
 const sidebar = Sidebar.createSidebar({
   list: $('#session-list'), count: $('#count'),
-  storage: window.localStorage, Icons, Groups, Commands: window.AisessCommands, escapeHtml,
+  storage: window.localStorage, Icons, Slice: window.PizzaSlice,
+  Groups, Commands: window.AisessCommands, escapeHtml,
   modeButtons: { type: $('#group-mode-type'), project: $('#group-mode-project') },
   onSelect: (id) => setActive(id),
   onClose: (id) => { closeTab(id).catch(() => {}); },
@@ -1053,7 +1078,7 @@ function initSidebarResize() {
   const sidebar = $('#sidebar');
   const resizer = $('#sidebar-resizer');
   if (!sidebar || !resizer) return;
-  const DEFAULT_W = 264, MIN_W = 180, MAX_W = 480;
+  const DEFAULT_W = 300, MIN_W = 180, MAX_W = 480;
   try {
     const saved = parseInt(localStorage.getItem('aisess.sidebarW'), 10);
     if (saved >= MIN_W && saved <= MAX_W) sidebar.style.width = saved + 'px';

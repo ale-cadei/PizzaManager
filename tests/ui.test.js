@@ -70,7 +70,7 @@ ok('sidebar: i gruppi arrivano dal modulo, non da una Map costruita a mano', () 
   assert.ok(!/items\.length === 1/.test(body),
     'con una sola sessione il gruppo collassabile viene ancora saltato');
   assert.ok(body.includes('group-header'), "manca l'header di gruppo");
-  assert.ok(body.includes("collapsed ? '▸' : '▾'"), 'manca la freccina di collasso');
+  assert.ok(/<span class="chevron">\$\{Slice\.markup\(\)\}/.test(body), 'manca la fetta di collasso');
   assert.ok(/groupSessions\(/.test(body), 'la sidebar raggruppa ancora per conto suo');
   assert.ok(!/new Map\(GROUP_ORDER/.test(js), 'resta il raggruppamento per tipo cablato nel renderer');
   assert.ok(!/const GROUP_LABELS\s*=/.test(js), 'le etichette dei tipi sono duplicate nel renderer');

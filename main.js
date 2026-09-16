@@ -14,6 +14,7 @@ const { listOpencodeSessions } = require('./lib/opencode-sessions');
 const { listCodexSessions } = require('./lib/codex-sessions');
 const { listAntigravitySessions } = require('./lib/antigravity-sessions');
 const { computeRecentDirs } = require('./lib/recent-dirs');
+const { findProjectRoot } = require('./lib/project-root');
 const { createWindow } = require('./app/window');
 const { runMenuAction } = require('./app/menu');
 const { createPtyManager } = require('./app/pty');
@@ -96,6 +97,15 @@ ipcMain.handle('get-recent-dirs', async (event, { limit } = {}) => {
   } catch (e) {
     console.error('get-recent-dirs fallito:', e);
     return [];
+  }
+});
+
+ipcMain.handle('resolve-project', async (event, { cwd } = {}) => {
+  try {
+    return { ok: true, root: findProjectRoot(cwd) };
+  } catch (e) {
+    console.error('resolve-project fallito:', e);
+    return { ...fail('', e), root: null };
   }
 });
 

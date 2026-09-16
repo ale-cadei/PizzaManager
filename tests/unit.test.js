@@ -263,7 +263,8 @@ ok('group-body collassato e nascosto anche con display flex', () => {
 
 ok('sessione attiva segnalata dal marker, non dal contorno', () => {
   const root = path.join(__dirname, '..');
-  const js = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
+  // Le card le disegna la sidebar, non renderer.js (branch raggruppamento)
+  const js = fs.readFileSync(path.join(root, 'renderer', 'sidebar.js'), 'utf8');
   const css = fs.readFileSync(path.join(root, 'renderer', 'styles.css'), 'utf8');
   assert.ok(js.includes('class="sel-mark"'), 'il renderer non genera il marker di selezione');
   assert.ok(/session-item type-\$\{t\.type\}/.test(js), 'manca la classe di tipo sulla card');

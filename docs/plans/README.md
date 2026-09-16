@@ -52,6 +52,20 @@ l'unica garanzia che un refactor non abbia rotto niente.
 I numeri di riga citati nei piani si riferiscono a `main` al 2026-09-09
 (commit `e6c551a`) e vanno presi come indicazione: cercare per nome di funzione.
 
+## Possibile branch 8 — ripristino dopo un riavvio della macchina
+
+tmux protegge dalla chiusura dell'app, non dal riavvio del computer: le
+sessioni sono processi in memoria e un reboot le termina tutte. Le CLI AI
+conservano la conversazione nei loro file (si riprende dal Resume, a schermo
+pulito); le shell si perdono.
+
+Si può fare di meglio lato app: allo stacco (chiusura scheda o finestra)
+scrivere su disco i metadati che già stanno in tmux; all'avvio, se tmux non ha
+sessioni ma lo snapshot sì, chiedere «Ripristinare le N sessioni di prima?» e
+ricrearle — `claude --resume <id>` nella stessa directory con lo stesso profilo,
+una shell nella stessa directory per il tipo shell. Mezza giornata. Vale la pena
+solo se riavviare con sessioni aperte capita davvero.
+
 ## Backlog — rilevato ma non assegnato a un branch
 
 Cose emerse durante l'analisi che non appartengono a nessuno dei sei branch.

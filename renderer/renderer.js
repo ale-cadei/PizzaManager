@@ -1,6 +1,8 @@
 /* AISessionManager renderer */
 const tabs = new Map();
 let activeId = null;
+/* Con tmux le sessioni sopravvivono alla chiusura: la ✕ stacca, «Termina» uccide. */
+let tmuxAvailable = false;
 let counter = 1;
 let pendingNewType = 'shell';
 let resumeTab = 'opencode';
@@ -30,6 +32,7 @@ const TERM_LINE_HEIGHT = 1.2;
 async function init() {
   Icons.hydrate(document);
   const d = await window.aisess.getDefaults();
+  tmuxAvailable = Boolean(d.tmux && d.tmux.available);
   $('#platform-label').textContent = d.platform + ' · ' + d.shell;
   $('#new-cwd').value = d.homedir;
   try {
@@ -152,6 +155,7 @@ async function init() {
   renderSidebar();
   updateEmpty();
   ensureClaudeAccounts();
+  await reattachLiveSessions();
 }
 
 function openNewModal(type) {
@@ -498,7 +502,13 @@ function applyTitle(tab, title) {
   const next = String(title || '').replace(/\s+/g, ' ').trim().slice(0, 40);
   if (!next || next === tab.name) return false;
   tab.name = next;
+  syncLabel(tab);
   return true;
+}
+
+/** Il nome della scheda si salva sulla sessione tmux: al riattacco torna. */
+function syncLabel(tab) {
+  if (tab && tab.session && tab.alive) window.aisess.setLabel(tab.id, tab.name);
 }
 
 /**
@@ -613,7 +623,7 @@ async function renameTab(tab) {
   if (current === null) return; // annullato
   const clean = String(current).replace(/\s+/g, ' ').trim();
   if (tab.resumeId) titleStore.setName(tab.type, tab.resumeId, clean);
-  if (clean) { tab.name = clean.slice(0, 40); tab.autoNamed = false; }
+  if (clean) { tab.name = clean.slice(0, 40); tab.autoNamed = false; syncLabel(tab); }
   else { tab.autoNamed = true; }
   renderSidebar();
   if (!clean) refreshAutoTitles().catch(() => {});
@@ -641,8 +651,12 @@ async function resolveProjectRoot(cwd) {
   return root;
 }
 
-async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId } = {}) {
-  const picked = await resolveCommandProfile(type, { commandProfileId, cwd, resumeId });
+async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null } = {}) {
+  // attachSession: riaggancio di una sessione tmux gia' viva. Il comando e' gia'
+  // stato risolto quando e' nata, quindi niente scelta del profilo.
+  const picked = attachSession
+    ? { ok: true, id: commandProfileId || null, label: commandProfileLabel || null }
+    : await resolveCommandProfile(type, { commandProfileId, cwd, resumeId });
   if (!picked.ok) return; // scelta annullata: nessuna scheda creata
   const id = 'tab-' + Date.now() + '-' + Math.floor(Math.random() * 1e6);
   const label = name || `${type} · ${counter++}`;
@@ -661,6 +675,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   // contenitore all'apertura, quindi il wrap deve essere già laid out a
   // dimensione piena (altrimenti la prima scheda nasce 20x10).
   const tab = { id, type, name: label, cwd, projectRoot: cwd || null, resumeId, startedAt: Date.now(), autoNamed: !name,
+    session: attachSession, reattached: Boolean(attachSession),
     promptCapture: PromptCapture.createPromptCapture(), namedFromPrompt: false, claudeAccountId, claudeAccountName, commandProfileId: picked.id, commandProfileLabel: picked.label, term: null, fit: null, ro: null, wrap, alive: true, needsAttention: false, idleTimer: null, pendingBytes: 0 };
   tabs.set(id, tab);
   updateEmpty();
@@ -689,13 +704,23 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
     const dims = fit.proposeDimensions();
     if (dims && dims.cols > 0 && dims.rows > 0) { cols = dims.cols; rows = dims.rows; }
   } catch {}
-  const res = await window.aisess.spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId: picked.id, cols, rows });
-  if (!res.ok) {
+  const res = attachSession
+    ? await window.aisess.attach({ id, session: attachSession, cols, rows })
+    : await window.aisess.spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId: picked.id, label, cols, rows });
+  if (!res.ok && res.gone) {
+    // La sessione tmux non c'e' piu' (riavvio della macchina, terminata altrove):
+    // caso normale, non un errore. Si offre la strada per ricrearla.
+    term.write('\x1b[90mQuesta sessione non è più attiva sulla macchina.\x1b[0m\r\n');
+    if (resumeId) term.write('\x1b[90mPuoi riprenderla dal dialog ⟲ Resume: la conversazione è salvata dal CLI.\x1b[0m\r\n');
+    else term.write('\x1b[90mAvviane una nuova con ＋ Nuova sessione.\x1b[0m\r\n');
+    tab.alive = false;
+  } else if (!res.ok) {
     const msg = String(res.error || 'errore sconosciuto').replace(/\n/g, '\r\n');
     term.write(`\x1b[31mErrore avvio [${type}]: ${msg}\x1b[0m\r\n`);
     term.write(`\x1b[90mSuggerimento: apri un Terminale e verifica con: which ${type === 'shell' ? 'bash' : type} && ${type === 'shell' ? 'echo ok' : type + ' --version'}\x1b[0m\r\n`);
     tab.alive = false;
   } else {
+    if (res.session) tab.session = res.session;
     // Il main può spostare la sessione (cwd vuota, con ~ o inesistente finisce
     // nella home): senza la directory vera il titolo automatico non troverebbe
     // mai la conversazione, che viene riconosciuta proprio dalla directory.
@@ -824,9 +849,42 @@ async function closeTab(id) {
   renderSidebar();
 }
 
+/** Termina davvero: uccide la sessione tmux e poi chiude la scheda. */
+async function terminateTab(id) {
+  const t = tabs.get(id);
+  if (!t) return;
+  if (t.session && t.alive && !confirm(`Terminare «${t.name}»?\nIl processo verrà chiuso: non sarà più possibile riattaccarsi.`)) return;
+  await window.aisess.terminate(id);
+  await closeTab(id);
+}
+
+/**
+ * All'avvio: le sessioni tmux vive dell'app tornano come schede, riattaccate.
+ * E' il motivo per cui esiste il backend tmux (docs/plans/06-tmux-backend.md).
+ */
+async function reattachLiveSessions() {
+  if (!tmuxAvailable) return;
+  let live = [];
+  try { live = await window.aisess.listLive(); } catch (e) { console.warn('list-live-sessions fallito', e); return; }
+  for (const s of live) {
+    if (s.attachedHere) continue;
+    await createTab(s.type || 'shell', {
+      name: s.label || null,
+      cwd: s.cwd || undefined,
+      resumeId: s.resumeId || null,
+      claudeAccountId: s.accountId || null,
+      commandProfileId: s.profileId || null,
+      commandProfileLabel: s.profileLabel || null,
+      attachSession: s.name,
+    });
+  }
+}
+
 /* ---------- Sidebar delle sessioni aperte ----------
    Il modulo non conosce le schede: le riceve a ogni render e restituisce le
-   azioni come callback. Qui restano `tabs` e `activeId`, che sono suoi. */
+   azioni come callback. Qui restano `tabs` e `activeId`, che sono suoi — e
+   `tmuxAvailable`, per cui è il renderer a dire quali card si possono staccare
+   invece che terminare. */
 const sidebar = Sidebar.createSidebar({
   list: $('#session-list'), count: $('#count'),
   storage: window.localStorage, Icons, Groups, Commands: window.AisessCommands, escapeHtml,
@@ -834,6 +892,8 @@ const sidebar = Sidebar.createSidebar({
   onSelect: (id) => setActive(id),
   onClose: (id) => { closeTab(id).catch(() => {}); },
   onRename: (t) => { renameTab(t).catch(() => {}); },
+  canDetach: (t) => Boolean(tmuxAvailable && t.session && t.alive),
+  onTerminate: (id) => { terminateTab(id).catch(() => {}); },
   onReorder: (movedId, targetId, opts) => {
     const next = Order.moveAdjacent(sessionOrder, movedId, targetId, opts);
     if (next === sessionOrder) return;

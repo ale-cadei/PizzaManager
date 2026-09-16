@@ -41,6 +41,8 @@
    *   modeButtons?: {type: Element, project: Element},
    *   onSelect: (id: string) => void, onClose: (id: string) => void,
    *   onRename: (session: object) => void,
+   *   canDetach?: (session: object) => boolean,
+   *   onTerminate?: (id: string) => void,
    *   onReorder?: (movedId: string, targetId: string, opts: {before: boolean}) => void}} deps
    */
   function createSidebar(deps) {
@@ -48,6 +50,12 @@
     const Commands = deps.Commands || null;
     const modeButtons = deps.modeButtons || {};
     const onReorder = typeof deps.onReorder === 'function' ? deps.onReorder : null;
+    /* Se una sessione si possa staccare invece che chiudere dipende da tmux e
+       dallo stato della scheda: sono cose del renderer, non della sidebar, che
+       si limita a chiedere. Senza il predicato la ✕ chiude e basta, come prima
+       di tmux. */
+    const canDetach = typeof deps.canDetach === 'function' ? deps.canDetach : () => false;
+    const onTerminate = typeof deps.onTerminate === 'function' ? deps.onTerminate : null;
 
     /* Collassi in liste separate per modalità: collassare "Claude" e collassare
        "aisessionmanager" sono scelte diverse e nella stessa chiave
@@ -195,9 +203,20 @@
         onSelect(t.id);
       };
       b.title = b.title || 'Doppio click per rinominare';
+      // Con tmux la ✕ stacca (la sessione resta viva): chi vuole chiudere il
+      // processo per davvero ha un secondo pulsante, non la stessa ✕.
+      const detachable = canDetach(t);
       const x = document.createElement('span');
-      x.className = 'close-x'; x.textContent = '✕'; x.title = 'Chiudi';
+      x.className = 'close-x'; x.textContent = '✕';
+      x.title = detachable ? 'Stacca — la sessione resta viva, la ritrovi alla riapertura' : 'Chiudi';
       x.onclick = (e) => { e.stopPropagation(); onClose(t.id); };
+      if (detachable && onTerminate) {
+        const k = document.createElement('span');
+        k.className = 'close-x terminate-x'; k.textContent = '⏻';
+        k.title = 'Termina — chiude il processo per davvero';
+        k.onclick = (e) => { e.stopPropagation(); onTerminate(t.id); };
+        b.appendChild(k);
+      }
       b.appendChild(x);
       attachDrag(b, t, groupKey);
       return b;

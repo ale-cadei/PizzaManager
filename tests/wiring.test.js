@@ -113,3 +113,45 @@ ok('claude: account a chiave API + profilo con CLAUDE_CONFIG_DIR viene bloccato 
   assert.deepStrictEqual(history.load(), [], 'un avvio rifiutato non va in cronologia');
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+// ---------- Correzioni del branch 3 ----------
+ok('profili: il file puo contenere segreti e non e leggibile da altri utenti', () => {
+  const { createProfileStore, FILE_MODE } = require('../lib/profiles');
+  const dir = tmp('ais-prof-');
+  const profiles = createProfileStore({ dir });
+  profiles.save({ profiles: profiles.defaults() });
+  assert.strictEqual(fs.statSync(profiles.file).mode & 0o777, FILE_MODE, 'permessi diversi da 600');
+  // anche riscrivendo un file gia' esistente (writeFileSync applica mode solo alla creazione)
+  fs.chmodSync(profiles.file, 0o644);
+  profiles.save({ profiles: profiles.defaults() });
+  assert.strictEqual(fs.statSync(profiles.file).mode & 0o777, FILE_MODE, 'la riscrittura ha perso il 600');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+ok('claude: ANTHROPIC_API_KEY nel profilo + account a chiave API viene bloccato come il caso CLAUDE_CONFIG_DIR', () => {
+  const { createPtyManager } = require('../app/pty');
+  const { createAccountStore } = require('../lib/accounts');
+  const { createHistoryStore } = require('../lib/history');
+  const { createProfileStore } = require('../lib/profiles');
+  const dir = tmp('ais-pty-');
+  const accounts = createAccountStore({ dir });
+  const history = createHistoryStore({ dir });
+  const profiles = createProfileStore({ dir });
+  accounts.add({ name: 'lavoro', apiKey: 'sk-ant-account' });
+  const accId = accounts.list()[0].id;
+  const cfg = profiles.load();
+  cfg.profiles.claude = [{ id: 'claude:k', label: 'Con chiave', command: 'ANTHROPIC_API_KEY=sk-ant-nel-profilo /bin/sh', resumeArgs: '' }];
+  profiles.save(cfg);
+
+  const mgr = createPtyManager({ accounts: () => accounts, history: () => history, profiles, sendToRenderer: () => {} });
+  const r = mgr.spawn({ id: 't2', type: 'claude', cwd: dir, claudeAccountId: accId, commandProfileId: 'claude:k' });
+  assert.strictEqual(r.ok, false);
+  assert.ok(/imposta già ANTHROPIC_API_KEY/.test(r.error), r.error);
+  assert.strictEqual(mgr.size, 0);
+
+  // con OAuth invece il profilo con la chiave e' legittimo: e' la scelta esplicita dell'utente
+  const ok2 = mgr.spawn({ id: 't3', type: 'claude', cwd: dir, claudeAccountId: 'oauth', commandProfileId: 'claude:k' });
+  assert.strictEqual(ok2.ok, true, ok2.error);
+  mgr.kill('t3');
+  fs.rmSync(dir, { recursive: true, force: true });
+});

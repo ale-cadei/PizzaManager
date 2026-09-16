@@ -12,7 +12,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 3 | [`fix/security`](03-security.md) | 2 | ~1h | ✅ fatto (ridotto, vedi 03) |
 | 4 | [`fix/robustness`](04-robustness.md) | 2 | ~4h | parziale: menubar in-app ✅ |
 | 5 | [`spike/tmux`](05-spike-tmux.md) | — | ~4h | ✅ fatto, [risultati](05-risultati.md) |
-| 6 | [`feat/tmux-backend`](06-tmux-backend.md) | 2, 5 | 3-5 gg | sbloccato, da fare |
+| 6 | [`feat/tmux-backend`](06-tmux-backend.md) | 2, 5 | 1 g | ✅ fatto |
 | 7 | [`feat/claude-account-login`](07-account-claude-login.md) | — | 1-2 gg | proposto, non pianificato |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.

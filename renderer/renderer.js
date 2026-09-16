@@ -183,10 +183,12 @@ async function init() {
   await offerRestore();
 }
 
-function openNewModal(type) {
+async function openNewModal(type) {
   if (type) pendingNewType = type;
   $$('.type-card').forEach(x => x.classList.toggle('selected', x.dataset.type === pendingNewType));
-  updateClaudeAccountRow();
+  // Il modal si apre DOPO che la riga account e' pronta: prima compariva un
+  // istante senza, e con piu' account Claude la riga arrivava a modal gia' aperto.
+  await updateClaudeAccountRow();
   $('#modal-new').hidden = false;
   renderRecentDirs();
 }
@@ -410,6 +412,14 @@ async function renderResumeList(keepCache = false) {
   }
   box.innerHTML = '';
   for (const s of items.slice(0, 80)) box.appendChild(createResumeItem(resumeTab, s));
+  // Il lister puo' aver scartato file illeggibili o in un formato inatteso:
+  // meglio dirlo che lasciar credere che la lista sia completa.
+  if (data.skipped > 0) {
+    const note = document.createElement('p');
+    note.className = 'muted small';
+    note.textContent = data.skipped === 1 ? '1 sessione non leggibile, esclusa dall\'elenco.' : `${data.skipped} sessioni non leggibili, escluse dall'elenco.`;
+    box.appendChild(note);
+  }
 }
 
 /* Descrittori per tab: come mostrare una voce e come riaprirla.

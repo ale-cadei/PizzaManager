@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain, clipboard, dialog } = require('electron');
 const fs = require('fs');
 const os = require('os');
 const { getDefaultShell } = require('./lib/shell');
-const { getLoginPathSync } = require('./lib/login-path');
+const { getLoginPathSync, primeLoginPath } = require('./lib/login-path');
 const path = require('path');
 const { resolveAllBinaries } = require('./lib/binaries');
 const { detectTmux } = require('./lib/tmux');
@@ -55,6 +55,9 @@ function fail(prefix, e) {
 ipcMain.handle('menu-action', async (event, { action } = {}) => runMenuAction(action, mainWindow));
 
 app.whenReady().then(() => {
+  // La shell di login si interroga in background: la finestra appare subito,
+  // gli handler che hanno bisogno del PATH completo la aspettano (await).
+  primeLoginPath();
   mainWindow = createWindow({ onRendererReload: () => ptys.closeAll() });
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow({ onRendererReload: () => ptys.closeAll() });
@@ -84,16 +87,22 @@ ipcMain.handle('discard-restorable', async () => ptys.discardRestorable());
 ipcMain.handle('terminate-session', async (event, { session } = {}) => ptys.terminateSession(session));
 
 // ---------- Ambiente ----------
-ipcMain.handle('get-defaults', async () => ({
-  shell: getDefaultShell(),
-  homedir: os.homedir(),
-  platform: process.platform,
-  path: getLoginPathSync(),
-  binaries: resolveAllBinaries(),
-  tmux: { available: ptys.viaTmux, path: tmux ? tmux.bin : null },
-}));
+ipcMain.handle('get-defaults', async () => {
+  await primeLoginPath();
+  return {
+    shell: getDefaultShell(),
+    homedir: os.homedir(),
+    platform: process.platform,
+    path: getLoginPathSync(),
+    binaries: resolveAllBinaries(),
+    tmux: { available: ptys.viaTmux, path: tmux ? tmux.bin : null },
+  };
+});
 
-ipcMain.handle('check-deps', async () => ({ ...resolveAllBinaries(), path: getLoginPathSync() }));
+ipcMain.handle('check-deps', async () => {
+  await primeLoginPath();
+  return { ...resolveAllBinaries(), path: getLoginPathSync() };
+});
 
 ipcMain.handle('dialog-cwd', async () => {
   const r = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });

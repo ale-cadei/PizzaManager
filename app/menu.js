@@ -1,7 +1,7 @@
 'use strict';
 const { app, Menu, shell: electronShell } = require('electron');
 
-const REPO_URL = 'https://github.com/aisessionmanager/aisessionmanager';
+const REPO_URL = 'https://github.com/ale-cadei/AISessionManager';
 
 /**
  * Menu applicativo nativo.

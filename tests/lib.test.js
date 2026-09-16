@@ -170,11 +170,31 @@ ok('i file che non sono .jsonl vengono ignorati', () => {
 // ---------- lib/opencode-sessions ----------
 const { listOpencodeSessions } = require('../lib/opencode-sessions');
 
-ok('un output JSON non valido di opencode diventa un errore leggibile', async () => {
+ok('opencode: zero sessioni (output vuoto) e un risultato, non un errore', async () => {
+  // opencode con nessuna sessione non stampa nemmeno "[]": prima l'utente leggeva "Parse JSON fallito"
+  const r = await listOpencodeSessions(5, { run: (c, a, o, cb) => cb(null, '', '') });
+  assert.strictEqual(r.ok, true);
+  assert.deepStrictEqual(r.sessions, []);
+});
+
+ok('opencode: un output non JSON e un errore che dice cosa e arrivato', async () => {
   const r = await listOpencodeSessions(5, { run: (c, a, o, cb) => cb(null, 'non e json', '') });
   assert.strictEqual(r.ok, false);
-  assert.ok(r.error.includes('Parse JSON'), r.error);
-  assert.deepStrictEqual(r.sessions, []);
+  assert.ok(r.error.includes('non è JSON') && r.error.includes('non e json'), r.error);
+});
+
+ok('opencode: JSON valido ma non un elenco = formato cambiato, segnalato come tale', async () => {
+  const r = await listOpencodeSessions(5, { run: (c, a, o, cb) => cb(null, '{"sessions": []}', '') });
+  assert.strictEqual(r.ok, false);
+  assert.ok(/formato inatteso/.test(r.error), r.error);
+});
+
+ok('opencode: le voci senza id vengono scartate e contate, le altre passano', async () => {
+  const out = JSON.stringify([{ id: 'ses_1', title: 'ok' }, { title: 'senza id' }, null, { id: 'ses_2' }]);
+  const r = await listOpencodeSessions(5, { run: (c, a, o, cb) => cb(null, out, '') });
+  assert.strictEqual(r.ok, true);
+  assert.deepStrictEqual(r.sessions.map((s) => s.id), ['ses_1', 'ses_2']);
+  assert.strictEqual(r.skipped, 2);
 });
 
 ok('un errore di esecuzione di opencode riporta lo stderr', async () => {
@@ -188,4 +208,57 @@ ok('un elenco valido viene restituito cosi com e', async () => {
   const r = await listOpencodeSessions(5, { run: (c, a, o, cb) => cb(null, JSON.stringify(sessioni), '') });
   assert.strictEqual(r.ok, true);
   assert.deepStrictEqual(r.sessions, sessioni);
+});
+
+// ---------- lib/login-path: mai bloccare il main ----------
+const { primeLoginPath, getLoginPathSync, resetLoginPathCache, computeLoginPathAsync } = require('../lib/login-path');
+
+ok('getLoginPathSync non interroga mai la shell: a cache fredda da il PATH del processo, subito', () => {
+  resetLoginPathCache();
+  const p = getLoginPathSync({ env: { PATH: '/bin:/usr/bin' } });
+  assert.strictEqual(p, '/bin:/usr/bin');
+});
+
+ok('primeLoginPath: chiamate concorrenti condividono UNA shell, e riempiono la cache', async () => {
+  resetLoginPathCache();
+  let calls = 0;
+  const run = (sh, args, opts, cb) => { calls++; setTimeout(() => cb(null, '/opt/homebrew/bin:/usr/bin\n'), 10); };
+  const [a, b, c] = await Promise.all([
+    primeLoginPath({ env: { PATH: '/bin' }, run, shell: '/bin/zsh' }),
+    primeLoginPath({ env: { PATH: '/bin' }, run, shell: '/bin/zsh' }),
+    primeLoginPath({ env: { PATH: '/bin' }, run, shell: '/bin/zsh' }),
+  ]);
+  assert.strictEqual(calls, 1, 'tre chiamate all avvio devono lanciare una sola shell');
+  assert.strictEqual(a, '/opt/homebrew/bin:/usr/bin:/bin');
+  assert.strictEqual(b, a); assert.strictEqual(c, a);
+  assert.strictEqual(getLoginPathSync(), a, 'dopo il prime la versione sincrona serve la cache');
+  resetLoginPathCache();
+});
+
+ok('computeLoginPathAsync: se la shell fallisce si resta col PATH del processo', async () => {
+  const p = await computeLoginPathAsync({ env: { PATH: '/bin' }, run: (s, a, o, cb) => cb(new Error('timeout')), shell: '/bin/zsh' });
+  assert.strictEqual(p, '/bin');
+});
+
+ok('computeLoginPathAsync: legge solo l ultima riga, le rc possono stampare', async () => {
+  const p = await computeLoginPathAsync({ env: { PATH: '/bin' }, run: (s, a, o, cb) => cb(null, 'Benvenuto!\n/opt/bin:/usr/bin\n'), shell: '/bin/zsh' });
+  assert.strictEqual(p, '/opt/bin:/usr/bin:/bin');
+});
+
+ok('claude-sessions: i file illeggibili vengono contati, non nascosti', () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-proj-'));
+  const proj = path.join(base, '-Users-tizio-app');
+  fs.mkdirSync(proj);
+  fs.writeFileSync(path.join(proj, 'buona.jsonl'), '{"summary":"ok"}\n');
+  // una directory di progetto illeggibile (permessi) va contata come scarto
+  const chiusa = path.join(base, '-Users-tizio-chiusa');
+  fs.mkdirSync(chiusa, { mode: 0o000 });
+  const { listClaudeSessions } = require('../lib/claude-sessions');
+  const r = listClaudeSessions(null, { base });
+  fs.chmodSync(chiusa, 0o755);
+  fs.rmSync(base, { recursive: true, force: true });
+  if (process.getuid && process.getuid() === 0) return; // root legge tutto: il caso non si riproduce
+  assert.strictEqual(r.ok, true);
+  assert.deepStrictEqual(r.sessions.map((s) => s.id), ['buona']);
+  assert.strictEqual(r.skipped, 1, 'la directory illeggibile doveva essere contata');
 });

@@ -5,6 +5,12 @@ contextBridge.exposeInMainWorld('aisess', {
   write: (id, data) => ipcRenderer.send('pty-write', { id, data }),
   resize: (id, cols, rows) => ipcRenderer.send('pty-resize', { id, cols, rows }),
   kill: (id) => ipcRenderer.invoke('pty-kill', { id }),
+  // Sessioni dentro tmux: riattacco e terminazione esplicita
+  attach: (opts) => ipcRenderer.invoke('pty-attach', opts),
+  terminate: (id) => ipcRenderer.invoke('pty-terminate', { id }),
+  listLive: () => ipcRenderer.invoke('list-live-sessions'),
+  setLabel: (id, label) => ipcRenderer.send('pty-set-label', { id, label }),
+  terminateSession: (session) => ipcRenderer.invoke('terminate-session', { session }),
   onData: (cb) => ipcRenderer.on('pty-data', (_e, v) => cb(v)),
   onExit: (cb) => ipcRenderer.on('pty-exit', (_e, v) => cb(v)),
   getDefaults: () => ipcRenderer.invoke('get-defaults'),

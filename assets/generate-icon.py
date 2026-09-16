@@ -9,13 +9,15 @@ Produce:
   i pannelli che non riscalano (dock, launcher, alt-tab) mostrano l'icona
   sgranata o quella generica.
 
-Disegno ("pizza"): quadrato scuro con bordo teal e una pizza tagliata in
+Disegno ("pizza"): quadrato scuro con bordo pomodoro e una pizza tagliata in
 spicchi, ciascuno scostato radialmente dal centro cosi' che i tagli restino
 leggibili anche a 16x16. Ogni spicchio e' un settore di cornicione con sopra
 un settore piu' piccolo di formaggio e due dischetti di salame.
 
-Colori allineati ai token del design system (--action per il bordo,
---accent per il salame).
+Colori della palette "Forno" (renderer/tokens.css): fondo --bg, bordo
+--action, e gli stessi cornicione/formaggio/salame degli SVG del renderer
+(renderer/pizza-logo.js, renderer/pizza-slice.js), cosi' icona di sistema e
+logo nella sidebar sono la stessa pizza.
 
 Uso: python3 assets/generate-icon.py
 """
@@ -24,11 +26,11 @@ import os
 from PIL import Image, ImageDraw
 
 # Colori (vedi renderer/tokens.css)
-BG = (11, 10, 14, 255)           # fondo scuro, in tema con --bg
-TEAL = (31, 167, 154, 255)       # --action  #1FA79A
-PEPPERONI = (255, 138, 107, 255)  # --accent  #FF8A6B
-CRUST = (214, 154, 78, 255)      # cornicione
-CHEESE = (247, 201, 106, 255)    # formaggio
+BG = (7, 5, 5, 255)              # --bg       #070505
+ACTION = (240, 78, 35, 255)      # --action   #F04E23, il bordo
+PEPPERONI = (226, 65, 42, 255)   # salame     #E2412A
+CRUST = (231, 163, 60, 255)      # cornicione #E7A33C
+CHEESE = (245, 196, 90, 255)     # formaggio  #F5C45A
 
 SIZE = 1024
 SUPERSAMPLE = 4  # disegna 4x e riduci: bordi antialiasati
@@ -90,12 +92,12 @@ def draw_icon(side: int) -> Image.Image:
     img = Image.new('RGBA', (side, side), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # Fondo scuro con bordo teal
+    # Fondo scuro con bordo pomodoro
     draw.rounded_rectangle(
         (0, 0, side - 1, side - 1),
         radius=round(CORNER_RADIUS * side),
         fill=BG,
-        outline=TEAL,
+        outline=ACTION,
         width=max(1, round(BORDER_WIDTH * side)),
     )
 

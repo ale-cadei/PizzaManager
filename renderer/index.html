@@ -29,12 +29,12 @@
 " />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="color-scheme" content="dark" />
-<meta name="theme-color" content="#000000" />
+<meta name="theme-color" content="#070505" />
 <title>PizzaManager</title>
 <link rel="icon" type="image/png" href="../assets/icon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" />
 <link rel="stylesheet" href="../node_modules/@xterm/xterm/css/xterm.css" />
 <link rel="stylesheet" href="tokens.css" />
 <link rel="stylesheet" href="styles.css" />
@@ -97,8 +97,11 @@
 <div id="app">
   <aside id="sidebar">
     <div class="brand">
-      <img class="logo" src="../assets/icon.png" alt="PizzaManager" />
-      <div>
+      <!-- Il logo lo disegna renderer/pizza-logo.js: SVG invece della PNG
+           dell'app perché qui la fetta sollevata deve restare nitida a ogni
+           zoom della finestra. -->
+      <span class="logo" data-pizza-logo></span>
+      <div class="brand-text">
         <div class="brand-name">PizzaManager</div>
         <div class="brand-sub" id="platform-label">linux</div>
       </div>
@@ -280,6 +283,7 @@
 <script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
 <script src="../node_modules/@xterm/addon-web-links/lib/addon-web-links.js"></script>
 <script src="agent-icons.js"></script>
+<script src="pizza-logo.js"></script>
 <script src="pizza-slice.js"></script>
 <script src="session-titles.js"></script>
 <script src="session-groups.js"></script>

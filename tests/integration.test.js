@@ -29,12 +29,12 @@ ok('opencode: `session list --format json` produce ancora un array JSON', (t) =>
   } catch (e) {
     return t.skip('opencode presente ma non interrogabile: ' + (e.message || e));
   }
-  const testo = out.toString().trim();
-  // Con zero sessioni opencode non stampa nulla, nemmeno "[]". Non c'e' niente
-  // da verificare sul formato — ed e' il caso che oggi manda in errore il
-  // dialog Resume: vedi docs/plans/04-robustness.md.
-  if (!testo) return t.skip('nessuna sessione opencode su questa macchina');
-  assert.ok(Array.isArray(JSON.parse(testo)), 'opencode non restituisce piu un array: il dialog Resume si rompe');
+  // Qualunque cosa stampi opencode — niente (zero sessioni), un array, altro —
+  // il parser dell'app deve produrre un risultato leggibile, mai un'eccezione.
+  const { parseSessionOutput } = require('../lib/opencode-sessions');
+  const r = parseSessionOutput(out.toString());
+  if (!out.toString().trim()) { assert.deepStrictEqual(r, { ok: true, sessions: [] }); return; }
+  assert.strictEqual(r.ok, true, 'opencode ha cambiato formato: ' + (r.error || ''));
 });
 
 // ---------- tmux: il ciclo per cui esiste il branch 6 ----------

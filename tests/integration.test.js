@@ -111,13 +111,21 @@ ok('tmux: la sessione sopravvive allo stacco del client e si riattacca con i met
     await wait(200);
     assert.strictEqual((await app2.listLive())[0].attachedHere, true);
 
+    // 3-bis. hard refresh: il renderer nuovo riattacca una sessione che ha gia' un
+    // client (del renderer morto). Il client vecchio va via, non se ne sommano due.
+    const again = await app2.attach({ id: 'tab2-dopo-reload', session: r.session, cols: 80, rows: 24 });
+    assert.strictEqual(again.ok, true, again.error);
+    await wait(200);
+    assert.strictEqual(app2.size, 1, 'il client stale della stessa sessione doveva essere chiuso');
+    app2.write('tab2', 'x'); // il vecchio id non deve piu' scrivere da nessuna parte (non deve lanciare)
+
     // 4. una sessione sparita e un caso normale, non un errore
     const gone = await app2.attach({ id: 'tab3', session: 'ais-shell-inesistente', cols: 80, rows: 24 });
     assert.strictEqual(gone.ok, false);
     assert.strictEqual(gone.gone, true, 'deve dichiararla sparita, non un errore generico');
 
     // 5. termina per davvero: la sessione non c'e piu
-    await app2.terminate('tab2');
+    await app2.terminate('tab2-dopo-reload');
     await wait(300);
     assert.strictEqual(await control.has(r.session), false, 'dopo terminate la sessione deve essere morta');
     assert.deepStrictEqual(await app2.listLive(), []);

@@ -107,7 +107,12 @@
       <button class="btn btn--outline" id="btn-new" title="Crea una nuova sessione (il tipo si sceglie nel dialog)"><span class="btn-glyph" aria-hidden="true">+</span>Nuova</button>
       <button class="btn btn--ghost" id="btn-resume" title="Riprendi una vecchia sessione"><span class="btn-glyph" aria-hidden="true">⟲</span>Resume</button>
     </div>
-    <div class="side-section">SESSIONI APERTE <span id="count"></span></div>
+    <div class="side-section">SESSIONI APERTE <span id="count"></span>
+      <div class="seg" role="group" aria-label="Raggruppa le sessioni">
+        <button type="button" class="seg-btn" id="group-mode-type" aria-pressed="true" title="Raggruppa per tipo di sessione">Tipo</button>
+        <button type="button" class="seg-btn" id="group-mode-project" aria-pressed="false" title="Raggruppa per progetto (radice del repository)">Progetto</button>
+      </div>
+    </div>
     <div id="session-list"></div>
     <div class="side-footer">
       <span class="legend"><i class="dot shell"></i>shell</span>
@@ -262,6 +267,8 @@
 <script src="../node_modules/@xterm/addon-web-links/lib/addon-web-links.js"></script>
 <script src="agent-icons.js"></script>
 <script src="session-titles.js"></script>
+<script src="session-groups.js"></script>
+<script src="sidebar.js"></script>
 <script src="prompt-capture.js"></script>
 <script src="term-clipboard.js"></script>
 <script src="command-config.js"></script>

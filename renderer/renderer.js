@@ -12,6 +12,8 @@ const $$ = (s) => [...document.querySelectorAll(s)];
 
 // Marchi ufficiali degli agenti (renderer/agent-icons.js)
 const Icons = window.AisessIcons;
+const Groups = window.AisessGroups;
+const Sidebar = window.AisessSidebar;
 const Titles = window.AisessTitles;
 const PromptCapture = window.AisessPromptCapture;
 /* I nomi rinominati a mano sopravvivono alla chiusura dell'app: stanno in
@@ -62,6 +64,8 @@ async function init() {
   window.onCommandProfilesChanged = () => renderSidebar();
 
   initSidebarResize();
+  $('#group-mode-type').addEventListener('click', () => { if (sidebar.setMode('type')) renderSidebar(); });
+  $('#group-mode-project').addEventListener('click', () => { if (sidebar.setMode('project')) renderSidebar(); });
   initMenubar(d.platform);
 
   // new modal
@@ -187,7 +191,7 @@ async function renderRecentDirs() {
     else icon.textContent = '📁';
     const label = document.createElement('span');
     label.className = 'dir-chip-path';
-    label.textContent = shortPath(d.path);
+    label.textContent = Groups.shortPath(d.path);
     b.append(icon, label);
     b.addEventListener('click', () => {
       $('#new-cwd').value = d.path;
@@ -567,7 +571,7 @@ function askSessionName(tab) {
   if (!backdrop || !input || !confirmBtn || !cancelBtn) return Promise.resolve(null);
 
   const sub = $('#rename-sub');
-  if (sub) sub.textContent = [GROUP_LABELS[tab.type] || tab.type, shortPath(tab.cwd)].filter(Boolean).join(' · ');
+  if (sub) sub.textContent = [Groups.TYPE_LABELS[tab.type] || tab.type, Groups.shortPath(tab.cwd)].filter(Boolean).join(' · ');
   input.value = tab.name || '';
   backdrop.hidden = false;
   input.focus();
@@ -614,6 +618,28 @@ async function renameTab(tab) {
   if (!clean) refreshAutoTitles().catch(() => {});
 }
 
+/* ---------- Radice di progetto delle schede ----------
+   La risalita la fa il main (il renderer non vede il filesystem). Il risultato
+   si mette in cache per directory: aprire dieci sessioni nello stesso repo non
+   deve costare dieci risalite. In caso di errore vale la cwd, così la scheda
+   ha comunque un gruppo. */
+const projectRootCache = new Map();
+
+async function resolveProjectRoot(cwd) {
+  if (!cwd) return null;
+  if (projectRootCache.has(cwd)) return projectRootCache.get(cwd);
+  let root = cwd;
+  try {
+    const r = await window.aisess.resolveProject(cwd);
+    if (r && r.ok && typeof r.root === 'string' && r.root) root = r.root;
+    else if (r && !r.ok) console.warn('resolve-project fallito:', r.error);
+  } catch (e) {
+    console.warn('resolve-project non raggiungibile', e);
+  }
+  projectRootCache.set(cwd, root);
+  return root;
+}
+
 async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId } = {}) {
   const picked = await resolveCommandProfile(type, { commandProfileId, cwd, resumeId });
   if (!picked.ok) return; // scelta annullata: nessuna scheda creata
@@ -633,7 +659,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   // Registra e rendi visibile PRIMA di aprire il terminale: xterm misura il
   // contenitore all'apertura, quindi il wrap deve essere già laid out a
   // dimensione piena (altrimenti la prima scheda nasce 20x10).
-  const tab = { id, type, name: label, cwd, resumeId, startedAt: Date.now(), autoNamed: !name,
+  const tab = { id, type, name: label, cwd, projectRoot: cwd || null, resumeId, startedAt: Date.now(), autoNamed: !name,
     promptCapture: PromptCapture.createPromptCapture(), namedFromPrompt: false, claudeAccountId, claudeAccountName, commandProfileId: picked.id, commandProfileLabel: picked.label, term: null, fit: null, ro: null, wrap, alive: true, needsAttention: false, idleTimer: null, pendingBytes: 0 };
   tabs.set(id, tab);
   updateEmpty();
@@ -673,6 +699,13 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
     // nella home): senza la directory vera il titolo automatico non troverebbe
     // mai la conversazione, che viene riconosciuta proprio dalla directory.
     if (res.cwd) tab.cwd = res.cwd;
+    // La radice si risolve sulla directory davvero usata dal pty, non su quella
+    // digitata: con cwd vuota o inesistente il main sposta la sessione altrove.
+    resolveProjectRoot(tab.cwd).then((root) => {
+      if (!tabs.has(id) || root === tab.projectRoot) return;
+      tab.projectRoot = root;
+      renderSidebar();
+    }).catch(() => {});
     // Fit definitivo a layout assestato (doppio rAF)
     requestAnimationFrame(() => requestAnimationFrame(() => refitTab(id)));
   }
@@ -714,10 +747,7 @@ function setActive(id) {
   // Va fatto SOLO qui e non in renderSidebar(), altrimenti il click sull'header
   // richiuderebbe e riaprirebbe subito il gruppo della scheda attiva.
   const t = tabs.get(id);
-  if (t && collapsedGroups.has(t.type)) {
-    collapsedGroups.delete(t.type);
-    saveCollapsedGroups();
-  }
+  if (t) sidebar.expandGroupOf(t);
   renderSidebar();
   setTimeout(() => fitActive(), 30);
 }
@@ -793,115 +823,18 @@ async function closeTab(id) {
   renderSidebar();
 }
 
-/* ---------- Raggruppamento card per tipo (gruppi collassabili) ---------- */
-const GROUP_ORDER = ['shell', 'opencode', 'claude', 'codex', 'antigravity'];
-const GROUP_LABELS = { shell: 'Terminale', opencode: 'OpenCode', claude: 'Claude', codex: 'Codex', antigravity: 'Antigravity' };
-let collapsedGroups = new Set();
-try {
-  const saved = JSON.parse(localStorage.getItem('aisess.collapsedGroups') || '[]');
-  if (Array.isArray(saved)) collapsedGroups = new Set(saved.filter(t => GROUP_ORDER.includes(t)));
-} catch {}
-function saveCollapsedGroups() {
-  try { localStorage.setItem('aisess.collapsedGroups', JSON.stringify([...collapsedGroups])); } catch {}
-}
-
-/* Mostra solo parent + current (es. "progetto/backend" invece del full path) */
-function shortPath(cwd) {
-  if (!cwd) return '';
-  const parts = String(cwd).split('/').filter(Boolean);
-  if (!parts.length) return '/';
-  return parts.slice(-2).join('/');
-}
-
-/* Soglia del doppio click sulle card, tenuta fuori dal DOM perché le card
-   vengono ricreate a ogni render. */
-const DOUBLE_CLICK_MS = 450;
-let lastCardClick = { id: null, at: 0 };
-
-function createSessionItem(t) {
-  const b = document.createElement('button');
-  const isActive = t.id === activeId;
-  b.className = `session-item type-${t.type}` + (isActive ? ' active' : '') + (t.needsAttention ? ' needs-attention' : '');
-  if (isActive) b.setAttribute('aria-current', 'true');
-  if (t.needsAttention) b.title = 'L\'assistente ha finito: apri la sessione per vedere il risultato';
-  // Il comando si mostra solo se per quel tipo ce n'è più di uno configurato
-  const multiCommand = window.AisessCommands && window.AisessCommands.profilesFor(t.type).length > 1;
-  const extras = [t.claudeAccountName, multiCommand ? t.commandProfileLabel : null].filter(Boolean);
-  const fullSub = [t.cwd || '', ...extras].filter(Boolean).join(' · ');
-  const displaySub = [shortPath(t.cwd), ...extras].filter(Boolean).join(' · ');
-  // Il marker resta nel DOM anche se invisibile: così tutte le card sono allineate
-  b.innerHTML = `<span class="sel-mark" aria-hidden="true">◆</span>
-    <span class="icon">${Icons.markup(t.type)}</span>
-    ${t.alive ? '<span class="live-dot" title="In esecuzione"></span>' : ''}
-    <span class="meta"><span class="name">${escapeHtml(t.name)}${t.alive ? '' : ' (terminata)'}</span>
-    <span class="sub path" title="${escapeHtml(fullSub)}"><span>${escapeHtml(displaySub)}</span></span></span>`;
-  // Il primo click rifà la sidebar (setActive → renderSidebar), quindi il
-  // secondo click arriva su un bottone nuovo e l'evento dblclick del browser
-  // non scatta mai: il doppio click va riconosciuto a mano, fuori dal DOM.
-  b.onclick = () => {
-    const now = Date.now();
-    const isDouble = lastCardClick.id === t.id && now - lastCardClick.at <= DOUBLE_CLICK_MS;
-    lastCardClick = { id: t.id, at: isDouble ? 0 : now };
-    if (isDouble) { renameTab(t).catch(() => {}); return; }
-    setActive(t.id);
-  };
-  b.title = b.title || 'Doppio click per rinominare';
-  const x = document.createElement('span');
-  x.className = 'close-x'; x.textContent = '✕'; x.title = 'Chiudi';
-  x.onclick = (e) => { e.stopPropagation(); closeTab(t.id); };
-  b.appendChild(x);
-  return b;
-}
-
-function renderSidebar() {
-  const list = $('#session-list');
-  list.innerHTML = '';
-  $('#count').textContent = tabs.size ? `(${tabs.size})` : '';
-  if (!tabs.size) {
-    list.innerHTML = '<p class="muted" style="font-size:12px">Nessuna sessione aperta.<br>Avviane una con ＋ Nuova sessione.</p>';
-    return;
-  }
-  const byType = new Map(GROUP_ORDER.map(t => [t, []]));
-  tabs.forEach((t) => {
-    if (!byType.has(t.type)) byType.set(t.type, []);
-    byType.get(t.type).push(t);
-  });
-  for (const type of byType.keys()) {
-    const items = byType.get(type);
-    if (!items.length) continue;
-    // Gruppo espandibile/collassabile sempre, anche con una sola sessione:
-    // la posizione delle card resta stabile quando il gruppo cresce.
-    const collapsed = collapsedGroups.has(type);
-    const group = document.createElement('div');
-    group.className = 'session-group';
-    const header = document.createElement('button');
-    // Se collassato nasconde la scheda attiva (o una che lampeggia), l'header lo segnala
-    const hidesActive = collapsed && items.some((t) => t.id === activeId);
-    const hidesAttention = collapsed && items.some((t) => t.needsAttention);
-    header.className = `group-header type-${type}`
-      + (hidesActive ? ' has-active' : '')
-      + (hidesAttention ? ' needs-attention' : '');
-    header.setAttribute('aria-expanded', String(!collapsed));
-    header.innerHTML = `<span class="chevron">${collapsed ? '▸' : '▾'}</span>
-      <span class="sel-mark" aria-hidden="true">◆</span>
-      <span class="icon">${Icons.markup(type)}</span>
-      <span class="group-name">${escapeHtml(GROUP_LABELS[type] || type)}</span>
-      <span class="group-count">${items.length}</span>`;
-    header.onclick = () => {
-      if (collapsedGroups.has(type)) collapsedGroups.delete(type);
-      else collapsedGroups.add(type);
-      saveCollapsedGroups();
-      renderSidebar();
-    };
-    group.appendChild(header);
-    const body = document.createElement('div');
-    body.className = 'group-body';
-    if (collapsed) body.hidden = true;
-    for (const t of items) body.appendChild(createSessionItem(t));
-    group.appendChild(body);
-    list.appendChild(group);
-  }
-}
+/* ---------- Sidebar delle sessioni aperte ----------
+   Il modulo non conosce le schede: le riceve a ogni render e restituisce le
+   azioni come callback. Qui restano `tabs` e `activeId`, che sono suoi. */
+const sidebar = Sidebar.createSidebar({
+  list: $('#session-list'), count: $('#count'),
+  storage: window.localStorage, Icons, Groups, Commands: window.AisessCommands, escapeHtml,
+  modeButtons: { type: $('#group-mode-type'), project: $('#group-mode-project') },
+  onSelect: (id) => setActive(id),
+  onClose: (id) => { closeTab(id).catch(() => {}); },
+  onRename: (t) => { renameTab(t).catch(() => {}); },
+});
+const renderSidebar = () => sidebar.render([...tabs.values()], activeId);
 
 function updateEmpty() {
   const el = $('#empty');

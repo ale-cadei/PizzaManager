@@ -14,7 +14,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 5 | [`spike/tmux`](05-spike-tmux.md) | — | ~4h | ✅ fatto, [risultati](05-risultati.md) |
 | 6 | [`feat/tmux-backend`](06-tmux-backend.md) | 2, 5 | 3-5 gg | sbloccato, da fare |
 | 7 | [`feat/claude-account-login`](07-account-claude-login.md) | — | 1-2 gg | proposto, non pianificato |
-| 8 | [`feat/raggruppamento-per-progetto`](08-raggruppamento-sessioni.md) ([task](08-raggruppamento-sessioni-tasks.md)) | 2 | ~½ g | pianificato, da eseguire |
+| 8 | [`feat/raggruppamento-per-progetto`](08-raggruppamento-sessioni.md) ([task](08-raggruppamento-sessioni-tasks.md)) | 2 | ~½ g | ✅ fatto |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

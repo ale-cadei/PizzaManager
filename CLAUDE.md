@@ -54,6 +54,8 @@ pty è solo un client. Regole:
 - L'ambiente per il processo va passato con `new-session -e`: il server tmux
   cattura l'ambiente alla sua nascita e le sessioni dopo erediterebbero quello.
 - Nei test usa un socket di prova (`socket: 'aistest-…'`), mai `aisession`.
+- `live-sessions.json` è lo specchio di tmux per sopravvivere ai riavvii: si
+  aggiorna passando da `app/pty.js` (che chiama `syncSnapshot()`), mai a mano.
 
 ## Sicurezza (programma locale, ma ci teniamo)
 

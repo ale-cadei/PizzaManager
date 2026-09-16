@@ -9,6 +9,7 @@ const { detectTmux } = require('./lib/tmux');
 const { createHistoryStore } = require('./lib/history');
 const { createAccountStore } = require('./lib/accounts');
 const { createProfileStore } = require('./lib/profiles');
+const { createLiveSessionsStore } = require('./lib/live-sessions');
 const { listClaudeSessions } = require('./lib/claude-sessions');
 const { listOpencodeSessions } = require('./lib/opencode-sessions');
 const { listCodexSessions } = require('./lib/codex-sessions');
@@ -31,12 +32,13 @@ const lazy = (make) => { let v = null; return () => (v || (v = make())); };
 const history = lazy(() => createHistoryStore({ dir: app.getPath('userData') }));
 const accounts = lazy(() => createAccountStore({ dir: app.getPath('userData') }));
 const profiles = lazy(() => createProfileStore({ dir: app.getPath('userData') }));
+const liveStore = lazy(() => createLiveSessionsStore({ dir: app.getPath('userData') }));
 
 // tmux, se c'e', fa vivere le sessioni fuori dall'app (docs/plans/06-tmux-backend.md).
 // Senza, si ricade sul comportamento classico: il processo muore con la finestra.
 const tmux = detectTmux({ confPath: path.join(__dirname, 'app', 'tmux.conf') });
 
-const ptys = createPtyManager({ accounts, history, profiles: { load: () => profiles().load() }, sendToRenderer, tmux });
+const ptys = createPtyManager({ accounts, history, profiles: { load: () => profiles().load() }, sendToRenderer, tmux, liveStore });
 
 function fail(prefix, e) {
   return { ok: false, error: prefix + String((e && e.message) || e) };
@@ -68,6 +70,10 @@ ipcMain.handle('pty-kill', async (event, { id }) => ptys.close(id));
 ipcMain.handle('pty-terminate', async (event, { id }) => ptys.terminate(id));
 ipcMain.handle('list-live-sessions', async () => ptys.listLive());
 ipcMain.on('pty-set-label', (event, { id, label }) => ptys.setLabel(id, label));
+ipcMain.on('pty-set-meta', (event, { id, ...meta }) => ptys.setMeta(id, meta));
+// Dopo un riavvio della macchina: cosa c'era e non c'e' piu' (lib/live-sessions.js)
+ipcMain.handle('restorable-sessions', async () => ptys.restorable());
+ipcMain.handle('discard-restorable', async () => ptys.discardRestorable());
 ipcMain.handle('terminate-session', async (event, { session } = {}) => ptys.terminateSession(session));
 
 // ---------- Ambiente ----------

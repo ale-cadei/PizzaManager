@@ -98,12 +98,32 @@ un fallback leggibile.
 array esistenti. Vanno riscritte come `[nuovo, ...vecchi]` e `[...acc, nuovo]`,
 in linea con lo standard di progetto.
 
+### 6-bis. Tokenizer dei profili: due divergenze dalla shell (rilevate il 2026-09-15)
+
+Il commento in testa a `lib/command-profiles.js` promette «come in una shell»,
+ma due casi divergono:
+
+- **Backslash dentro doppi apici** scappa *qualunque* carattere:
+  `"C:\Users\x"` → `C:Usersx`. In una shell POSIX dentro le virgolette doppie
+  il backslash scappa solo `$`, `` ` ``, `"`, `\`. Colpisce i percorsi Windows,
+  e `defaultProfiles` ha un ramo `win32`.
+- **`$VAR` si espande nei valori d'ambiente ma non negli argomenti**:
+  `claude --model $MODEL` passa il letterale `$MODEL`. Chi arriva da un alias
+  di shell se lo aspetta espanso. Coerentemente con la filosofia del modulo —
+  rifiutare ciò che non funzionerà — andrebbe o espanso, o rifiutato con un
+  messaggio come per gli operatori. Oggi non fa né l'uno né l'altro.
+
+### 6-ter. ✅ Menubar in-app: copia/incolla nei terminali (fatto il 2026-09-16)
+
+Il menu nativo mandava `menu-edit` al renderer (selezione di xterm); la menubar
+in-app — quella visibile su Linux/Windows — chiamava ancora `wc.copy()` nativo,
+che nei terminali non vede niente. Allineate. Il test di cablaggio copre entrambe.
+
 ### 7. URL segnaposto del repository (in due punti)
 
-Dal commit `39772af` l'indirizzo compare **due volte**: nel menu nativo
-(`main.js:253`) e nella menubar custom in-app (`main.js:326`, caso `open-repo`).
-Vanno corretti entrambi, ed è il caso di estrarlo in una costante invece di
-ripeterlo.
+Dopo il branch 2 l'indirizzo è in **un solo punto**: la costante `REPO_URL` in
+`app/menu.js`, usata sia dal menu nativo che dalla menubar in-app. Resta
+l'indirizzo sbagliato.
 
 `main.js:253`:
 

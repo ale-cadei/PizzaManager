@@ -1,14 +1,14 @@
 /* AISessionManager — design tokens
-   Palette: Teal notturno (azione) + corallo (accento) su nero */
+   Palette: Teal notturno (azione) + corallo (accento) su blu-grigio scuro */
 
 :root {
   /* superfici */
   --bg:            #000000;  /* base app / area terminale */
-  --surface:       #0B0A0E;  /* pannelli, sidebar, modali */
-  --surface-2:     #111017;  /* righe elenco */
-  --surface-3:     #151220;  /* elemento selezionato / elevato */
-  --border:        #1E1A24;  /* bordo standard */
-  --border-strong: #2A2434;  /* bordo input e pulsanti secondari */
+  --surface:       #05070A;  /* pannelli, sidebar, modali */
+  --surface-2:     #070A0E;  /* righe elenco */
+  --surface-3:     #0C1117;  /* elemento selezionato / elevato */
+  --border:        #121820;  /* bordo standard */
+  --border-strong: #1D2530;  /* bordo input e pulsanti secondari */
 
   /* azione (teal notturno) */
   --action:        #1FA79A;
@@ -32,18 +32,20 @@
   --type-opencode: #FF8A6B;
   --type-claude:   #C39BF5;
   --type-codex:    #7FB2FF;
+  --type-antigravity: #4F8DF5;
 
   /* colori dei marchi ufficiali, usati solo dalle icone degli agenti */
   --brand-claude:   #D97757;  /* arancio Anthropic */
   --brand-opencode: #F2EFF4;  /* marchio monocromatico, su fondo scuro = chiaro */
   --brand-codex:    #F2EFF4;  /* marchio OpenAI, monocromatico */
+  --brand-antigravity: #4F8DF5;  /* marchio Google Antigravity, blu dell'arco */
 
   /* testo */
-  --text:          #F2EFF4;
-  --text-2:        #D8D3DE;
-  --text-muted:    #A79FB0;
-  --text-dim:      #7C7488;
-  --text-faint:    #6E6878;
+  --text:          #EFF2F6;
+  --text-2:        #D3D9E2;
+  --text-muted:    #9FA9B8;
+  --text-dim:      #74808F;
+  --text-faint:    #68737F;
 
   /* tipografia */
   --font-ui:   'IBM Plex Sans', system-ui, sans-serif;
@@ -72,7 +74,7 @@
 .btn--secondary { background: var(--surface-3); border-color: var(--border-strong); color: var(--text-2); font-weight: 500; }
 .btn--secondary:hover { border-color: var(--action); }
 .btn--ghost     { background: transparent; border-color: var(--border-strong); color: var(--text-muted); font-weight: 500; }
-.btn--ghost:hover { color: var(--text); border-color: #4A4356; }
+.btn--ghost:hover { color: var(--text); border-color: #43505F; }
 
 .input          { width: 100%; box-sizing: border-box; padding: 11px 14px; border-radius: var(--radius);
                   background: var(--bg); border: 1px solid var(--border-strong); color: var(--text);
@@ -96,5 +98,5 @@
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #2A2531; border-radius: 99px; border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb { background: #1D2530; border-radius: 99px; border: 3px solid transparent; background-clip: content-box; }
 ::-webkit-scrollbar-thumb:hover { background: var(--action); background-clip: content-box; }

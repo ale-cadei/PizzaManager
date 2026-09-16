@@ -72,19 +72,23 @@
       const mod = isMac ? e.metaKey : e.ctrlKey;
       if (!mod || e.altKey) return true;
       const key = (e.key || '').toLowerCase();
+      // Tornare `false` ferma solo xterm: il browser eseguirebbe comunque
+      // l'azione nativa (Ctrl+V -> evento `paste` sulla textarea di xterm ->
+      // secondo incolla). Serve anche preventDefault.
+      const handled = () => { e.preventDefault(); e.stopPropagation(); return false; };
       if (key === 'c') {
         // Ctrl+C senza selezione deve restare SIGINT
         if (!e.shiftKey && !isMac && !term.hasSelection()) return true;
         copy(term);
-        return false;
+        return handled();
       }
       if (key === 'v') {
         paste(term);
-        return false;
+        return handled();
       }
       if (key === 'a' && isMac) {
         selectAll(term);
-        return false;
+        return handled();
       }
       return true;
     });

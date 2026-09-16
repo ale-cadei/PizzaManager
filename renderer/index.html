@@ -114,6 +114,7 @@
       <span class="legend" id="dep-opencode" title="stato binario opencode"><i class="dot opencode"></i>opencode</span>
       <span class="legend" id="dep-claude" title="stato binario claude"><i class="dot claude"></i>claude</span>
       <span class="legend" id="dep-codex" title="stato binario codex"><i class="dot codex"></i>codex</span>
+      <span class="legend" id="dep-antigravity" title="stato binario agy (Antigravity CLI)"><i class="dot antigravity"></i>antigravity</span>
     </div>
     <div class="side-footer muted" id="deps-status"></div>
   </aside>
@@ -135,6 +136,7 @@
       <button class="type-card" data-type="opencode"><span class="type-glyph" data-icon="opencode"></span><b>OpenCode</b><span>opencode TUI</span></button>
       <button class="type-card" data-type="claude"><span class="type-glyph" data-icon="claude"></span><b>Claude</b><span>claude TUI</span></button>
       <button class="type-card" data-type="codex"><span class="type-glyph" data-icon="codex"></span><b>Codex</b><span>codex TUI</span></button>
+      <button class="type-card" data-type="antigravity"><span class="type-glyph" data-icon="antigravity"></span><b>Antigravity</b><span>agy CLI</span></button>
     </div>
     <label>Nome (opzionale)<input class="input" id="new-name" placeholder="es. backend, fix-auth…" /></label>
     <label>Directory di lavoro
@@ -179,6 +181,7 @@
       <button class="tab" role="tab" aria-selected="true" data-tab="opencode"><span class="tab-glyph" data-icon="opencode"></span> OpenCode</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="claude"><span class="tab-glyph" data-icon="claude"></span> Claude Code</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="codex"><span class="tab-glyph" data-icon="codex"></span> Codex</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="antigravity"><span class="tab-glyph" data-icon="antigravity"></span> Antigravity</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="history">🕘 Cronologia app</button>
     </div>
     <input class="input" id="resume-search" placeholder="Cerca per titolo, directory o id…" />
@@ -208,6 +211,19 @@
   </div>
 </div>
 
+<!-- Modal rinomina sessione: window.prompt() non è supportato in Electron -->
+<div class="modal-backdrop" id="modal-rename" hidden>
+  <div class="modal">
+    <h2>Rinomina sessione</h2>
+    <p class="muted small" id="rename-sub"></p>
+    <label>Nome<input class="input" id="rename-input" maxlength="40" placeholder="vuoto = titolo automatico" /></label>
+    <div class="modal-actions">
+      <button class="btn btn--ghost" id="rename-cancel">Annulla</button>
+      <button class="btn btn--primary" id="rename-confirm">Salva</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal configurazione dei comandi di avvio, per tipo di sessione -->
 <div class="modal-backdrop" id="modal-config" hidden>
   <div class="modal wide">
@@ -226,6 +242,7 @@
       <button class="tab" role="tab" aria-selected="false" data-config-tab="opencode"><span class="tab-glyph" data-icon="opencode"></span> OpenCode</button>
       <button class="tab" role="tab" aria-selected="false" data-config-tab="claude"><span class="tab-glyph" data-icon="claude"></span> Claude</button>
       <button class="tab" role="tab" aria-selected="false" data-config-tab="codex"><span class="tab-glyph" data-icon="codex"></span> Codex</button>
+      <button class="tab" role="tab" aria-selected="false" data-config-tab="antigravity"><span class="tab-glyph" data-icon="antigravity"></span> Antigravity</button>
     </div>
     <div id="config-list"></div>
     <div class="row">
@@ -244,6 +261,8 @@
 <script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
 <script src="../node_modules/@xterm/addon-web-links/lib/addon-web-links.js"></script>
 <script src="agent-icons.js"></script>
+<script src="session-titles.js"></script>
+<script src="prompt-capture.js"></script>
 <script src="term-clipboard.js"></script>
 <script src="command-config.js"></script>
 <script src="renderer.js"></script>

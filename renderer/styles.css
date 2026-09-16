@@ -117,6 +117,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .agent-icon--claude   { color: var(--brand-claude); }
 .agent-icon--opencode { color: var(--brand-opencode); }
 .agent-icon--codex    { color: var(--brand-codex); }
+.agent-icon--antigravity { color: var(--brand-antigravity); }
 .agent-icon--shell    { color: var(--type-shell); }
 /* Contenitori: l'icona eredita la dimensione dal font del contesto */
 .session-item .icon, .group-header .icon, .resume-item .icon,
@@ -144,6 +145,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .type-opencode { --type-color: var(--type-opencode); }
 .type-claude   { --type-color: var(--type-claude); }
 .type-codex    { --type-color: var(--type-codex); }
+.type-antigravity { --type-color: var(--type-antigravity); }
 
 /* barra laterale del colore del tipo: tenue di base, piena se selezionata */
 .session-item::before {
@@ -164,10 +166,13 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .session-item.active > .sel-mark { visibility: visible; }
 .session-item .icon { font-size: 16px; }
-.session-item .meta { flex: 1; min-width: 0; }
-.session-item .name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* `display: block` obbligatorio: su uno span inline overflow/text-overflow
+   non hanno effetto e il testo sborda sotto la ✕ invece di troncarsi */
+.session-item .meta { flex: 1; min-width: 0; overflow: hidden; }
+.session-item .name { display: block; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* path troncato a sinistra (spec: direction rtl + figlio ltr) */
 .session-item .sub {
+  display: block;
   direction: rtl; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
 }
@@ -199,7 +204,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .group-header.needs-attention { background: var(--action-soft); }
 }
 
-.close-x { border: none; background: transparent; color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 6px; }
+.close-x { flex: 0 0 auto; border: none; background: transparent; color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 6px; }
 .close-x:hover { color: var(--state-error); }
 
 /* Badge runtime: corallo (da tokens.css). Varianti tipo = neutre. */
@@ -217,6 +222,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .dot.opencode { background: var(--type-opencode); }
 .dot.claude { background: var(--type-claude); }
 .dot.codex { background: var(--type-codex); }
+.dot.antigravity { background: var(--type-antigravity); }
 .side-footer { display: flex; flex-wrap: wrap; gap: 6px 10px; font-size: 11px; color: var(--text-dim); }
 .side-footer.muted { color: var(--text-dim); }
 
@@ -235,7 +241,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .group-header.has-active .sel-mark { visibility: visible; }
 .group-header .chevron { color: var(--text-dim); font-size: 11px; width: 14px; flex: 0 0 auto; }
 .group-header .icon { font-size: 14px; }
-.group-header .group-name { flex: 1; }
+.group-header .group-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .group-count {
   font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
   background: var(--surface-3); border: 1px solid var(--border-strong);

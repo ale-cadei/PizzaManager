@@ -160,3 +160,50 @@ ok('claude: ANTHROPIC_API_KEY nel profilo + account a chiave API viene bloccato 
   mgr.kill('t3');
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+// ---------- Resume Antigravity ----------
+ok('antigravity: main + preload + UI collegati', () => {
+  const main = read('main.js');
+  assert.ok(main.includes("'list-antigravity-sessions'"), 'manca handler list-antigravity-sessions');
+  assert.ok(main.includes("require('./lib/antigravity-sessions')"), 'main.js non usa il modulo antigravity-sessions');
+  assert.ok(read('preload.js').includes('listAntigravity'), 'manca listAntigravity nel preload');
+  assert.ok(read('renderer', 'index.html').includes('data-tab="antigravity"'), 'manca il tab antigravity nel resume');
+  const js = read('renderer', 'renderer.js');
+  assert.ok(js.includes('listAntigravity'), 'il renderer non carica le conversazioni antigravity');
+  assert.ok(/antigravity:\s*\(s\)\s*=>\s*\(\{/.test(js), 'manca la vista resume di antigravity');
+});
+
+// ---------- Nomi delle schede ----------
+/* Il pty puo' spostare la sessione (cwd assente, con ~ o inesistente finisce
+   nella home): se la scheda tiene il valore digitato, il titolo automatico non
+   trova mai la conversazione, perche' confronta le directory. */
+ok('nomi: la scheda adotta la directory davvero usata dal pty', () => {
+  const { resolveWorkdir } = require('../lib/workdir');
+  const home = '/home/tizio';
+  const isDir = (p) => p === home || p === '/home/tizio/progetto';
+  assert.strictEqual(resolveWorkdir('~/progetto', { home, isDir }), '/home/tizio/progetto', 'la tilde non viene espansa');
+  assert.strictEqual(resolveWorkdir('/non/esiste', { home, isDir }), home, 'una directory inesistente non ripiega sulla home');
+  assert.strictEqual(resolveWorkdir('', { home, isDir }), home);
+  assert.ok(/return \{ ok: true, cwd: workdir \}/.test(read('app', 'pty.js')), 'pty.spawn non restituisce la directory risolta');
+  assert.ok(/res\.cwd/.test(read('renderer', 'renderer.js')), 'il renderer non adotta la directory risolta dal main');
+});
+
+ok('nomi: rinomina manuale, titoli automatici e primo prompt collegati alla UI', () => {
+  const html = read('renderer', 'index.html');
+  const js = read('renderer', 'renderer.js');
+  assert.ok(html.includes('session-titles.js'), 'session-titles.js non e incluso nella pagina');
+  assert.ok(html.includes('prompt-capture.js'), 'prompt-capture.js non e incluso nella pagina');
+  assert.ok(js.includes('AisessTitles'), 'il renderer non usa lo store dei nomi');
+  // La sidebar si ricostruisce al primo click, quindi il dblclick del browser
+  // non scatta: serve il riconoscimento manuale del doppio click.
+  assert.ok(/DOUBLE_CLICK_MS/.test(js) && /renameTab\(/.test(js), 'manca la rinomina manuale col doppio click');
+  // window.prompt() lancia un errore in Electron: serve il modal interno
+  assert.ok(!/window\.prompt\(/.test(js), 'window.prompt() non e supportato in Electron');
+  assert.ok(html.includes('modal-rename'), 'manca il modal di rinomina');
+  assert.ok(js.includes('autoTitleTick') || js.includes('refreshAutoTitles'), 'il renderer non aggiorna i titoli automatici');
+  assert.ok(/displayName\(/.test(js), 'la lista resume non mostra il nome scelto dall utente');
+  assert.ok(/createPromptCapture/.test(js), 'il renderer non cattura il primo prompt');
+  assert.ok(/namedFromPrompt/.test(js), 'il titolo del CLI puo sovrascrivere il prompt digitato');
+  // Finche' manca il prompt, il titolo e' solo l'id di ripiego: non va usato
+  assert.ok(/s\.titled === false/.test(js), 'il renderer applica anche i titoli di ripiego');
+});

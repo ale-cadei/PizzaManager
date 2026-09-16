@@ -10,6 +10,7 @@ const { createProfileStore } = require('./lib/profiles');
 const { listClaudeSessions } = require('./lib/claude-sessions');
 const { listOpencodeSessions } = require('./lib/opencode-sessions');
 const { listCodexSessions } = require('./lib/codex-sessions');
+const { listAntigravitySessions } = require('./lib/antigravity-sessions');
 const { computeRecentDirs } = require('./lib/recent-dirs');
 const { createWindow } = require('./app/window');
 const { runMenuAction } = require('./app/menu');
@@ -125,6 +126,9 @@ ipcMain.handle('list-codex-sessions', async (event, { limit } = {}) => {
 });
 ipcMain.handle('list-claude-sessions', async (event, { limit } = {}) => {
   try { return listClaudeSessions(limit); } catch (e) { return { ...fail('', e), sessions: [] }; }
+});
+ipcMain.handle('list-antigravity-sessions', async (event, { limit } = {}) => {
+  try { return listAntigravitySessions(limit); } catch (e) { return { ...fail('', e), sessions: [] }; }
 });
 
 // ---------- Appunti (per term-clipboard.js nel renderer) ----------

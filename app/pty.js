@@ -1,8 +1,7 @@
 'use strict';
-const fs = require('fs');
-const os = require('os');
 const { buildCommand, installHint } = require('../lib/commands');
 const { augmentedEnv } = require('../lib/binaries');
+const { resolveWorkdir } = require('../lib/workdir');
 
 let pty = null;
 try {
@@ -64,7 +63,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer }) {
   function spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId, cols, rows }) {
     if (!pty) return { ok: false, error: 'node-pty non installato. Esegui: npm install' };
 
-    const workdir = cwd && fs.existsSync(cwd) ? cwd : os.homedir();
+    const workdir = resolveWorkdir(cwd);
     const { cmd, args, profileEnv, missing, searchedPath, error, profile } = buildCommand(type, resumeId, commandProfileId, { profiles });
     if (!cmd) {
       if (error) return { ok: false, error };
@@ -103,7 +102,9 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer }) {
         commandProfileLabel: (profile && profile.label) || null,
         cmd: [...Object.entries(profileEnv || {}).map(([k, v]) => `${k}=${v}`), cmd, ...args].join(' '),
       });
-      return { ok: true };
+      // La directory risolta torna alla scheda: e' quella su cui il titolo
+      // automatico cerca la conversazione, non quella digitata dall'utente.
+      return { ok: true, cwd: workdir };
     } catch (e) {
       return { ok: false, error: String(e.message || e) };
     }

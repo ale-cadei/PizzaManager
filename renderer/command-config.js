@@ -9,9 +9,9 @@
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => [...document.querySelectorAll(s)];
 
-  const TYPE_LABELS = { shell: 'Terminale', opencode: 'OpenCode', claude: 'Claude', codex: 'Codex' };
+  const TYPE_LABELS = { shell: 'Terminale', opencode: 'OpenCode', claude: 'Claude', codex: 'Codex', antigravity: 'Antigravity' };
   const Icons = window.AisessIcons; // marchi ufficiali (renderer/agent-icons.js)
-  const TYPES = ['shell', 'opencode', 'claude', 'codex'];
+  const TYPES = ['shell', 'opencode', 'claude', 'codex', 'antigravity'];
   const LAST_USED_KEY = 'aisess.commandProfile.';
 
   /* Configurazione corrente (dal main process) — sostituita, mai mutata. */

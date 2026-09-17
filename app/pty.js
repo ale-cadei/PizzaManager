@@ -12,6 +12,7 @@ try {
   console.error('node-pty non disponibile:', e.message);
 }
 
+const TERM_NAME = 'xterm-256color';
 const DEFAULT_COLS = 80;
 const DEFAULT_ROWS = 24;
 
@@ -86,9 +87,15 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     });
   }
 
+  /* `name` diventa il TERM del processo (node-pty lo sovrascrive anche se
+     env.TERM e' impostato). Deve essere un terminfo con 256 colori e `dim`:
+     tmux traduce gli attributi secondo il terminfo del client, e con
+     `xterm-color` (senza `dim`) i suggerimenti grigi di Claude Code
+     arrivavano a xterm.js come testo normale. Stesso valore di
+     TERMINAL_ENV in lib/binaries.js. */
   function openPty(cmd, args, { cols, rows, cwd, env }) {
     return pty.spawn(cmd, args, {
-      name: 'xterm-color',
+      name: TERM_NAME,
       cols: cols || DEFAULT_COLS,
       rows: rows || DEFAULT_ROWS,
       cwd,

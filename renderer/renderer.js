@@ -27,8 +27,9 @@ const titleStore = Titles.createTitleStore(window.localStorage);
 // Tipi con un binario esterno da risolvere (lo shell è sempre disponibile)
 const AI_TYPES = ['opencode', 'claude', 'codex', 'antigravity'];
 
-// Corpo del testo dei terminali (shell, opencode, claude)
-const TERM_FONT_SIZE = 15;
+// Corpo del testo dei terminali: una dimensione per tutte le schede, scelta
+// dal menu Vista e ricordata (renderer/term-font.js)
+const termFont = window.AisessTermFont.createFontSizeStore(window.localStorage);
 const TERM_LINE_HEIGHT = 1.2;
 
 /* Tema del terminale, allineato ai token (renderer/tokens.css): il fondo e il
@@ -83,6 +84,9 @@ async function init() {
   try {
     window.aisess.onMenu('menu-new-session', () => openNewModal());
     window.aisess.onMenu('menu-open-config', () => window.AisessCommands.openConfig());
+    window.aisess.onMenu('menu-term-font-bigger', () => runTermFontAction('term-font-bigger'));
+    window.aisess.onMenu('menu-term-font-smaller', () => runTermFontAction('term-font-smaller'));
+    window.aisess.onMenu('menu-term-font-reset', () => runTermFontAction('term-font-reset'));
     window.aisess.onMenuEdit((action) => runEditAction(action));
   } catch {}
 
@@ -727,7 +731,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   updateEmpty();
   setActive(id);
 
-  const term = new Terminal({ cursorBlink: true, fontSize: TERM_FONT_SIZE, lineHeight: TERM_LINE_HEIGHT, fontFamily: "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace", theme: TERM_THEME });
+  const term = new Terminal({ cursorBlink: true, fontSize: termFont.get(), lineHeight: TERM_LINE_HEIGHT, fontFamily: "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace", theme: TERM_THEME });
   const fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
   try { term.loadAddon(new WebLinksAddon.WebLinksAddon()); } catch {}
@@ -800,6 +804,25 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
    Con il fuoco (o una selezione) sul terminale attivo copia/incolla passano da
    xterm; altrove restano le azioni native, che funzionano su input e testo. */
 const EDIT_ACTIONS = ['undo', 'redo', 'cut', 'copy', 'paste', 'selectAll'];
+
+/**
+ * Dimensione del testo dei terminali, da menu nativo o menubar in-app.
+ * Cambia tutte le schede insieme: quella attiva si rifà il fit subito, le
+ * altre quando tornano in primo piano (setActive → refit).
+ * @returns {boolean} true se l'azione era una di queste
+ */
+function runTermFontAction(action) {
+  const deltas = { 'term-font-bigger': +1, 'term-font-smaller': -1 };
+  if (action === 'term-font-reset') termFont.reset();
+  else if (action in deltas) termFont.step(deltas[action]);
+  else return false;
+  const size = termFont.get();
+  for (const t of tabs.values()) {
+    if (t.term) t.term.options.fontSize = size;
+  }
+  fitActive();
+  return true;
+}
 
 function runEditAction(action) {
   if (!EDIT_ACTIONS.includes(action)) return false;
@@ -1091,6 +1114,7 @@ function initMenubar(platform) {
     closeAll();
     // Le voci di Edit possono riguardare il terminale attivo: le smista runEditAction
     if (runEditAction(b.dataset.action)) return;
+    if (runTermFontAction(b.dataset.action)) return;
     try { await window.aisess.menuAction(b.dataset.action); } catch {}
   }));
 }

@@ -50,9 +50,14 @@ function buildAppMenu({ sendToRenderer, platform = process.platform } = {}) {
         { role: 'forceReload', label: 'Ricarica forzata' },
         { role: 'toggleDevTools', label: 'Strumenti di sviluppo' },
         { type: 'separator' },
-        { role: 'resetZoom', label: 'Zoom originale' },
-        { role: 'zoomIn', label: 'Aumenta zoom' },
-        { role: 'zoomOut', label: 'Riduci zoom' },
+        // Non lo zoom di pagina di Electron (ingrandiva anche la sidebar e
+        // restava memorizzato): in un'app di terminali si cambia il testo del
+        // terminale. Lo applica il renderer (renderer/term-font.js).
+        { label: 'Testo del terminale più grande', accelerator: 'CmdOrCtrl+Plus', click: () => sendToRenderer('menu-term-font-bigger') },
+        { label: 'Testo del terminale più piccolo', accelerator: 'CmdOrCtrl+-', click: () => sendToRenderer('menu-term-font-smaller') },
+        { label: 'Testo del terminale normale', accelerator: 'CmdOrCtrl+0', click: () => sendToRenderer('menu-term-font-reset') },
+        // Secondo acceleratore per «più grande»: su molte tastiere + è Shift+=
+        { label: 'Testo del terminale più grande', accelerator: 'CmdOrCtrl+=', visible: false, click: () => sendToRenderer('menu-term-font-bigger') },
         { type: 'separator' },
         { role: 'togglefullscreen', label: 'Schermo intero' },
       ],
@@ -96,9 +101,6 @@ async function runMenuAction(action, win) {
       case 'reload': wc.reload(); break;
       case 'forceReload': wc.reloadIgnoringCache(); break;
       case 'devtools': wc.toggleDevTools(); break;
-      case 'resetZoom': wc.setZoomLevel(0); break;
-      case 'zoomIn': wc.setZoomLevel(wc.getZoomLevel() + 0.5); break;
-      case 'zoomOut': wc.setZoomLevel(wc.getZoomLevel() - 0.5); break;
       case 'fullscreen': win.setFullScreen(!win.isFullScreen()); break;
       case 'minimize': win.minimize(); break;
       case 'close': win.close(); break;

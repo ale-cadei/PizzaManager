@@ -64,6 +64,10 @@ function createWindow({ platform = process.platform, onRendererReload = null } =
       onRendererReload();
     });
   }
+  // Electron ricorda lo zoom di pagina fra un avvio e l'altro: una vecchia
+  // versione lo esponeva nel menu Vista e bastava un ⌘+ per sbaglio per
+  // ritrovarsi l'interfaccia ingrandita per sempre. Si riparte sempre da 1.
+  win.webContents.on('did-finish-load', () => { try { win.webContents.setZoomLevel(0); } catch {} });
   win.loadFile(path.join(ROOT, 'renderer', 'index.html'));
   return win;
 }

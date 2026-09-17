@@ -82,6 +82,8 @@ I pacchetti non sono firmati: macOS dirà che l'app «è danneggiata» o «di un
 
 Ogni scheda è un terminale vero ([node-pty](https://github.com/microsoft/node-pty) + [xterm.js](https://xtermjs.org)): le TUI a schermo intero, i colori a 24 bit e le scorciatoie funzionano come nel terminale di sistema. **Nuova** (`⌘N` / `Ctrl+N`) chiede tipo, nome e directory di lavoro; le directory usate di recente sono a un click.
 
+La dimensione del testo si cambia da **Vista** (`⌘+` / `⌘-` / `⌘0`, o `Ctrl` altrove), vale per tutte le schede e resta memorizzata.
+
 Il nome della scheda si assegna da solo: la prima riga che digiti, oppure il titolo che l'agente dà alla conversazione appena lo salva. Doppio click sulla scheda per rinominarla; il nome resta anche dopo un riavvio.
 
 ### Le sessioni sopravvivono all'app

@@ -28,7 +28,14 @@ const DEFAULT_ROWS = 24;
  *
  * Sta in app/ perche' dipende da node-pty e dal canale verso il renderer.
  */
-function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = null, liveStore = null }) {
+/* `systemLocale` (es. `it-IT`, da app.getLocale(), anche come funzione) serve
+   a scegliere LANG per i processi quando l'app, avviata dal Finder, non ce
+   l'ha (lib/locale.js). */
+function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = null, liveStore = null, systemLocale = null }) {
+  const localeOpts = () => {
+    const v = typeof systemLocale === 'function' ? systemLocale() : systemLocale;
+    return v ? { systemLocale: v } : {};
+  };
   /** id scheda -> { p: pty, session: nome tmux | null } */
   const clients = new Map();
   const viaTmux = Boolean(tmux && tmux.bin && tmux.control && pty);
@@ -78,6 +85,13 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     return tmux.control.list().then((live) => { liveStore().write(live); }).catch(() => {});
   }
 
+  /** Le variabili di locale presenti nell'env, da passare a tmux con `-e`. */
+  function localeVars(env) {
+    const out = {};
+    for (const k of ['LANG', 'LC_ALL', 'LC_CTYPE']) if (env[k]) out[k] = env[k];
+    return out;
+  }
+
   function track(id, p, session) {
     clients.set(id, { p, session });
     p.onData((data) => sendToRenderer('pty-data', { id, data }));
@@ -121,7 +135,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
 
     // Le variabili del profilo vengono per ultime: sono la scelta esplicita
     // dell'utente (es. CLAUDE_CONFIG_DIR) e devono vincere sui default.
-    const env = { ...augmentedEnv([cmd], identity.vars), ...(profileEnv || {}) };
+    const env = { ...augmentedEnv([cmd], identity.vars, process.env, localeOpts()), ...(profileEnv || {}) };
     const session = viaTmux ? tmuxLib.sessionName(type) : null;
 
     try {
@@ -129,7 +143,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
       if (viaTmux) {
         // Al processo dentro tmux arrivano esplicitamente le variabili che
         // contano; il resto lo eredita dal server (vedi lib/tmux.js, spawnArgs).
-        const sessionEnv = { PATH: env.PATH, COLORTERM: env.COLORTERM, ...identity.vars, ...(profileEnv || {}) };
+        const sessionEnv = { PATH: env.PATH, COLORTERM: env.COLORTERM, ...localeVars(env), ...identity.vars, ...(profileEnv || {}) };
         const created = await tmux.control.create({
           name: session, cmd, args, cwd: workdir, env: sessionEnv,
           meta: {
@@ -187,7 +201,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     for (const [oldId, c] of clients) if (c.session === session) close(oldId);
     try {
       const p = openPty(tmux.bin, tmuxLib.attachArgs({ confPath: tmux.confPath, socket: tmux.socket, name: session }), {
-        cols, rows, cwd: os.homedir(), env: augmentedEnv([tmux.bin]),
+        cols, rows, cwd: os.homedir(), env: augmentedEnv([tmux.bin], {}, process.env, localeOpts()),
       });
       track(id, p, session);
       syncSnapshot();

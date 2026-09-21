@@ -187,7 +187,7 @@ ipcMain.handle('list-antigravity-sessions', async (event, { limit } = {}) => {
 // ---------- Uso di token: sessione, finestra 5h, settimana (barra in basso) ----------
 ipcMain.handle('usage-snapshot', async (event, { active } = {}) => {
   try {
-    return { ok: true, usage: await collectUsage({ active }) };
+    return { ok: true, usage: await collectUsage({ active, limitsDir: app.getPath('userData') }) };
   } catch (e) {
     console.error('usage-snapshot fallito:', e);
     return { ...fail('', e), usage: null };

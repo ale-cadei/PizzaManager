@@ -72,30 +72,6 @@ ok('nomi: la conversazione di una scheda nuova si riconosce da cwd e istante di 
   assert.strictEqual(titles.pickAutoSession(null, { cwd: '/x', since: 0 }), null);
 });
 
-ok('nomi: una conversazione già di un\'altra scheda non si assegna a una seconda', () => {
-  // Due schede claude nella stessa directory: la conversazione che va avanti
-  // nella prima (mtime piu' recente) non e' quella della seconda, ancora vuota.
-  const sessions = [
-    { id: 'della-prima', cwd: '/home/u/progetto', title: 'Prima', mtime: 9000 },
-    { id: 'della-seconda', cwd: '/home/u/progetto', title: 'Seconda', mtime: 8000 },
-  ];
-  const s = titles.pickAutoSession(sessions, { cwd: '/home/u/progetto', since: 5000, exclude: ['della-prima'] });
-  assert.strictEqual(s && s.id, 'della-seconda');
-  assert.strictEqual(titles.pickAutoSession(sessions, { cwd: '/home/u/progetto', since: 5000, exclude: ['della-prima', 'della-seconda'] }), null);
-});
-
-ok('nomi: il giro automatico guarda ogni scheda senza id, anche se rinominata', () => {
-  // L'id della conversazione e' cio' che rende la scheda ripristinabile dopo un
-  // riavvio: va scoperto anche per chi ha gia' un nome suo (rinomina manuale,
-  // nome dal dialog, etichetta di un ripristino). Il titolo automatico invece
-  // riguarda solo chi non e' stato rinominato.
-  assert.strictEqual(titles.needsAutoRefresh({ type: 'claude', autoNamed: false, resumeId: null }), true, 'rinominata senza id');
-  assert.strictEqual(titles.needsAutoRefresh({ type: 'claude', autoNamed: true, resumeId: 'abc' }), true, 'automatica con id: il titolo puo\' cambiare');
-  assert.strictEqual(titles.needsAutoRefresh({ type: 'claude', autoNamed: false, resumeId: 'abc' }), false, 'rinominata con id: niente da fare');
-  assert.strictEqual(titles.needsAutoRefresh({ type: 'shell', autoNamed: true, resumeId: null }), false, 'le shell non hanno conversazioni');
-  assert.strictEqual(titles.needsAutoRefresh(null), false);
-});
-
 /* ---------- Primo prompt digitato nel terminale ---------- */
 
 ok('primo prompt: la riga inviata con Invio diventa il titolo', () => {

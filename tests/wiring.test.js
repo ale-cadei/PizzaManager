@@ -21,7 +21,9 @@ ok('terminale: copia/incolla passano dalla selezione di xterm, non dal documento
   assert.ok(clip.includes('term.paste('), "l'incolla non passa da term.paste (bracketed paste)");
   assert.ok(/!e\.shiftKey && !isMac && !term\.hasSelection\(\)\) return true/.test(clip), 'Ctrl+C senza selezione deve restare SIGINT');
 
-  assert.ok(read('main.js').includes("'clipboard-write'") && read('main.js').includes("'clipboard-read'"), 'mancano gli handler appunti');
+  const handlers = read('app', 'clipboard.js');
+  assert.ok(handlers.includes("'clipboard-write'") && handlers.includes("'clipboard-read'"), 'mancano gli handler appunti');
+  assert.ok(read('main.js').includes('registerClipboardHandlers(ipcMain)'), 'main.js non registra gli handler appunti');
 
   const menu = read('app', 'menu.js');
   const edit = menu.match(/label: 'Edit',[\s\S]*?\n {4}\},/);

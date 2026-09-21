@@ -12,9 +12,11 @@
     "postinstall": "electron-rebuild -f -w node-pty || true",
     "dist:linux": "electron-builder --linux deb AppImage",
     "dist:mac": "electron-builder --mac dmg zip",
-    "dist": "electron-builder --linux deb AppImage",
+    "dist": "electron-builder",
     "test:unit": "node --test \"tests/**/*.test.js\"",
-    "test:coverage": "node --test --experimental-test-coverage \"tests/**/*.test.js\""
+    "test:coverage": "node --test --experimental-test-coverage \"tests/**/*.test.js\"",
+    "dist:win": "electron-builder --win",
+    "install:mac": "sh scripts/install-mac.sh"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.10.0",
@@ -66,6 +68,27 @@
       ],
       "category": "public.app-category.developer-tools",
       "icon": "assets/icon.png"
+    },
+    "artifactName": "${productName}-${os}-${arch}.${ext}",
+    "publish": {
+      "provider": "github",
+      "releaseType": "draft"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "${productName}-${os}-${arch}-setup.${ext}"
     }
+  },
+  "repository": "github:ale-cadei/PizzaManager",
+  "engines": {
+    "node": ">=22"
   }
 }

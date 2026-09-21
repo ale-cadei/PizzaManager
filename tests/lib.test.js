@@ -169,43 +169,45 @@ ok('i file che non sono .jsonl vengono ignorati', () => {
 
 // ---------- lib/opencode-sessions ----------
 const { listOpencodeSessions } = require('../lib/opencode-sessions');
+// Il binario non viene eseguito (run è finto): basta che non si cerchi nel PATH
+const FAKE_OPENCODE = '/finto/opencode';
 
 ok('opencode: zero sessioni (output vuoto) e un risultato, non un errore', async () => {
   // opencode con nessuna sessione non stampa nemmeno "[]": prima l'utente leggeva "Parse JSON fallito"
-  const r = await listOpencodeSessions(5, { run: (c, a, o, cb) => cb(null, '', '') });
+  const r = await listOpencodeSessions(5, { bin: FAKE_OPENCODE, run: (c, a, o, cb) => cb(null, '', '') });
   assert.strictEqual(r.ok, true);
   assert.deepStrictEqual(r.sessions, []);
 });
 
 ok('opencode: un output non JSON e un errore che dice cosa e arrivato', async () => {
-  const r = await listOpencodeSessions(5, { run: (c, a, o, cb) => cb(null, 'non e json', '') });
+  const r = await listOpencodeSessions(5, { bin: FAKE_OPENCODE, run: (c, a, o, cb) => cb(null, 'non e json', '') });
   assert.strictEqual(r.ok, false);
   assert.ok(r.error.includes('non è JSON') && r.error.includes('non e json'), r.error);
 });
 
 ok('opencode: JSON valido ma non un elenco = formato cambiato, segnalato come tale', async () => {
-  const r = await listOpencodeSessions(5, { run: (c, a, o, cb) => cb(null, '{"sessions": []}', '') });
+  const r = await listOpencodeSessions(5, { bin: FAKE_OPENCODE, run: (c, a, o, cb) => cb(null, '{"sessions": []}', '') });
   assert.strictEqual(r.ok, false);
   assert.ok(/formato inatteso/.test(r.error), r.error);
 });
 
 ok('opencode: le voci senza id vengono scartate e contate, le altre passano', async () => {
   const out = JSON.stringify([{ id: 'ses_1', title: 'ok' }, { title: 'senza id' }, null, { id: 'ses_2' }]);
-  const r = await listOpencodeSessions(5, { run: (c, a, o, cb) => cb(null, out, '') });
+  const r = await listOpencodeSessions(5, { bin: FAKE_OPENCODE, run: (c, a, o, cb) => cb(null, out, '') });
   assert.strictEqual(r.ok, true);
   assert.deepStrictEqual(r.sessions.map((s) => s.id), ['ses_1', 'ses_2']);
   assert.strictEqual(r.skipped, 2);
 });
 
 ok('un errore di esecuzione di opencode riporta lo stderr', async () => {
-  const r = await listOpencodeSessions(5, { run: (c, a, o, cb) => cb(new Error('uscita 1'), '', 'comando sconosciuto') });
+  const r = await listOpencodeSessions(5, { bin: FAKE_OPENCODE, run: (c, a, o, cb) => cb(new Error('uscita 1'), '', 'comando sconosciuto') });
   assert.strictEqual(r.ok, false);
   assert.ok(r.error.includes('comando sconosciuto'), r.error);
 });
 
 ok('un elenco valido viene restituito cosi com e', async () => {
   const sessioni = [{ id: 'ses_1', title: 'prima' }];
-  const r = await listOpencodeSessions(5, { run: (c, a, o, cb) => cb(null, JSON.stringify(sessioni), '') });
+  const r = await listOpencodeSessions(5, { bin: FAKE_OPENCODE, run: (c, a, o, cb) => cb(null, JSON.stringify(sessioni), '') });
   assert.strictEqual(r.ok, true);
   assert.deepStrictEqual(r.sessions, sessioni);
 });

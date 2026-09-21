@@ -19,7 +19,8 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/package-json/v/ale-cadei/PizzaManager?label=versione&color=F04E23" alt="Versione">
+  <a href="https://github.com/ale-cadei/PizzaManager/releases/latest"><img src="https://img.shields.io/github/v/release/ale-cadei/PizzaManager?label=release&color=F04E23" alt="Ultima release"></a>
+  <a href="https://github.com/ale-cadei/PizzaManager/actions/workflows/ci.yml"><img src="https://github.com/ale-cadei/PizzaManager/actions/workflows/ci.yml/badge.svg" alt="Test"></a>
   <img src="https://img.shields.io/badge/macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-black" alt="macOS, Linux e Windows">
   <img src="https://img.shields.io/badge/Electron-33-47848F?logo=electron&logoColor=white" alt="Electron 33">
   <img src="https://img.shields.io/badge/licenza-MIT-green" alt="Licenza MIT">
@@ -43,20 +44,36 @@ Se lavori con più agenti AI da terminale, finisci con dieci finestre aperte, ne
 
 ## Installazione
 
-> **Pacchetti pronti (`.dmg`, `.deb`, `AppImage`, installer Windows): in arrivo.** Per ora si avvia dal sorgente, che sono tre comandi.
+### Scarica
 
-### Cosa serve
+| | | |
+|---|---|---|
+| **macOS** | [Apple Silicon (.dmg)](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-mac-arm64.dmg) · [Intel (.dmg)](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-mac-x64.dmg) | Trascina l'app in *Applicazioni* |
+| **Linux** | [AppImage](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-linux-x86_64.AppImage) · [.deb](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-linux-amd64.deb) | `chmod +x` l'AppImage, o `sudo dpkg -i` il .deb |
+| **Windows** | [Installer (.exe)](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-win-x64-setup.exe) | Installer classico; senza `tmux` (vedi [Su Windows](#su-windows)) |
+
+Tutte le versioni: [Releases](https://github.com/ale-cadei/PizzaManager/releases). Le CLI (`claude`, `codex`, `opencode`) vanno installate a parte: l'app lancia quelle che trova nel PATH.
+
+**I pacchetti non sono firmati.** Alla prima apertura:
+- **macOS** dice «PizzaManager è danneggiato» o «di uno sviluppatore non identificato». Vai in *Impostazioni di Sistema → Privacy e sicurezza*, scorri in fondo e premi **Apri comunque** (da macOS 15 il tasto destro → Apri non basta più). In alternativa, da terminale: `xattr -cr /Applications/PizzaManager.app`.
+- **Windows** mostra l'avviso SmartScreen: *Ulteriori informazioni → Esegui comunque*.
+
+### Dal sorgente
+
+Serve se vuoi modificare l'app o provare `main` prima di una release.
+
+#### Cosa serve
 
 | | Obbligatorio | Consigliato |
 |---|---|---|
-| **Tutti** | [Node.js](https://nodejs.org) 20 o più recente | Almeno uno fra `claude`, `codex`, `opencode`, `agy` nel PATH |
+| **Tutti** | [Node.js](https://nodejs.org) 22 o più recente | Almeno uno fra `claude`, `codex`, `opencode`, `agy` nel PATH |
 | **macOS** | Xcode Command Line Tools (`xcode-select --install`, per compilare `node-pty`) | `brew install tmux` |
 | **Linux** | `build-essential` e `python3` (per `node-pty`) | `sudo apt install tmux` (o l'equivalente della tua distro) |
 | **Windows** | [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) con il carico di lavoro C++ (per `node-pty`) | — |
 
 Senza `tmux` l'app funziona lo stesso: le sessioni però muoiono con la finestra. Su Windows `tmux` non esiste, quindi lì è sempre così.
 
-### Dal sorgente
+#### Avvio
 
 ```bash
 git clone https://github.com/ale-cadei/PizzaManager.git
@@ -67,14 +84,14 @@ npm start
 
 `npm install` compila `node-pty` per la tua piattaforma: è l'unico passaggio che può fallire, e quasi sempre perché manca il compilatore (tabella sopra).
 
-### Build dei pacchetti
+#### Installarla come app vera
 
 ```bash
-npm run dist:mac     # su macOS: dist/*.dmg e *.zip
-npm run dist:linux   # su Linux: dist/*.deb e *.AppImage
+npm run install:mac   # macOS: costruisce PizzaManager.app e la copia in /Applications
+npm run dist          # qualsiasi sistema: i pacchetti della piattaforma corrente in dist/
 ```
 
-I pacchetti non sono firmati: macOS dirà che l'app «è danneggiata» o «di uno sviluppatore non identificato». Tasto destro → **Apri** la prima volta, oppure `xattr -cr /Applications/PizzaManager.app`.
+Un'app costruita in locale si apre senza avvisi (Gatekeeper controlla solo i file scaricati). Ricordati di rifarla dopo ogni aggiornamento del codice: è una fotografia di quel momento. E non tenerla aperta insieme a `npm start`: sarebbero due client sulle stesse sessioni tmux.
 
 ## Cosa fa
 
@@ -186,6 +203,8 @@ docs/plans/    un piano per branch
 npm run test:unit       # tutti i test (~2 s)
 npm run test:coverage   # con la copertura di Node
 ```
+
+I test girano in CI a ogni push e PR (`.github/workflows/ci.yml`). Una **release** si fa con un tag: `git tag v1.1.0 && git push --tags` avvia `.github/workflows/release.yml`, che costruisce i pacchetti su macOS, Linux e Windows e li allega a una bozza di Release su GitHub, da pubblicare dopo un'occhiata.
 
 I test importano il codice vero e girano anche i casi Windows da macOS/Linux, iniettando `platform: 'win32'`. Le convenzioni (dove va un pezzo di codice, regole su tmux, sicurezza, percorsi) sono in [`CLAUDE.md`](CLAUDE.md); il lavoro in corso e quello fatto in [`docs/plans/`](docs/plans/README.md).
 

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, clipboard, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const fs = require('fs');
 const os = require('os');
 const { getDefaultShell } = require('./lib/shell');
@@ -20,6 +20,7 @@ const { findProjectRoot } = require('./lib/project-root');
 const { createWindow } = require('./app/window');
 const { runMenuAction } = require('./app/menu');
 const { createPtyManager } = require('./app/pty');
+const { registerClipboardHandlers } = require('./app/clipboard');
 
 // La cartella dei dati NON segue il nome dell'app. Electron la deriva da
 // productName: un rebrand ("PizzaManager") la sposterebbe in una cartella nuova
@@ -46,7 +47,12 @@ const liveStore = lazy(() => createLiveSessionsStore({ dir: app.getPath('userDat
 // Senza, si ricade sul comportamento classico: il processo muore con la finestra.
 const tmux = detectTmux({ confPath: path.join(__dirname, 'app', 'tmux.conf') });
 
-const ptys = createPtyManager({ accounts, history, profiles: { load: () => profiles().load() }, sendToRenderer, tmux, liveStore });
+const ptys = createPtyManager({
+  accounts, history, profiles: { load: () => profiles().load() }, sendToRenderer, tmux, liveStore,
+  // Lingua di sistema: sceglie LANG per i processi quando l'app, avviata dal
+  // Finder, non ce l'ha. Funzione perche' app.getLocale() vale solo dopo `ready`.
+  systemLocale: () => { try { return app.getLocale(); } catch { return null; } },
+});
 
 function fail(prefix, e) {
   return { ok: false, error: prefix + String((e && e.message) || e) };
@@ -189,10 +195,4 @@ ipcMain.handle('usage-snapshot', async (event, { active } = {}) => {
 });
 
 // ---------- Appunti (per term-clipboard.js nel renderer) ----------
-ipcMain.handle('clipboard-write', (event, { text } = {}) => {
-  if (typeof text !== 'string' || !text) return { ok: false, error: 'niente da copiare' };
-  try { clipboard.writeText(text); return { ok: true }; } catch (e) { console.error('[clipboard-write]', e); return fail('', e); }
-});
-ipcMain.handle('clipboard-read', () => {
-  try { return { ok: true, text: clipboard.readText() || '' }; } catch (e) { console.error('[clipboard-read]', e); return { ...fail('', e), text: '' }; }
-});
+registerClipboardHandlers(ipcMain);

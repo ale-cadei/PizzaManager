@@ -1,0 +1,61 @@
+<!doctype html>
+<!-- Banco di prova visivo della sidebar: monta renderer/sidebar.js con sessioni
+     finte, fuori da Electron. Serve a guardare il fascicolo (linguetta, pannello,
+     fogli) senza avviare l'app. Vive in tests/fixtures/ per non finire nel pacchetto. -->
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Fascicolo — banco di prova</title>
+<link rel="stylesheet" href="../../renderer/styles.css">
+<style>
+  body { margin: 0; display: flex; height: 100vh; }
+  #sidebar { padding-top: 16px; }
+</style>
+</head>
+<body>
+<div id="sidebar">
+  <div class="side-section">Sessioni <span id="count"></span></div>
+  <div id="session-list"></div>
+</div>
+<div style="flex:1"></div>
+<script src="../../renderer/agent-icons.js"></script>
+<script src="../../renderer/pizza-slice.js"></script>
+<script src="../../renderer/session-groups.js"></script>
+<script src="../../renderer/sidebar.js"></script>
+<script>
+  const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+  const sessions = [
+    { id: '1', type: 'claude', name: 'refactor sidebar', cwd: '/home/ale/digitiamo/aisessionmanager', projectRoot: '/home/ale/digitiamo/aisessionmanager', alive: true, claudeAccountName: 'OAuth' },
+    { id: '2', type: 'claude', name: 'fix release', cwd: '/home/ale/digitiamo/aisessionmanager/app', projectRoot: '/home/ale/digitiamo/aisessionmanager', alive: true },
+    { id: '3', type: 'claude', name: 'usage bar', cwd: '/home/ale/digitiamo/aisessionmanager', projectRoot: '/home/ale/digitiamo/aisessionmanager', alive: false, needsAttention: true },
+    { id: '4', type: 'shell', name: 'build', cwd: '/home/ale/digitiamo/segnaPOS', projectRoot: '/home/ale/digitiamo/segnaPOS', alive: true },
+    { id: '5', type: 'codex', name: 'missing ope', cwd: '/home/ale/digitiamo/segnaPOS/src', projectRoot: '/home/ale/digitiamo/segnaPOS', alive: true },
+    { id: '6', type: 'opencode', name: 'prova lunga con un nome che non ci sta', cwd: '/tmp', projectRoot: null, alive: true },
+  ];
+  const query = new URLSearchParams(location.search);
+  // ?collapsed=claude,shell — per guardare il fascicolo chiuso
+  const collapsed = (query.get('collapsed') || '').split(',').filter(Boolean);
+  localStorage.setItem('aisess.collapsedGroups', JSON.stringify(collapsed));
+  localStorage.setItem('aisess.collapsedProjects', JSON.stringify(collapsed));
+  const sidebar = window.AisessSidebar.createSidebar({
+    list: document.getElementById('session-list'),
+    count: document.getElementById('count'),
+    storage: localStorage,
+    Icons: window.AisessIcons,
+    Slice: window.PizzaSlice,
+    Groups: window.AisessGroups,
+    escapeHtml,
+    onSelect: (id) => sidebar.render(sessions, id),
+    onClose: () => {},
+    onRename: () => {},
+    onNewInProject: () => {},
+    canDetach: () => true,
+    onTerminate: () => {},
+  });
+  sidebar.setMode(query.get('mode') === 'project' ? 'project' : 'type');
+  sidebar.render(sessions, '2');
+</script>
+</body>
+</html>

@@ -15,6 +15,16 @@
   --border:        #251C19;  /* bordo standard, fra un pannello e l'altro */
   --border-strong: #35271F;  /* bordo input e pulsanti secondari */
 
+  /* fascicolo: i tre gradini del gruppo di sessioni. Il pannello e la
+     linguetta/fogli sono materiali DIVERSI — è quello che tiene insieme il
+     pezzo invece di farlo sembrare una card con due decorazioni. Alias della
+     scala forno: la palette resta una sola. */
+  --surface-group: var(--surface-2);  /* pannello del gruppo */
+  --surface-cap:   var(--surface-3);  /* linguetta e fogli */
+  --surface-row:   var(--surface-3);  /* riga attiva/hover dentro il pannello */
+  /* l'ombra sta sotto il fascicolo, non sulle singole righe */
+  --shadow-stack:  0 14px 28px -16px rgba(0,0,0,0.95);
+
   /* azione (pomodoro) */
   --action:        #F04E23;
   --action-hover:  #FF6A3D;

@@ -65,9 +65,11 @@
     }
   }
 
-  /** Aggancia scorciatoie e menu contestuale a un terminale. */
-  function attach(term, element) {
-    term.attachCustomKeyEventHandler((e) => {
+  /** Gestore per `term.attachCustomKeyEventHandler`: false = gestito qui.
+   * xterm ne accetta uno solo per terminale: chi lo installa lo compone con
+   * gli altri (renderer.js). */
+  function keyHandler(term) {
+    return (e) => {
       if (e.type !== 'keydown') return true;
       const mod = isMac ? e.metaKey : e.ctrlKey;
       if (!mod || e.altKey) return true;
@@ -91,16 +93,18 @@
         return handled();
       }
       return true;
-    });
-
-    if (element) {
-      element.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        if (term.hasSelection()) copy(term);
-        else paste(term);
-      });
-    }
+    };
   }
 
-  window.AisessClipboard = { attach, copy, paste, selectAll, applyEditAction };
+  /** Click destro: copia se c'e' una selezione, altrimenti incolla. */
+  function attachContextMenu(term, element) {
+    if (!element) return;
+    element.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (term.hasSelection()) copy(term);
+      else paste(term);
+    });
+  }
+
+  window.AisessClipboard = { keyHandler, attachContextMenu, copy, paste, selectAll, applyEditAction };
 })();

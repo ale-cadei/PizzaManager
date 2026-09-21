@@ -28,4 +28,9 @@ fi
 
 rm -rf "$DEST"
 ditto "$BUILT" "$DEST"
+
+# La copia intermedia in dist/ e' un'app a tutti gli effetti e Spotlight e
+# Launchpad la mostrerebbero accanto a quella installata: due "PizzaManager"
+# identiche. Restano solo .dmg e .zip.
+rm -rf dist/mac*
 echo "Installata: $DEST"

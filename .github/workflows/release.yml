@@ -1,0 +1,41 @@
+# Pacchetti a ogni tag `v*`: un runner per sistema, perché node-pty è un
+# modulo nativo che si compila per piattaforma (niente cross-build).
+# electron-builder carica i file su una GitHub Release con lo stesso nome del
+# tag, creata in bozza se non esiste: si pubblica a mano dopo un'occhiata.
+#
+# Non firmati: su macOS chi scarica deve autorizzare l'app in Impostazioni →
+# Privacy e sicurezza (o `xattr -cr`); su Windows compare l'avviso SmartScreen.
+# Firmare richiede Apple Developer Program / un certificato code-signing:
+# quando ci saranno, electron-builder li usa da variabili d'ambiente.
+name: release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            args: --mac --arm64 --x64
+          - os: ubuntu-latest
+            args: --linux
+          - os: windows-latest
+            args: --win
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run test:unit
+      - run: npx electron-builder ${{ matrix.args }} --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Senza certificato electron-builder firma ad hoc e va avanti
+          CSC_IDENTITY_AUTO_DISCOVERY: false

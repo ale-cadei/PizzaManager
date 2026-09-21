@@ -112,6 +112,10 @@ Non sono urgenti; stanno qui per non essere dimenticate.
 - **Google Fonts caricati da rete** (`renderer/index.html`): IBM Plex Mono e
   Inter arrivano da fonts.googleapis.com. Offline si ricade sul fallback locale,
   ma è una dipendenza di rete in un'app desktop; valutare di includerli.
+- **La suite di test assume Unix** (bit di esecuzione, path POSIX nei test di
+  `binaries` e `claude-sessions`): su un runner Windows fallisce, per questo
+  `release.yml` non la esegue. Farla girare anche lì vorrebbe dire iniettare
+  `platform: 'linux'` nei test che oggi usano il default.
 - **`npm audit`**: 15 vulnerabilità, tutte in `electron-builder` /
   `electron-rebuild`, quindi devDependencies che non finiscono nel bundle. Da
   sistemare prima di distribuire l'app.

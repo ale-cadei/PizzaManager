@@ -290,6 +290,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .dot.claude { background: var(--type-claude); }
 .dot.codex { background: var(--type-codex); }
 .dot.antigravity { background: var(--type-antigravity); }
+.dot.tmux { background: var(--text-muted); }
 /* Piede: legenda dei tipi + stato dei binari. Sono due blocchi nel markup ma
    una fascia sola a vedersi, quindi il separatore lo porta il primo e il
    padding inferiore il secondo. */

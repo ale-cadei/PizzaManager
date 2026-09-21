@@ -56,6 +56,13 @@ pty è solo un client. Regole:
 - Nei test usa un socket di prova (`socket: 'aistest-…'`), mai `aisession`.
 - `live-sessions.json` è lo specchio di tmux per sopravvivere ai riavvii: si
   aggiorna passando da `app/pty.js` (che chiama `syncSnapshot()`), mai a mano.
+- **Un file che un processo esterno deve leggere** (`app/tmux.conf` per tmux)
+  nell'app impacchettata sta dentro `app.asar`, che solo Electron sa aprire.
+  Va elencato in `build.asarUnpack` e il percorso passato con
+  `externalPath()` (`lib/tmux.js`). È successo: barra di stato verde e Ctrl+B
+  attivo nel `.deb`, perché tmux non leggeva la config.
+- tmux legge `-f` solo alla nascita del server: `create()` fa `source-file`
+  ogni volta, così un server avviato a mano si rimette in riga.
 
 ## Sicurezza (programma locale, ma ci teniamo)
 

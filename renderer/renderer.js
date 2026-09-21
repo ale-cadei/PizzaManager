@@ -72,6 +72,16 @@ async function init() {
       el.title = b && b.found ? b.path + ' (' + (b.via || '') + ')' : 'NON TROVATO nel PATH:\n' + (b && b.searchedPath);
     };
     for (const n of AI_TYPES) mark('#dep-' + n, deps[n]);
+    // tmux non e' un tipo di sessione ma decide se le sessioni sopravvivono
+    // all'app: senza indicatore, chi non ce l'ha scopre la differenza solo
+    // perdendole. Stesso trattamento dei binari, con la spiegazione nel tooltip.
+    const tmuxEl = $('#dep-tmux');
+    if (tmuxEl) {
+      tmuxEl.style.opacity = tmuxAvailable ? '1' : '0.45';
+      tmuxEl.title = tmuxAvailable
+        ? `tmux: ${d.tmux.path}\nLe sessioni restano vive alla chiusura dell'app e tornano alla riapertura.`
+        : 'tmux non trovato: le sessioni muoiono con la finestra.\nInstallalo (brew install tmux / apt install tmux) e riavvia l\'app.';
+    }
     if (AI_TYPES.some(n => !deps[n] || !deps[n].found)) {
       console.warn('[PizzaManager] binari mancanti:', deps);
     }

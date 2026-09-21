@@ -17,7 +17,21 @@ on:
 permissions:
   contents: write
 jobs:
+  # La bozza di Release nasce QUI, prima dei build. electron-builder fa
+  # "trova la bozza, altrimenti creala" senza alcun lock: quattro job che
+  # finiscono insieme creavano quattro bozze con lo stesso tag (successo con
+  # v1.0.2, unite a mano). Con la bozza gia' esistente, tutti la trovano.
+  draft:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          TAG="v$(node -p "require('./package.json').version")"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --draft --title "$TAG" --notes "" --target "$GITHUB_SHA"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   build:
+    needs: draft
     strategy:
       fail-fast: false
       matrix:

@@ -85,7 +85,10 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "artifactName": "${productName}-${os}-${arch}-setup.${ext}"
-    }
+    },
+    "asarUnpack": [
+      "app/tmux.conf"
+    ]
   },
   "repository": "github:ale-cadei/PizzaManager",
   "engines": {

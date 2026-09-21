@@ -110,8 +110,8 @@ ok('createTmuxControl.create: prima new-session -d, poi i set-option, e riporta 
   const r = await ctl.create({ name: 'ais-x', cmd: '/bin/sh', args: ['-i'], cwd: '/w', env: { A: '1' }, meta: { type: 'shell', cwd: '/w' } });
   assert.strictEqual(r.ok, true);
   assert.ok(calls[0].includes('new-session') && calls[0].includes('-d'), 'la sessione va creata staccata');
-  assert.ok(calls.slice(1).every((a) => a.includes('set-option')), 'i metadati vanno dopo la creazione');
-  assert.strictEqual(calls.length, 3);
+  assert.ok(calls.slice(1).every((a) => a.includes('set-option') || a.includes('source-file')), 'i metadati vanno dopo la creazione');
+  assert.strictEqual(calls.length, 4, 'new-session, source-file, due set-option');
 
   const bad = t.createTmuxControl({ bin: '/bin/tmux', confPath: conf, run: (b, a, o, cb) => cb(new Error('x'), '', 'duplicate session: ais-x') });
   const e = await bad.create({ name: 'ais-x', cmd: 'c' });
@@ -142,4 +142,31 @@ ok('detectTmux: null senza binario, altrimenti bin + config + controllo', () => 
   assert.strictEqual(d.confPath, conf);
   assert.strictEqual(d.socket, t.SOCKET);
   assert.strictEqual(typeof d.control.list, 'function');
+});
+
+/* L'app impacchettata sta in app.asar, un archivio che solo Electron sa
+   leggere: tmux, processo esterno, non puo' aprire `…/app.asar/app/tmux.conf`
+   e parte con i default (barra di stato verde, Ctrl+B attivo). electron-builder
+   ne tiene una copia in app.asar.unpacked: e' quella da dare a tmux. */
+ok('tmux: la config si passa dal percorso fuori dall asar', () => {
+  assert.strictEqual(t.externalPath('/opt/PizzaManager/resources/app.asar/app/tmux.conf'), '/opt/PizzaManager/resources/app.asar.unpacked/app/tmux.conf');
+  assert.strictEqual(t.externalPath('C:\\PizzaManager\\resources\\app.asar\\app\\tmux.conf'), 'C:\\PizzaManager\\resources\\app.asar.unpacked\\app\\tmux.conf');
+  assert.strictEqual(t.externalPath('/src/PizzaManager/app/tmux.conf'), '/src/PizzaManager/app/tmux.conf', 'da sorgente non cambia');
+  const d = t.detectTmux({ confPath: '/x/app.asar/app/tmux.conf', resolve: () => ({ path: '/usr/bin/tmux' }) });
+  assert.strictEqual(d.confPath, '/x/app.asar.unpacked/app/tmux.conf');
+});
+
+/* tmux legge -f solo alla nascita del server: se il server e' stato avviato a
+   mano (`tmux -L aisession attach` per curiosita') ha la config di default e
+   l'app non potrebbe piu' correggerla. source-file la riapplica a ogni
+   creazione: idempotente, e a costo di un comando. */
+ok('createTmuxControl.create: riapplica la config al server con source-file, prima dei metadati', async () => {
+  const calls = [];
+  const ctl = t.createTmuxControl({ bin: '/bin/tmux', confPath: conf, run: (b, a, o, cb) => { calls.push(a); cb(null, '', ''); } });
+  await ctl.create({ name: 'ais-x', cmd: '/bin/sh', meta: { type: 'shell' } });
+  const i = calls.findIndex((a) => a.includes('source-file'));
+  assert.ok(i > 0, 'manca source-file');
+  assert.ok(calls[i].includes(conf), 'source-file deve ricevere la config dell app');
+  assert.ok(calls[0].includes('new-session'), 'prima la sessione');
+  assert.ok(calls.slice(i + 1).every((a) => a.includes('set-option')), 'i metadati vengono dopo');
 });

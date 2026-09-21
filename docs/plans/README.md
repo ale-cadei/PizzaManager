@@ -22,6 +22,8 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 12 | [`feat/windows`](12-windows.md) | — | ~1 g | ✅ fatto (da provare su Windows) |
 | 13 | [`chore/release-build`](13-release-build.md) | 12 | ~2h | ✅ fatto |
 | 14 | [`feat/barra-usage`](14-barra-usage.md) | — | ~1 g | in corso |
+| 15 | [`feat/quota-token-5h`](15-quota-token-5h.md) | 14 | ~½ g | in corso |
+| 16 | [`spike/quota-claude`](16-spike-quota-claude.md) | 15 | ~3h | spike aperto |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

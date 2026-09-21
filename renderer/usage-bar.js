@@ -56,6 +56,20 @@
   }
 
   /**
+   * Quanto manca al reset della finestra di 5 ore: "reset fra 1h 12m".
+   * Non si arrotonda all'ora come formatDelta: su una finestra di 5 ore il
+   * minuto e' proprio il dato che interessa.
+   */
+  function formatReset(ms) {
+    const v = Number(ms);
+    if (!Number.isFinite(v) || v <= 0) return '';
+    if (v < MINUTE_MS) return 'reset fra <1m';
+    const minuti = Math.floor(v / MINUTE_MS);
+    const ore = Math.floor(minuti / 60);
+    return ore ? `reset fra ${ore}h ${minuti % 60}m` : `reset fra ${minuti}m`;
+  }
+
+  /**
    * Quanto manca, per finestre lunghe: "fra 3 g", "fra 5 h", "fra 20 min".
    * Un'ora esatta di orologio non direbbe niente su una finestra settimanale.
    */
@@ -78,12 +92,18 @@
     return Math.min(1, Math.max(0, Number(ctx.ratio)));
   }
 
-  /** Quanto e' avanzata la finestra di 5 ore nel tempo, da 0 a 1. */
+  /**
+   * Quanto e' piena la finestra di 5 ore in token, da 0 a 1.
+   * Il conto lo fa lib/usage (quota dichiarata dal CLI, o tetto calibrato sul
+   * massimo osservato): qui si disegna e basta. `null` = nessun tetto ancora,
+   * e la barra sparisce invece di mostrare uno zero che sembrerebbe "vuoto".
+   */
   function blockProgress(block) {
-    if (!block || !block.active || !block.start || !block.end) return null;
-    const span = block.end - block.start;
-    if (span <= 0) return null;
-    return Math.min(1, Math.max(0, (Number(block.now) - block.start) / span));
+    // `Number(null)` vale 0: senza questo controllo un tetto mancante
+    // diventerebbe uno 0% che si legge come "finestra ancora vuota".
+    if (!block || block.ratio === null || block.ratio === undefined) return null;
+    if (!Number.isFinite(Number(block.ratio))) return null;
+    return Math.min(1, Math.max(0, Number(block.ratio)));
   }
 
   /** Quota dichiarata dal CLI per una finestra, da 0 a 1, o null. */
@@ -115,7 +135,7 @@
    * Un riquadro: etichetta, valore e (se richiesto) barra di avanzamento.
    * @param {boolean} withBar
    */
-  function cell(document, root, label, withBar) {
+  function cell(document, root, label, withBar, withSub) {
     const box = document.createElement('div');
     box.className = 'usage-cell';
     const lab = document.createElement('span');
@@ -136,8 +156,22 @@
       bar.appendChild(fill);
       box.appendChild(bar);
     }
+    let sub = null;
+    if (withSub) {
+      sub = document.createElement('span');
+      sub.className = 'usage-sub';
+      sub.textContent = '';
+      box.appendChild(sub);
+    }
     root.appendChild(box);
-    return { box, val, bar, fill };
+    return { box, val, bar, fill, sub };
+  }
+
+  /** Riga secondaria; stringa vuota la nasconde. */
+  function setSub(c, text) {
+    if (!c || !c.sub) return;
+    c.sub.textContent = text || '';
+    c.sub.style.display = text ? '' : 'none';
   }
 
   /** Larghezza della barra; `null` la nasconde (nessun dato, non "zero"). */
@@ -159,10 +193,49 @@
     return ratio === null ? EMPTY : formatPercent(ratio);
   }
 
-  /** Testo del riquadro FINESTRA 5h: quota dichiarata o tempo trascorso. */
-  function blockText(block, declared) {
-    const ratio = declaredProgress(declared) !== null ? declaredProgress(declared) : blockProgress(block);
+  /** Testo del riquadro FINESTRA 5h: quanto e' pieno, in token. */
+  function blockText(block) {
+    const ratio = blockProgress(block);
     return ratio === null ? EMPTY : formatPercent(ratio);
+  }
+
+  /** Riga secondaria del riquadro FINESTRA 5h: di chi parla e quando si azzera. */
+  function blockSub(block) {
+    if (!block) return '';
+    const reset = formatReset(block.resetsIn);
+    return [block.source, reset].filter(Boolean).join(' · ');
+  }
+
+  /** Data corta del massimo osservato, per il tooltip: "19/09". */
+  function formatDay(ts) {
+    if (!Number.isFinite(Number(ts))) return '';
+    const d = new Date(Number(ts));
+    return `${two(d.getDate())}/${two(d.getMonth() + 1)}`;
+  }
+
+  /**
+   * Tooltip del riquadro FINESTRA 5h. Dice sempre **da dove viene il numero**:
+   * una stima calibrata sul proprio uso e una quota dichiarata dal fornitore
+   * si leggono uguali, ma non valgono uguale.
+   */
+  function blockTitle(block, snapshot) {
+    if (!block || !block.active) {
+      return 'Nessuna attivita\' nelle ultime 5 ore: la prossima richiesta apre una finestra nuova.';
+    }
+    const chi = block.source ? `${block.source}: ` : '';
+    const quando = `Finestra aperta alle ${formatClock(block.start)}, si azzera alle ${formatClock(block.resetsAt || block.end)}.`;
+    const dettaglio = `\n\n${detailText(snapshot)}`;
+    if (block.limitKind === 'declared') {
+      return `${chi}quota dichiarata dal CLI.\n${tokensLine(block.totals)} in questa finestra.\n${quando}${dettaglio}`;
+    }
+    if (block.limitKind === 'calibrated') {
+      const visto = formatDay(block.peakObservedAt);
+      const oltre = block.overPeak ? '\nSei oltre il massimo osservato: la barra resta piena.' : '';
+      return `${chi}${tokensLine(block.totals)} sul massimo osservato di ${formatTokens(block.limit)}`
+        + `${visto ? ` (${visto})` : ''}.\nStima calibrata sul tuo uso, non una quota del fornitore.${oltre}\n${quando}${dettaglio}`;
+    }
+    return `${chi}${tokensLine(block.totals)} in questa finestra, senza percentuale: il tetto si calibra`
+      + ` sulla prima finestra di 5 ore conclusa, e non ce n'e' ancora una.\n${quando}${dettaglio}`;
   }
 
   /** Testo del riquadro SETTIMANA: solo se un CLI dichiara la quota. */
@@ -179,7 +252,7 @@
     if (!root || !doc) throw new Error('createUsageBar: servono root e document');
     root.innerHTML = '';
     const session = cell(doc, root, 'SESSIONE', true);
-    const block = cell(doc, root, 'FINESTRA 5h', true);
+    const block = cell(doc, root, 'FINESTRA 5h', true, true);
     const week = cell(doc, root, 'SETTIMANA', true);
     const cells = [session, block, week];
 
@@ -189,6 +262,7 @@
         for (const c of cells) {
           c.val.textContent = EMPTY;
           setProgress(c, null);
+          setSub(c, '');
         }
         root.title = 'Dati d\'uso non disponibili.';
         return;
@@ -205,15 +279,10 @@
           : `Contesto non calcolabile: modello fuori tabella o totali gia aggregati.\n${tokensLine(snapshot.session)} spesi in questa sessione.`;
 
       const b = snapshot.block || {};
-      block.val.textContent = blockText(b, limits.fiveHour);
-      setProgress(block, declaredProgress(limits.fiveHour) !== null
-        ? declaredProgress(limits.fiveHour)
-        : blockProgress(b));
-      block.box.title = !b.active
-        ? 'Nessuna attivita\' nelle ultime 5 ore: la prossima richiesta apre una finestra nuova.'
-        : limits.fiveHour
-          ? `Quota dichiarata dal CLI. ${tokensLine(b.totals)} nella finestra aperta alle ${formatClock(b.start)}, si chiude alle ${formatClock(b.end)}.\n\n${detailText(snapshot)}`
-          : `Nessun CLI dichiara la quota: la barra mostra il tempo trascorso nella finestra (${formatClock(b.start)} → ${formatClock(b.end)}), non i token rimasti.\n${tokensLine(b.totals)} consumati finora.\n\n${detailText(snapshot)}`;
+      block.val.textContent = blockText(b);
+      setProgress(block, blockProgress(b));
+      setSub(block, blockSub(b));
+      block.box.title = blockTitle(b, snapshot);
 
       const w = snapshot.week || {};
       const resetSettimana = limits.weekly ? formatDelta(Number(limits.weekly.resetsAt) - Number(w.now)) : '';
@@ -229,8 +298,8 @@
   }
 
   return {
-    createUsageBar, formatTokens, formatPercent, formatClock, formatDelta,
+    createUsageBar, formatTokens, formatPercent, formatClock, formatDelta, formatReset,
     blockProgress, contextProgress, declaredProgress,
-    sessionText, blockText, weekText, detailText, tokensLine, EMPTY,
+    sessionText, blockText, blockSub, blockTitle, weekText, detailText, tokensLine, EMPTY,
   };
 });

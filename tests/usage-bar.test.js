@@ -21,10 +21,17 @@ function snapshot(over = {}) {
       ...totals({ total: 12_000 }),
       context: { model: 'claude-opus-5', tokens: 50_000, limit: 200_000, ratio: 0.25, ts: NOW },
     },
+    /* Il riquadro della finestra di 5h arriva gia' deciso da lib/usage: quale
+       assistente, quanti token, su quale tetto e quando si azzera. */
     block: {
+      source: 'claude',
       start: new Date(2026, 8, 21, 10, 0, 0).getTime(),
       end: new Date(2026, 8, 21, 15, 0, 0).getTime(),
       now: NOW, active: true, totals: totals({ total: 900_000 }),
+      limit: 1_800_000, limitKind: 'calibrated', peakObservedAt: NOW - 2 * DAY,
+      ratio: 0.5, overPeak: false,
+      resetsAt: new Date(2026, 8, 21, 15, 0, 0).getTime(),
+      resetsIn: 2.5 * 60 * 60 * 1000,
     },
     week: { start: NOW - 7 * DAY, end: NOW, now: NOW, totals: totals({ total: 8_400_000 }) },
     bySource: { claude: totals(), codex: totals({ total: 5_000 }) },
@@ -42,7 +49,7 @@ function mount(snap) {
     bar.update(snap);
     return {
       root, bar,
-      texts: root.children.map((c) => c.children.map((x) => x.textContent).join(' ')),
+      texts: root.children.map((c) => c.children.map((x) => x.textContent).filter(Boolean).join(' ')),
       titles: root.children.map((c) => c.title),
     };
   } finally { restore(); }
@@ -62,10 +69,14 @@ ok('usage bar: niente prezzi da nessuna parte', () => {
   assert.ok(!tutto.includes('$'), 'la barra non mostra costi');
 });
 
-ok('usage bar: tre riquadri, solo etichetta e percentuale', () => {
+ok('usage bar: tre riquadri, percentuale e (per la finestra) quanto manca al reset', () => {
   const { texts } = mount(snapshot({ rateLimits: { fiveHour: null, weekly: { usedPercent: 30 } } }));
   assert.strictEqual(texts.length, 3);
-  assert.deepStrictEqual(texts.map((t) => t.trim()), ['SESSIONE 25%', 'FINESTRA 5h 50%', 'SETTIMANA 30%']);
+  assert.deepStrictEqual(texts.map((t) => t.trim()), [
+    'SESSIONE 25%',
+    'FINESTRA 5h 50% claude · reset fra 2h 30m',
+    'SETTIMANA 30%',
+  ]);
 });
 
 ok('usage bar: i token escono dal testo ma restano nei tooltip', () => {
@@ -97,25 +108,64 @@ ok('usage bar: senza sessione riconosciuta il riquadro dice — e spiega perche'
   assert.ok(root.children[0].title.includes('shell'));
 });
 
-ok('usage bar: la quota dichiarata dal CLI batte il tempo trascorso', () => {
-  const { bar, texts } = mount(snapshot({
-    rateLimits: { fiveHour: { usedPercent: 82, resetsAt: NOW + 2 * 60 * 60 * 1000 }, weekly: null },
-  }));
-  assert.strictEqual(bar.elements.block.fill.style.width, '82%');
-  assert.ok(texts[1].includes('82%'));
+ok('usage bar: la barra 5h disegna i token consumati, non il tempo passato', () => {
+  const { bar, titles } = mount(snapshot());
+  // Alle 12:30 di una finestra 10:00 -> 15:00 il tempo trascorso e' il 50%: qui
+  // coincide di proposito col 50% dei token, e il tooltip dice qual e' dei due.
+  assert.strictEqual(bar.elements.block.fill.style.width, '50%');
+  assert.ok(titles[1].includes('900K') && titles[1].includes('1.8M'), 'token consumati e tetto, in cifre');
+  assert.ok(titles[1].includes('massimo osservato'), 'dichiara che il tetto e una calibrazione');
+  assert.ok(!titles[1].includes('tempo trascorso'), 'la barra non parla piu di tempo');
 });
 
-ok('usage bar: senza quota dichiarata la barra 5h mostra il tempo trascorso', () => {
-  const { bar } = mount(snapshot());
-  assert.strictEqual(bar.elements.block.fill.style.width, '50%'); // 10:00 -> 15:00, ora sono le 12:30
-  assert.ok(bar.elements.block.box.title.includes('tempo trascorso'));
+ok('usage bar: la quota dichiarata dal CLI si distingue dalla stima', () => {
+  const { bar, texts, titles } = mount(snapshot({
+    block: { ...snapshot().block, limitKind: 'declared', ratio: 0.08, limit: null },
+  }));
+  assert.strictEqual(bar.elements.block.fill.style.width, '8%');
+  assert.ok(texts[1].includes('8%'));
+  assert.ok(titles[1].includes('dichiarata'), 'il tooltip dice che il numero viene dal CLI');
+  assert.ok(!titles[1].includes('stima'));
+});
+
+ok('usage bar: senza tetto calibrato niente percentuale, e si dice perche', () => {
+  const { bar, texts, titles } = mount(snapshot({
+    block: { ...snapshot().block, limit: null, limitKind: null, ratio: null, overPeak: false },
+  }));
+  assert.ok(texts[1].includes(Bar.EMPTY), 'niente 0%, niente stima inventata');
+  assert.strictEqual(bar.elements.block.bar.style.display, 'none');
+  assert.ok(titles[1].includes('calibra'), 'il tooltip spiega che il tetto non c e ancora');
+  assert.ok(texts[1].includes('reset fra 2h 30m'), 'il reset si sa comunque');
+});
+
+ok('usage bar: oltre il massimo osservato la barra e piena e lo dichiara', () => {
+  const { bar, titles } = mount(snapshot({
+    block: { ...snapshot().block, ratio: 1, overPeak: true, totals: totals({ total: 2_400_000 }) },
+  }));
+  assert.strictEqual(bar.elements.block.fill.style.width, '100%');
+  assert.ok(titles[1].includes('oltre il massimo osservato'));
 });
 
 ok('usage bar: fuori dalla finestra di 5h non si finge un consumo a zero', () => {
-  const { bar, texts, titles } = mount(snapshot({ block: { start: null, end: null, now: NOW, active: false, totals: totals({ total: 0 }) } }));
+  const { bar, texts, titles } = mount(snapshot({
+    block: {
+      source: 'claude', start: null, end: null, now: NOW, active: false, totals: totals({ total: 0 }),
+      limit: null, limitKind: null, ratio: null, overPeak: false, resetsAt: null, resetsIn: null,
+    },
+  }));
   assert.ok(texts[1].includes(Bar.EMPTY), 'niente 0%: la finestra non esiste');
+  assert.ok(!texts[1].includes('reset'), 'niente reset di una finestra che non c e');
   assert.strictEqual(bar.elements.block.bar.style.display, 'none');
   assert.ok(titles[1].includes('Nessuna attivita'));
+});
+
+ok('usage bar: il reset si legge in ore e minuti, non arrotondato all ora', () => {
+  const M = 60 * 1000;
+  assert.strictEqual(Bar.formatReset(72 * M), 'reset fra 1h 12m');
+  assert.strictEqual(Bar.formatReset(48 * M), 'reset fra 48m');
+  assert.strictEqual(Bar.formatReset(20 * 1000), 'reset fra <1m');
+  assert.strictEqual(Bar.formatReset(0), '');
+  assert.strictEqual(Bar.formatReset(null), '');
 });
 
 ok('usage bar: la settimana mostra la quota solo se qualcuno la dichiara', () => {

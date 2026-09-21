@@ -767,8 +767,12 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
     window.aisess.write(id, d);
     applyTypedPrompt(tab, d);
   });
-  // Copia/incolla: la selezione di xterm non è una selezione del documento
-  window.AisessClipboard.attach(term, inner);
+  // xterm accetta un solo gestore tasti: qui si compongono quelli dei moduli.
+  // Copia/incolla: la selezione di xterm non è una selezione del documento.
+  // Shift+Invio: a capo nel prompt delle TUI senza inviarlo.
+  const keyHandlers = [window.AisessNewline.keyHandler(term), window.AisessClipboard.keyHandler(term)];
+  term.attachCustomKeyEventHandler((e) => keyHandlers.every((h) => h(e)));
+  window.AisessClipboard.attachContextMenu(term, inner);
   // Il bell è il "ho finito" esplicito degli agenti: vale senza attendere l'idle
   try { term.onBell(() => flagAttention(tab, { force: true })); } catch {}
 

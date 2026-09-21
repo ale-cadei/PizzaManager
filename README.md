@@ -66,7 +66,7 @@ Serve se vuoi modificare l'app o provare `main` prima di una release.
 
 | | Obbligatorio | Consigliato |
 |---|---|---|
-| **Tutti** | [Node.js](https://nodejs.org) 20 o più recente | Almeno uno fra `claude`, `codex`, `opencode`, `agy` nel PATH |
+| **Tutti** | [Node.js](https://nodejs.org) 22 o più recente | Almeno uno fra `claude`, `codex`, `opencode`, `agy` nel PATH |
 | **macOS** | Xcode Command Line Tools (`xcode-select --install`, per compilare `node-pty`) | `brew install tmux` |
 | **Linux** | `build-essential` e `python3` (per `node-pty`) | `sudo apt install tmux` (o l'equivalente della tua distro) |
 | **Windows** | [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) con il carico di lavoro C++ (per `node-pty`) | — |

@@ -43,6 +43,10 @@ servissero di nuovo, stanno nella storia di git di questo branch.
   Codex), altrimenti il **tempo trascorso** nella finestra — e il tooltip dice
   quale delle due, perche' sono due cose diverse. Fuori da una finestra aperta:
   `—`, non `0%`.
+  **Superato dal piano 15**: il tempo trascorso si leggeva come consumo (79%
+  sulla barra contro 8% di `/usage`). Ora la barra disegna i token su un tetto
+  calibrato per assistente, e il tempo e' diventato «reset fra 1h 12m» accanto
+  alla percentuale. Vedi [15-quota-token-5h.md](15-quota-token-5h.md).
 - **SETTIMANA**: quota settimanale dichiarata da un CLI, su finestra mobile (il
   limite degli abbonamenti scorre con l'uso, non col calendario). Claude non la
   scrive da nessuna parte nei `.jsonl`: con il solo Claude il riquadro resta `—`

@@ -12,6 +12,17 @@ const ROOT = path.join(__dirname, '..');
 const read = (...p) => fs.readFileSync(path.join(ROOT, ...p), 'utf8');
 const tmp = (prefix) => fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 
+// ---------- Shift+Invio ----------
+ok('terminale: Shift+Invio e copia/incolla condividono l unico gestore tasti di xterm', () => {
+  const html = read('renderer', 'index.html');
+  assert.ok(html.includes('<script src="term-newline.js">'), 'index.html non carica term-newline.js');
+  const rend = read('renderer', 'renderer.js');
+  assert.ok(rend.includes('window.AisessNewline.keyHandler(term)'), 'renderer.js non compone il gestore di Shift+Invio');
+  assert.ok(rend.includes('window.AisessClipboard.keyHandler(term)'), 'renderer.js non compone il gestore appunti');
+  assert.strictEqual((rend.match(/attachCustomKeyEventHandler\(/g) || []).length, 1, 'xterm accetta un solo gestore tasti: va installato una volta sola');
+  assert.ok(!read('renderer', 'term-clipboard.js').includes('attachCustomKeyEventHandler('), 'term-clipboard.js non deve installare il gestore da solo');
+});
+
 // ---------- Appunti e menu Edit ----------
 ok('terminale: copia/incolla passano dalla selezione di xterm, non dal documento', () => {
   const clip = read('renderer', 'term-clipboard.js');

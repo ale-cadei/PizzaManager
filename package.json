@@ -25,9 +25,9 @@
     "node-pty": "^1.0.0"
   },
   "devDependencies": {
-    "@electron/rebuild": "^3.7.2",
+    "@electron/rebuild": "^4.0.4",
     "electron": "^33.0.0",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^26.15.3"
   },
   "build": {
     "appId": "com.aisessionmanager.app",
@@ -56,9 +56,11 @@
       "category": "Development",
       "icon": "assets/icons",
       "desktop": {
-        "Name": "PizzaManager",
-        "Comment": "Gestore unificato terminali, OpenCode e Claude Code",
-        "Categories": "Development;Utility;"
+        "entry": {
+          "Name": "PizzaManager",
+          "Comment": "Gestore unificato terminali, OpenCode e Claude Code",
+          "Categories": "Development;Utility;"
+        }
       }
     },
     "mac": {
@@ -93,8 +95,5 @@
   "repository": "github:ale-cadei/PizzaManager",
   "engines": {
     "node": ">=22"
-  },
-  "overrides": {
-    "node-gyp": "^10.3.1"
   }
 }

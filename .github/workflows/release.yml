@@ -11,6 +11,9 @@ name: release
 on:
   push:
     tags: ['v*']
+  # Rilancio a mano da un branch (gh workflow run release.yml --ref <branch>):
+  # carica sulla bozza di Release della versione in package.json.
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
@@ -26,6 +29,8 @@ jobs:
           - os: windows-latest
             args: --win
     runs-on: ${{ matrix.os }}
+    # Un build che non finisce deve fallire, non occupare un runner per ore
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -39,5 +44,6 @@ jobs:
       - run: npx electron-builder ${{ matrix.args }} --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEBUG: electron-builder
           # Senza certificato electron-builder firma ad hoc e va avanti
           CSC_IDENTITY_AUTO_DISCOVERY: false

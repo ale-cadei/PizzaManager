@@ -33,7 +33,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run test:unit
+      # Niente test qui: girano gia' in ci.yml su ogni push e PR, e il tag parte
+      # da un main verificato. Sul runner Windows la suite (scritta per Unix:
+      # permessi, path POSIX) fallirebbe per motivi che non riguardano il build.
       - run: npx electron-builder ${{ matrix.args }} --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

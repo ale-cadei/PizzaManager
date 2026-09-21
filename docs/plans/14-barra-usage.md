@@ -1,4 +1,4 @@
-# 13 — Barra dell'uso in basso
+# 14 — Barra dell'uso in basso
 
 Branch: `feat/barra-usage`. Dipende da: niente (legge file già esistenti).
 Taglia: ~1 g.

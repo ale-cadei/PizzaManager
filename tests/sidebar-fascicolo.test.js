@@ -89,6 +89,6 @@ ok('fascicolo: il CSS salda la linguetta al pannello e non chiude l angolo di in
   assert.ok(body, 'manca la regola del pannello');
   assert.ok(/border-radius:\s*0 /.test(body[0]),
     'il pannello arrotonda l angolo in alto a sinistra, dove si innesta la linguetta');
-  assert.ok(/\.group-header\[aria-expanded="false"\][\s\S]{0,200}border-radius:\s*var\(--radius\)/.test(css),
+  assert.ok(/\.group-header\[aria-expanded="false"\][\s\S]{0,200}border-radius:\s*var\(--radius[^;]*\);/.test(css),
     'da collassato la linguetta non si chiude su tutti gli angoli');
 });

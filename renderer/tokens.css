@@ -17,8 +17,9 @@
 
   /* fascicolo: i tre gradini del gruppo di sessioni. Il pannello e la
      linguetta/fogli sono materiali DIVERSI — è quello che tiene insieme il
-     pezzo invece di farlo sembrare una card con due decorazioni. Alias della
-     scala forno: la palette resta una sola. */
+     pezzo invece di farlo sembrare una card con due decorazioni. Fuori dalla
+     sidebar valgono gli alias della scala forno; dentro li sovrascrive la
+     palette A (vedi il blocco #sidebar in fondo al file). */
   --surface-group: var(--surface-2);  /* pannello del gruppo */
   --surface-cap:   var(--surface-3);  /* linguetta e fogli */
   --surface-row:   var(--surface-3);  /* riga attiva/hover dentro il pannello */
@@ -75,6 +76,53 @@
   --gap:    12px;
   --gap-lg: 20px;
   --shadow-modal: 0 24px 60px rgba(0,0,0,0.6);
+}
+
+/* --- Palette A «Affonda lo sfondo» — solo sidebar e fascicoli ---------------
+   Lo sfondo del pannello scende quasi al nero e le superfici del fascicolo
+   salgono: fra sidebar e corpo della card ci sono 8.9 punti di L* invece dei
+   3.9 della scala forno, così la sidebar diventa un pannello DIETRO le carte.
+   I tre gradini vanno mossi insieme (cap ≈ +5 L* su group, row ≈ +6,
+   border ≈ +11): alzare solo la card appiattisce il fascicolo.
+
+   Le variabili stanno su #sidebar e non su :root: l'area terminale, i modali e
+   i pulsanti d'azione restano sulla palette forno. Il pomodoro (--action) non
+   si tocca — qui cambiano solo materiali, bordi e neutri. */
+#sidebar {
+  /* superfici */
+  --bg:            #050507;  /* incassi dentro la sidebar (selettore segmentato) */
+  --surface:       #09090b;  /* fondo della sidebar: L* 2.5 */
+  --surface-2:     #1e1e22;
+  --surface-3:     #2a2a31;
+  --surface-group: #1e1e22;  /* corpo della card (Δ 8.9 L* dal fondo) */
+  --surface-cap:   #292930;  /* linguetta e fogli del fascicolo */
+  --surface-row:   #2a2a31;  /* riga sessione attiva o in hover */
+
+  /* bordi: con lo sfondo a fondo scala l'ombra sotto i fogli non si vede
+     (nero su quasi nero) — il confine del fascicolo lo disegnano il salto di
+     superficie e questi due token. Non ingrossarli oltre 1px per compensare. */
+  --divider:       #1c1c22;
+  --border:        #35353e;
+  --border-strong: #474751;
+
+  /* neutri freddi, coerenti con superfici neutre. --text-faint sta a 3.4:1:
+     icone e comandi che schiariscono al passaggio del mouse, mai testo. */
+  --text:          #ece9e6;  /* 13.7:1 su --surface-group */
+  --text-2:        #c8c8d1;
+  --text-muted:    #9a9aa4;  /* 6.0:1 */
+  --text-dim:      #8a8a95;
+  --text-faint:    #70707a;  /* 3.4:1 — non testuale */
+
+  /* accenti con significati distinti: il viola sta a 4.5:1 sulla card, quindi
+     barretta e rombo (soglia grafica 3:1), non testo. */
+  --type-claude:   #8b73e8;  /* sessione Claude */
+  --state-ok:      #74c46a;  /* agente attivo     — 7.8:1 */
+  --accent:        #e0a33e;  /* cartella/progetto — 7.5:1 */
+
+  /* forma: riga 6, linguetta 10, contenitore di gruppo 14 */
+  --radius:        6px;
+  --radius-cap:    10px;
+  --radius-lg:     14px;
 }
 
 /* --- componenti di base --- */

@@ -574,14 +574,9 @@ function applyTypedPrompt(tab, data) {
   if (applyTitle(tab, line)) renderSidebar();
 }
 
-/**
- * Aggiorna id conversazione e nome delle schede. L'id si cerca per OGNI scheda
- * che non lo conosce, rinominata o no: e' cio' che la rende ripristinabile
- * dopo un riavvio (finisce sulla sessione tmux e da li' in live-sessions.json).
- * Il titolo automatico invece tocca solo le schede non rinominate.
- */
+/** Aggiorna nome e id conversazione delle schede che non sono state rinominate. */
 async function refreshAutoTitles() {
-  const targets = [...tabs.values()].filter(Titles.needsAutoRefresh);
+  const targets = [...tabs.values()].filter((t) => t.autoNamed && t.type !== 'shell');
   if (!targets.length) return;
   const byType = new Map();
   for (const t of targets) if (!byType.has(t.type)) byType.set(t.type, listSessionsFor(t.type));
@@ -591,12 +586,10 @@ async function refreshAutoTitles() {
     try { data = await promise; } catch { continue; }
     if (!data || !data.ok) continue;
     for (const t of targets.filter((x) => x.type === type)) {
-      // Con un resume l'id è noto; per una scheda nuova va riconosciuto. Le
-      // conversazioni già di altre schede sono escluse: due schede nello stesso
-      // progetto non devono finire sulla stessa conversazione.
+      // Con un resume l'id è noto; per una scheda nuova va riconosciuto
       const s = t.resumeId
         ? (data.sessions || []).find((x) => x.id === t.resumeId)
-        : Titles.pickAutoSession(data.sessions, { cwd: t.cwd, since: t.startedAt - 5000, exclude: knownResumeIds(t) });
+        : Titles.pickAutoSession(data.sessions, { cwd: t.cwd, since: t.startedAt - 5000 });
       if (!s) continue;
       if (!t.resumeId) {
         t.resumeId = s.id;
@@ -604,10 +597,9 @@ async function refreshAutoTitles() {
         // ripristinabile dopo un riavvio una scheda nata "nuova".
         if (t.session && t.alive) window.aisess.setMeta(t.id, { resumeId: s.id });
       }
-      // Nome scelto dall'utente (rinomina, dialog, prompt digitato): si lega
-      // alla conversazione appena se ne conosce l'id, così sopravvive al
-      // resume. Il titolo del CLI perde.
-      if (t.namedFromPrompt || !t.autoNamed) {
+      // Nome già preso dal prompt digitato: si lega alla conversazione appena
+      // se ne conosce l'id, così sopravvive al resume. Il titolo del CLI perde.
+      if (t.namedFromPrompt) {
         if (!titleStore.nameFor(t.type, t.resumeId)) titleStore.setName(t.type, t.resumeId, t.name);
         continue;
       }
@@ -620,11 +612,6 @@ async function refreshAutoTitles() {
     }
   }
   if (changed) renderSidebar();
-}
-
-/** Id delle conversazioni già assegnate ad altre schede dello stesso tipo. */
-function knownResumeIds(tab) {
-  return [...tabs.values()].filter((t) => t !== tab && t.type === tab.type && t.resumeId).map((t) => t.resumeId);
 }
 
 function startAutoTitles() {
@@ -714,7 +701,7 @@ async function resolveProjectRoot(cwd) {
   return root;
 }
 
-async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null, startedAt = Date.now() } = {}) {
+async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null } = {}) {
   // attachSession: riaggancio di una sessione tmux gia' viva. Il comando e' gia'
   // stato risolto quando e' nata, quindi niente scelta del profilo.
   const picked = attachSession
@@ -737,7 +724,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   // Registra e rendi visibile PRIMA di aprire il terminale: xterm misura il
   // contenitore all'apertura, quindi il wrap deve essere già laid out a
   // dimensione piena (altrimenti la prima scheda nasce 20x10).
-  const tab = { id, type, name: label, cwd, projectRoot: cwd || null, resumeId, startedAt, autoNamed: !name,
+  const tab = { id, type, name: label, cwd, projectRoot: cwd || null, resumeId, startedAt: Date.now(), autoNamed: !name,
     session: attachSession, reattached: Boolean(attachSession),
     promptCapture: PromptCapture.createPromptCapture(), namedFromPrompt: false, claudeAccountId, claudeAccountName, commandProfileId: picked.id, commandProfileLabel: picked.label, term: null, fit: null, ro: null, wrap, alive: true, needsAttention: false, idleTimer: null, pendingBytes: 0 };
   tabs.set(id, tab);
@@ -961,9 +948,6 @@ async function reattachLiveSessions() {
       commandProfileId: s.profileId || null,
       commandProfileLabel: s.profileLabel || null,
       attachSession: s.name,
-      // L'istante di avvio e' quello della sessione tmux, non del riattacco:
-      // senza id, la conversazione va cercata da quando e' nata davvero.
-      startedAt: s.createdAt || Date.now(),
     });
   }
 }

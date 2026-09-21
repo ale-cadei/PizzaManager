@@ -118,6 +118,23 @@ ok('createTmuxControl.create: prima new-session -d, poi i set-option, e riporta 
   assert.deepStrictEqual(e, { ok: false, error: 'duplicate session: ais-x' });
 });
 
+ok('createTmuxControl.create: il client new-session gira col PATH della sessione, non con quello del processo', async () => {
+  // tmux (verificato su 3.7) da' al comando iniziale il PATH del CLIENT che
+  // esegue new-session, ignorando `-e PATH`: con l'app avviata dal Finder il
+  // client avrebbe /usr/bin:/bin e `docker`, `brew`, ecc. non si troverebbero.
+  const opts = [];
+  const ctl = t.createTmuxControl({ bin: '/bin/tmux', confPath: conf, run: (b, a, o, cb) => { opts.push(o); cb(null, '', ''); } });
+  await ctl.create({ name: 'ais-x', cmd: '/bin/sh', env: { PATH: '/usr/local/bin:/usr/bin:/bin', A: '1' }, meta: {} });
+  assert.strictEqual(opts[0].env.PATH, '/usr/local/bin:/usr/bin:/bin');
+  assert.strictEqual(opts[0].env.HOME, process.env.HOME, 'il resto dell ambiente del processo resta');
+  assert.strictEqual(opts[0].env.A, undefined, 'le altre variabili passano solo da -e, non al client');
+
+  const noPath = [];
+  const ctl2 = t.createTmuxControl({ bin: '/bin/tmux', confPath: conf, run: (b, a, o, cb) => { noPath.push(o); cb(null, '', ''); } });
+  await ctl2.create({ name: 'ais-y', cmd: 'c' });
+  assert.strictEqual(noPath[0].env, undefined, 'senza PATH esplicito si eredita l ambiente del processo');
+});
+
 ok('detectTmux: null senza binario, altrimenti bin + config + controllo', () => {
   assert.strictEqual(t.detectTmux({ confPath: conf, resolve: () => ({ path: null }) }), null);
   const d = t.detectTmux({ confPath: conf, resolve: () => ({ path: '/opt/homebrew/bin/tmux' }) });

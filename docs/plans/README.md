@@ -20,7 +20,8 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 10 | [`feat/pizza-branding`](10-pizza-branding.md) | — | ~1h | in corso |
 | 11 | [`feat/nuova-sessione-nel-progetto`](11-nuova-sessione-nel-progetto.md) | 8 | ~1h | ✅ fatto |
 | 12 | [`feat/windows`](12-windows.md) | — | ~1 g | in corso |
-| 13 | build e installer (mac/linux/win) | 12 | ~2h | proposto |
+| 13 | [`feat/barra-usage`](13-barra-usage.md) | — | ~1 g | in corso |
+| 14 | build e installer (mac/linux/win) | 12 | ~2h | proposto |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

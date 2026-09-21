@@ -96,6 +96,7 @@ async function init() {
   window.onCommandProfilesChanged = () => renderSidebar();
 
   initSidebarResize();
+  initUsageBar();
   $('#group-mode-type').addEventListener('click', () => { if (sidebar.setMode('type')) renderSidebar(); });
   $('#group-mode-project').addEventListener('click', () => { if (sidebar.setMode('project')) renderSidebar(); });
   initMenubar(d.platform);
@@ -845,6 +846,7 @@ function setActive(id) {
   if (t) sidebar.expandGroupOf(t);
   renderSidebar();
   setTimeout(() => fitActive(), 30);
+  refreshUsage(); // il riquadro SESSIONE parla della scheda in primo piano
 }
 
 function refitTab(id) {
@@ -1153,6 +1155,41 @@ function initSidebarResize() {
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   });
+}
+
+/* ---------- Barra dell'uso ----------
+   Il main process legge i log dei CLI (lib/usage) e restituisce i totali gia'
+   aggregati. Qui si decide solo *quando* chiederli: ogni 8 secondi, e subito
+   dopo un cambio di scheda, perche' il riquadro SESSIONE cambia con essa.
+   Un errore non svuota la barra: si tiene l'ultima fotografia buona, un buco
+   di pochi secondi vale meno di una riga che lampeggia. */
+const USAGE_REFRESH_MS = 8000;
+let usageBar = null;
+let usageTimer = null;
+
+function activeUsageSession() {
+  const t = activeId ? tabs.get(activeId) : null;
+  if (!t || !t.resumeId || t.type === 'shell') return null;
+  return { source: t.type, sessionId: t.resumeId };
+}
+
+async function refreshUsage() {
+  if (!usageBar) return;
+  try {
+    const r = await window.aisess.usage(activeUsageSession());
+    if (r && r.ok && r.usage) usageBar.update(r.usage);
+  } catch (e) {
+    console.warn('usage-snapshot fallito', e);
+  }
+}
+
+function initUsageBar() {
+  const root = $('#usagebar');
+  if (!root || !window.AisessUsageBar) return;
+  usageBar = window.AisessUsageBar.createUsageBar({ root, document });
+  refreshUsage();
+  if (usageTimer) clearInterval(usageTimer);
+  usageTimer = setInterval(refreshUsage, USAGE_REFRESH_MS);
 }
 
 function escapeHtml(s) {

@@ -14,6 +14,7 @@ const { listClaudeSessions } = require('./lib/claude-sessions');
 const { listOpencodeSessions } = require('./lib/opencode-sessions');
 const { listCodexSessions } = require('./lib/codex-sessions');
 const { listAntigravitySessions } = require('./lib/antigravity-sessions');
+const { collectUsage } = require('./lib/usage');
 const { computeRecentDirs } = require('./lib/recent-dirs');
 const { findProjectRoot } = require('./lib/project-root');
 const { createWindow } = require('./app/window');
@@ -175,6 +176,16 @@ ipcMain.handle('list-claude-sessions', async (event, { limit } = {}) => {
 });
 ipcMain.handle('list-antigravity-sessions', async (event, { limit } = {}) => {
   try { return listAntigravitySessions(limit); } catch (e) { return { ...fail('', e), sessions: [] }; }
+});
+
+// ---------- Uso di token: sessione, finestra 5h, settimana (barra in basso) ----------
+ipcMain.handle('usage-snapshot', async (event, { active } = {}) => {
+  try {
+    return { ok: true, usage: await collectUsage({ active }) };
+  } catch (e) {
+    console.error('usage-snapshot fallito:', e);
+    return { ...fail('', e), usage: null };
+  }
 });
 
 // ---------- Appunti (per term-clipboard.js nel renderer) ----------

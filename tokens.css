@@ -1,0 +1,39 @@
+/* ---------------------------------------------------------------------------
+   Token del tema — importa questo file una volta sola (es. in main.tsx o
+   index.css, PRIMA di tailwind).
+
+   ATTENZIONE: questi valori sono STIMATI dallo screenshot della sidebar.
+   Sostituiscili con quelli reali del tuo tema: il componente non cambia,
+   cambia solo la palette.
+--------------------------------------------------------------------------- */
+
+:root {
+  /* superfici — tre gradini: finestra, contenitore, testata/riga attiva */
+  --bg-app: #121214;
+  --surface-group: #1a1a1d;
+  --surface-cap: #212126;
+  --surface-row: #202024;
+
+  /* bordi — subtle a riposo, strong solo per il gruppo attivo/focus */
+  --border-subtle: #2c2c33;
+  --border-strong: #3d3d46;
+
+  /* testo — faint sta a 3.6:1, quindi solo icone e comandi, mai testo da leggere */
+  --ink: #ece9e6;
+  --ink-muted: #9a9aa4;
+  --ink-faint: #70707a;
+
+  /* accenti — significati distinti, non intercambiabili */
+  --accent-violet: #8b73e8; /* sessione Claude */
+  --agent-green: #74c46a;   /* agente attivo */
+  --folder-amber: #e0a33e;  /* contenitore / progetto */
+
+  /* forma */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  /* l'ombra sta sotto il foglio più basso, non sulla card */
+  --shadow-stack: 0 14px 28px -16px rgba(0, 0, 0, 0.95);
+}

@@ -23,6 +23,22 @@
   /* Finestra in cui un click che segue un trascinamento viene ignorato. */
   const DRAG_CLICK_GUARD_MS = 250;
 
+  /**
+   * Quanti fogli spuntano sotto la linguetta di un gruppo COLLASSATO, cioè il
+   * suo spessore. Aperto non ce n'è nessuno: le sessioni si vedono già, e i
+   * fogli sarebbero una decorazione che ripete quello che il pannello dice.
+   * Chiuso invece sono l'unica traccia di che cosa c'è dentro: una o due
+   * sessioni un foglio, tre o più due fogli. Mai tre, il fondo diventerebbe
+   * una frangia.
+   * @param {number} n sessioni nel gruppo
+   * @param {boolean} collapsed
+   * @returns {0|1|2}
+   */
+  function sheetCount(n, collapsed) {
+    if (!n || !collapsed) return 0;
+    return n < 3 ? 1 : 2;
+  }
+
   function readSet(storage, key) {
     try {
       const saved = JSON.parse(storage.getItem(key) || '[]');
@@ -294,7 +310,7 @@
       return b;
     }
 
-    /** Il «+» nell'header di un progetto: nuova sessione in quella radice. */
+    /** Il «+» accanto alla linguetta di un progetto: nuova sessione in quella radice. */
     function createAddButton(g) {
       const add = document.createElement('span');
       add.className = 'group-add';
@@ -327,11 +343,20 @@
         // Gruppo espandibile/collassabile sempre, anche con una sola sessione:
         // la posizione delle card resta stabile quando il gruppo cresce.
         const collapsed = collapsedSet().has(g.key);
+        const hasActive = g.items.some((t) => t.id === activeId);
         const group = document.createElement('div');
-        group.className = 'session-group';
+        // `is-focused` alza i bordi del fascicolo che contiene la sessione in
+        // primo piano; `data-sheets` dice quanti fogli disegnare sotto la
+        // linguetta quando il gruppo è chiuso.
+        group.className = 'session-group' + (hasActive ? ' is-focused' : '');
+        group.dataset.sheets = String(sheetCount(g.items.length, collapsed));
+        // La linguetta e il «+» stanno sulla stessa riga: il «+» all'estremità
+        // destra, dove non collide con la ✕ della prima sessione.
+        const cap = document.createElement('div');
+        cap.className = 'group-cap';
         const header = document.createElement('button');
         // Se collassato nasconde la scheda attiva (o una che lampeggia), l'header lo segnala
-        const hidesActive = collapsed && g.items.some((t) => t.id === activeId);
+        const hidesActive = collapsed && hasActive;
         const hidesAttention = collapsed && g.items.some((t) => t.needsAttention);
         header.className = `group-header` + (g.kind === 'type' ? ` type-${g.key}` : ' is-project')
           + (hidesActive ? ' has-active' : '')
@@ -354,10 +379,11 @@
           saveCollapsed();
           render(sessions, activeId);
         };
+        cap.appendChild(header);
         // «+» solo dove c'è una radice in cui creare: il gruppo «Senza
         // directory» (chiave vuota) non ce l'ha, e per tipo la directory non è nota.
-        if (onNewInProject && g.kind === 'project' && g.key) header.appendChild(createAddButton(g));
-        group.appendChild(header);
+        if (onNewInProject && g.kind === 'project' && g.key) cap.appendChild(createAddButton(g));
+        group.appendChild(cap);
         const body = document.createElement('div');
         body.className = 'group-body';
         if (collapsed) body.hidden = true;
@@ -372,5 +398,5 @@
     return { render, getMode, setMode, expandGroupOf, groupKeyFor };
   }
 
-  return { createSidebar, GROUP_MODES, DOUBLE_CLICK_MS };
+  return { createSidebar, sheetCount, GROUP_MODES, DOUBLE_CLICK_MS };
 });

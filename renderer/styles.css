@@ -174,15 +174,22 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .type-glyph { margin-bottom: 4px; }
 .tab-glyph { vertical-align: -0.15em; }
 
-/* ---------- Card sessione ---------- */
-#session-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: var(--gap-sm); padding: 0 16px; }
+/* ---------- Righe sessione (dentro il pannello del fascicolo) ----------
+   La card non ha più fondo e bordo propri: il contenitore è il fascicolo, la
+   riga ci sta dentro. Fondo solo per hover e selezione, così due righe vicine
+   non sembrano due schede sovrapposte.
+   Il gap fra i gruppi è 28px: sotto i 24px la linguetta del gruppo successivo
+   appoggerebbe sui fogli di quello sopra, quando è chiuso. Il padding in basso
+   serve allo stesso motivo se il gruppo chiuso è l'ultimo: i suoi fogli
+   spuntano 20px oltre la linguetta. */
+#session-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 28px; padding: 0 16px 24px; }
 .session-item {
   position: relative;
   display: flex; align-items: center; gap: var(--gap-sm);
-  padding: 10px 10px 10px 14px;
+  padding: 7px 6px 7px 14px;
   border-radius: var(--radius);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: transparent;
+  border: 0;
   cursor: pointer; text-align: left; color: var(--text); width: 100%;
   font-family: var(--font-ui);
 }
@@ -195,13 +202,13 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 /* barra laterale del colore del tipo: tenue di base, piena se selezionata */
 .session-item::before {
-  content: ''; position: absolute; left: 0; top: 8px; bottom: 8px;
+  content: ''; position: absolute; left: 0; top: 4px; bottom: 4px;
   width: 3px; border-radius: 99px; background: var(--type-color, var(--accent));
   opacity: .3;
 }
-.session-item:hover { border-color: var(--border-strong); background: var(--surface-3); }
+.session-item:hover { background: var(--surface-row); }
 /* Selezione segnalata dal marker ◆ + fondo elevato, MAI dal bordo colorato */
-.session-item.active { background: var(--surface-3); }
+.session-item.active { background: var(--surface-row); }
 .session-item.active::before { opacity: 1; width: 4px; }
 
 /* Riordino per trascinamento. La card trascinata sbiadisce; il punto di
@@ -212,9 +219,13 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 /* Riordino vivo: la card presa in mano resta nel DOM come segnaposto — uno
    slot tratteggiato, della sua stessa altezza, nel punto dove finirebbe. La
    card "vera" che segue il cursore e' l'immagine di trascinamento del browser. */
+/* Il tratteggio è un `box-shadow` inset e non un bordo vero: la riga non ha
+   bordo, aggiungerne uno le cambierebbe l'altezza e la lista salterebbe sotto
+   il cursore proprio mentre si mira. */
 .session-item.dragging {
   background: transparent;
-  border: 1px dashed var(--action, var(--accent));
+  outline: 1px dashed var(--action, var(--accent));
+  outline-offset: -1px;
   box-shadow: none;
 }
 .session-item.dragging::before { opacity: 0; }
@@ -251,12 +262,20 @@ button:focus-visible, input:focus-visible, select:focus-visible {
    Pulsazione lenta e a basso contrasto (nessun colore di stato nuovo: solo il
    pomodoro d'azione a bassa opacità). Si spegne quando l'utente apre la sessione. */
 @keyframes attention-pulse {
-  0%, 100% { background: var(--surface-2); box-shadow: none; }
+  0%, 100% { background: transparent; box-shadow: none; }
   50%      { background: var(--action-soft); box-shadow: inset 0 0 0 1px var(--action-ring); }
 }
-.session-item.needs-attention,
-.group-header.needs-attention {
+/* Stessa pulsazione sulla linguetta, ma il suo fondo a riposo è il materiale
+   della cartellina, non il trasparente della riga. */
+@keyframes attention-pulse-cap {
+  0%, 100% { background: var(--surface-cap); box-shadow: none; }
+  50%      { background: var(--action-soft); box-shadow: inset 0 0 0 1px var(--action-ring); }
+}
+.session-item.needs-attention {
   animation: attention-pulse 2.4s ease-in-out infinite;
+}
+.group-header.needs-attention {
+  animation: attention-pulse-cap 2.4s ease-in-out infinite;
 }
 /* Il pallino "in esecuzione" pulsa con la card, senza cambiare colore */
 @keyframes attention-dot { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
@@ -298,17 +317,69 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 #session-list + .side-footer { border-top: 1px solid var(--divider); margin-top: 8px; padding-top: 16px; }
 .side-footer.muted { color: var(--text-dim); }
 
-/* ---------- Gruppi sessioni per tipo (collassabili) ---------- */
-.session-group { display: flex; flex-direction: column; gap: var(--gap-xs); }
+/* ---------- Gruppi sessioni: il fascicolo (collassabile) ----------
+   Linguetta a cartellina sopra, spessore di fogli sotto. Linguetta e fogli sono
+   lo stesso materiale (--surface-cap), il pannello un altro (--surface-group):
+   è questo che tiene insieme il pezzo invece di farlo sembrare una card con due
+   decorazioni. */
+.session-group { position: relative; display: flex; flex-direction: column; }
+
+/* I fogli: due pseudo-elementi, quanti se ne vedono lo dice `data-sheets`
+   (calcolato da `sheetCount` in sidebar.js). Si vedono SOLO a fascicolo
+   chiuso — aperto le sessioni sono già lì e i fogli ripeterebbero quello che il
+   pannello dice — e restano sullo sfondo: non seguono lo stato di focus. Li
+   copre il pannello col suo z-index, senza ricorrere a uno z-index negativo
+   (che si rompe dentro un antenato con transform/isolate). */
+.session-group::before,
+.session-group::after {
+  content: ''; position: absolute; height: 8px;
+  background: var(--surface-cap);
+  border: 1px solid var(--border);
+  /* Raggio più corto del resto: su 8px di altezza i 6px della linguetta
+     arrotonderebbero il foglio fino a farne una pillola. */
+  border-radius: 4px;
+  pointer-events: none;
+}
+/* Ogni foglio sta INTERO sotto la linguetta, con i suoi quattro bordi: mezzo
+   rettangolo che sparisce sotto l'elemento sopra si legge come un errore di
+   disegno, non come una pila. Le larghezze vanno a scalare verso il basso, che
+   è quello che dà la pila. */
+.session-group::after  { left: 8px;  right: 8px;  bottom: -10px; }                /* primo foglio */
+.session-group::before { left: 16px; right: 16px; bottom: -20px; opacity: .55; }  /* secondo */
+.session-group[data-sheets="1"]::before,
+.session-group[data-sheets="0"]::before,
+.session-group[data-sheets="0"]::after { display: none; }
+
+/* La riga della linguetta: nome del gruppo a sinistra, «+» all'estremità
+   destra, dove non collide con la ✕ della prima sessione. */
+.group-cap { position: relative; z-index: 2; display: flex; align-items: flex-end; }
 .group-header {
-  display: flex; align-items: center; gap: var(--gap-sm);
-  width: 100%; padding: 8px 10px;
-  background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: var(--radius); color: var(--text);
+  display: inline-flex; align-items: center; gap: var(--gap-xs);
+  width: auto; max-width: 75%; min-width: 0;
+  box-sizing: border-box; padding: 5px 10px;
+  background: var(--surface-cap); border: 1px solid var(--border);
+  /* Angoli arrotondati solo in alto: in basso la linguetta si innesta nel
+     pannello. `margin-bottom: -1px` e nessun bordo inferiore la saldano. */
+  border-radius: var(--radius) var(--radius) 0 0;
+  border-bottom: 0; margin-bottom: -1px;
+  color: var(--text);
   font-family: var(--font-ui); font-size: 12px; font-weight: 600;
   cursor: pointer; text-align: left;
 }
-.group-header:hover { border-color: var(--border-strong); background: var(--surface-3); }
+/* Da collassato non c'è pannello a cui saldarsi: la linguetta si chiude. */
+.group-header[aria-expanded="false"] {
+  border-bottom: 1px solid var(--border); margin-bottom: 0;
+  border-radius: var(--radius);
+}
+/* La cartellina non ha un quarto gradino di superficie oltre --surface-cap:
+   l'hover è un velo chiaro sopra il materiale, non un colore nuovo. */
+.group-header:hover {
+  border-color: var(--border-strong);
+  box-shadow: inset 0 0 0 99px rgba(246, 241, 236, 0.035);
+}
+/* Il fascicolo che contiene la sessione in primo piano alza i bordi. */
+.session-group.is-focused > .group-cap > .group-header,
+.session-group.is-focused > .group-body { border-color: var(--border-strong); }
 /* Gruppo chiuso che contiene la sessione attiva: stesso marker delle card */
 .group-header.has-active .sel-mark { visibility: visible; }
 /* La fetta di pizza al posto della freccina: la punta guarda a destra (gruppo
@@ -322,21 +393,32 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .group-header .icon { font-size: 14px; }
 .group-header .group-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Il contatore non è più un chip: dentro la linguetta il suo fondo sarebbe lo
+   stesso materiale della cartellina, e il bordo del chip la sporcherebbe. */
 .group-count {
-  font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
-  background: var(--surface-3); border: 1px solid var(--border-strong);
-  border-radius: 99px; padding: 1px 8px;
+  flex: 0 0 auto;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600; color: var(--text-muted);
 }
-/* «+» in coda all'header dei progetti: nuova sessione in quella radice. Stesso
-   trattamento della ✕ delle card (discreto, si accende al passaggio), ma con
-   l'arancione dell'azione invece del rosso: non distrugge, crea. */
+/* «+» all'estremità destra della riga della linguetta: nuova sessione in quella
+   radice. Stesso trattamento della ✕ delle card (discreto, si accende al
+   passaggio), ma con l'arancione dell'azione invece del rosso: non distrugge, crea. */
 .group-add {
-  flex: 0 0 auto; margin-left: 2px; padding: 0 6px; border-radius: 6px;
+  flex: 0 0 auto; margin: 0 4px 3px auto; padding: 0 6px; border-radius: 6px;
   color: var(--text-dim); font-size: 15px; font-weight: 500; line-height: 1; cursor: pointer;
 }
-.group-header:hover .group-add { color: var(--text-muted); }
+.group-cap:hover .group-add { color: var(--text-muted); }
 .group-add:hover { color: var(--action); background: var(--action-soft); }
-.group-body { display: flex; flex-direction: column; gap: var(--gap-xs); }
+
+/* Il pannello. Angolo vivo in alto a sinistra: è lì che si innesta la
+   linguetta. `z-index` sopra i fogli, che nel DOM non lo precedono. */
+.group-body {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 4px;
+  background: var(--surface-group); border: 1px solid var(--border);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) var(--radius-lg);
+  box-shadow: var(--shadow-stack);
+}
 /* `display: flex` sovrascriverebbe il `display: none` dell'UA stylesheet
    per l'attributo [hidden]: serve una regola esplicita di pari specificità. */
 .group-body[hidden] { display: none; }

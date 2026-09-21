@@ -617,12 +617,20 @@ a, .link { color: var(--action-text); }
 .usage-cell:first-child { padding-left: 0; }
 .usage-label { color: var(--muted, #8b909a); letter-spacing: .06em; font-size: 10px; }
 .usage-value { color: var(--text, #e6e8ec); font-family: var(--font-mono, monospace); overflow: hidden; text-overflow: ellipsis; }
-/* Due barre, due quote diverse:
+/* Riga secondaria del riquadro FINESTRA 5h: di quale assistente parla e fra
+   quanto si azzera. Smorzata come l'etichetta: e' contorno, non la misura. */
+.usage-sub {
+  color: var(--muted, #8b909a); font-size: 10px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+/* Tre barre, tre quote diverse:
    - SESSIONE: quanto e' pieno il contesto dell'ultimo scambio (token della
      richiesta sul limite del modello). E' l'unica soglia della sessione che
      esiste davvero: i token spesi non hanno un tetto.
-   - FINESTRA 5h: quanto tempo e' passato, non quanti token restano (il limite
-     del piano non e' scritto da nessuna parte).
+   - FINESTRA 5h: i token consumati sul tetto dell'assistente in primo piano —
+     quello dichiarato dal CLI se c'e', altrimenti il massimo osservato in una
+     finestra conclusa (docs/plans/15-quota-token-5h.md).
+   - SETTIMANA: solo la quota dichiarata da un CLI.
    Quando la quota non e' calcolabile la barra si nasconde, non va a zero. */
 .usage-progress {
   display: inline-block; width: 46px; height: 4px; border-radius: 2px;

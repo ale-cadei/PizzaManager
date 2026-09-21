@@ -103,7 +103,20 @@ main.js                      passa `limitsDir` (la cartella dati di Electron)
   peggiore finestra di sempre, misurata allo stesso modo), ma non è la
   formula del fornitore.
 - **Chiedere la quota all'API** come fa `/usage`: la barra legge solo file,
-  aggiungere una chiamata di rete autenticata è un altro branch.
+  aggiungere una chiamata di rete autenticata è un altro branch (spike 16).
+
+## Il limite grosso di questa stima: è per macchina
+
+La calibrazione legge i log locali, quindi **non si sincronizza fra
+dispositivi**. Chi usa lo stesso account da due computer ha due tetti diversi e
+due consumi diversi, e in entrambi i casi **meno** di quello che il fornitore
+sta contando: il limite vero è per account. La quota di `/usage` invece è
+sincronizzata, ed è la prova che quel numero non è calcolabile in locale —
+lo tiene il server (spike 16).
+
+Conseguenza pratica: la barra calibrata va letta come «quanto ho consumato *da
+qui*», non come «quanto mi resta». Il tooltip dice già che è una stima; se lo
+spike 16 riesce, quel numero la sostituisce e il problema sparisce.
 
 ## Fatto
 

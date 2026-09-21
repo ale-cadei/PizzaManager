@@ -45,7 +45,12 @@ const liveStore = lazy(() => createLiveSessionsStore({ dir: app.getPath('userDat
 // Senza, si ricade sul comportamento classico: il processo muore con la finestra.
 const tmux = detectTmux({ confPath: path.join(__dirname, 'app', 'tmux.conf') });
 
-const ptys = createPtyManager({ accounts, history, profiles: { load: () => profiles().load() }, sendToRenderer, tmux, liveStore });
+const ptys = createPtyManager({
+  accounts, history, profiles: { load: () => profiles().load() }, sendToRenderer, tmux, liveStore,
+  // Lingua di sistema: sceglie LANG per i processi quando l'app, avviata dal
+  // Finder, non ce l'ha. Funzione perche' app.getLocale() vale solo dopo `ready`.
+  systemLocale: () => { try { return app.getLocale(); } catch { return null; } },
+});
 
 function fail(prefix, e) {
   return { ok: false, error: prefix + String((e && e.message) || e) };

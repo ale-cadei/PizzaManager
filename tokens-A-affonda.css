@@ -1,0 +1,64 @@
+/* ---------------------------------------------------------------------------
+   AI Session Manager — token del tema
+   Palette A · "Affonda lo sfondo"
+
+   La card resta più o meno dov'era, lo sfondo scende quasi al nero: la
+   sidebar diventa un pannello dietro le carte. Fra sfondo e card ci sono
+   8.9 punti di L* contro i 3.9 della prima versione.
+
+   Alternativa alla palette D («Carta in stanza buia»): usa questo file
+   OPPURE quello, non entrambi. Per provarla, rinomina questo in tokens.css
+   o sostituisci il blocco :root dell'altro.
+
+   Importa il file una volta sola (main.tsx o index.css), PRIMA di tailwind.
+--------------------------------------------------------------------------- */
+
+:root {
+  /* --- superfici ---------------------------------------------------------
+     Tre gradini. Vanno mossi insieme: alzare la card e lasciare fogli e
+     linguetta dov'erano appiattisce il fascicolo, che vive del contrasto
+     fra i due materiali. Se vuoi il passo più o meno marcato, muovi solo
+     surface-group e ricalcola gli altri a distanza costante:
+     cap ≈ +5 L*, row ≈ +6 L*, border-subtle ≈ +11 L*.                     */
+  --bg-app: #09090b;        /* L*  2.5 — finestra e sidebar                */
+  --surface-group: #1e1e22; /* L* 11.4 — corpo della card (Δ 8.9)          */
+  --surface-cap: #292930;   /* L* 16.8 — linguetta e fogli del fascicolo   */
+  --surface-row: #2a2a31;   /* L* 17.3 — riga sessione attiva o in hover   */
+
+  /* --- bordi -------------------------------------------------------------
+     subtle a riposo, strong solo per il gruppo attivo o con focus.
+     Qui i bordi contano più che nella palette D: con lo sfondo a fondo
+     scala l'ombra sotto i fogli non si vede quasi (nero su quasi nero), e
+     il confine inferiore del fascicolo lo disegnano il salto di superficie
+     e questi due token. Non ingrossarli oltre 1px per compensare.          */
+  --border-subtle: #35353e;
+  --border-strong: #474751;
+
+  /* --- testo -------------------------------------------------------------
+     Neutri freddi, coerenti con superfici neutre (a differenza della
+     palette D, dove sono virati al caldo). ink-faint sta a 3.4:1, quindi
+     solo icone e comandi che schiariscono al passaggio del mouse — mai
+     testo da leggere.                                                      */
+  --ink: #ece9e6;        /* 13.7:1 su surface-group */
+  --ink-muted: #9a9aa4;  /*  6.0:1 */
+  --ink-faint: #70707a;  /*  3.4:1 — non testuale */
+
+  /* --- accenti -----------------------------------------------------------
+     Significati distinti e non intercambiabili. Il viola sta a 4.5:1 sulla
+     card: giusto per la barretta e il rombo (elementi grafici, soglia
+     3:1), non per testo.                                                   */
+  --accent-violet: #8b73e8; /* sessione Claude */
+  --agent-green: #74c46a;   /* agente attivo     — 7.8:1 */
+  --folder-amber: #e0a33e;  /* cartella/progetto — 7.5:1 */
+
+  /* --- forma ------------------------------------------------------------- */
+  --radius-sm: 6px;    /* riga sessione, badge quadrati */
+  --radius-md: 10px;   /* linguetta, pannelli interni   */
+  --radius-lg: 14px;   /* contenitore di gruppo         */
+  --radius-pill: 999px;
+
+  /* L'ombra sta sotto il foglio più basso, non sulla card. Su questo
+     sfondo rende poco: è tenuta per i temi più chiari, non è lei a
+     separare i gruppi. */
+  --shadow-stack: 0 14px 28px -16px rgba(0, 0, 0, 0.95);
+}

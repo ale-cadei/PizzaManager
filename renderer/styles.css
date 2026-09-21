@@ -360,7 +360,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   background: var(--surface-cap); border: 1px solid var(--border);
   /* Angoli arrotondati solo in alto: in basso la linguetta si innesta nel
      pannello. `margin-bottom: -1px` e nessun bordo inferiore la saldano. */
-  border-radius: var(--radius) var(--radius) 0 0;
+  border-radius: var(--radius-cap, var(--radius)) var(--radius-cap, var(--radius)) 0 0;
   border-bottom: 0; margin-bottom: -1px;
   color: var(--text);
   font-family: var(--font-ui); font-size: 12px; font-weight: 600;
@@ -369,13 +369,13 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 /* Da collassato non c'è pannello a cui saldarsi: la linguetta si chiude. */
 .group-header[aria-expanded="false"] {
   border-bottom: 1px solid var(--border); margin-bottom: 0;
-  border-radius: var(--radius);
+  border-radius: var(--radius-cap, var(--radius));
 }
 /* La cartellina non ha un quarto gradino di superficie oltre --surface-cap:
    l'hover è un velo chiaro sopra il materiale, non un colore nuovo. */
 .group-header:hover {
   border-color: var(--border-strong);
-  box-shadow: inset 0 0 0 99px rgba(246, 241, 236, 0.035);
+  box-shadow: inset 0 0 0 99px rgba(236, 233, 230, 0.045);
 }
 /* Il fascicolo che contiene la sessione in primo piano alza i bordi. */
 .session-group.is-focused > .group-cap > .group-header,

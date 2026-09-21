@@ -132,6 +132,13 @@
       <p class="muted">Nessuna sessione aperta — usa la sidebar a sinistra per avviarne una o fare resume.</p>
     </div>
     <div id="terminals"></div>
+    <!-- Barra dell'uso: la riempie renderer/usage-bar.js, i numeri arrivano dal
+         main process (lib/usage). Vuota nell'HTML perche' il suo contenuto e'
+         testo che viene da fuori e va scritto con textContent.
+         Sta dentro <main>, non in fondo alla pagina: riguarda la sessione in
+         primo piano, quindi si allinea al terminale e non passa sotto la
+         sidebar delle sessioni. -->
+    <footer id="usagebar" aria-label="Consumo di token e costi"></footer>
   </main>
 </div>
 
@@ -293,6 +300,7 @@
 <script src="term-clipboard.js"></script>
 <script src="term-font.js"></script>
 <script src="command-config.js"></script>
+<script src="usage-bar.js"></script>
 <script src="renderer.js"></script>
 </body>
 </html>

@@ -88,17 +88,33 @@
    * Conversazione appena creata da una scheda: stessa directory, comparsa dopo
    * l'avvio. Se non c'è nulla di nuovo restituisce null — meglio nessun titolo
    * che il titolo di un'altra conversazione.
+   * Le conversazioni già di un'altra scheda (`exclude`) non contano: con due
+   * schede nella stessa directory, quella che va avanti nella prima non è
+   * quella della seconda.
    * @param {Array<object>} sessions elenco dal lister del tipo
-   * @param {{cwd: string, since: number}} ctx
+   * @param {{cwd: string, since: number, exclude?: Iterable<string>}} ctx
    */
-  function pickAutoSession(sessions, { cwd, since } = {}) {
+  function pickAutoSession(sessions, { cwd, since, exclude } = {}) {
     if (!Array.isArray(sessions)) return null;
     const want = String(cwd || '').replace(/\/+$/, '');
     const after = Number(since) || 0;
-    const candidates = sessions.filter((s) => s && sessionCwd(s) === want && Number(s.mtime) >= after);
+    const taken = new Set(exclude || []);
+    const candidates = sessions.filter((s) => s && !taken.has(s.id) && sessionCwd(s) === want && Number(s.mtime) >= after);
     if (!candidates.length) return null;
     return candidates.reduce((best, s) => (Number(s.mtime) > Number(best.mtime) ? s : best));
   }
 
-  return { createTitleStore, displayName, pickAutoSession, STORAGE_KEY, NAME_MAX };
+  /**
+   * Schede che il giro automatico deve guardare. L'id della conversazione
+   * serve a tutte (è ciò che rende la scheda ripristinabile dopo un riavvio),
+   * quindi si cerca anche per chi ha già un nome suo: rinominata a mano, nome
+   * dato nel dialog, etichetta di un ripristino. Il titolo automatico invece
+   * riguarda solo chi non è stato rinominato. Le shell non hanno conversazioni.
+   */
+  function needsAutoRefresh(tab) {
+    if (!tab || tab.type === 'shell') return false;
+    return Boolean(tab.autoNamed) || !tab.resumeId;
+  }
+
+  return { createTitleStore, displayName, pickAutoSession, needsAutoRefresh, STORAGE_KEY, NAME_MAX };
 });

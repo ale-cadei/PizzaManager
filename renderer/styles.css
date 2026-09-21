@@ -341,11 +341,14 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .group-body[hidden] { display: none; }
 
 /* ---------- Area terminale ---------- */
-#main { flex: 1; position: relative; display: flex; background: var(--bg); }
+/* Colonna: terminale sopra, barra dell'uso sotto. La barra sta qui e non in
+   fondo alla finestra perche' parla della sessione in primo piano: sotto la
+   sidebar non avrebbe niente da dire. */
+#main { flex: 1; min-width: 0; position: relative; display: flex; flex-direction: column; background: var(--bg); }
 /* Il terminale non ha cornice: nell'artboard l'area di destra e' il fondo
    dell'app, senza pannello. Il bordo lo fa gia' la sidebar, e un riquadro
    attorno al testo ruberebbe colonne alle righe lunghe. */
-#terminals { flex: 1; display: flex; padding: 0; }
+#terminals { flex: 1; min-height: 0; display: flex; padding: 0; }
 .term-wrap {
   flex: 1; display: none;
   background: var(--bg);
@@ -353,7 +356,14 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .term-wrap.active { display: block; }
 .term-wrap .xterm { height: 100%; }
-#empty { margin: auto; text-align: center; padding: 20px; display: none; }
+/* Assoluto invece che in flusso: in colonna il terminale prende tutto lo
+   spazio, e il messaggio finirebbe schiacciato in cima. `inset` lascia fuori
+   la barra dell'uso, `margin: auto` centra. */
+#empty {
+  position: absolute; inset: 0 0 var(--usagebar-h) 0;
+  margin: auto; height: max-content;
+  text-align: center; padding: 20px; display: none;
+}
 #empty .muted { font-size: 14px; }
 
 /* ---------- Modali ---------- */
@@ -503,3 +513,39 @@ a, .link { color: var(--action-text); }
 .restore-row .sub { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .restore-row.is-off { opacity: .5; }
 .restore-row.is-off .name { text-decoration: line-through; }
+
+/* ---------- Barra dell'uso (in fondo alla finestra) ----------
+   Riga fissa, alta quanto basta: i terminali sopra si ridimensionano da soli
+   perche' #app e' in flex:1 e questa e' flex:0 0 auto. */
+:root { --usagebar-h: 26px; }
+#usagebar {
+  display: flex; align-items: center; gap: 0;
+  flex: 0 0 auto; height: var(--usagebar-h); padding: 0 12px;
+  background: var(--panel, #14161a);
+  border-top: 1px solid var(--border, #23262d);
+  font-size: 11px; line-height: 1;
+  overflow: hidden; white-space: nowrap;
+}
+.usage-cell { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 0 14px; }
+/* Divisore fra una metrica e l'altra: sono tre quote diverse, non una riga
+   sola. Il bordo sta sulla cella che segue, cosi' la prima resta allineata
+   al bordo sinistro della barra. */
+.usage-cell + .usage-cell { border-left: 1px solid var(--border, #23262d); }
+.usage-cell:first-child { padding-left: 0; }
+.usage-label { color: var(--muted, #8b909a); letter-spacing: .06em; font-size: 10px; }
+.usage-value { color: var(--text, #e6e8ec); font-family: var(--font-mono, monospace); overflow: hidden; text-overflow: ellipsis; }
+/* Due barre, due quote diverse:
+   - SESSIONE: quanto e' pieno il contesto dell'ultimo scambio (token della
+     richiesta sul limite del modello). E' l'unica soglia della sessione che
+     esiste davvero: i token spesi non hanno un tetto.
+   - FINESTRA 5h: quanto tempo e' passato, non quanti token restano (il limite
+     del piano non e' scritto da nessuna parte).
+   Quando la quota non e' calcolabile la barra si nasconde, non va a zero. */
+.usage-progress {
+  display: inline-block; width: 46px; height: 4px; border-radius: 2px;
+  background: var(--border, #23262d); overflow: hidden;
+}
+.usage-progress-fill {
+  display: block; height: 100%; width: 0;
+  background: var(--accent, #d98b2b); transition: width .4s ease;
+}

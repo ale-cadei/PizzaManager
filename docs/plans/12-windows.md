@@ -39,7 +39,7 @@ Windows non falliscono (e non proteggono: lì contano le ACL, fuori scope).
 
 ## Checklist di prova su Windows (a mano)
 
-Prerequisiti: Node 20+, `npm i -g @anthropic-ai/claude-code`, Visual Studio
+Prerequisiti: Node 22+, `npm i -g @anthropic-ai/claude-code`, Visual Studio
 Build Tools (per compilare `node-pty`). Poi `npm install && npm start`.
 
 - [ ] La finestra si apre, la menubar in-app c'è (come su Linux)

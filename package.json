@@ -87,5 +87,8 @@
       "artifactName": "${productName}-${os}-${arch}-setup.${ext}"
     }
   },
-  "repository": "github:ale-cadei/PizzaManager"
+  "repository": "github:ale-cadei/PizzaManager",
+  "engines": {
+    "node": ">=22"
+  }
 }

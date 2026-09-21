@@ -348,10 +348,17 @@ ok('il titolo viene troncato invece di riempire la sidebar', () => {
 
 // ---------- Invarianti della struttura ----------
 ok('lib/ non dipende da Electron: e la ragione per cui questi test possono girare', () => {
+  // Ricorsivo: la regola vale anche per le sottocartelle (lib/usage/…),
+  // altrimenti bastava un livello in piu' per aggirarla senza accorgersene.
   const libDir = path.join(__dirname, '..', 'lib');
-  for (const f of fs.readdirSync(libDir)) {
-    const src = fs.readFileSync(path.join(libDir, f), 'utf8');
-    assert.ok(!/require\(['"]electron['"]\)/.test(src), `lib/${f} importa electron: va in app/`);
+  const sources = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) return sources(full);
+    return e.isFile() && e.name.endsWith('.js') ? [full] : [];
+  });
+  for (const file of sources(libDir)) {
+    const src = fs.readFileSync(file, 'utf8');
+    assert.ok(!/require\(['"]electron['"]\)/.test(src), `${path.relative(libDir, file)} importa electron: va in app/`);
   }
 });
 

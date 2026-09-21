@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, clipboard, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const fs = require('fs');
 const os = require('os');
 const { getDefaultShell } = require('./lib/shell');
@@ -14,11 +14,13 @@ const { listClaudeSessions } = require('./lib/claude-sessions');
 const { listOpencodeSessions } = require('./lib/opencode-sessions');
 const { listCodexSessions } = require('./lib/codex-sessions');
 const { listAntigravitySessions } = require('./lib/antigravity-sessions');
+const { collectUsage } = require('./lib/usage');
 const { computeRecentDirs } = require('./lib/recent-dirs');
 const { findProjectRoot } = require('./lib/project-root');
 const { createWindow } = require('./app/window');
 const { runMenuAction } = require('./app/menu');
 const { createPtyManager } = require('./app/pty');
+const { registerClipboardHandlers } = require('./app/clipboard');
 
 // La cartella dei dati NON segue il nome dell'app. Electron la deriva da
 // productName: un rebrand ("PizzaManager") la sposterebbe in una cartella nuova
@@ -182,11 +184,15 @@ ipcMain.handle('list-antigravity-sessions', async (event, { limit } = {}) => {
   try { return listAntigravitySessions(limit); } catch (e) { return { ...fail('', e), sessions: [] }; }
 });
 
+// ---------- Uso di token: sessione, finestra 5h, settimana (barra in basso) ----------
+ipcMain.handle('usage-snapshot', async (event, { active } = {}) => {
+  try {
+    return { ok: true, usage: await collectUsage({ active }) };
+  } catch (e) {
+    console.error('usage-snapshot fallito:', e);
+    return { ...fail('', e), usage: null };
+  }
+});
+
 // ---------- Appunti (per term-clipboard.js nel renderer) ----------
-ipcMain.handle('clipboard-write', (event, { text } = {}) => {
-  if (typeof text !== 'string' || !text) return { ok: false, error: 'niente da copiare' };
-  try { clipboard.writeText(text); return { ok: true }; } catch (e) { console.error('[clipboard-write]', e); return fail('', e); }
-});
-ipcMain.handle('clipboard-read', () => {
-  try { return { ok: true, text: clipboard.readText() || '' }; } catch (e) { console.error('[clipboard-read]', e); return { ...fail('', e), text: '' }; }
-});
+registerClipboardHandlers(ipcMain);

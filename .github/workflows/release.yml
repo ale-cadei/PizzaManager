@@ -22,11 +22,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Due job per macOS: x64 e' una cross-compilazione di node-pty sul
+          # runner arm64, e un suo problema non deve bloccare il .dmg arm64.
           - os: macos-latest
-            args: --mac --arm64 --x64
+            args: --mac --arm64
+          - os: macos-latest
+            args: --mac --x64
           - os: ubuntu-latest
             args: --linux
-          - os: windows-latest
+          # windows-latest e' passato a Visual Studio 2026, che node-gyp non
+          # riconosce ancora: node-pty non si compilerebbe.
+          - os: windows-2022
             args: --win
     runs-on: ${{ matrix.os }}
     # Un build che non finisce deve fallire, non occupare un runner per ore

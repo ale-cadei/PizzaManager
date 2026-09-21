@@ -83,3 +83,36 @@ ok('opencode usage: percorso felice, la query passa dal binario giusto', async (
   assert.ok(calls[0].args.includes('--format'));
   assert.ok(calls[0].args.includes('json'));
 });
+
+/* La barra chiede i dati ogni 8 secondi e a ogni cambio di scheda; per Claude
+   e Codex e' una lettura incrementale di file, per OpenCode e' un processo
+   intero con una query su tutta la tabella (~0,4 s misurati). I numeri cambiano
+   solo a fine turno dell'agente: una risposta si tiene per un po'. */
+const { OPENCODE_CACHE_TTL_MS, resetOpencodeUsageCache } = require('../lib/usage/opencode-usage');
+
+ok('opencode usage: entro la scadenza il CLI non viene rilanciato, la risposta e quella di prima', async () => {
+  resetOpencodeUsageCache();
+  let calls = 0;
+  const run = (bin, args, opts, cb) => { calls++; cb(null, JSON.stringify([{ sessionId: 's', ts: 1000, model: 'm', input: 5, output: 1 }]), ''); };
+  const a = await collectOpencodeUsage({ run, binary: '/fake/opencode', since: 0, now: 100000 });
+  const b = await collectOpencodeUsage({ run, binary: '/fake/opencode', since: 0, now: 100000 + OPENCODE_CACHE_TTL_MS - 1 });
+  assert.strictEqual(calls, 1, 'seconda chiamata entro la scadenza: nessun processo');
+  assert.deepStrictEqual(b.events, a.events);
+  assert.strictEqual(b.cached, true);
+  const c = await collectOpencodeUsage({ run, binary: '/fake/opencode', since: 0, now: 100000 + OPENCODE_CACHE_TTL_MS });
+  assert.strictEqual(calls, 2, 'scaduta la cache si rilancia');
+  assert.strictEqual(c.cached, undefined);
+});
+
+ok('opencode usage: un errore non si mette in cache, il giro dopo riprova', async () => {
+  resetOpencodeUsageCache();
+  let calls = 0;
+  const run = (bin, args, opts, cb) => { calls++; cb(new Error('database is locked'), '', ''); };
+  await collectOpencodeUsage({ run, binary: '/fake/opencode', since: 0, now: 5000 });
+  await collectOpencodeUsage({ run, binary: '/fake/opencode', since: 0, now: 5001 });
+  assert.strictEqual(calls, 2);
+});
+
+ok('opencode usage: la scadenza e di almeno un minuto, ben oltre il polling della barra', () => {
+  assert.ok(OPENCODE_CACHE_TTL_MS >= 60000, String(OPENCODE_CACHE_TTL_MS));
+});

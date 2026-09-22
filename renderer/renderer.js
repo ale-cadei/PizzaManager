@@ -755,7 +755,11 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   updateEmpty();
   setActive(id);
 
-  const term = new Terminal({ cursorBlink: true, fontSize: termFont.get(), lineHeight: TERM_LINE_HEIGHT, fontFamily: "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace", theme: TERM_THEME });
+  // scrollback: ora che tmux non usa l'alternate screen (app/tmux.conf) la
+  // history con cui scorre la rotella è QUESTA, non più quella di tmux. Le
+  // 1000 righe di default coprivano poco: allineate all'ordine di grandezza
+  // di `history-limit`.
+  const term = new Terminal({ cursorBlink: true, scrollback: 20000, fontSize: termFont.get(), lineHeight: TERM_LINE_HEIGHT, fontFamily: "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace", theme: TERM_THEME });
   const fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
   try { term.loadAddon(new WebLinksAddon.WebLinksAddon()); } catch {}

@@ -22,6 +22,7 @@
 <script src="../../renderer/pizza-slice.js"></script>
 <script src="../../renderer/session-groups.js"></script>
 <script src="../../renderer/sidebar.js"></script>
+<script src="../../renderer/confirm-bubble.js"></script>
 <script>
   const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -48,14 +49,25 @@
     Groups: window.AisessGroups,
     escapeHtml,
     onSelect: (id) => sidebar.render(sessions, id),
-    onClose: () => {},
+    // La ✕ chiede conferma con un fumetto appoggiato alla card: qui la domanda
+    // si può guardare, la risposta non chiude niente.
+    onClose: (id, anchor) => {
+      const t = sessions.find((s) => s.id === id);
+      bubble.ask({ anchor, key: id, name: t.name, detachable: true });
+    },
     onRename: () => {},
     onNewInProject: () => {},
-    canDetach: () => true,
-    onTerminate: () => {},
   });
+  const bubble = window.AisessConfirmBubble.createConfirmBubble();
   sidebar.setMode(query.get('mode') === 'project' ? 'project' : 'type');
   sidebar.render(sessions, '2');
+  // ?confirm=<id> — apre il fumetto senza click, per la foto
+  const auto = query.get('confirm');
+  if (auto) {
+    const card = document.querySelector(`.session-item[data-id="${auto}"]`);
+    const t = sessions.find((s) => s.id === auto);
+    if (card) bubble.ask({ anchor: card, key: auto, name: t.name, detachable: true });
+  }
 </script>
 </body>
 </html>

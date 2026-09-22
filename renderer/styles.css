@@ -186,7 +186,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .session-item {
   position: relative;
   display: flex; align-items: center; gap: var(--gap-sm);
-  padding: 6px 5px 6px 17px;
+  padding: 9px 7px 9px 17px;
   border-radius: var(--radius);
   background: transparent;
   /* Bordo trasparente della stessa misura di quello del cartoncino: senza,
@@ -298,8 +298,6 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
 }
 .session-item .sub > span { direction: ltr; unicode-bidi: embed; }
-/* punto "in esecuzione": il verde si usa SOLO qui */
-.live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--state-ok); flex: 0 0 auto; }
 
 /* ---------- "L'assistente ha finito": lampeggio flebile della card ----------
    Pulsazione lenta e a basso contrasto (nessun colore di stato nuovo: solo il
@@ -320,15 +318,11 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .group-header.needs-attention {
   animation: attention-pulse-cap 2.4s ease-in-out infinite;
 }
-/* Il pallino "in esecuzione" pulsa con la card, senza cambiare colore */
-@keyframes attention-dot { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
-.session-item.needs-attention .live-dot { animation: attention-dot 2.4s ease-in-out infinite; }
 /* Barra di tipo piena: la card si fa notare anche senza percepire l'animazione */
 .session-item.needs-attention::before { opacity: .85; }
 @media (prefers-reduced-motion: reduce) {
   .session-item.needs-attention,
-  .group-header.needs-attention,
-  .session-item.needs-attention .live-dot { animation: none; }
+  .group-header.needs-attention { animation: none; }
   .session-item.needs-attention,
   .group-header.needs-attention { background: var(--action-soft); }
 }
@@ -483,7 +477,10 @@ button:focus-visible, input:focus-visible, select:focus-visible {
      (tokens.css): riservato a tutte le righe, non solo all'attiva, altrimenti
      cambiare sessione fa saltare la lista di quei pixel. */
   display: flex; flex-direction: column; gap: var(--space-session-gap);
-  padding: 4px;
+  /* Margine attorno alle card: più dello spazio che c'è fra due righe, o il
+     bordo del fascicolo le stringe più di quanto stiano fra loro e la pila
+     sembra il contenuto di una tabella. */
+  padding: 8px;
   background: var(--surface-group); border: 1px solid var(--border);
   border-radius: 0 var(--radius-lg) var(--radius-lg) var(--radius-lg);
   box-shadow: var(--shadow-stack);
@@ -653,9 +650,52 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 code { background: var(--surface-3); padding: 1px 5px; border-radius: 5px; font-family: var(--font-mono); font-size: 12px; }
 a, .link { color: var(--action-text); }
 #deps-status { font-family: var(--font-mono); font-size: 11px; padding-top: 10px; padding-bottom: 16px; }
-/* Termina (solo con tmux): distinto dalla ✕ che stacca */
-.terminate-x { margin-left: 2px; opacity: .55; }
-.terminate-x:hover { opacity: 1; color: var(--state-error); }
+/* ---------- Fumetto di conferma (chiusura di una sessione) ----------
+   Esce dal fianco della card e la indica con la punta: è il modo di dire «sto
+   parlando di QUESTA sessione» senza ripetere mezzo elenco. Sta nel <body> e
+   non nella sidebar (che ha overflow-y: auto e lo taglierebbe), quindi si
+   posiziona in coordinate di finestra: left/top li scrive confirm-bubble.js.
+   Materiale del modale — stessa superficie, stesso raggio, stessa ombra —
+   perché è un modale, solo piccolo e appoggiato a qualcosa. */
+.confirm-bubble {
+  position: fixed; z-index: 60; width: 260px; box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px 16px;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  font-family: var(--font-ui);
+}
+/* Il fumetto prende il fuoco all'apertura (per Tab e per Esc): l'anello non
+   serve, il fumetto si vede già da solo. Sui suoi pulsanti resta. */
+.confirm-bubble:focus { outline: none; }
+.confirm-bubble p { margin: 0; }
+.confirm-bubble-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.confirm-bubble-text { font-size: 12px; line-height: 1.45; color: var(--text-muted); }
+.confirm-bubble-actions { display: flex; justify-content: flex-end; gap: 8px; }
+/* Pulsanti piccoli: quelli dei modali (padding 11/20) qui sarebbero due mattoni */
+.confirm-bubble .btn { padding: 7px 13px; font-size: 12px; }
+/* La punta: un quadrato ruotato che prende due lati di bordo dal fumetto e si
+   riempie della sua superficie, così il bordo prosegue senza interruzioni.
+   `top` lo scrive il JS: insegue il centro della card anche quando il fumetto
+   si è spostato per restare dentro la finestra. */
+.confirm-bubble-tip {
+  position: absolute; width: 10px; height: 10px; margin-top: -5px;
+  background: var(--surface); transform: rotate(45deg);
+}
+.confirm-bubble.side-right .confirm-bubble-tip {
+  left: -6px; border-left: 1px solid var(--border-strong); border-bottom: 1px solid var(--border-strong);
+}
+.confirm-bubble.side-left .confirm-bubble-tip {
+  right: -6px; border-right: 1px solid var(--border-strong); border-top: 1px solid var(--border-strong);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .confirm-bubble { animation: bubble-in 120ms ease-out; }
+  @keyframes bubble-in {
+    from { opacity: 0; transform: scale(.96); }
+    to   { opacity: 1; transform: none; }
+  }
+}
 /* Ripristino dopo riavvio: le stesse card della sidebar, con una spunta a sinistra */
 #restore-list { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
 .restore-row { user-select: none; }

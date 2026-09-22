@@ -42,6 +42,19 @@ ok('icone: ogni tipo ha il marchio ufficiale ed è incluso nella pagina', () => 
   assert.ok(/\.agent-icon\s*\{[^}]*fill:\s*currentColor/.test(css), 'le icone non ereditano il colore');
 });
 
+/* Un segnale che c'è sempre non è un segnale: il pallino "in esecuzione" stava
+   su ogni card viva, e le terminate lo dicono già nel nome («… (terminata)»).
+   Quello che resta della vita della sessione è il testo; quello che resta
+   dell'attenzione è il lampeggio della card. */
+ok('sessioni: niente pallino di stato sulla card, dice quello che si vede già', () => {
+  const root = path.join(__dirname, '..');
+  const sidebar = fs.readFileSync(path.join(root, 'renderer', 'sidebar.js'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'renderer', 'styles.css'), 'utf8');
+  assert.ok(!/live-dot/.test(sidebar), 'la card disegna ancora il pallino di stato');
+  assert.ok(!/live-dot/.test(css), 'lo stile del pallino di stato è ancora lì');
+  assert.ok(/\(terminata\)/.test(sidebar), 'senza il pallino la sessione morta non si distingue più');
+});
+
 ok('sessioni: la card lampeggia quando l assistente ha finito e si spegne alla selezione', () => {
   const root = path.join(__dirname, '..');
   const js = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');

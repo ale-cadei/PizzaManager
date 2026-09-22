@@ -65,6 +65,15 @@ function createElement(tag) {
       if (!e.listeners.has(type)) e.listeners.set(type, []);
       e.listeners.get(type).push(fn);
     },
+    removeEventListener(type, fn) {
+      const fns = e.listeners.get(type);
+      if (!fns) return;
+      const i = fns.indexOf(fn);
+      if (i >= 0) fns.splice(i, 1);
+    },
+    /** Un elemento che si toglie da solo: il fumetto di conferma lo fa. */
+    remove() { if (e.parent) e.parent.removeChild(e); },
+    focus() { e.focused = true; },
     getBoundingClientRect() {
       return { ...e.rect, bottom: e.rect.top + e.rect.height, right: e.rect.left + e.rect.width };
     },
@@ -95,10 +104,17 @@ function descendants(node) {
   return out;
 }
 
-/** Installa `document` come globale e restituisce come disinstallarlo. */
+/** Installa `document` come globale e restituisce come disinstallarlo.
+ *  Ha un `body` e ascolta gli eventi come un elemento (stessa mappa
+ *  `listeners`, così `fire(document, …)` funziona): il fumetto di conferma si
+ *  chiude su Esc e sul click fuori, che sono eventi del documento. */
 function installDocument() {
   const previous = global.document;
-  global.document = { createElement };
+  const doc = createElement('html');
+  doc.createElement = createElement;
+  doc.body = createElement('body');
+  doc.appendChild(doc.body);
+  global.document = doc;
   return () => { global.document = previous; };
 }
 

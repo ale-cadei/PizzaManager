@@ -19,6 +19,8 @@ const Logo = window.PizzaLogo;
 const Groups = window.AisessGroups;
 const Order = window.AisessOrder;
 const Sidebar = window.AisessSidebar;
+// Fumetto di conferma appoggiato a una card (renderer/confirm-bubble.js)
+const ConfirmBubble = window.AisessConfirmBubble;
 const Titles = window.AisessTitles;
 const PromptCapture = window.AisessPromptCapture;
 /* I nomi rinominati a mano sopravvivono alla chiusura dell'app: stanno in
@@ -955,9 +957,27 @@ async function closeTab(id) {
 async function terminateTab(id) {
   const t = tabs.get(id);
   if (!t) return;
-  if (t.session && t.alive && !confirm(`Terminare «${t.name}»?\nIl processo verrà chiuso: non sarà più possibile riattaccarsi.`)) return;
-  await window.aisess.terminate(id);
+  if (t.session) await window.aisess.terminate(id);
   await closeTab(id);
+}
+
+/* La ✕ della card. Chiude la sessione per davvero (il processo muore): prima
+   lo si chiede, con un fumetto appoggiato alla card. La domanda si salta solo
+   per una sessione già terminata, dove non c'è niente da perdere. */
+const closeConfirm = ConfirmBubble.createConfirmBubble();
+async function requestClose(id, anchor) {
+  const t = tabs.get(id);
+  if (!t) return;
+  if (t.alive && anchor) {
+    const yes = await closeConfirm.ask({
+      anchor,
+      key: id,
+      name: t.name,
+      detachable: Boolean(tmuxAvailable && t.session),
+    });
+    if (!yes) return;
+  }
+  await terminateTab(id);
 }
 
 /**
@@ -1072,18 +1092,15 @@ function restorePlanFor(s) {
 /* ---------- Sidebar delle sessioni aperte ----------
    Il modulo non conosce le schede: le riceve a ogni render e restituisce le
    azioni come callback. Qui restano `tabs` e `activeId`, che sono suoi — e
-   `tmuxAvailable`, per cui è il renderer a dire quali card si possono staccare
-   invece che terminare. */
+   `tmuxAvailable`, che decide che cosa dire nella conferma di chiusura. */
 const sidebar = Sidebar.createSidebar({
   list: $('#session-list'), count: $('#count'),
   storage: window.localStorage, Icons, Slice: window.PizzaSlice,
   Groups, Commands: window.AisessCommands, escapeHtml,
   modeButtons: { type: $('#group-mode-type'), project: $('#group-mode-project') },
   onSelect: (id) => setActive(id),
-  onClose: (id) => { closeTab(id).catch(() => {}); },
+  onClose: (id, anchor) => { requestClose(id, anchor).catch(() => {}); },
   onRename: (t) => { renameTab(t).catch(() => {}); },
-  canDetach: (t) => Boolean(tmuxAvailable && t.session && t.alive),
-  onTerminate: (id) => { terminateTab(id).catch(() => {}); },
   // Il «+» di un gruppo progetto: stesso dialog, directory già impostata sulla
   // radice; il tipo lo si sceglie lì come sempre.
   onNewInProject: (root) => { openNewModal(undefined, { cwd: root }).catch(() => {}); },
@@ -1102,6 +1119,10 @@ let sessionOrder = [];
 const renderSidebar = () => {
   sessionOrder = Order.syncOrder(sessionOrder, [...tabs.keys()]);
   sidebar.render(Order.applyOrder([...tabs.values()], sessionOrder), activeId);
+  // Il render ricrea le card: il fumetto di conferma resterebbe appeso a un
+  // elemento che non è più nella pagina. Lo si rimette sulla card nuova della
+  // stessa sessione (o lo si chiude, se quella sessione non c'è più).
+  closeConfirm.retarget((id) => document.querySelector(`#session-list .session-item[data-id="${CSS.escape(id)}"]`));
 };
 
 function updateEmpty() {

@@ -58,8 +58,6 @@
    *   modeButtons?: {type: Element, project: Element},
    *   onSelect: (id: string) => void, onClose: (id: string) => void,
    *   onRename: (session: object) => void,
-   *   canDetach?: (session: object) => boolean,
-   *   onTerminate?: (id: string) => void,
    *   onNewInProject?: (projectRoot: string) => void,
    *   onReorder?: (movedId: string, targetId: string, opts: {before: boolean}) => void}} deps
    */
@@ -68,12 +66,6 @@
     const Commands = deps.Commands || null;
     const modeButtons = deps.modeButtons || {};
     const onReorder = typeof deps.onReorder === 'function' ? deps.onReorder : null;
-    /* Se una sessione si possa staccare invece che chiudere dipende da tmux e
-       dallo stato della scheda: sono cose del renderer, non della sidebar, che
-       si limita a chiedere. Senza il predicato la ✕ chiude e basta, come prima
-       di tmux. */
-    const canDetach = typeof deps.canDetach === 'function' ? deps.canDetach : () => false;
-    const onTerminate = typeof deps.onTerminate === 'function' ? deps.onTerminate : null;
     /* Creare una sessione è affare del renderer (dialog, tipo, account): la
        sidebar segnala solo in quale radice l'utente la vuole. */
     const onNewInProject = typeof deps.onNewInProject === 'function' ? deps.onNewInProject : null;
@@ -257,6 +249,10 @@
 
     function createSessionItem(t, activeId, groupKey, body) {
       const b = document.createElement('button');
+      // L'id sulla card e non solo nella chiusura del click: dopo un render le
+      // card sono elementi nuovi, e chi era appeso a una di loro (il fumetto di
+      // conferma) deve poterla ritrovare.
+      b.dataset.id = t.id;
       const isActive = t.id === activeId;
       b.className = `session-item type-${t.type}` + (isActive ? ' active' : '') + (t.needsAttention ? ' needs-attention' : '');
       if (isActive) b.setAttribute('aria-current', 'true');
@@ -275,7 +271,6 @@
       // Il marker resta nel DOM anche se invisibile: così tutte le card sono allineate
       b.innerHTML = `<span class="sel-mark" aria-hidden="true">◆</span>
     <span class="icon">${Icons.markup(t.type)}</span>
-    ${t.alive ? '<span class="live-dot" title="In esecuzione"></span>' : ''}
     <span class="meta"><span class="name">${escapeHtml(t.name)}${t.alive ? '' : ' (terminata)'}</span>
     <span class="sub path" title="${escapeHtml(fullSub)}"><span>${escapeHtml(displaySub)}</span></span></span>`;
       // Il primo click rifà la sidebar (onSelect → render), quindi il secondo
@@ -291,20 +286,14 @@
         onSelect(t.id);
       };
       b.title = b.title || 'Doppio click per rinominare';
-      // Con tmux la ✕ stacca (la sessione resta viva): chi vuole chiudere il
-      // processo per davvero ha un secondo pulsante, non la stessa ✕.
-      const detachable = canDetach(t);
+      // Una sola ✕, e chiude la sessione per davvero. Prima erano due (✕ che
+      // staccava, ⏻ che terminava): per sceglierne una bisognava sapere che
+      // cos'è tmux. La conferma la chiede il renderer, che riceve la card su cui
+      // appoggiare il fumetto.
       const x = document.createElement('span');
       x.className = 'close-x'; x.textContent = '✕';
-      x.title = detachable ? 'Stacca — la sessione resta viva, la ritrovi alla riapertura' : 'Chiudi';
-      x.onclick = (e) => { e.stopPropagation(); onClose(t.id); };
-      if (detachable && onTerminate) {
-        const k = document.createElement('span');
-        k.className = 'close-x terminate-x'; k.textContent = '⏻';
-        k.title = 'Termina — chiude il processo per davvero';
-        k.onclick = (e) => { e.stopPropagation(); onTerminate(t.id); };
-        b.appendChild(k);
-      }
+      x.title = 'Chiudi — termina la sessione';
+      x.onclick = (e) => { e.stopPropagation(); onClose(t.id, b); };
       b.appendChild(x);
       attachDrag(b, t, groupKey, body);
       return b;

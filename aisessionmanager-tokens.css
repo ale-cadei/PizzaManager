@@ -31,6 +31,22 @@
   --state-ok:      #7FC45A;  /* basilico: solo "in esecuzione" */
   --state-error:   #FF4D74;
 
+  /* selezione «scheda sollevata»: la riga attiva diventa un cartoncino, una
+     superficie che sale di un gradino pieno sopra il pannello del fascicolo,
+     con un bordo suo più chiaro di lei. Nella sidebar valgono i valori della
+     palette A (renderer/tokens.css, blocco #sidebar). */
+  --surface-session-card: #2a211e;
+  --border-session-card:  #463630;
+
+  /* il filetto sotto la riga attiva (--shadow-session) non sta qui ma sulla
+     card. Una custom property che contiene var() viene sostituita
+     sull'elemento che la dichiara: in :root il suo var(--type-color) cadrebbe
+     sul fallback e ogni sessione avrebbe il filetto color crosta.
+     Qui resta la misura: lo spazio che il filetto si prende sotto la riga,
+     sempre 1px più di lui. Lo riserva il pannello a tutte le righe, non solo
+     all'attiva. */
+  --space-session-gap: 3px;
+
   /* identità per tipo di sessione (barra card, marker selezione, legenda).
      Un colore per tipo, tutti sopra 5:1 sulle superfici dove compaiono.
      Il verde di opencode è un verde puro (hue 142), diverso dal basilico

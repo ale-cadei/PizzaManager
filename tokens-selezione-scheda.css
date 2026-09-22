@@ -1,0 +1,99 @@
+/* ---------------------------------------------------------------------------
+   AI Session Manager — selezione della sessione
+   Variante «Scheda sollevata»
+
+   Da importare DOPO tokens.css (palette D). Alternativa a
+   tokens-selezione.css («Ombra dura»): usa l'uno O l'altro, mai entrambi —
+   due segnali sullo stesso livello si annullano invece di sommarsi.
+
+   L'idea: la riga attiva diventa un cartoncino — superficie sollevata, bordo,
+   e sotto lo stesso filetto pieno della crosta, qui in viola smorzato. Dentro
+   un fascicolo è il foglio tirato fuori dalla cartellina.
+--------------------------------------------------------------------------- */
+
+:root {
+  /* Superficie del cartoncino: +7.8 L* sopra surface-group, cioè un gradino
+     pieno. NON alzarla oltre: a #37332f i metadati (--ink-muted) scendono a
+     4.49:1, sotto la soglia di 4.5. Qui stanno a 4.62:1. */
+  --surface-session-card: #35312d;
+
+  /* Bordo del cartoncino, +9 L* sopra la sua superficie. */
+  --border-session-card: #4b453e;
+
+  /* Il filetto sotto. Viola smorzato e non pieno: il cartoncino porta già
+     superficie e bordo, e tre segnali pieni sulla stessa riga sono troppi.
+     Valore letterale perché resti leggibile anche fuori dal CSS. */
+  --shadow-session-card: 0 2px 0 #4a3d7d;
+
+  /* Lo spazio che il filetto si prende sotto la riga: sempre 1px più del
+     filetto, o finisce sotto la riga successiva. */
+  --space-session-gap: 3px;
+}
+
+/* --- la riga attiva ------------------------------------------------------ */
+.session-row.is-active {
+  background: var(--surface-session-card);
+  border-color: var(--border-session-card);
+  box-shadow: var(--shadow-session-card);
+  margin-bottom: var(--space-session-gap);
+}
+
+/* Le righe a riposo hanno un bordo trasparente della stessa misura, così
+   quando la selezione cambia il testo non si sposta di un pixel. */
+.session-row {
+  border: 1px solid rgba(0, 0, 0, 0);
+  border-radius: var(--radius-sm);
+}
+
+/* --- l'abbassamento delle altre ------------------------------------------
+   Metà del lavoro lo fa questo, non il cartoncino: le righe non attive
+   arretrano, la riga attiva torna a piena intensità.
+
+   Se la sidebar è lunga, commenta la riga del titolo: una lista tutta
+   abbassata si scorre peggio quando cerchi una sessione che NON è
+   quella attiva.                                                           */
+.session-row .rail,
+.session-row .diamond {
+  background: var(--accent-violet-dim);
+}
+.session-row .title {
+  color: var(--ink-muted);  /* ← commenta questa per tenere i titoli pieni */
+}
+.session-row .meta {
+  color: var(--ink-faint);
+}
+
+.session-row.is-active .rail,
+.session-row.is-active .diamond {
+  background: var(--accent-violet);
+}
+.session-row.is-active .title {
+  color: var(--ink);        /* 10.7:1 sul cartoncino */
+}
+.session-row.is-active .meta {
+  color: var(--ink-muted);  /*  4.6:1 — il minimo accettabile, vedi sopra */
+}
+
+/* --- hover e focus --------------------------------------------------------
+   L'hover è solo il fondo: se prende anche bordo o filetto, passando il mouse
+   sembra di aver selezionato. Il focus da tastiera è un anello che si somma
+   alla selezione, non la sostituisce.                                       */
+.session-row:hover:not(.is-active) {
+  background: var(--surface-row);
+}
+.session-row:focus-visible {
+  outline: 2px solid var(--accent-violet);
+  outline-offset: 2px;
+}
+
+/* Transizioni: al massimo 120ms su colore e ombra, nessuna sulla geometria. */
+@media (prefers-reduced-motion: no-preference) {
+  .session-row {
+    transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  }
+}
+
+/* Nota sul contesto: questa variante mette un contenitore dentro il pannello,
+   che è già dentro il fascicolo. A tre livelli di bordi la sidebar comincia a
+   sembrare una tabella — se succede, il rimedio è togliere il bordo al
+   cartoncino e tenere solo superficie e filetto. */

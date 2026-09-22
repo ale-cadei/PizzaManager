@@ -271,8 +271,17 @@ ok('sessione attiva segnalata dal marker, non dal contorno', () => {
   assert.ok(/session-item type-\$\{t\.type\}/.test(js), 'manca la classe di tipo sulla card');
   const activeRule = css.match(/\.session-item\.active\s*\{[^}]*\}/);
   assert.ok(activeRule, 'manca la regola .session-item.active');
-  assert.ok(!/border-color|box-shadow/.test(activeRule[0]),
-    'la card attiva evidenzia ancora il contorno: ' + activeRule[0]);
+  // Il contorno ammesso è quello del cartoncino, un neutro un gradino sopra la
+  // sua superficie: un bordo d'accento farebbe della card un cartellino, e il
+  // colore del tipo non segnalerebbe più niente.
+  const bordo = activeRule[0].match(/border-color:\s*([^;]+);/);
+  assert.ok(!bordo || /^var\(--border-session-card\)$/.test(bordo[1].trim()),
+    'la card attiva ha un contorno che non è quello del cartoncino: ' + bordo[1]);
+  // L'unica ombra ammessa è il filetto duro della selezione (--shadow-session):
+  // un alone sfocato aggiungerebbe un quarto segnale alla stessa riga.
+  const ombra = activeRule[0].match(/box-shadow:\s*([^;]+);/);
+  assert.ok(!ombra || /^var\(--shadow-session\)$/.test(ombra[1].trim()),
+    'la card attiva porta un ombra che non è il filetto: ' + ombra[1]);
   assert.ok(/\.session-item\.active\s*>\s*\.sel-mark\s*\{[^}]*visibility:\s*visible/.test(css),
     'il marker non viene mostrato sulla card attiva');
 });

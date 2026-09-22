@@ -348,7 +348,12 @@
         // `is-focused` alza i bordi del fascicolo che contiene la sessione in
         // primo piano; `data-sheets` dice quanti fogli disegnare sotto la
         // linguetta quando il gruppo è chiuso.
-        group.className = 'session-group' + (hasActive ? ' is-focused' : '');
+        // Il tipo della sessione ATTIVA, non quello del gruppo: in modalità
+        // progetto il gruppo non ne ha uno, e il marker che compare sulla
+        // linguetta quando il gruppo è chiuso deve essere del colore della card
+        // che si è scelta (styles.css, `.group-header.has-active .sel-mark`).
+        const activeItem = hasActive ? g.items.find((t) => t.id === activeId) : null;
+        group.className = 'session-group' + (activeItem ? ` is-focused type-${activeItem.type}` : '');
         group.dataset.sheets = String(sheetCount(g.items.length, collapsed));
         // La linguetta e il «+» stanno sulla stessa riga: il «+» all'estremità
         // destra, dove non collide con la ✕ della prima sessione.

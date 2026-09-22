@@ -186,13 +186,29 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .session-item {
   position: relative;
   display: flex; align-items: center; gap: var(--gap-sm);
-  padding: 7px 6px 7px 14px;
+  padding: 6px 5px 6px 17px;
   border-radius: var(--radius);
   background: transparent;
-  border: 0;
+  /* Bordo trasparente della stessa misura di quello del cartoncino: senza,
+     selezionando una riga la lista crescerebbe di 2px sotto il cursore.
+     Il padding è ridotto di 1px per lato: l'altezza resta quella di prima. */
+  border: 1px solid transparent;
   cursor: pointer; text-align: left; color: var(--text); width: 100%;
   font-family: var(--font-ui);
 }
+/* Il filetto sotto il cartoncino selezionato. Smorzato e non pieno: superficie
+   e bordo del cartoncino sono già due segnali, un terzo a piena forza urla.
+   Mescolato col pannello e non con `transparent`, così resta un colore pieno e
+   non un velo che si sporca di quello che ha sotto.
+   Sta QUI e non in tokens.css perché una custom property che contiene var()
+   viene sostituita sull'elemento che la dichiara: in :root il suo
+   var(--type-color) cadrebbe sul fallback e ogni sessione avrebbe il filetto
+   color crosta (è successo). Sulla card invece --type-color è quella che la
+   classe .type-* le ha appena dato, qui sotto. */
+.session-item {
+  --shadow-session: 0 2px 0 color-mix(in srgb, var(--type-color, var(--accent)) 72%, var(--surface-group));
+}
+
 /* Colore identità del tipo, ereditato da barra laterale e marker selezione */
 .type-shell    { --type-color: var(--type-shell); }
 .type-opencode { --type-color: var(--type-opencode); }
@@ -200,16 +216,43 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .type-codex    { --type-color: var(--type-codex); }
 .type-antigravity { --type-color: var(--type-antigravity); }
 
-/* barra laterale del colore del tipo: tenue di base, piena se selezionata */
+/* barra laterale del colore del tipo: smorzata di base, piena se selezionata.
+   Rientrata di 6px: appoggiata al bordo sembrerebbe un segno del pannello, qui
+   dentro è chiaramente della card (il padding sinistro le fa posto). */
 .session-item::before {
-  content: ''; position: absolute; left: 0; top: 4px; bottom: 4px;
+  content: ''; position: absolute; left: 6px; top: 5px; bottom: 5px;
   width: 3px; border-radius: 99px; background: var(--type-color, var(--accent));
-  opacity: .3;
+  opacity: .55;
 }
-.session-item:hover { background: var(--surface-row); }
-/* Selezione segnalata dal marker ◆ + fondo elevato, MAI dal bordo colorato */
-.session-item.active { background: var(--surface-row); }
-.session-item.active::before { opacity: 1; width: 4px; }
+/* L'hover è solo il fondo, e lascia stare la riga già attiva: se le cambiasse
+   il fondo sotto il cursore, il cartoncino si smonterebbe al passaggio. */
+.session-item:hover:not(.active) { background: var(--surface-row); }
+/* Selezione «scheda sollevata»: la riga diventa un cartoncino — superficie
+   propria, bordo, e sotto il filetto del colore del tipo. Dentro un fascicolo è
+   il foglio tirato fuori dalla cartellina. La geometria non si muove: il bordo
+   se lo riservano anche le righe a riposo (sopra), o il click successivo
+   finirebbe su un bersaglio spostato. */
+.session-item.active {
+  background: var(--surface-session-card);
+  border-color: var(--border-session-card);
+  box-shadow: var(--shadow-session);
+}
+.session-item.active::before { opacity: 1; }
+/* Metà del segnale è l'arretramento delle altre: sulle righe a riposo titolo e
+   percorso scendono di un gradino, sulla riga attiva risalgono — il percorso a
+   --text-muted, perché --text-dim sulla superficie chiara del cartoncino
+   scenderebbe sotto 4.5:1. */
+.session-item .name { color: var(--text-muted); }
+.session-item.active .name { color: var(--text); }
+.session-item.active .sub { color: var(--text-muted); }
+/* Il focus da tastiera è un anello che si somma alla selezione, non la
+   sostituisce: stesso colore del tipo, staccato dalla riga. */
+.session-item:focus-visible { outline: 2px solid var(--type-color, var(--accent)); outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) {
+  /* Solo colori e filetto, mai la geometria: una riga che si sposta mentre la
+     selezioni fa sbagliare il click successivo. */
+  .session-item { transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease; }
+}
 
 /* Riordino per trascinamento. La card trascinata sbiadisce; il punto di
    rilascio è una riga sul bordo della card sorvolata, sopra o sotto a seconda
@@ -399,6 +442,10 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .session-group.is-focused > .group-cap > .group-header,
 .session-group.is-focused > .group-cap::after,
 .session-group.is-focused > .group-body { border-color: var(--border-strong); }
+/* Il filetto colorato NON arriva fin qui: è il segnale di «questa riga è
+   selezionata», e la riga è una sola. Sul fascicolo resta l'ombra della pila,
+   che dice «questa cosa sta sopra» — due segnali diversi, due disegni diversi.
+   Il gruppo si limita ad alzare i bordi (sopra). */
 /* Gruppo chiuso che contiene la sessione attiva: stesso marker delle card */
 .group-header.has-active .sel-mark { visibility: visible; }
 /* La fetta di pizza al posto della freccina: la punta guarda a destra (gruppo
@@ -432,7 +479,10 @@ button:focus-visible, input:focus-visible, select:focus-visible {
    linguetta. `z-index` sopra i fogli, che nel DOM non lo precedono. */
 .group-body {
   position: relative; z-index: 1;
-  display: flex; flex-direction: column; gap: 2px;
+  /* Il gap è quello che il filetto della riga attiva si prende sotto di sé
+     (tokens.css): riservato a tutte le righe, non solo all'attiva, altrimenti
+     cambiare sessione fa saltare la lista di quei pixel. */
+  display: flex; flex-direction: column; gap: var(--space-session-gap);
   padding: 4px;
   background: var(--surface-group); border: 1px solid var(--border);
   border-radius: 0 var(--radius-lg) var(--radius-lg) var(--radius-lg);

@@ -22,9 +22,26 @@
      palette A (vedi il blocco #sidebar in fondo al file). */
   --surface-group: var(--surface-2);  /* pannello del gruppo */
   --surface-cap:   var(--surface-3);  /* linguetta e fogli */
-  --surface-row:   var(--surface-3);  /* riga attiva/hover dentro il pannello */
+  --surface-row:   var(--surface-3);  /* riga in hover dentro il pannello */
+  /* il cartoncino della riga selezionata: sale di un gradino sopra il pannello
+     e ha un bordo suo. I valori veri stanno nella palette della sidebar, qui
+     sotto: questi servono solo fuori di lì. */
+  --surface-session-card: #2a211e;
+  --border-session-card:  #463630;
   /* l'ombra sta sotto il fascicolo, non sulle singole righe */
   --shadow-stack:  0 14px 28px -16px rgba(0,0,0,0.95);
+
+  /* selezione: il filetto sotto la riga attiva (--shadow-session) NON sta qui.
+     Una custom property che contiene var() viene sostituita sull'elemento che
+     la dichiara: scritta in :root, il suo var(--type-color) cadrebbe subito sul
+     fallback e ogni sessione avrebbe il filetto color crosta. Vive su
+     `.session-item` (styles.css), dove la classe .type-* ha appena dato alla
+     card il colore del suo tipo.
+     Qui resta solo la misura: lo spazio che il filetto si prende sotto la riga,
+     sempre 1px più di lui, o finisce sotto la riga successiva. Lo riserva il
+     pannello a TUTTE le righe (.group-body gap): se lo prendesse solo l'attiva,
+     cambiare sessione farebbe saltare la lista di quei pixel. */
+  --space-session-gap: 3px;
 
   /* azione (pomodoro) */
   --action:        #F04E23;
@@ -101,7 +118,13 @@
   --surface-3:     #2a2a31;
   --surface-group: #1e1e22;  /* corpo della card (Δ 8.9 L* dal fondo) */
   --surface-cap:   #292930;  /* linguetta e fogli del fascicolo */
-  --surface-row:   #2a2a31;  /* riga sessione attiva o in hover */
+  --surface-row:   #2a2a31;  /* riga in hover */
+  /* Cartoncino della riga selezionata: Δ 7.8 L* sopra il pannello, un gradino
+     pieno. NON alzarlo oltre: già a #32323a i percorsi (--text-muted) scendono
+     a 4.56:1 e sopra crollano sotto la soglia di 4.5. Qui stanno a 4.83:1.
+     Il bordo sale di altri 9.5 L* sopra la sua superficie. */
+  --surface-session-card: #2e2e36;
+  --border-session-card:  #43434c;
 
   /* bordi: con lo sfondo a fondo scala l'ombra sotto i fogli non si vede
      (nero su quasi nero) — il confine del fascicolo lo disegnano il salto di

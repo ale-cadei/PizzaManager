@@ -180,8 +180,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
    non sembrano due schede sovrapposte.
    Il gap fra i gruppi è 28px: sotto i 24px la linguetta del gruppo successivo
    appoggerebbe sui fogli di quello sopra, quando è chiuso. Il padding in basso
-   serve allo stesso motivo se il gruppo chiuso è l'ultimo: i suoi fogli
-   spuntano 20px oltre la linguetta. */
+   serve allo stesso motivo se il gruppo chiuso è l'ultimo: dorso e fogli
+   scendono 24px oltre la linguetta. */
 #session-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 28px; padding: 0 16px 24px; }
 .session-item {
   position: relative;
@@ -302,7 +302,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .session-item.active .badge { color: var(--accent); background: var(--accent-soft); border-color: transparent; }
 
-/* Legenda footer: distinzione tipi senza verde (riservato a "in esecuzione") */
+/* Legenda footer: un pallino per tipo, coi colori di --type-* (tokens.css) */
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
 .dot.shell { background: var(--type-shell); }
 .dot.opencode { background: var(--type-opencode); }
@@ -340,12 +340,12 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   border-radius: 4px;
   pointer-events: none;
 }
-/* Ogni foglio sta INTERO sotto la linguetta, con i suoi quattro bordi: mezzo
-   rettangolo che sparisce sotto l'elemento sopra si legge come un errore di
-   disegno, non come una pila. Le larghezze vanno a scalare verso il basso, che
-   è quello che dà la pila. */
-.session-group::after  { left: 8px;  right: 8px;  bottom: -10px; }                /* primo foglio */
-.session-group::before { left: 16px; right: 16px; bottom: -20px; opacity: .55; }  /* secondo */
+/* Le larghezze vanno a scalare verso il basso: è quello che dà la pila. Ogni
+   foglio spunta da sotto quello sopra — il primo da sotto il dorso — invece di
+   stargli accanto: due rettangoli interi affiancati si leggono come due righe,
+   non come uno spessore. */
+.session-group::after  { left: 8px;  right: 8px;  bottom: -18px; }                /* primo foglio */
+.session-group::before { left: 16px; right: 16px; bottom: -24px; opacity: .55; }  /* secondo */
 .session-group[data-sheets="1"]::before,
 .session-group[data-sheets="0"]::before,
 .session-group[data-sheets="0"]::after { display: none; }
@@ -353,6 +353,23 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 /* La riga della linguetta: nome del gruppo a sinistra, «+» all'estremità
    destra, dove non collide con la ✕ della prima sessione. */
 .group-cap { position: relative; z-index: 2; display: flex; align-items: flex-end; }
+
+/* Il dorso: il pannello visto di taglio, quando il fascicolo è chiuso. Senza,
+   sotto la linguetta — che è stretta, al massimo il 75% — restavano solo due
+   fogli più larghi di lei: una pila con le carte più larghe di quella sopra non
+   si legge come una pila. Il dorso è largo quanto il fascicolo ed è dello stesso
+   materiale del pannello aperto, così chiudere un gruppo lo schiaccia invece di
+   farlo sparire. Sta sul `::after` della riga della linguetta perché i due
+   pseudo-elementi del gruppo sono già i fogli. */
+.group-cap:has(> .group-header[aria-expanded="false"])::after {
+  content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 12px;
+  background: var(--surface-group); border: 1px solid var(--border);
+  /* Angolo vivo in alto a sinistra: è lì che si innesta la linguetta, come nel
+     pannello aperto. */
+  border-radius: 0 var(--radius-lg) var(--radius-lg) var(--radius-lg);
+  box-shadow: var(--shadow-stack);
+  pointer-events: none;
+}
 .group-header {
   display: inline-flex; align-items: center; gap: var(--gap-xs);
   width: auto; max-width: 75%; min-width: 0;
@@ -377,8 +394,10 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   border-color: var(--border-strong);
   box-shadow: inset 0 0 0 99px rgba(236, 233, 230, 0.045);
 }
-/* Il fascicolo che contiene la sessione in primo piano alza i bordi. */
+/* Il fascicolo che contiene la sessione in primo piano alza i bordi — dorso
+   compreso: chiuso è lui a fare da pannello. */
 .session-group.is-focused > .group-cap > .group-header,
+.session-group.is-focused > .group-cap::after,
 .session-group.is-focused > .group-body { border-color: var(--border-strong); }
 /* Gruppo chiuso che contiene la sessione attiva: stesso marker delle card */
 .group-header.has-active .sel-mark { visibility: visible; }

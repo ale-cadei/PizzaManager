@@ -43,12 +43,17 @@
   --state-error:   #FF4D74;
 
   /* identità per tipo di sessione (barra card, marker selezione, legenda).
-     Il verde resta riservato a "in esecuzione", quindi codex usa il grigio-blu. */
-  --type-shell:    #F2C14E;
-  --type-opencode: #FF8A4C;
-  --type-claude:   #C39BF5;
-  --type-codex:    #9AA7B8;
-  --type-antigravity: #4F8DF5;
+     Un colore per tipo, tutti sopra 5:1 sulle superfici dove compaiono.
+     Il verde di opencode è un verde puro (hue 142), diverso dal basilico
+     giallo-verde di --state-ok (hue 95): "in esecuzione" e "è opencode"
+     stanno sulla stessa riga e devono restare due segnali distinti.
+     Stesso motivo per il rosso di antigravity, più chiaro e meno arancio
+     del pomodoro --action e meno rosa di --state-error. */
+  --type-shell:    #F2C14E;  /* giallo crosta */
+  --type-opencode: #4ADE80;  /* verde */
+  --type-claude:   #FF9147;  /* arancione */
+  --type-codex:    #5AA2FF;  /* blu */
+  --type-antigravity: #FF6B6B;  /* rosso */
 
   /* colori dei marchi ufficiali, usati solo dalle icone degli agenti */
   --brand-claude:   #D97757;  /* arancio Anthropic */
@@ -113,9 +118,9 @@
   --text-dim:      #8a8a95;
   --text-faint:    #70707a;  /* 3.4:1 — non testuale */
 
-  /* accenti con significati distinti: il viola sta a 4.5:1 sulla card, quindi
-     barretta e rombo (soglia grafica 3:1), non testo. */
-  --type-claude:   #8b73e8;  /* sessione Claude */
+  /* accenti con significati distinti. I colori per tipo arrivano da :root
+     (stanno tutti sopra 5:1 anche su queste superfici neutre): qui si
+     ritoccano solo quelli che hanno un significato proprio nella sidebar. */
   --state-ok:      #74c46a;  /* agente attivo     — 7.8:1 */
   --accent:        #e0a33e;  /* cartella/progetto — 7.5:1 */
 

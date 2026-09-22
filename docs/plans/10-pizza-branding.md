@@ -9,6 +9,10 @@ Branch di sola immagine: l'app cambia nome e vestito, il comportamento no.
    16x16. Fondo `--bg` e bordo `--action` della palette Forno (vedi punto 4);
    cornicione, formaggio e salame sono gli stessi degli SVG del renderer. Le PNG
    in `assets/icon.png` e `assets/icons/NxN.png` sono rigenerate dallo script.
+
+   *Dopo:* lo script disegna invece il logo della sidebar (punto 4) — pizza
+   intera con la fetta sollevata — perché icona di sistema e logo in finestra
+   devono essere la stessa immagine. Gli 8 spicchi erano un secondo marchio.
 2. **Nome**: `AISessionManager` → `PizzaManager` in tutto ciò che l'utente
    legge (titolo finestra, sidebar, menu Help, `productName` e voce `.desktop`)
    e nei titoli dei documenti.

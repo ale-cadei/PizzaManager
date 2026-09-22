@@ -37,11 +37,15 @@ esecuzione".
 
 ### Identità per tipo di sessione
 
-`shell #F2C14E`, `opencode #FF8A4C`, `claude #C39BF5`, `codex #9AA7B8`,
-`antigravity #4F8DF5`. Colorano la barra della card, il marker di selezione e la
-legenda a piè di sidebar. Il verde è riservato a "in esecuzione", quindi codex
-prende il grigio-blu. Distinti dai colori di marchio (`--brand-*`), che valgono
-solo per le icone degli agenti e non seguono la palette.
+`shell #F2C14E` giallo, `opencode #4ADE80` verde, `claude #FF9147` arancione,
+`codex #5AA2FF` blu, `antigravity #FF6B6B` rosso. Colorano la barra della card,
+il marker di selezione e la legenda a piè di sidebar; stanno tutti sopra 5:1
+sulle superfici dove compaiono. Il verde di opencode è un verde puro e resta
+distinguibile dal basilico giallo-verde di "in esecuzione", che sulla stessa
+riga è un segnale diverso; per lo stesso motivo il rosso di antigravity non è
+il pomodoro delle azioni né il rosa degli errori. Distinti dai colori di
+marchio (`--brand-*`), che valgono solo per le icone degli agenti e non seguono
+la palette.
 
 ## Logo
 

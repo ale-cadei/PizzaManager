@@ -32,12 +32,17 @@
   --state-error:   #FF4D74;
 
   /* identità per tipo di sessione (barra card, marker selezione, legenda).
-     Il verde resta riservato a "in esecuzione", quindi codex usa il grigio-blu. */
-  --type-shell:    #F2C14E;
-  --type-opencode: #FF8A4C;
-  --type-claude:   #C39BF5;
-  --type-codex:    #9AA7B8;
-  --type-antigravity: #4F8DF5;
+     Un colore per tipo, tutti sopra 5:1 sulle superfici dove compaiono.
+     Il verde di opencode è un verde puro (hue 142), diverso dal basilico
+     giallo-verde di --state-ok (hue 95): "in esecuzione" e "è opencode"
+     stanno sulla stessa riga e devono restare due segnali distinti.
+     Stesso motivo per il rosso di antigravity, più chiaro e meno arancio
+     del pomodoro --action e meno rosa di --state-error. */
+  --type-shell:    #F2C14E;  /* giallo crosta */
+  --type-opencode: #4ADE80;  /* verde */
+  --type-claude:   #FF9147;  /* arancione */
+  --type-codex:    #5AA2FF;  /* blu */
+  --type-antigravity: #FF6B6B;  /* rosso */
 
   /* colori dei marchi ufficiali, usati solo dalle icone degli agenti */
   --brand-claude:   #D97757;  /* arancio Anthropic */

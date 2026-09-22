@@ -92,3 +92,34 @@ ok('fascicolo: il CSS salda la linguetta al pannello e non chiude l angolo di in
   assert.ok(/\.group-header\[aria-expanded="false"\][\s\S]{0,200}border-radius:\s*var\(--radius[^;]*\);/.test(css),
     'da collassato la linguetta non si chiude su tutti gli angoli');
 });
+
+/* Chiuso, il pannello sparisce e restavano due barrette larghe sotto una
+   linguetta stretta: niente che si legga come una pila. Il dorso è il pannello
+   visto di taglio — largo quanto il fascicolo, dello stesso materiale — ed è
+   quello che rende i fogli sottostanti una pila invece che due righe. */
+ok('fascicolo: da chiuso resta il dorso del pannello, e i fogli stanno sotto', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'styles.css'), 'utf8');
+  const spine = css.match(/\n\.group-cap:has\(> \.group-header\[aria-expanded="false"\]\)::after \{[^}]*\}/);
+  assert.ok(spine, 'manca il dorso del pannello chiuso');
+  assert.ok(/background:\s*var\(--surface-group\)/.test(spine[0]),
+    'il dorso non è il materiale del pannello: si leggerebbe come un terzo foglio');
+  assert.ok(/left:\s*0/.test(spine[0]) && /right:\s*0/.test(spine[0]),
+    'il dorso deve essere largo quanto il fascicolo, altrimenti i fogli restano più larghi di lui');
+
+  // I fogli scendono sotto il dorso, a scalare: primo più largo, secondo più stretto
+  // Le posizioni stanno nelle regole a riga singola, non nel blocco che i due
+  // fogli condividono (`[^\n}]*`: la regola finisce sulla sua riga).
+  const first = css.match(/\n\.session-group::after\s+\{[^\n}]*\}/);
+  const second = css.match(/\n\.session-group::before\s+\{[^\n}]*\}/);
+  assert.ok(first && second, 'mancano le regole dei due fogli');
+  const bottom = (rule) => Number(rule.match(/bottom:\s*-(\d+)px/)[1]);
+  const left = (rule) => Number(rule.match(/left:\s*(\d+)px/)[1]);
+  const height = Number(css.match(/\n\.session-group::before,\n\.session-group::after \{[^}]*height:\s*(\d+)px/)[1]);
+  const spineHeight = Number(spine[0].match(/height:\s*(\d+)px/)[1]);
+  assert.ok(bottom(first[0]) - height > 0 && bottom(first[0]) - height < spineHeight,
+    'il primo foglio deve spuntare da sotto il dorso, non staccarsene né sparirci dentro');
+  assert.ok(bottom(second[0]) > bottom(first[0]), 'il secondo foglio non sta sotto il primo');
+  assert.ok(left(second[0]) > left(first[0]), 'i fogli non vanno a scalare: la pila non si legge');
+});

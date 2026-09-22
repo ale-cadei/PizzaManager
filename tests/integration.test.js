@@ -144,3 +144,29 @@ ok('tmux: la sessione sopravvive allo stacco del client e si riattacca con i met
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+/* Il mouse deve restare al terminale, non a tmux. Con `mouse on` tmux cattura
+   il drag: al rilascio chiude la sua copy-mode e la selezione sparisce prima
+   che l'utente possa copiarla (xterm non ne ha mai vista una). L'app la copia
+   da `term.getSelection()`, quindi il mouse le serve. Non e' un test teorico:
+   il .deb ha mostrato il guasto appena ha cominciato a leggere davvero questa
+   config (prima restava dentro app.asar e tmux partiva coi default). */
+ok('tmux: il mouse resta al terminale, altrimenti la selezione sparisce al rilascio', (t) => {
+  const path = require('path');
+  const { execFileSync } = require('child_process');
+  const { detectTmux } = require('../lib/tmux');
+
+  const found = detectTmux({ confPath: null });
+  if (!found) return t.skip('tmux non installato su questa macchina');
+
+  const socket = 'aistest-mouse-' + process.pid;
+  const confPath = path.join(__dirname, '..', 'app', 'tmux.conf');
+  const run = (...args) => execFileSync(found.bin, ['-L', socket, '-f', confPath, ...args], { timeout: 10000 }).toString().trim();
+  try {
+    run('new-session', '-d', '-s', 'probe', '--', 'sleep', '30');
+    assert.strictEqual(run('show-options', '-g', 'mouse'), 'mouse off',
+      'con il mouse a tmux la selezione col mouse non arriva mai a xterm: niente copia');
+  } finally {
+    try { execFileSync(found.bin, ['-L', socket, 'kill-server']); } catch {}
+  }
+});

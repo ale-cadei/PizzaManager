@@ -132,9 +132,17 @@ trovato una strada migliore:
 
 - ✅ Apri una sessione, ⌘Q, riapri l'app: la ritrovi attaccata e con lo scrollback.
 - ✅ Senza tmux installato l'app funziona come oggi (`viaTmux=false`, stessi test).
-- ✅ Non è possibile lasciare sessioni tmux orfane senza accorgersene: la ✕
-  dichiara che stacca, il ⏻ termina, e all'avvio tutte le sessioni vive tornano
-  come schede.
+- ✅ Non è possibile lasciare sessioni tmux orfane senza accorgersene: all'avvio
+  tutte le sessioni vive tornano come schede.
+  - **Rivisto dopo l'uso (22/09/2026).** I due pulsanti erano uno di troppo: per
+    scegliere fra ✕ (stacca) e ⏻ (termina) bisognava sapere che cos'è tmux, e la
+    differenza non si vedeva dalla card. Ora la ✕ è una sola e **termina**, con
+    una conferma in un fumetto appoggiato alla card
+    (`renderer/confirm-bubble.js`). Lo stacco resta dov'è naturale: chiudendo
+    l'app le sessioni restano vive e tornano alla riapertura — che è il motivo
+    per cui esiste questo backend. Staccare una singola sessione tenendo l'app
+    aperta non ha più un comando: non serviva a niente che la card non facesse
+    già (la sessione la si lascia lì e basta).
 - ✅ Test d'integrazione su tmux reale (`tests/integration.test.js`), su un
   socket dedicato al test: le sessioni reali dell'app non si toccano.
 

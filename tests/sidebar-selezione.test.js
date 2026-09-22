@@ -130,6 +130,23 @@ ok('selezione: la barra del tipo è rientrata e il testo le fa posto', () => {
   assert.ok(padLeft >= left + width + 4, `il testo parte sopra la barra: padding ${padLeft}, barra fino a ${left + width}`);
 });
 
+/* Le card respirano: dentro (l'altezza della riga) e fuori (il margine che il
+   pannello lascia attorno). Appoggiate al bordo del fascicolo sembrano il
+   contenuto di una tabella, non fogli dentro una cartellina. */
+ok('sidebar: le card respirano dentro e il pannello lascia margine attorno', () => {
+  const css = styles();
+  const item = css.match(/\n\.session-item \{[^}]*\}/);
+  const padCard = Number(item[0].match(/padding:\s*(\d+)px/)[1]);
+  assert.ok(padCard >= 9, `la riga è schiacciata: padding verticale ${padCard}px`);
+  const body = css.match(/\n\.group-body \{[^}]*\}/);
+  const padPannello = Number(body[0].match(/padding:\s*(\d+)px/)[1]);
+  // Almeno quanto lo spazio fra due righe: sotto quella misura il bordo del
+  // pannello stringe le card più di quanto le righe stiano fra loro.
+  const gap = Number(fs.readFileSync(tokensFiles[0], 'utf8').match(/--space-session-gap:\s*(\d+)px/)[1]);
+  assert.ok(padPannello >= gap + 4,
+    `il pannello stringe le card: padding ${padPannello}px contro un gap di ${gap}px`);
+});
+
 ok('selezione: lo spazio riservato sotto la riga supera lo spessore del filetto', () => {
   const tokens = fs.readFileSync(tokensFiles[0], 'utf8');
   const thickness = Number(styles().match(/--shadow-session:\s*0 (\d+)px 0 /)[1]);

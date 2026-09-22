@@ -1,0 +1,83 @@
+/* ---------------------------------------------------------------------------
+   AI Session Manager — selezione della sessione
+   Variante «Ombra dura»
+
+   Da importare DOPO tokens.css (palette D): aggiunge i token della selezione
+   e le regole che li usano. Le classi sono d'esempio — adattale ai nomi del
+   tuo componente.
+
+   L'idea: un filetto pieno di 2px sotto la riga, non un'ombra sfocata. È lo
+   stesso trucco di shadow-crust sotto la crosta della pizza — legge come
+   spessore invece che come alone, ed è la grammatica giusta in un fascicolo,
+   che è fatto di fogli sovrapposti.
+--------------------------------------------------------------------------- */
+
+:root {
+  /* Il filetto sotto la riga attiva. Valore letterale e non var(--accent-violet)
+     perché così resta un token leggibile anche fuori dal CSS (tokens.json non
+     ammette var() dentro un'ombra). Porta a 0 3px 0 se lo vuoi più deciso. */
+  --shadow-session: 0 2px 0 #8b73e8;
+
+  /* Lo spazio che il filetto si prende sotto la riga: senza questo finisce
+     sotto la riga successiva. Tienilo sempre 1px più del filetto. */
+  --space-session-gap: 3px;
+}
+
+/* --- la riga attiva -------------------------------------------------------
+   Fondo, filetto, e nient'altro: niente bordo, niente rientro, niente
+   traslazione. Un solo segnale per livello.                                */
+.session-row.is-active {
+  background: var(--surface-row);
+  box-shadow: var(--shadow-session);
+  margin-bottom: var(--space-session-gap);
+}
+
+/* --- l'abbassamento delle altre ------------------------------------------
+   Metà del lavoro lo fa questo, non il filetto: le righe non attive
+   arretrano, la riga attiva torna a piena intensità.
+
+   Se la sidebar è lunga, commenta la riga del titolo: una lista tutta
+   abbassata si scorre peggio quando cerchi una sessione che NON è
+   quella attiva.                                                           */
+.session-row .rail,
+.session-row .diamond {
+  background: var(--accent-violet-dim);
+}
+.session-row .title {
+  color: var(--ink-muted);  /* ← commenta questa per tenere i titoli pieni */
+}
+.session-row .meta {
+  color: var(--ink-faint);
+}
+
+.session-row.is-active .rail,
+.session-row.is-active .diamond {
+  background: var(--accent-violet);
+}
+.session-row.is-active .title {
+  color: var(--ink);
+}
+.session-row.is-active .meta {
+  color: var(--ink-muted);
+}
+
+/* --- hover e focus --------------------------------------------------------
+   L'hover è solo il fondo: se prende anche il filetto, passando il mouse
+   sembra di aver selezionato. Il focus da tastiera è un anello che si somma
+   alla selezione, non la sostituisce.                                       */
+.session-row:hover:not(.is-active) {
+  background: var(--surface-row);
+}
+.session-row:focus-visible {
+  outline: 2px solid var(--accent-violet);
+  outline-offset: 2px;
+}
+
+/* Il viola sta a 4.4:1 su surface-group: filetti, barrette e bordi sì
+   (soglia 3:1), testo mai. Transizioni: al massimo 120ms su background-color
+   e box-shadow, nessuna sulla geometria. */
+@media (prefers-reduced-motion: no-preference) {
+  .session-row {
+    transition: background-color 120ms ease, box-shadow 120ms ease;
+  }
+}

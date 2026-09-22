@@ -170,3 +170,39 @@ ok('tmux: il mouse resta al terminale, altrimenti la selezione sparisce al rilas
     try { execFileSync(found.bin, ['-L', socket, 'kill-server']); } catch {}
   }
 });
+
+/* Scorrere con la rotella. tmux entra nell'alternate screen del terminale
+   esterno (smcup): li' xterm.js non ha scrollback e traduce la rotella in
+   frecce su/giu' — nella shell si sfogliano i comandi recenti invece del
+   testo. Togliendo smcup/rmcup l'output di tmux resta nella schermata
+   normale e la history la tiene xterm, che e' anche chi fa la selezione. */
+ok('tmux: niente alternate screen, altrimenti la rotella non scorre il terminale', async (t) => {
+  const path = require('path');
+  const { execFileSync } = require('child_process');
+  const { detectTmux } = require('../lib/tmux');
+  const { isPtyAvailable } = require('../app/pty');
+
+  const found = detectTmux({ confPath: null });
+  if (!found) return t.skip('tmux non installato su questa macchina');
+  if (!isPtyAvailable()) return t.skip('node-pty non compilato');
+
+  const pty = require('node-pty');
+  const socket = 'aistest-altscreen-' + process.pid;
+  const confPath = path.join(__dirname, '..', 'app', 'tmux.conf');
+  const base = ['-L', socket, '-f', confPath];
+  try {
+    execFileSync(found.bin, [...base, 'new-session', '-d', '-s', 'probe', '--', 'sleep', '30'], { timeout: 10000 });
+    // Un client vero: e' l'attach che emette (o no) la sequenza sul terminale
+    const p = pty.spawn(found.bin, [...base, 'attach-session', '-t', '=probe'], {
+      name: 'xterm-256color', cols: 80, rows: 24, env: { ...process.env, TERM: 'xterm-256color' },
+    });
+    let out = '';
+    p.onData((d) => { out += d; });
+    await new Promise((r) => setTimeout(r, 800));
+    p.kill();
+    assert.ok(!out.includes('\x1b[?1049h'),
+      'tmux passa all alternate screen: xterm resta senza history e la rotella manda frecce alla shell');
+  } finally {
+    try { execFileSync(found.bin, ['-L', socket, 'kill-server']); } catch {}
+  }
+});

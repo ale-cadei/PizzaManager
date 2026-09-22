@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/icons/256x256.png" width="128" alt="Logo di PizzaManager: una pizza tagliata a spicchi">
+  <img src="assets/icons/256x256.png" width="128" alt="Logo di PizzaManager: una pizza con una fetta sollevata">
 </p>
 
 <h1 align="center">PizzaManager</h1>

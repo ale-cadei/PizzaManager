@@ -96,3 +96,21 @@ ok('path corto: solo cartella genitore e cartella corrente', () => {
   assert.strictEqual(shortPath(''), '');
   assert.strictEqual(shortPath(null), '');
 });
+
+ok('gruppi per progetto: un ordine scelto dall utente vince su quello alfabetico', () => {
+  const groups = groupSessions([
+    { id: 'a', type: 'shell', projectRoot: '/p/alfa' },
+    { id: 'b', type: 'shell', projectRoot: '/p/beta' },
+    { id: 'c', type: 'shell', projectRoot: '/p/gamma' },
+  ], { mode: 'project', projectOrder: ['/p/gamma', '/p/alfa'] });
+  // I progetti mai spostati vanno in coda, fra loro in ordine alfabetico
+  assert.deepStrictEqual(shape(groups), [['gamma', ['c']], ['alfa', ['a']], ['beta', ['b']]]);
+});
+
+ok('gruppi per progetto: con un ordine salvato «Senza directory» resta comunque in fondo', () => {
+  const groups = groupSessions([
+    { id: 'a', type: 'shell', projectRoot: null },
+    { id: 'b', type: 'shell', projectRoot: '/p/beta' },
+  ], { mode: 'project', projectOrder: ['', '/p/beta', '/p/sparito'] });
+  assert.deepStrictEqual(shape(groups), [['beta', ['b']], [NO_PROJECT_LABEL, ['a']]]);
+});

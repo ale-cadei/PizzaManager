@@ -314,6 +314,33 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .group-body.reordering .session-item { transition: transform .16s ease; }
 .group-body.reordering .session-item.dragging { transition: none; }
 
+/* Riordino dei progetti per la linguetta: stesso linguaggio delle card. Il
+   fascicolo preso in mano resta nella lista come segnaposto tratteggiato, nel
+   punto dove finirebbe, e si chiude (niente pannello, fogli né dorso): aperto
+   sarebbe alto quanto le sue sessioni e la lista salterebbe a ogni passo.
+   `#session-list` davanti: le regole del fascicolo più sotto (dorso, bordi del
+   gruppo attivo) hanno lo stesso peso e vincerebbero per posizione. */
+#session-list .session-group.group-dragging > .group-body { display: none; }
+#session-list .session-group.group-dragging::before,
+#session-list .session-group.group-dragging::after,
+#session-list .session-group.group-dragging > .group-cap::after { display: none; }
+#session-list .session-group.group-dragging > .group-cap > .group-header {
+  background: transparent;
+  border: 1px dashed var(--action, var(--accent));
+  border-radius: var(--radius-cap, var(--radius));
+  margin-bottom: 0;
+  box-shadow: none;
+}
+#session-list .session-group.group-dragging > .group-cap > .group-header > *,
+#session-list .session-group.group-dragging > .group-cap > .group-add { opacity: .3; }
+/* Gli altri fascicoli scorrono per fare spazio (FLIP, come le card); chi ha
+   ridotto le animazioni li vede solo cambiare posto. */
+@media (prefers-reduced-motion: no-preference) {
+  #session-list.reordering-groups > .session-group { transition: transform .16s ease; }
+  #session-list.reordering-groups > .session-group.group-dragging { transition: none; }
+}
+.group-header[draggable="true"] { cursor: grab; }
+
 /* `visibility` invece di `display`: lo spazio resta occupato, le card non si spostano */
 .sel-mark {
   flex: 0 0 auto; width: 12px; text-align: center;
@@ -795,6 +822,29 @@ a, .link { color: var(--action-text); }
   font-size: 11px; line-height: 1;
   overflow: hidden; white-space: nowrap;
 }
+/* "Dove sono": cartella del progetto e nome della chat in primo piano. Prende
+   lo spazio che avanza e si tronca per primo: le quote a destra hanno
+   larghezza fissa e non devono mai sparire per un nome lungo. */
+.usage-current {
+  display: flex; align-items: center; gap: 6px;
+  flex: 1 1 auto; min-width: 0; padding-right: 14px;
+  overflow: hidden;
+}
+.usage-current-folder {
+  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  color: var(--muted, #8b909a);
+}
+.usage-current-folder::before { content: '📁 '; }
+.usage-current-folder:empty { display: none; }
+.usage-current-folder + .usage-current-name::before { content: '·'; margin-right: 6px; color: var(--muted, #8b909a); }
+.usage-current-name {
+  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  color: var(--text, #e6e8ec); font-weight: 600;
+}
+.usage-current[hidden] { display: none; }
+.usage-current + .usage-cell { border-left: 1px solid var(--border, #23262d); }
+/* Senza sessioni la prima quota torna a essere la prima della barra. */
+.usage-current[hidden] + .usage-cell { border-left: 0; padding-left: 0; }
 .usage-cell { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 0 14px; }
 /* Divisore fra una metrica e l'altra: sono tre quote diverse, non una riga
    sola. Il bordo sta sulla cella che segue, cosi' la prima resta allineata

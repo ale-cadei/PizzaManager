@@ -17,6 +17,13 @@
   const COLLAPSED_GROUPS_KEY = 'aisess.collapsedGroups';
   const COLLAPSED_PROJECTS_KEY = 'aisess.collapsedProjects';
   const GROUP_MODE_KEY = 'aisess.groupMode';
+  /* Ordine dei gruppi progetto scelto trascinandone la linguetta. A differenza
+     di quello delle card si salva: la chiave di un progetto è la sua radice,
+     che resta la stessa fra un avvio e l'altro. */
+  const PROJECT_ORDER_KEY = 'aisess.projectOrder';
+  /* Tetto dei progetti ricordati: quelli mai più riaperti non devono gonfiare
+     lo storage per sempre. Si perdono i più in fondo alla lista. */
+  const MAX_SAVED_PROJECTS = 200;
   /* Soglia del doppio click sulle card, tenuta fuori dal DOM perché le card
      vengono ricreate a ogni render. */
   const DOUBLE_CLICK_MS = 450;
@@ -43,17 +50,22 @@
     return n < 3 ? 1 : 2;
   }
 
-  function readSet(storage, key) {
+  function readList(storage, key) {
     try {
       const saved = JSON.parse(storage.getItem(key) || '[]');
-      if (Array.isArray(saved)) return new Set(saved.filter((k) => typeof k === 'string'));
+      if (Array.isArray(saved)) return saved.filter((k) => typeof k === 'string');
     } catch {}
-    return new Set();
+    return [];
   }
 
-  function writeSet(storage, key, set) {
-    try { storage.setItem(key, JSON.stringify([...set])); } catch {}
+  function readSet(storage, key) {
+    return new Set(readList(storage, key));
   }
+
+  function writeList(storage, key, items) {
+    try { storage.setItem(key, JSON.stringify([...items])); } catch {}
+  }
+  const writeSet = writeList;
 
   /**
    * @param {{list: Element, count: Element, storage: Storage, Icons: object,
@@ -63,7 +75,9 @@
    *   onSelect: (id: string) => void, onClose: (id: string) => void,
    *   onRename: (session: object) => void,
    *   onNewInProject?: (projectRoot: string) => void,
-   *   onReorder?: (movedId: string, targetId: string, opts: {before: boolean}) => void}} deps
+   *   onReorder?: (movedId: string, targetId: string, opts: {before: boolean}) => void,
+   *   Order?: {moveAdjacent: Function}}} deps
+   * Senza `Order` le linguette dei progetti non si trascinano.
    */
   function createSidebar(deps) {
     const { list, count, storage, Icons, Slice, Groups, escapeHtml, onSelect, onClose, onRename } = deps;
@@ -73,12 +87,14 @@
     /* Creare una sessione è affare del renderer (dialog, tipo, account): la
        sidebar segnala solo in quale radice l'utente la vuole. */
     const onNewInProject = typeof deps.onNewInProject === 'function' ? deps.onNewInProject : null;
+    const Order = deps.Order && typeof deps.Order.moveAdjacent === 'function' ? deps.Order : null;
 
     /* Collassi in liste separate per modalità: collassare "Claude" e collassare
        "aisessionmanager" sono scelte diverse e nella stessa chiave
        interferirebbero. */
     const collapsedGroups = readSet(storage, COLLAPSED_GROUPS_KEY);
     const collapsedProjects = readSet(storage, COLLAPSED_PROJECTS_KEY);
+    let projectOrder = readList(storage, PROJECT_ORDER_KEY);
     let groupMode = 'type';
     try {
       const saved = storage.getItem(GROUP_MODE_KEY);
@@ -93,6 +109,13 @@
     // Un render a meta' trascinamento distruggerebbe la card che si ha in mano
     // (list.innerHTML = ''): si rimanda a fine drag.
     let pendingRender = null;
+    /* Gruppo progetto in corso di trascinamento, e dove verrebbe rilasciato. */
+    let draggingGroup = null;
+    /* Ultimo render: dopo lo spostamento di un gruppo la sidebar si ridisegna
+       da sola, senza passare dal renderer (l'ordine dei gruppi è suo). */
+    let lastRender = null;
+    /* Chiavi dei gruppi progetto mostrati, nell'ordine in cui si vedono. */
+    let shownProjectKeys = [];
 
     /** Insieme dei gruppi collassati della modalità corrente. */
     function collapsedSet() {
@@ -147,22 +170,29 @@
     const isCard = (el) => el && el.classList && el.classList.contains('session-item');
     const cardsOf = (body) => [...body.children].filter(isCard);
 
-    /** FLIP: le card che cambiano posto partono da dove erano e scivolano dove sono. */
-    function shiftAnimated(body, move) {
-      const cards = cardsOf(body);
-      const before = new Map(cards.map((c) => [c, c.getBoundingClientRect().top]));
+    /**
+     * FLIP: gli elementi che cambiano posto partono da dove erano e scivolano
+     * dove sono. `skip` è quello preso in mano, che non va animato.
+     */
+    function flip(elements, skip, move) {
+      const before = new Map(elements.map((c) => [c, c.getBoundingClientRect().top]));
       move();
       if (typeof requestAnimationFrame !== 'function') return; // DOM finto nei test
-      for (const c of cards) {
-        if (c === dragging.el) continue;
+      for (const c of elements) {
+        if (c === skip) continue;
         const delta = before.get(c) - c.getBoundingClientRect().top;
         if (!delta) continue;
         c.style.transition = 'none';
         c.style.transform = `translateY(${delta}px)`;
       }
       requestAnimationFrame(() => {
-        for (const c of cards) { c.style.transition = ''; c.style.transform = ''; }
+        for (const c of elements) { c.style.transition = ''; c.style.transform = ''; }
       });
+    }
+
+    /** FLIP sulle card di un gruppo. */
+    function shiftAnimated(body, move) {
+      flip(cardsOf(body), dragging.el, move);
     }
 
     /** Porta il segnaposto prima o dopo `target`, se non e' gia' li'. */
@@ -248,6 +278,101 @@
       body.addEventListener('drop', (e) => {
         if (!dragging || dragging.groupKey !== groupKey) return;
         e.preventDefault();
+      });
+    }
+
+    /* Trascinamento dei gruppi progetto, per la linguetta. Stesso riordino
+       "vivo" delle card: il gruppo preso in mano si sposta DAVVERO nella lista e
+       fa da segnaposto (chiuso, per non essere alto quanto le sue sessioni), gli
+       altri scorrono con FLIP, e il rilascio conferma l'ordine che si vede.
+       Il rilascio si accetta su tutta la lista, spazi fra i gruppi compresi: un
+       rilascio rifiutato fa tornare indietro l'immagine trascinata prima che la
+       lista si aggiorni, ed è il salto che si vedeva.
+       «Senza directory» (chiave vuota) non si sposta e nessuno le passa sotto:
+       resta in fondo, come decide session-groups.js. */
+    const canDragGroups = () => !!Order && groupMode === 'project';
+    const isMovableGroup = (key) => canDragGroups() && !!key;
+    const groupsInList = () => [...list.children].filter((n) => n.classList && n.classList.contains('session-group'));
+    const movableGroups = () => groupsInList().filter((g) => isMovableGroup(g.dataset.groupKey));
+
+    /**
+     * Porta il segnaposto prima del primo progetto il cui centro sta sotto il
+     * cursore, o dopo l'ultimo progetto. Stabile: spostarlo oltre un gruppo
+     * sposta quel gruppo dalla parte giusta, non lo riporta sotto il cursore.
+     */
+    function placeGroup(clientY) {
+      const el = draggingGroup.el;
+      const others = movableGroups().filter((g) => g !== el);
+      if (!others.length) return;
+      const next = others.find((g) => {
+        const r = g.getBoundingClientRect();
+        return clientY < r.top + r.height / 2;
+      });
+      const ref = next || others[others.length - 1].nextElementSibling;
+      if (ref === el || el.nextElementSibling === ref) return;
+      flip(groupsInList(), el, () => list.insertBefore(el, ref));
+    }
+
+    /** Salva l'ordine letto dal DOM. Falso se il gruppo è dove era partito. */
+    function commitGroupsFromDom() {
+      const keys = movableGroups().map((g) => g.dataset.groupKey);
+      if (keys.every((k, i) => k === shownProjectKeys[i])) return false;
+      const shown = new Set(keys);
+      projectOrder = [...keys, ...projectOrder.filter((k) => !shown.has(k))].slice(0, MAX_SAVED_PROJECTS);
+      writeList(storage, PROJECT_ORDER_KEY, projectOrder);
+      return true;
+    }
+
+    function endGroupDrag() {
+      const d = draggingGroup;
+      draggingGroup = null;
+      dragEndedAt = Date.now();
+      d.el.classList.remove('group-dragging');
+      list.classList.remove('reordering-groups');
+      const moved = commitGroupsFromDom();
+      const pend = pendingRender;
+      pendingRender = null;
+      // Il render dopo lo spostamento ridisegna lo stesso ordine che già si
+      // vede: serve a riallineare lo stato interno, non muove niente.
+      if (moved || pend) render(...(pend || lastRender));
+    }
+
+    function attachGroupDrag(group, header, key) {
+      header.dataset.key = key;
+      group.dataset.groupKey = key;
+      header.draggable = isMovableGroup(key);
+      if (!header.draggable) return;
+      header.addEventListener('dragstart', (e) => {
+        draggingGroup = { key, el: group };
+        // Come per le card: l'immagine che segue il cursore si fotografa dopo
+        // questo handler, il segnaposto si disegna al frame dopo.
+        const mark = () => {
+          if (!draggingGroup || draggingGroup.el !== group) return;
+          group.classList.add('group-dragging');
+          list.classList.add('reordering-groups');
+        };
+        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(mark); else mark();
+        if (e.dataTransfer) {
+          e.dataTransfer.effectAllowed = 'move';
+          try { e.dataTransfer.setData('text/plain', key); } catch {}
+        }
+      });
+      header.addEventListener('dragend', () => { if (draggingGroup) endGroupDrag(); });
+    }
+
+    /* Sulla lista, una volta sola: la lista sopravvive ai render, i gruppi no.
+       Il dragover di un gruppo ci arriva per bubbling. */
+    if (Order) {
+      list.addEventListener('dragover', (e) => {
+        if (!draggingGroup) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+        placeGroup(e.clientY);
+      });
+      list.addEventListener('drop', (e) => {
+        if (!draggingGroup) return;
+        e.preventDefault();
+        // L'ordine è già quello che si vede: lo conferma dragend.
       });
     }
 
@@ -354,7 +479,8 @@
      * @param {string|null} activeId scheda in primo piano
      */
     function render(sessions, activeId) {
-      if (dragging) { pendingRender = [sessions, activeId]; return; }
+      if (dragging || draggingGroup) { pendingRender = [sessions, activeId]; return; }
+      lastRender = [sessions, activeId];
       painted = new Map();
       list.innerHTML = '';
       if (count) count.textContent = sessions.length ? `(${sessions.length})` : '';
@@ -366,7 +492,9 @@
         mode: groupMode,
         typeOrder: Groups.TYPE_ORDER,
         typeLabels: Groups.TYPE_LABELS,
+        projectOrder,
       });
+      shownProjectKeys = groups.filter((g) => g.kind === 'project' && g.key).map((g) => g.key);
       for (const g of groups) {
         // Gruppo espandibile/collassabile sempre, anche con una sola sessione:
         // la posizione delle card resta stabile quando il gruppo cresce.
@@ -406,12 +534,15 @@
       <span class="group-name">${escapeHtml(g.label)}</span>
       <span class="group-count">${g.items.length}</span>`;
         header.onclick = () => {
+          // Il rilascio del trascinamento della linguetta non è un click
+          if (Date.now() - dragEndedAt <= DRAG_CLICK_GUARD_MS) return;
           const set = collapsedSet();
           if (set.has(g.key)) set.delete(g.key);
           else set.add(g.key);
           saveCollapsed();
           render(sessions, activeId);
         };
+        attachGroupDrag(group, header, g.key);
         cap.appendChild(header);
         // «+» solo dove c'è una radice in cui creare: il gruppo «Senza
         // directory» (chiave vuota) non ce l'ha, e per tipo la directory non è nota.

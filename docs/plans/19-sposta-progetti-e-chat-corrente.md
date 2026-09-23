@@ -35,6 +35,17 @@ Branch: `feat/sposta-progetti-e-chat-corrente` · Dipende da: 8, 9, 14 · Taglia
 - Test: `tests/sidebar-group-drag.test.js`, casi nuovi in
   `session-groups.test.js` e `usage-bar.test.js`.
 
+## Aggiunta: l'ordine delle card si salva
+
+Il piano 9 non lo salvava perché l'id della scheda nasce a runtime. Si salva
+invece una lista di **chiavi stabili** (`aisess.sessionOrder`, `tabKeys` in
+`renderer/session-order.js`): l'id della conversazione (`claude:<id>`, regge il
+riavvio della macchina) e la sessione tmux (`tmux:<nome>`, regge la chiusura
+dell'app). Una scheda che riappare con una di quelle chiavi torna al suo posto;
+le schede ancora chiuse restano nella lista accanto a chi le precedeva
+(`mergeSaved`), così il riaggancio una alla volta all'avvio non le perde.
+Una shell senza tmux, o ricreata pulita dopo un riavvio, non ha chiave: in coda.
+
 ## Fuori scope
 
 Spostare una sessione da un progetto all'altro (il progetto dipende dalla cwd);

@@ -170,22 +170,29 @@
     const isCard = (el) => el && el.classList && el.classList.contains('session-item');
     const cardsOf = (body) => [...body.children].filter(isCard);
 
-    /** FLIP: le card che cambiano posto partono da dove erano e scivolano dove sono. */
-    function shiftAnimated(body, move) {
-      const cards = cardsOf(body);
-      const before = new Map(cards.map((c) => [c, c.getBoundingClientRect().top]));
+    /**
+     * FLIP: gli elementi che cambiano posto partono da dove erano e scivolano
+     * dove sono. `skip` è quello preso in mano, che non va animato.
+     */
+    function flip(elements, skip, move) {
+      const before = new Map(elements.map((c) => [c, c.getBoundingClientRect().top]));
       move();
       if (typeof requestAnimationFrame !== 'function') return; // DOM finto nei test
-      for (const c of cards) {
-        if (c === dragging.el) continue;
+      for (const c of elements) {
+        if (c === skip) continue;
         const delta = before.get(c) - c.getBoundingClientRect().top;
         if (!delta) continue;
         c.style.transition = 'none';
         c.style.transform = `translateY(${delta}px)`;
       }
       requestAnimationFrame(() => {
-        for (const c of cards) { c.style.transition = ''; c.style.transform = ''; }
+        for (const c of elements) { c.style.transition = ''; c.style.transform = ''; }
       });
+    }
+
+    /** FLIP sulle card di un gruppo. */
+    function shiftAnimated(body, move) {
+      flip(cardsOf(body), dragging.el, move);
     }
 
     /** Porta il segnaposto prima o dopo `target`, se non e' gia' li'. */

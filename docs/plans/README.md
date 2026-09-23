@@ -27,6 +27,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 17 | [`feat/quota-endpoint-claude`](17-quota-endpoint-claude.md) | 15, 16 | ~2h | ✅ fatto |
 | 18 | [aggiornamento automatico](18-aggiornamento-automatico.md) — 3 branch | 13 | ~1 g | proposto |
 | 19 | [`feat/sposta-progetti-e-chat-corrente`](19-sposta-progetti-e-chat-corrente.md) | 8, 9, 14 | ~2h | fatto, da provare nell'app |
+| 20 | [`feat/onboarding`](20-onboarding.md) | — | ~1 g | in corso |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

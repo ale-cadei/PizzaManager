@@ -233,3 +233,36 @@ ok('selezione: il gruppo dichiara il tipo della sessione attiva che contiene', (
     }
   } finally { restore(); }
 });
+
+/* Il lampeggio «l'assistente ha finito» parla della SESSIONE: deve essere del
+   suo colore, come la barra laterale e il filetto di selezione. Con un pomodoro
+   uguale per tutte, di sfuggita non si capiva chi stesse chiamando. Stessa
+   trappola del filetto: le tinte vanno dichiarate dove .type-* ha definito
+   --type-color, non in :root. */
+ok('lampeggio: la pulsazione è del colore del tipo, dichiarato dove il tipo esiste', () => {
+  const css = styles();
+  const pulse = css.match(/@keyframes attention-pulse[\s\S]*?\n\}/g);
+  assert.ok(pulse && pulse.length === 2, 'mancano le due pulsazioni (card e linguetta)');
+  for (const k of pulse) {
+    assert.ok(!/--action-soft|--action-ring/.test(k),
+      `la pulsazione usa il pomodoro d azione invece del colore della sessione: ${k}`);
+    assert.ok(/var\(--attention-fill\)/.test(k) && /var\(--attention-ring\)/.test(k),
+      `la pulsazione non usa le tinte del tipo: ${k}`);
+  }
+  for (const prop of ['--attention-fill', '--attention-ring']) {
+    for (const file of tokensFiles) {
+      assert.ok(!fs.readFileSync(file, 'utf8').includes(`${prop}:`),
+        `${path.basename(file)} dichiara ${prop} fuori dalla card: il colore del tipo non ci arriva`);
+    }
+    const decl = css.match(new RegExp(`([^\\n{}]+)\\{[^}]*${prop}:\\s*([^;]+);`));
+    assert.ok(decl, `nessuno dichiara ${prop}`);
+    const selettore = decl[1].trim();
+    assert.ok(/^\.session-item|^\.group-header/.test(selettore),
+      `${prop} è dichiarato su "${selettore}": lì --type-color non è quello della sessione`);
+    assert.ok(/var\(--type-color/.test(decl[2]), `${prop} non deriva dal colore del tipo: ${decl[2]}`);
+  }
+  // Anche chi ha disattivato le animazioni vede la tinta giusta, non il pomodoro.
+  const ridotto = css.match(/@media \(prefers-reduced-motion: reduce\)[\s\S]*?\n\}\n/);
+  assert.ok(/needs-attention[\s\S]{0,120}background:\s*var\(--attention-fill\)/.test(ridotto[0]),
+    'senza animazioni la card resta del colore sbagliato');
+});

@@ -21,6 +21,8 @@ const Order = window.AisessOrder;
 const Sidebar = window.AisessSidebar;
 // Fumetto di conferma appoggiato a una card (renderer/confirm-bubble.js)
 const ConfirmBubble = window.AisessConfirmBubble;
+// Regola del lampeggio «l'assistente ha finito» (renderer/attention.js)
+const Attention = window.AisessAttention;
 const Titles = window.AisessTitles;
 const PromptCapture = window.AisessPromptCapture;
 /* I nomi rinominati a mano sopravvivono alla chiusura dell'app: stanno in
@@ -752,7 +754,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   // dimensione piena (altrimenti la prima scheda nasce 20x10).
   const tab = { id, type, name: label, cwd, projectRoot: cwd || null, resumeId, startedAt, autoNamed: !name,
     session: attachSession, reattached: Boolean(attachSession),
-    promptCapture: PromptCapture.createPromptCapture(), namedFromPrompt: false, claudeAccountId, claudeAccountName, commandProfileId: picked.id, commandProfileLabel: picked.label, term: null, fit: null, ro: null, wrap, alive: true, needsAttention: false, idleTimer: null, pendingBytes: 0 };
+    promptCapture: PromptCapture.createPromptCapture(), namedFromPrompt: false, claudeAccountId, claudeAccountName, commandProfileId: picked.id, commandProfileLabel: picked.label, term: null, fit: null, ro: null, wrap, alive: true, needsAttention: false, idleTimer: null };
   tabs.set(id, tab);
   updateEmpty();
   setActive(id);
@@ -772,6 +774,8 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   term.onData((d) => {
     window.aisess.write(id, d);
     applyTypedPrompt(tab, d);
+    // L'utente ha chiesto qualcosa qui: la risposta va segnalata anche se breve
+    attention.typed(id);
   });
   // xterm accetta un solo gestore tasti: qui si compongono quelli dei moduli.
   // Copia/incolla: la selezione di xterm non è una selezione del documento.
@@ -780,7 +784,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   term.attachCustomKeyEventHandler((e) => keyHandlers.every((h) => h(e)));
   window.AisessClipboard.attachContextMenu(term, inner);
   // Il bell è il "ho finito" esplicito degli agenti: vale senza attendere l'idle
-  try { term.onBell(() => flagAttention(tab, { force: true })); } catch {}
+  try { term.onBell(() => flagAttention(tab, { bell: true })); } catch {}
 
   // Dimensioni iniziali misurate sul contenitore reale già visibile
   let cols = 80, rows = 24;
@@ -868,6 +872,9 @@ function runEditAction(action) {
 }
 
 function setActive(id) {
+  // La scheda che lascia il primo piano si ridisegna per il refit: quell'output
+  // è una conseguenza della visita, non un lavoro nuovo (attention.js).
+  if (activeId && activeId !== id) attention.left(activeId);
   activeId = id;
   tabs.forEach((t) => t.wrap.classList.toggle('active', t.id === id));
   // Selezionare la sessione è la conferma che l'utente ha visto il lavoro finito
@@ -896,28 +903,27 @@ function fitActive() {
 
 /* ---------- "L'assistente ha finito": card che lampeggia ----------
    Un agente TUI scrive senza sosta mentre lavora: quando il flusso si ferma
-   per ATTENTION_IDLE_MS su una scheda non in primo piano, il turno è finito e
-   la card lampeggia finché l'utente non la seleziona. Il bell del terminale
-   (\x07, emesso dagli agenti a fine turno) è un segnale esplicito e vale
-   subito, senza attendere la soglia di byte. */
+   per ATTENTION_IDLE_MS su una scheda non in primo piano, il turno può essere
+   finito. *Può*: decidere se quella raffica era un lavoro o solo la TUI che si
+   ridisegna spetta a renderer/attention.js, che è dove sta la regola (e dove i
+   test la provano). Qui restano il timer e il render. */
 const ATTENTION_IDLE_MS = 1500;
-const ATTENTION_MIN_BYTES = 40; // sotto questa soglia è solo ridisegno della TUI
+const attention = Attention.createAttention();
 
 function noteActivity(t, bytes) {
   if (t.type === 'shell') return;   // nessun assistente: niente da segnalare
   if (t.id === activeId) return;    // già sotto gli occhi dell'utente
-  t.pendingBytes += bytes;
+  attention.data(t.id, bytes);
   clearTimeout(t.idleTimer);
   t.idleTimer = setTimeout(() => flagAttention(t), ATTENTION_IDLE_MS);
 }
 
-function flagAttention(t, { force = false } = {}) {
+/** @param {{bell?: boolean}} [o] il bell del terminale, segnale esplicito di fine turno */
+function flagAttention(t, { bell = false } = {}) {
   clearTimeout(t.idleTimer);
   t.idleTimer = null;
-  const bytes = t.pendingBytes;
-  t.pendingBytes = 0;
   if (t.type === 'shell' || t.id === activeId || t.needsAttention) return;
-  if (!force && bytes < ATTENTION_MIN_BYTES) return;
+  if (!(bell ? attention.bell(t.id) : attention.idle(t.id))) return;
   t.needsAttention = true;
   renderSidebar();
 }
@@ -928,7 +934,7 @@ function clearAttention(id) {
   if (!t) return false;
   clearTimeout(t.idleTimer);
   t.idleTimer = null;
-  t.pendingBytes = 0;
+  attention.seen(id);
   if (!t.needsAttention) return false;
   t.needsAttention = false;
   return true;
@@ -939,6 +945,7 @@ async function closeTab(id) {
   if (!t) return;
   await window.aisess.kill(id);
   clearAttention(id);
+  attention.forget(id);
   try { if (t.ro) t.ro.disconnect(); } catch {}
   try { if (t.term) t.term.dispose(); } catch {}
   t.wrap.remove();

@@ -62,9 +62,16 @@ ok('sessioni: la card lampeggia quando l assistente ha finito e si spegne alla s
   assert.ok(/onData\(\(\{ id, data \}\)[\s\S]{0,200}noteActivity/.test(js),
     'l output del terminale non alimenta il rilevamento');
   assert.ok(js.includes('term.onBell'), 'il bell dell agente non viene usato come segnale di fine turno');
-  assert.ok(/function setActive\(id\)[\s\S]{0,300}clearAttention\(id\)/.test(js),
+  assert.ok(/function setActive\(id\)[\s\S]{0,500}clearAttention\(id\)/.test(js),
     'selezionare la sessione non spegne il lampeggio');
   assert.ok(/t\.id === activeId\) return/.test(js), 'la scheda in primo piano non deve lampeggiare');
+  // La regola sta in renderer/attention.js (e lì è provata sul comportamento):
+  // qui si verifica solo che il renderer le passi i tre eventi che non può
+  // dedurre da sola — l'utente che scrive, che guarda, e che se ne va.
+  assert.ok(/function setActive\(id\)[\s\S]{0,300}attention\.left\(activeId\)/.test(js),
+    'lasciare una scheda non apre la finestra di silenzio: il suo ridisegno la riaccenderebbe');
+  assert.ok(/term\.onData\(\([\s\S]{0,200}attention\.typed\(id\)/.test(js),
+    'quello che l utente digita non arriva alla regola del lampeggio');
   const sidebar = fs.readFileSync(path.join(root, 'renderer', 'sidebar.js'), 'utf8');
   assert.ok(sidebar.includes("t.needsAttention ? ' needs-attention' : ''"), 'la card non riceve la classe di lampeggio');
 

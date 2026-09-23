@@ -551,7 +551,10 @@ button:focus-visible, input:focus-visible, select:focus-visible {
    basso. Il verso lo dà lo stato ARIA dell'header, non un secondo glifo. */
 .group-header .chevron { width: 14px; height: 14px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; }
 .group-header .chevron svg { transform: rotate(0deg); transition: transform 120ms ease; }
-.group-header[aria-expanded="true"] .chevron svg { transform: rotate(90deg); }
+/* Girata in giù il cornicione, la parte pesante, finisce in alto e il suo
+   baricentro sale di ~2px sopra quello del nome: la fetta sembrava più alta
+   del testo. Si riabbassa di tanto quanto (misurato dentro Electron). */
+.group-header[aria-expanded="true"] .chevron svg { transform: translateY(2px) rotate(90deg); }
 @media (prefers-reduced-motion: reduce) {
   .group-header .chevron svg { transition: none; }
 }

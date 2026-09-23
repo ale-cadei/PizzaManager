@@ -108,3 +108,15 @@ ok('mergeSaved: le schede senza chiave non si salvano e la lista ha un tetto', (
   assert.strictEqual(mergeSaved([['nuova']], tante).length, 200);
   assert.ok(mergeSaved([['nuova']], tante).includes('nuova'), 'il tetto taglia le vecchie, non quelle aperte');
 });
+
+ok('tabKeys: una scheda ricreata dopo un riavvio si riconosce anche dal vecchio nome tmux', () => {
+  assert.deepStrictEqual(
+    tabKeys({ type: 'shell', session: 'ais-shell-nuovo', previousSession: 'ais-shell-vecchio' }),
+    ['tmux:ais-shell-nuovo', 'tmux:ais-shell-vecchio'],
+  );
+  // Nel salvataggio la chiave vecchia lascia il posto a quella nuova
+  assert.deepStrictEqual(
+    mergeSaved([tabKeys({ type: 'shell', session: 'ais-shell-nuovo', previousSession: 'ais-shell-vecchio' })], ['tmux:a', 'tmux:ais-shell-vecchio', 'tmux:b']),
+    ['tmux:a', 'tmux:ais-shell-nuovo', 'tmux:b'],
+  );
+});

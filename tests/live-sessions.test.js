@@ -51,7 +51,7 @@ ok('ripristino: registro vuoto = niente da proporre, qualunque cosa abbia tmux',
 
 ok('piano di ripristino: con id si riprende la conversazione, stesso profilo e account', () => {
   const p = restorePlan({ name: 'ais-claude-1', type: 'claude', cwd: '/p', resumeId: 'uuid-1', profileId: 'claude:lavoro', accountId: 'acc_1', label: 'Fix login' });
-  assert.deepStrictEqual(p, { type: 'claude', cwd: '/p', commandProfileId: 'claude:lavoro', claudeAccountId: 'acc_1', name: 'Fix login', resumeId: 'uuid-1', mode: 'resume' });
+  assert.deepStrictEqual(p, { type: 'claude', cwd: '/p', commandProfileId: 'claude:lavoro', claudeAccountId: 'acc_1', name: 'Fix login', previousSession: 'ais-claude-1', resumeId: 'uuid-1', mode: 'resume' });
 });
 
 ok('piano di ripristino: senza id si riparte pulita nella stessa directory', () => {
@@ -69,4 +69,11 @@ ok('piano di ripristino: una shell e sempre pulita, anche se per errore ha un id
 
 ok('piano di ripristino: una voce senza tipo diventa una shell, non un crash', () => {
   assert.strictEqual(restorePlan({ name: 'ais-x' }).type, 'shell');
+});
+
+ok('piano di ripristino: porta con se il vecchio nome tmux, anche per una shell', () => {
+  // La sessione ricreata ha un nome tmux nuovo: il vecchio serve a ritrovarne
+  // il posto nella sidebar (ordine salvato, renderer/session-order.js).
+  assert.strictEqual(restorePlan({ name: 'ais-shell-1', type: 'shell', cwd: '/p' }).previousSession, 'ais-shell-1');
+  assert.strictEqual(restorePlan({ name: '' }).previousSession, null);
 });

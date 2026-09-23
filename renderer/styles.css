@@ -804,6 +804,29 @@ a, .link { color: var(--action-text); }
   font-size: 11px; line-height: 1;
   overflow: hidden; white-space: nowrap;
 }
+/* "Dove sono": cartella del progetto e nome della chat in primo piano. Prende
+   lo spazio che avanza e si tronca per primo: le quote a destra hanno
+   larghezza fissa e non devono mai sparire per un nome lungo. */
+.usage-current {
+  display: flex; align-items: center; gap: 6px;
+  flex: 1 1 auto; min-width: 0; padding-right: 14px;
+  overflow: hidden;
+}
+.usage-current-folder {
+  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  color: var(--muted, #8b909a);
+}
+.usage-current-folder::before { content: '📁 '; }
+.usage-current-folder:empty { display: none; }
+.usage-current-folder + .usage-current-name::before { content: '·'; margin-right: 6px; color: var(--muted, #8b909a); }
+.usage-current-name {
+  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  color: var(--text, #e6e8ec); font-weight: 600;
+}
+.usage-current[hidden] { display: none; }
+.usage-current + .usage-cell { border-left: 1px solid var(--border, #23262d); }
+/* Senza sessioni la prima quota torna a essere la prima della barra. */
+.usage-current[hidden] + .usage-cell { border-left: 0; padding-left: 0; }
 .usage-cell { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 0 14px; }
 /* Divisore fra una metrica e l'altra: sono tre quote diverse, non una riga
    sola. Il bordo sta sulla cella che segue, cosi' la prima resta allineata

@@ -60,7 +60,6 @@ function fail(prefix, e) {
 
 // ---------- Finestra e ciclo di vita ----------
 ipcMain.handle('menu-action', async (event, { action } = {}) => runMenuAction(action, mainWindow));
-
 app.whenReady().then(() => {
   // La shell di login si interroga in background: la finestra appare subito,
   // gli handler che hanno bisogno del PATH completo la aspettano (await).
@@ -82,6 +81,7 @@ ipcMain.handle('pty-spawn', async (event, opts) => ptys.spawn(opts));
 ipcMain.handle('pty-attach', async (event, opts) => ptys.attach(opts));
 ipcMain.on('pty-write', (event, { id, data }) => ptys.write(id, data));
 ipcMain.on('pty-resize', (event, { id, cols, rows }) => ptys.resize(id, cols, rows));
+ipcMain.handle('pty-scroll', (event, { id, ...req }) => ptys.scroll(id, req));
 // 'pty-kill' chiude il pty della scheda: con tmux e' uno stacco, il processo resta.
 ipcMain.handle('pty-kill', async (event, { id }) => ptys.close(id));
 ipcMain.handle('pty-terminate', async (event, { id }) => ptys.terminate(id));

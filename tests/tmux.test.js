@@ -170,3 +170,58 @@ ok('createTmuxControl.create: riapplica la config al server con source-file, pri
   assert.ok(calls[0].includes('new-session'), 'prima la sessione');
   assert.ok(calls.slice(i + 1).every((a) => a.includes('set-option')), 'i metadati vengono dopo');
 });
+
+// ---------- scorrimento: la history vera è quella di tmux ----------
+// tmux scorre il terminale esterno con `CSI n S`, righe che xterm.js non mette
+// nello scrollback: la rotella deve muovere la copy-mode di tmux.
+
+ok('scroll: copy-mode, righe e lettura dello stato in un solo comando tmux', () => {
+  const up = t.scrollArgs({ confPath: conf, name: 'ais-x-1', lines: 3 });
+  assert.deepStrictEqual(up.slice(0, 4), ['-L', t.SOCKET, '-f', conf]);
+  const cmds = up.slice(4).join(' ').split(' ; ');
+  assert.deepStrictEqual(cmds, [
+    'copy-mode -e -t =ais-x-1:',
+    'send-keys -t =ais-x-1: -X -N 3 scroll-up',
+    `display-message -p -t =ais-x-1: ${t.SCROLL_FORMAT}`,
+  ]);
+  const down = t.scrollArgs({ confPath: conf, name: 'ais-x-1', lines: -2 });
+  assert.ok(down.includes('scroll-down') && down.includes('2'), JSON.stringify(down));
+});
+
+ok('scroll: il salto a una riga usa goto-line, il fondo esce dalla copy-mode', () => {
+  const to = t.scrollToArgs({ confPath: conf, name: 'ais-x-1', fromBottom: 120 });
+  assert.ok(to.join(' ').includes('send-keys -t =ais-x-1: -X goto-line 120'), JSON.stringify(to));
+  const bottom = t.scrollToArgs({ confPath: conf, name: 'ais-x-1', fromBottom: 0 });
+  assert.ok(bottom.join(' ').includes('-X cancel'), JSON.stringify(bottom));
+  assert.ok(!bottom.includes('goto-line'));
+});
+
+ok('scroll: righe non valide non arrivano a tmux come argomenti', () => {
+  for (const lines of [0, NaN, '3; kill-server', undefined]) {
+    assert.strictEqual(t.scrollArgs({ name: 'ais-x-1', lines }), null, String(lines));
+  }
+  assert.strictEqual(t.scrollToArgs({ name: 'ais-x-1', fromBottom: -1 }), null);
+  const big = t.scrollArgs({ name: 'ais-x-1', lines: 1e9 });
+  assert.ok(big.includes(String(t.MAX_SCROLL_STEP)), 'un passo enorme viene limitato');
+});
+
+ok('parseScrollState: legge history, posizione, copy-mode e righe', () => {
+  const S = t.FIELD_SEP;
+  assert.deepStrictEqual(t.parseScrollState(`1${S}10${S}278${S}24${S}0\n`), { inMode: true, position: 10, history: 278, rows: 24, alternate: false });
+  assert.deepStrictEqual(t.parseScrollState(`0${S}${S}278${S}24${S}1`), { inMode: false, position: 0, history: 278, rows: 24, alternate: true });
+  assert.strictEqual(t.parseScrollState(`${S}${S}${S}${S}`), null, 'sessione inesistente: tmux stampa campi vuoti');
+  assert.strictEqual(t.parseScrollState(''), null);
+});
+
+ok('createTmuxControl.scroll: stato letto dalla risposta, null se tmux fallisce', async () => {
+  const S = t.FIELD_SEP;
+  const calls = [];
+  const ctl = t.createTmuxControl({ bin: '/bin/tmux', confPath: conf, run: (b, a, o, cb) => { calls.push(a); cb(null, `1${S}3${S}50${S}24${S}0`, ''); } });
+  assert.deepStrictEqual(await ctl.scroll('ais-x-1', 3), { inMode: true, position: 3, history: 50, rows: 24, alternate: false });
+  assert.strictEqual((await ctl.scrollTo('ais-x-1', 0)).position, 3);
+  assert.strictEqual((await ctl.scrollState('ais-x-1')).history, 50);
+  assert.strictEqual(await ctl.scroll('ais-x-1', 0), null, 'niente da fare: nessun comando');
+  assert.strictEqual(calls.length, 3);
+  const bad = t.createTmuxControl({ bin: '/bin/tmux', run: (b, a, o, cb) => cb(new Error('x'), '', 'no server') });
+  assert.strictEqual(await bad.scroll('ais-x-1', 3), null);
+});

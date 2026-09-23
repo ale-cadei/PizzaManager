@@ -172,10 +172,11 @@ ok('tmux: il mouse resta al terminale, altrimenti la selezione sparisce al rilas
 });
 
 /* Scorrere con la rotella. tmux entra nell'alternate screen del terminale
-   esterno (smcup): li' xterm.js non ha scrollback e traduce la rotella in
-   frecce su/giu' — nella shell si sfogliano i comandi recenti invece del
-   testo. Togliendo smcup/rmcup l'output di tmux resta nella schermata
-   normale e la history la tiene xterm, che e' anche chi fa la selezione. */
+   esterno (smcup): li' xterm.js traduce la rotella in frecce su/giu' — nella
+   shell si sfogliano i comandi recenti invece del testo. Togliendo
+   smcup/rmcup l'output di tmux resta nella schermata normale. La history pero'
+   NON e' di xterm: tmux scorre con `CSI n S` e quelle righe xterm non le
+   conserva. Si scorre quella di tmux (test "lo scorrimento muove la copy-mode"). */
 ok('tmux: niente alternate screen, altrimenti la rotella non scorre il terminale', async (t) => {
   const path = require('path');
   const { execFileSync } = require('child_process');
@@ -204,5 +205,67 @@ ok('tmux: niente alternate screen, altrimenti la rotella non scorre il terminale
       'tmux passa all alternate screen: xterm resta senza history e la rotella manda frecce alla shell');
   } finally {
     try { execFileSync(found.bin, ['-L', socket, 'kill-server']); } catch {}
+  }
+});
+
+/* La rotella scorre la history di tmux, non quella di xterm: tmux scorre il
+   terminale esterno con `CSI n S` e quelle righe xterm non le conserva. Qui il
+   giro completo con un tmux e un pty veri: su nella copy-mode, e un tasto
+   premuto la chiude prima di arrivare alla shell. */
+ok('tmux: lo scorrimento muove la copy-mode e scrivere la chiude', async (t) => {
+  const path = require('path');
+  const os = require('os');
+  const { detectTmux, createTmuxControl } = require('../lib/tmux');
+  const { createPtyManager, isPtyAvailable } = require('../app/pty');
+  const { createAccountStore } = require('../lib/accounts');
+  const { createHistoryStore } = require('../lib/history');
+  const { createProfileStore } = require('../lib/profiles');
+
+  const found = detectTmux({ confPath: null });
+  if (!found) return t.skip('tmux non installato su questa macchina');
+  if (!isPtyAvailable()) return t.skip('node-pty non compilato');
+
+  const socket = 'aistest-scroll-' + process.pid;
+  const confPath = path.join(__dirname, '..', 'app', 'tmux.conf');
+  const control = createTmuxControl({ bin: found.bin, confPath, socket });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-scroll-'));
+  const profiles = createProfileStore({ dir });
+  const cfg = profiles.load();
+  cfg.profiles.shell = [{ id: 'shell:t', label: 'Shell di prova', command: '/bin/sh', resumeArgs: '' }];
+  profiles.save(cfg);
+  const app = createPtyManager({
+    accounts: () => createAccountStore({ dir }), history: () => createHistoryStore({ dir }), profiles, sendToRenderer: () => {},
+    tmux: { bin: found.bin, confPath, socket, control },
+  });
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  try {
+    const r = await app.spawn({ id: 'tab1', type: 'shell', cwd: dir, commandProfileId: 'shell:t', cols: 80, rows: 24 });
+    assert.strictEqual(r.ok, true, r.error);
+    await wait(300);
+    app.write('tab1', 'seq 300\r');
+    await wait(500);
+
+    const start = await app.scroll('tab1');
+    assert.ok(start.history >= 270, `la history deve stare in tmux: ${JSON.stringify(start)}`);
+    assert.strictEqual(start.inMode, false);
+
+    const up = await app.scroll('tab1', { lines: 10 });
+    assert.deepStrictEqual([up.inMode, up.position], [true, 10]);
+    assert.strictEqual((await app.scroll('tab1', { fromBottom: 100 })).position, 100);
+    assert.strictEqual((await app.scroll('tab1', { lines: -1000 })).inMode, false, 'in fondo la copy-mode si chiude da sola');
+
+    // Il tasto arriva mentre lo scroll e' ancora in volo: non deve finire nella copy-mode.
+    const flying = app.scroll('tab1', { lines: 5 });
+    app.write('tab1', 'echo fine-scroll\r');
+    await flying;
+    await wait(400);
+    const after = await app.scroll('tab1');
+    assert.strictEqual(after.inMode, false, 'un tasto premuto deve chiudere la copy-mode');
+    const shown = await new Promise((res) => require('child_process').execFile(found.bin, ['-L', socket, 'capture-pane', '-p', '-t', `=${r.session}:`], (e, out) => res(String(out))));
+    assert.ok(shown.includes('fine-scroll'), 'il testo deve arrivare alla shell, non ai comandi della copy-mode');
+    assert.strictEqual(await app.scroll('nessuna', { lines: 3 }), null);
+  } finally {
+    app.closeAll();
+    try { require('child_process').execFileSync(found.bin, ['-L', socket, 'kill-server']); } catch {}
   }
 });

@@ -124,5 +124,26 @@
     return { data, idle, bell, typed, seen, left, isFlagged, forget };
   }
 
-  return { createAttention, MIN_BYTES, MUTE_MS, WORK_MS };
+  /*
+   * Byte che xterm manda da solo, senza che l'utente tocchi la tastiera:
+   * report del mouse (claude e opencode chiedono ?1003h, ogni movimento sopra
+   * il terminale ne produce uno), focus dentro/fuori, risposte a domande del
+   * programma (DA, posizione del cursore, colori OSC). Passano da onData come
+   * i tasti, ma non sono "l'utente ha chiesto qualcosa".
+   */
+  const GENERATED = new RegExp([
+    /\x1b\[<\d+;\d+;\d+[Mm]/,                 // mouse SGR
+    /\x1b\[M[\s\S]{3}/,                       // mouse X10
+    /\x1b\[[IO]/,                             // focus
+    /\x1b\[[?>][\d;]*c/,                      // DA
+    /\x1b\[\d+;\d+R/,                         // posizione del cursore
+    /\x1b\][\d;]*[^\x07\x1b]*(?:\x07|\x1b\\)/, // OSC (colori)
+  ].map((r) => r.source).join('|'), 'g');
+
+  /** true se in `data` c'è qualcosa che ha scritto l'utente (tasti, incolla). */
+  function isTyping(data) {
+    return String(data || '').replace(GENERATED, '').length > 0;
+  }
+
+  return { createAttention, isTyping, MIN_BYTES, MUTE_MS, WORK_MS };
 });

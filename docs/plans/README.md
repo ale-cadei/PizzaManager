@@ -28,6 +28,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 18 | [aggiornamento automatico](18-aggiornamento-automatico.md) — 3 branch | 13 | ~1 g | proposto |
 | 19 | [`feat/sposta-progetti-e-chat-corrente`](19-sposta-progetti-e-chat-corrente.md) | 8, 9, 14 | ~2h | fatto, da provare nell'app |
 | 20 | [`feat/onboarding`](20-onboarding.md) | — | ~1 g | fatto, da provare nell'app |
+| 21 | [`refactor/split-renderer`](21-split-renderer.md) | — | ~2h | fatto, da provare nell'app |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già
@@ -92,6 +93,10 @@ Verificato sull'app: Claude nata nuova → id scoperto dal titolo → ⌘Q →
 Fuori, volutamente: lo scrollback (si potrebbe salvare con `capture-pane` e
 ricopiarlo grigio al ripristino; è un trucco visivo, il processo è nuovo).
 
+## Idee per feature nuove
+
+Brainstorming con checklist di avanzamento: [idee.md](idee.md).
+
 ## Backlog — rilevato ma non assegnato a un branch
 
 Cose emerse durante l'analisi che non appartengono a nessuno dei sei branch.
@@ -101,11 +106,8 @@ Non sono urgenti; stanno qui per non essere dimenticate.
   letterale byte per byte. Due file da tenere allineati a mano: prima o poi
   divergeranno. Serve una sola fonte di verità.
 - **La palette del terminale è duplicata in due linguaggi**: esadecimali
-  hardcoded nel tema di xterm (`renderer/renderer.js`, `new Terminal({ theme: … })`)
+  hardcoded nel tema di xterm (`TERM_THEME` in `renderer/app-state.js`)
   e variabili in `tokens.css`. Stesso problema, stessa soluzione.
-- **`renderer/renderer.js` è a 996 righe**, quindi ormai sopra il limite di 800,
-  e cresce a ogni funzionalità: andrebbe diviso per area (schede, modali,
-  account, resume). Il branch 8 ne stacca la sidebar, il resto rimane qui.
 - **Scorciatoie da tastiera per le schede** (⌘T / ⌘W) e `Esc` per chiudere i
   modali. ⌘N per la nuova sessione esiste già dal commit `e6c551a`.
 - **Icona `.icns` per macOS**: `assets/icon.png` è a risoluzione singola.

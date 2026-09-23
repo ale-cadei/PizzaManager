@@ -7,6 +7,7 @@ const path = require('path');
 const os = require('os');
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
+const { readRendererApp } = require('./renderer-source');
 
 const ROOT = path.join(__dirname, '..');
 const read = (...p) => fs.readFileSync(path.join(ROOT, ...p), 'utf8');
@@ -16,7 +17,7 @@ const tmp = (prefix) => fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 ok('terminale: Shift+Invio e copia/incolla condividono l unico gestore tasti di xterm', () => {
   const html = read('renderer', 'index.html');
   assert.ok(html.includes('<script src="term-newline.js">'), 'index.html non carica term-newline.js');
-  const rend = read('renderer', 'renderer.js');
+  const rend = readRendererApp();
   assert.ok(rend.includes('window.AisessNewline.keyHandler(term)'), 'renderer.js non compone il gestore di Shift+Invio');
   assert.ok(rend.includes('window.AisessClipboard.keyHandler(term)'), 'renderer.js non compone il gestore appunti');
   assert.strictEqual((rend.match(/attachCustomKeyEventHandler\(/g) || []).length, 1, 'xterm accetta un solo gestore tasti: va installato una volta sola');
@@ -57,7 +58,7 @@ ok('recenti: main + preload + UI collegati', () => {
   assert.ok(read('main.js').includes("require('./lib/recent-dirs')"), 'main.js non usa il modulo recent-dirs');
   assert.ok(read('preload.js').includes('getRecentDirs'), 'manca getRecentDirs nel preload');
   assert.ok(read('renderer', 'index.html').includes('id="recent-dirs"'), 'manca il contenitore delle directory recenti');
-  const js = read('renderer', 'renderer.js');
+  const js = readRendererApp();
   assert.ok(js.includes('renderRecentDirs'), 'il renderer non mostra le directory recenti');
   assert.ok(/openNewModal[\s\S]{0,600}renderRecentDirs\(\)/.test(js), "le directory recenti non vengono aggiornate all'apertura del modal");
   assert.ok(/#recent-dirs-row\[hidden\]\s*\{[^}]*display:\s*none/.test(read('renderer', 'styles.css')), 'la riga delle directory recenti non si nasconde quando vuota');
@@ -181,7 +182,7 @@ ok('antigravity: main + preload + UI collegati', () => {
   assert.ok(main.includes("require('./lib/antigravity-sessions')"), 'main.js non usa il modulo antigravity-sessions');
   assert.ok(read('preload.js').includes('listAntigravity'), 'manca listAntigravity nel preload');
   assert.ok(read('renderer', 'index.html').includes('data-tab="antigravity"'), 'manca il tab antigravity nel resume');
-  const js = read('renderer', 'renderer.js');
+  const js = readRendererApp();
   assert.ok(js.includes('listAntigravity'), 'il renderer non carica le conversazioni antigravity');
   assert.ok(/antigravity:\s*\(s\)\s*=>\s*\(\{/.test(js), 'manca la vista resume di antigravity');
 });
@@ -198,12 +199,12 @@ ok('nomi: la scheda adotta la directory davvero usata dal pty', () => {
   assert.strictEqual(resolveWorkdir('/non/esiste', { home, isDir }), home, 'una directory inesistente non ripiega sulla home');
   assert.strictEqual(resolveWorkdir('', { home, isDir }), home);
   assert.ok(/return \{ ok: true, cwd: workdir\b/.test(read('app', 'pty.js')), 'pty.spawn non restituisce la directory risolta');
-  assert.ok(/res\.cwd/.test(read('renderer', 'renderer.js')), 'il renderer non adotta la directory risolta dal main');
+  assert.ok(/res\.cwd/.test(readRendererApp()), 'il renderer non adotta la directory risolta dal main');
 });
 
 ok('nomi: rinomina manuale, titoli automatici e primo prompt collegati alla UI', () => {
   const html = read('renderer', 'index.html');
-  const js = read('renderer', 'renderer.js');
+  const js = readRendererApp();
   assert.ok(html.includes('session-titles.js'), 'session-titles.js non e incluso nella pagina');
   assert.ok(html.includes('prompt-capture.js'), 'prompt-capture.js non e incluso nella pagina');
   assert.ok(js.includes('AisessTitles'), 'il renderer non usa lo store dei nomi');
@@ -229,7 +230,7 @@ ok('raggruppamento: la radice di progetto arriva dal main alle schede', () => {
   assert.ok(main.includes("require('./lib/project-root')"), 'main.js non usa il modulo project-root');
   assert.ok(read('preload.js').includes('resolveProject'), 'manca resolveProject nel preload');
 
-  const js = read('renderer', 'renderer.js');
+  const js = readRendererApp();
   assert.ok(/projectRoot/.test(js), 'la scheda non tiene la radice di progetto');
   // La cwd vera la decide il main (resolveWorkdir): risolvere prima dello
   // spawn legherebbe la scheda a una directory che non è quella usata.

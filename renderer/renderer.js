@@ -23,6 +23,8 @@ const Sidebar = window.AisessSidebar;
 const ConfirmBubble = window.AisessConfirmBubble;
 // Regola del lampeggio «l'assistente ha finito» (renderer/attention.js)
 const Attention = window.AisessAttention;
+// «Sta lavorando adesso»: barra del tipo animata (renderer/running.js)
+const Running = window.AisessRunning;
 const Titles = window.AisessTitles;
 const PromptCapture = window.AisessPromptCapture;
 /* I nomi rinominati a mano sopravvivono alla chiusura dell'app: stanno in
@@ -183,12 +185,17 @@ async function init() {
     if (!t) return;
     t.term.write(data);
     noteActivity(t, data ? data.length : 0);
+    noteRunning(t);
   });
   window.aisess.onExit(({ id, exitCode }) => {
     const t = tabs.get(id);
     if (t) {
       t.alive = false;
       clearAttention(id);
+      // Il processo è morto: l'ultimo output non deve lasciare la card che corre
+      clearTimeout(t.runTimer);
+      running.forget(id);
+      t.running = false;
       t.term.write(`\r\n\x1b[90m[processo terminato con codice ${exitCode}] — puoi chiudere la scheda ✕\x1b[0m\r\n`);
       renderSidebar();
     }
@@ -754,7 +761,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   // dimensione piena (altrimenti la prima scheda nasce 20x10).
   const tab = { id, type, name: label, cwd, projectRoot: cwd || null, resumeId, startedAt, autoNamed: !name,
     session: attachSession, reattached: Boolean(attachSession),
-    promptCapture: PromptCapture.createPromptCapture(), namedFromPrompt: false, claudeAccountId, claudeAccountName, commandProfileId: picked.id, commandProfileLabel: picked.label, term: null, fit: null, ro: null, wrap, alive: true, needsAttention: false, idleTimer: null };
+    promptCapture: PromptCapture.createPromptCapture(), namedFromPrompt: false, claudeAccountId, claudeAccountName, commandProfileId: picked.id, commandProfileLabel: picked.label, term: null, fit: null, ro: null, wrap, alive: true, needsAttention: false, idleTimer: null, running: false, runTimer: null };
   tabs.set(id, tab);
   updateEmpty();
   setActive(id);
@@ -925,7 +932,41 @@ function flagAttention(t, { bell = false } = {}) {
   if (t.type === 'shell' || t.id === activeId || t.needsAttention) return;
   if (!(bell ? attention.bell(t.id) : attention.idle(t.id))) return;
   t.needsAttention = true;
-  renderSidebar();
+  // Solo la classe sulla card: rifare la sidebar farebbe ripartire da capo il
+  // lampeggio di tutte le altre (render() ricostruisce gli elementi).
+  if (!sidebar.signal(t.id, { needsAttention: true })) renderSidebar();
+}
+
+/* ---------- "Sta lavorando adesso": barra del tipo animata ----------
+   Stesso flusso di byte dell'attenzione, domanda diversa: non «ha finito» ma
+   «sta macinando in questo momento», e vale anche per la scheda in primo piano
+   e per le shell (un build che gira è in esecuzione quanto un agente). La
+   regola sta in renderer/running.js; qui il timer del silenzio e il render,
+   che scatta solo ai due cambi di stato. */
+const RUNNING_IDLE_MS = 1200;
+const running = Running.createRunning();
+
+function noteRunning(t) {
+  if (!t.alive) return;
+  if (running.data(t.id)) { t.running = true; showRunning(t); }
+  clearTimeout(t.runTimer);
+  t.runTimer = setTimeout(() => stopRunning(t), RUNNING_IDLE_MS);
+}
+
+function stopRunning(t) {
+  clearTimeout(t.runTimer);
+  t.runTimer = null;
+  if (!running.stop(t.id)) return;
+  t.running = false;
+  showRunning(t);
+}
+
+/* Il segnale si accende e si spegne di continuo (ogni pausa di una sessione che
+   lavora): passare da renderSidebar() ricostruirebbe le card, e la sessione che
+   lampeggia «ho finito» ripartirebbe ogni volta dal fotogramma zero — il
+   lampeggio si vedrebbe a scatti. */
+function showRunning(t) {
+  if (!sidebar.signal(t.id, { running: t.running })) renderSidebar();
 }
 
 /** Azzera la segnalazione di una scheda. @returns {boolean} true se lampeggiava */
@@ -946,6 +987,8 @@ async function closeTab(id) {
   await window.aisess.kill(id);
   clearAttention(id);
   attention.forget(id);
+  clearTimeout(t.runTimer);
+  running.forget(id);
   try { if (t.ro) t.ro.disconnect(); } catch {}
   try { if (t.term) t.term.dispose(); } catch {}
   t.wrap.remove();

@@ -42,6 +42,11 @@
     const s = sessions.find((x) => x.id === id);
     if (s) s.needsAttention = true;
   }
+  // ?running=1,4 — sessioni "al lavoro": barra del tipo animata
+  for (const id of (query.get('running') || '').split(',').filter(Boolean)) {
+    const s = sessions.find((x) => x.id === id);
+    if (s) s.running = true;
+  }
   // ?collapsed=claude,shell — per guardare il fascicolo chiuso
   const collapsed = (query.get('collapsed') || '').split(',').filter(Boolean);
   localStorage.setItem('aisess.collapsedGroups', JSON.stringify(collapsed));
@@ -67,13 +72,20 @@
   const bubble = window.AisessConfirmBubble.createConfirmBubble();
   sidebar.setMode(query.get('mode') === 'project' ? 'project' : 'type');
   sidebar.render(sessions, '2');
-  // Per la foto: il lampeggio fermo sul colmo dell'onda, dove la tinta si vede
-  // (uno screenshot preso a caso lo becca quasi sempre a fondo trasparente).
-  if (query.has('attention')) {
-    for (const el of document.querySelectorAll('.needs-attention')) {
-      el.style.animationDelay = '-1.2s';
-      el.style.animationPlayState = 'paused';
-    }
+  // Per la foto: le animazioni ferme su un istante scelto. Uno screenshot le
+  // becca sempre al fotogramma zero (headless non le fa scorrere), dove il
+  // lampeggio è trasparente e la luce della barra è fuori dalla card.
+  // ?phase=<secondi> sceglie l'istante (-1.2 = colmo del lampeggio).
+  if (query.has('attention') || query.has('running')) {
+    const ph = query.get('phase') || '-1.2';
+    const s = document.createElement('style');
+    // I selettori ricalcano quelli di styles.css: `animation` è una scorciatoia
+    // e rimette il delay a 0, quindi una regola meno specifica non congela
+    // niente (la foto uscirebbe sempre al fotogramma zero).
+    s.textContent = `.session-item.needs-attention, .group-header.needs-attention,
+      .session-item.is-running::before {
+      animation-delay: ${ph}s !important; animation-play-state: paused !important; }`;
+    document.head.appendChild(s);
   }
   // ?confirm=<id> — apre il fumetto senza click, per la foto
   const auto = query.get('confirm');

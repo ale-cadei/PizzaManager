@@ -83,6 +83,27 @@ ok('sessioni: la card lampeggia quando l assistente ha finito e si spegne alla s
     'il lampeggio non rispetta prefers-reduced-motion');
 });
 
+ok('sessioni: la card mostra quando la sessione sta lavorando', () => {
+  const root = path.join(__dirname, '..');
+  const js = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
+  // La regola sta in renderer/running.js (provata sul comportamento): qui si
+  // verifica che l'output la alimenti e che il silenzio la spenga.
+  assert.ok(/onData\(\(\{ id, data \}\)[\s\S]{0,300}noteRunning\(t\)/.test(js),
+    'l output del terminale non accende il segnale di esecuzione');
+  assert.ok(/RUNNING_IDLE_MS[\s\S]{0,600}setTimeout\(\(\) => stopRunning\(t\), RUNNING_IDLE_MS\)/.test(js),
+    'senza il timer del silenzio la card resterebbe in esecuzione per sempre');
+  assert.ok(/onExit\(\(\{ id, exitCode \}\)[\s\S]{0,400}t\.running = false/.test(js),
+    'un processo morto lascia la card che corre');
+  // I due segnali si accendono di continuo: passare da renderSidebar()
+  // ricostruirebbe le card e farebbe ripartire da capo il lampeggio di chi ha
+  // finito (si vedrebbe a scatti). Il comportamento di signal() è provato in
+  // tests/sidebar-segnali.test.js.
+  assert.ok(/function showRunning[\s\S]{0,200}sidebar\.signal\(t\.id, \{ running/.test(js),
+    'il segnale di esecuzione rifà tutta la sidebar');
+  assert.ok(/t\.needsAttention = true;[\s\S]{0,300}sidebar\.signal\(t\.id, \{ needsAttention/.test(js),
+    'accendere il lampeggio rifà tutta la sidebar');
+});
+
 ok('sidebar: i gruppi arrivano dal modulo, non da una Map costruita a mano', () => {
   const root = path.join(__dirname, '..');
   const js = fs.readFileSync(path.join(root, 'renderer', 'sidebar.js'), 'utf8');

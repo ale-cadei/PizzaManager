@@ -224,6 +224,42 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   width: 3px; border-radius: 99px; background: var(--type-color, var(--accent));
   opacity: .55;
 }
+/* «Sta lavorando adesso»: una luce che scorre dentro la barra del tipo, dal
+   basso verso l'alto. Il segnale sta sull'elemento che già identifica la
+   sessione, quindi non aggiunge niente da leggere: una barra ferma è una
+   sessione ferma. È movimento e non colore, così non litiga col lampeggio
+   «ha finito», che invece accende il fondo della card.
+   La luce è il colore del tipo a piena forza su una barra smorzata: si muove
+   dentro i suoi 3px e non cambia la geometria della riga.
+
+   Il moto è continuo e non un passaggio che ricomincia: la luce non è una sola
+   che entra ed esce (lì il ritorno a capo si vede come uno scatto), è un motivo
+   che si ripete lungo la barra e scorre di ESATTAMENTE un passo per giro. Alla
+   fine del ciclo l'immagine è sovrapponibile a quella dell'inizio, quindi non
+   c'è un fotogramma di stacco. Il passo è in px e non in %, perché la
+   percentuale si misura sullo spazio che avanza (barra meno immagine) e con
+   `repeat-y` non tornerebbe il conto. */
+@keyframes run-bar {
+  from { background-position-y: 26px; }
+  to   { background-position-y: 0px; }
+}
+.session-item.is-running::before {
+  opacity: .9;
+  background-color: color-mix(in srgb, var(--type-color, var(--accent)) 30%, transparent);
+  /* Il motivo comincia e finisce trasparente: due passi affiancati si saldano
+     senza una riga di stacco. */
+  background-image: linear-gradient(to bottom,
+    transparent 0%, var(--type-color, var(--accent)) 32%,
+    var(--type-color, var(--accent)) 46%, transparent 78%);
+  background-size: 100% 26px;
+  background-repeat: repeat-y;
+  animation: run-bar 1.2s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Senza il movimento resta la differenza di forza: barra piena = al lavoro. */
+  .session-item.is-running::before { animation: none; background-image: none; opacity: 1; }
+}
+
 /* L'hover è solo il fondo, e lascia stare la riga già attiva: se le cambiasse
    il fondo sotto il cursore, il cartoncino si smonterebbe al passaggio. */
 .session-item:hover:not(.active) { background: var(--surface-row); }
@@ -311,19 +347,46 @@ button:focus-visible, input:focus-visible, select:focus-visible {
    tornerebbero tutte dello stesso colore (stessa trappola di --shadow-session).
    Il fondo si mescola col materiale che ha sotto — non con `transparent` —
    perché resti un colore pieno e non un velo che si sporca. */
-.session-item.needs-attention { --attention-fill: color-mix(in srgb, var(--type-color, var(--accent)) 16%, var(--surface-group)); }
-.group-header.needs-attention { --attention-fill: color-mix(in srgb, var(--type-color, var(--accent)) 16%, var(--surface-cap)); }
+/* Le tinte del lampeggio sono DICHIARATE come colori, non come testo.
+   Una custom property non registrata vale una sequenza di caratteri: `background:
+   var(--attention-fill)` diventa un `color-mix(…)` ancora da fare, e un valore
+   che si risolve così tardi Chromium 130 (quello di Electron 33) non lo sa
+   interpolare — l'animazione scatta da spento ad acceso invece di salire
+   (misurato dentro Electron, non in un browser qualsiasi: Chrome di sistema è
+   molto più nuovo e lì il difetto non si vede). Registrandole con @property il
+   color-mix viene calcolato subito e quello che l'animazione mescola è un
+   colore vero: torna la sinusoide. */
+@property --attention-rest { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --attention-fill { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --attention-ring-off { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --attention-ring { syntax: '<color>'; inherits: true; initial-value: transparent; }
+.session-item.needs-attention {
+  --attention-rest: color-mix(in srgb, var(--type-color, var(--accent)) 0%, var(--surface-group));
+  --attention-fill: color-mix(in srgb, var(--type-color, var(--accent)) 16%, var(--surface-group));
+}
+.group-header.needs-attention {
+  --attention-rest: color-mix(in srgb, var(--type-color, var(--accent)) 0%, var(--surface-cap));
+  --attention-fill: color-mix(in srgb, var(--type-color, var(--accent)) 16%, var(--surface-cap));
+}
 .session-item.needs-attention, .group-header.needs-attention {
+  --attention-ring-off: color-mix(in srgb, var(--type-color, var(--accent)) 0%, transparent);
   --attention-ring: color-mix(in srgb, var(--type-color, var(--accent)) 40%, transparent);
 }
+/* I due estremi del ciclo sono fatti con lo STESSO color-mix, cambia solo la
+   dose: `transparent` o un token scritto a mano di là darebbero un colore
+   legacy (rgba) contro il `color(srgb …)` che esce da color-mix, e Chromium 130
+   — quello di Electron 33 — quei due non li sa mescolare: l'animazione diventa
+   a passo, accesa o spenta, senza la salita (misurato, era così). Con entrambi
+   gli estremi nello stesso spazio la pulsazione torna una sinusoide.
+   Il fondo a riposo è il materiale che la card ha sotto, non `transparent`:
+   stesso colore a vedersi, ma un colore vero da cui partire. */
 @keyframes attention-pulse {
-  0%, 100% { background: transparent; box-shadow: none; }
+  0%, 100% { background: var(--attention-rest); box-shadow: inset 0 0 0 1px var(--attention-ring-off); }
   50%      { background: var(--attention-fill); box-shadow: inset 0 0 0 1px var(--attention-ring); }
 }
-/* Stessa pulsazione sulla linguetta, ma il suo fondo a riposo è il materiale
-   della cartellina, non il trasparente della riga. */
+/* Stessa pulsazione sulla linguetta, che ha sotto il materiale della cartellina. */
 @keyframes attention-pulse-cap {
-  0%, 100% { background: var(--surface-cap); box-shadow: none; }
+  0%, 100% { background: var(--attention-rest); box-shadow: inset 0 0 0 1px var(--attention-ring-off); }
   50%      { background: var(--attention-fill); box-shadow: inset 0 0 0 1px var(--attention-ring); }
 }
 .session-item.needs-attention {

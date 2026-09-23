@@ -193,6 +193,37 @@
     }
 
     /**
+     * Un suggerimento: stesso fumetto, un solo pulsante («Capito»). Compare
+     * mentre si lavora, quindi NON prende il fuoco e NON intercetta Esc: chi
+     * sta scrivendo nel terminale non deve perdere tasti, ed Esc agli agenti
+     * serve per interrompere. Lo chiudono il pulsante, il click fuori, lo
+     * scroll e il resize.
+     * @param {{anchor: Element, title: string, text: string, key?: string}} o
+     * @returns {Promise<boolean>} true se chiuso con «Capito»
+     */
+    function tell({ anchor, title, text, key = null }) {
+      settle(false);
+      const el = doc.createElement('div');
+      el.className = 'confirm-bubble is-hint';
+      el.setAttribute('role', 'status');
+      const tip = doc.createElement('span');
+      tip.className = 'confirm-bubble-tip';
+      el.appendChild(tip);
+      label(el, 'confirm-bubble-title', title);
+      label(el, 'confirm-bubble-text', text);
+      const actions = doc.createElement('div');
+      actions.className = 'confirm-bubble-actions';
+      const ok = doc.createElement('button');
+      ok.className = 'btn btn--ghost confirm-ok';
+      ok.textContent = 'Capito';
+      actions.appendChild(ok);
+      el.appendChild(actions);
+      const answer = mount({ el, tip, anchor, key, closeOnEscape: false });
+      ok.onclick = (e) => { e.stopPropagation(); settle(true); };
+      return answer;
+    }
+
+    /**
      * Dopo un render la card a cui il fumetto era appeso è un elemento nuovo:
      * il fumetto va rimesso su quella nuova, non fatto sparire (un render
      * capita per motivi che con la domanda non c'entrano — un titolo che
@@ -208,7 +239,7 @@
       pointAt(anchor);
     }
 
-    return { ask, retarget, close: () => settle(false), isOpen: () => Boolean(open) };
+    return { ask, tell, retarget, close: () => settle(false), isOpen: () => Boolean(open) };
   }
 
   return { place, createConfirmBubble, GAP, MARGIN, TIP_INSET };

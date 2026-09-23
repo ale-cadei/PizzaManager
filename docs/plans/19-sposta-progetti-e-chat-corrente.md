@@ -18,9 +18,12 @@ Branch: `feat/sposta-progetti-e-chat-corrente` · Dipende da: 8, 9, 14 · Taglia
   riaprendoli ritrovano un posto.
 - I progetti mai spostati vanno **in coda, in ordine alfabetico**; «Senza
   directory» resta sempre in fondo e non si trascina.
-- Il rilascio si **segna** (riga sopra/sotto il fascicolo sorvolato) invece di
-  spostare il gruppo dal vivo: un fascicolo aperto è alto e farebbe saltare la
-  lista sotto il cursore.
+- Riordino **dal vivo**, come le card: il gruppo preso in mano si sposta nella
+  lista e fa da segnaposto tratteggiato, **chiuso** (aperto sarebbe alto quanto
+  le sue sessioni). Il rilascio si accetta su tutta la lista: un rilascio
+  rifiutato (nello spazio fra due gruppi) faceva tornare indietro l'immagine
+  trascinata prima che la lista si aggiornasse. La prima versione segnava solo
+  una riga sul gruppo sorvolato: non si vedeva fra un gruppo e l'altro.
 - La cartella nella barra è la **radice del progetto** (o la cwd se non c'è);
   il percorso completo sta nel tooltip. Il riquadro si tronca per primo, le
   quote no. Si aggiorna da `renderSidebar()`, dove passano cambio scheda,

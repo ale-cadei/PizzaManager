@@ -1,0 +1,44 @@
+<!doctype html>
+<!-- Banco di prova visivo della schermata vuota: monta renderer/welcome.js con
+     resoconti finti degli strumenti, fuori da Electron. ?caso=nessuno|parziale|completo
+     sceglie che cosa manca. Vive in tests/fixtures/ per non finire nel pacchetto. -->
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Schermata vuota — banco di prova</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../../renderer/tokens.css">
+<link rel="stylesheet" href="../../renderer/styles.css">
+<style>
+  body { margin: 0; height: 100vh; }
+  #main { position: relative; height: 100%; }
+  #empty { display: block; }
+</style>
+</head>
+<body>
+<main id="main"><div id="empty"></div></main>
+<script src="../../renderer/welcome.js"></script>
+<script>
+  const agent = (type, label, found, install) => ({ type, label, found, path: found ? `/opt/homebrew/bin/${type}` : null, install });
+  const agents = (claude, codex, opencode, agy) => [
+    agent('claude', 'Claude Code', claude, { command: 'npm i -g @anthropic-ai/claude-code', url: 'https://github.com/anthropics/claude-code' }),
+    agent('codex', 'Codex', codex, { command: 'npm i -g @openai/codex', url: 'https://github.com/openai/codex' }),
+    agent('opencode', 'OpenCode', opencode, { command: null, url: 'https://opencode.ai' }),
+    agent('antigravity', 'Antigravity', agy, { command: null, url: 'https://antigravity.google', note: 'Poi esegui «agy install» per metterlo nel PATH.' }),
+  ];
+  const tmux = (found) => ({ found, install: { command: 'brew install tmux' }, note: 'Senza tmux le sessioni muoiono con la finestra. Dopo averlo installato riavvia l\'app.' });
+  const casi = {
+    nessuno: { agents: agents(false, false, false, false), tmux: tmux(false), ready: false, complete: false },
+    parziale: { agents: agents(true, false, true, false), tmux: tmux(true), ready: true, complete: false },
+    completo: { agents: agents(true, true, true, true), tmux: tmux(true), ready: true, complete: true },
+  };
+  const caso = new URLSearchParams(location.search).get('caso') || 'parziale';
+  const w = AisessWelcome.createWelcome({
+    root: document.getElementById('empty'), document,
+    onCopy: (t) => console.log('copia', t), onRecheck: () => console.log('ricontrolla'),
+    onNew: () => console.log('nuova'), onResume: () => console.log('resume'),
+  });
+  w.update(casi[caso]);
+</script>
+</body>
+</html>

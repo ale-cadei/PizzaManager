@@ -1,7 +1,11 @@
 /* La schermata vuota: quello che si vede quando non c'è nessuna sessione
  * aperta, cioè sempre al primo avvio (docs/plans/20-onboarding.md).
  *
- * Qui si dice che cosa manca per usare l'app: il resoconto lo calcola
+ * È il posto giusto per le cose che guardando l'app non si scoprono: si vede
+ * proprio quando serve e sparisce da sola alla prima sessione, senza un tour
+ * da saltare.
+ *
+ * Qui si dice anche che cosa manca per usare l'app: il resoconto lo calcola
  * lib/setup-check.js nel main, questo modulo lo disegna. Un comando mancante
  * ha il suo «Copia»; niente link cliccabili, perché dentro Electron
  * aprirebbero la pagina nella finestra dell'app al posto dei terminali.
@@ -95,8 +99,51 @@
   }
 
   /**
+   * Le cose da sapere. Quella su tmux solo se tmux c'è: senza, le sessioni
+   * muoiono con la finestra e prometterlo sarebbe falso.
+   * @param {object|null} report
+   * @returns {string[]}
+   */
+  function tips(report) {
+    const withTmux = Boolean(report && report.tmux && report.tmux.found);
+    return [
+      'Doppio click su una chat per rinominarla.',
+      'Trascina le chat per riordinarle; in modalità Progetto anche le cartelle, per la linguetta. L\'ordine resta dopo la chiusura.',
+      'In modalità Progetto il «+» accanto alla cartella apre una nuova sessione lì.',
+      withTmux ? 'Chiudere l\'app non chiude le sessioni: restano vive e tornano alla riapertura. Per terminarle davvero c\'è la ✕ sulla chat.' : null,
+      '⟲ Resume riprende una conversazione passata, di qualunque assistente.',
+      'La barra in basso dice in che chat sei, quanto è pieno il suo contesto e quanto resta della finestra di 5 ore e della settimana.',
+    ].filter(Boolean);
+  }
+
+  function tipsSection(doc, report) {
+    const box = el(doc, 'section', 'tips');
+    box.appendChild(el(doc, 'h3', 'welcome-heading', 'Da sapere'));
+    const list = el(doc, 'ul', 'tips-list');
+    for (const t of tips(report)) list.appendChild(el(doc, 'li', 'tip', t));
+    box.appendChild(list);
+    return box;
+  }
+
+  function actionsRow(doc, { onNew, onResume }) {
+    const row = el(doc, 'div', 'welcome-actions');
+    const make = (cls, glyph, label, fn) => {
+      const b = el(doc, 'button', `btn ${cls}`);
+      b.type = 'button';
+      b.appendChild(el(doc, 'span', 'btn-glyph', glyph));
+      b.appendChild(el(doc, 'span', 'btn-label', label));
+      b.onclick = () => fn();
+      return b;
+    };
+    row.appendChild(make('btn--outline welcome-new', '+', 'Nuova sessione', onNew));
+    row.appendChild(make('btn--ghost welcome-resume', '⟲', 'Resume', onResume));
+    return row;
+  }
+
+  /**
    * @param {{root: object, document?: object,
-   *   onCopy: (text: string) => void, onRecheck: () => void}} deps
+   *   onCopy: (text: string) => void, onRecheck: () => void,
+   *   onNew?: () => void, onResume?: () => void}} deps
    */
   function createWelcome(deps) {
     const doc = deps.document || (typeof document !== 'undefined' ? document : null);
@@ -105,20 +152,24 @@
     const handlers = {
       onCopy: typeof deps.onCopy === 'function' ? deps.onCopy : () => {},
       onRecheck: typeof deps.onRecheck === 'function' ? deps.onRecheck : () => {},
+      onNew: typeof deps.onNew === 'function' ? deps.onNew : () => {},
+      onResume: typeof deps.onResume === 'function' ? deps.onResume : () => {},
     };
 
     /** Ridisegna la schermata per il resoconto dato (null: non ancora noto). */
     function update(report) {
       root.innerHTML = '';
       const box = el(doc, 'div', 'welcome');
-      box.appendChild(el(doc, 'p', 'muted welcome-empty', 'Nessuna sessione aperta — usa la sidebar a sinistra per avviarne una o fare resume.'));
+      box.appendChild(el(doc, 'p', 'muted welcome-empty', 'Nessuna sessione aperta.'));
+      box.appendChild(actionsRow(doc, handlers));
       const setup = setupSection(doc, report, handlers);
       if (setup) box.appendChild(setup);
+      box.appendChild(tipsSection(doc, report));
       root.appendChild(box);
     }
 
     return { update };
   }
 
-  return { createWelcome, copyTarget };
+  return { createWelcome, copyTarget, tips };
 });

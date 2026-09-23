@@ -1263,6 +1263,8 @@ function initWelcome() {
     root, document,
     onCopy: (text) => { window.aisess.clipboardWrite(text).catch((e) => console.warn('copia fallita', e)); },
     onRecheck: () => { refreshDeps(); },
+    onNew: () => openNewModal(),
+    onResume: () => openResumeModal(),
   });
 }
 

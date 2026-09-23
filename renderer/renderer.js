@@ -1146,7 +1146,7 @@ function restorePlanFor(s) {
 const sidebar = Sidebar.createSidebar({
   list: $('#session-list'), count: $('#count'),
   storage: window.localStorage, Icons, Slice: window.PizzaSlice,
-  Groups, Commands: window.AisessCommands, escapeHtml,
+  Groups, Order, Commands: window.AisessCommands, escapeHtml,
   modeButtons: { type: $('#group-mode-type'), project: $('#group-mode-project') },
   onSelect: (id) => setActive(id),
   onClose: (id, anchor) => { requestClose(id, anchor).catch(() => {}); },

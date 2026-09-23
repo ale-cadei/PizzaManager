@@ -17,6 +17,13 @@
   const COLLAPSED_GROUPS_KEY = 'aisess.collapsedGroups';
   const COLLAPSED_PROJECTS_KEY = 'aisess.collapsedProjects';
   const GROUP_MODE_KEY = 'aisess.groupMode';
+  /* Ordine dei gruppi progetto scelto trascinandone la linguetta. A differenza
+     di quello delle card si salva: la chiave di un progetto è la sua radice,
+     che resta la stessa fra un avvio e l'altro. */
+  const PROJECT_ORDER_KEY = 'aisess.projectOrder';
+  /* Tetto dei progetti ricordati: quelli mai più riaperti non devono gonfiare
+     lo storage per sempre. Si perdono i più in fondo alla lista. */
+  const MAX_SAVED_PROJECTS = 200;
   /* Soglia del doppio click sulle card, tenuta fuori dal DOM perché le card
      vengono ricreate a ogni render. */
   const DOUBLE_CLICK_MS = 450;
@@ -43,17 +50,22 @@
     return n < 3 ? 1 : 2;
   }
 
-  function readSet(storage, key) {
+  function readList(storage, key) {
     try {
       const saved = JSON.parse(storage.getItem(key) || '[]');
-      if (Array.isArray(saved)) return new Set(saved.filter((k) => typeof k === 'string'));
+      if (Array.isArray(saved)) return saved.filter((k) => typeof k === 'string');
     } catch {}
-    return new Set();
+    return [];
   }
 
-  function writeSet(storage, key, set) {
-    try { storage.setItem(key, JSON.stringify([...set])); } catch {}
+  function readSet(storage, key) {
+    return new Set(readList(storage, key));
   }
+
+  function writeList(storage, key, items) {
+    try { storage.setItem(key, JSON.stringify([...items])); } catch {}
+  }
+  const writeSet = writeList;
 
   /**
    * @param {{list: Element, count: Element, storage: Storage, Icons: object,
@@ -63,7 +75,9 @@
    *   onSelect: (id: string) => void, onClose: (id: string) => void,
    *   onRename: (session: object) => void,
    *   onNewInProject?: (projectRoot: string) => void,
-   *   onReorder?: (movedId: string, targetId: string, opts: {before: boolean}) => void}} deps
+   *   onReorder?: (movedId: string, targetId: string, opts: {before: boolean}) => void,
+   *   Order?: {moveAdjacent: Function}}} deps
+   * Senza `Order` le linguette dei progetti non si trascinano.
    */
   function createSidebar(deps) {
     const { list, count, storage, Icons, Slice, Groups, escapeHtml, onSelect, onClose, onRename } = deps;
@@ -73,12 +87,14 @@
     /* Creare una sessione è affare del renderer (dialog, tipo, account): la
        sidebar segnala solo in quale radice l'utente la vuole. */
     const onNewInProject = typeof deps.onNewInProject === 'function' ? deps.onNewInProject : null;
+    const Order = deps.Order && typeof deps.Order.moveAdjacent === 'function' ? deps.Order : null;
 
     /* Collassi in liste separate per modalità: collassare "Claude" e collassare
        "aisessionmanager" sono scelte diverse e nella stessa chiave
        interferirebbero. */
     const collapsedGroups = readSet(storage, COLLAPSED_GROUPS_KEY);
     const collapsedProjects = readSet(storage, COLLAPSED_PROJECTS_KEY);
+    let projectOrder = readList(storage, PROJECT_ORDER_KEY);
     let groupMode = 'type';
     try {
       const saved = storage.getItem(GROUP_MODE_KEY);
@@ -93,6 +109,13 @@
     // Un render a meta' trascinamento distruggerebbe la card che si ha in mano
     // (list.innerHTML = ''): si rimanda a fine drag.
     let pendingRender = null;
+    /* Gruppo progetto in corso di trascinamento, e dove verrebbe rilasciato. */
+    let draggingGroup = null;
+    /* Ultimo render: dopo lo spostamento di un gruppo la sidebar si ridisegna
+       da sola, senza passare dal renderer (l'ordine dei gruppi è suo). */
+    let lastRender = null;
+    /* Chiavi dei gruppi progetto mostrati, nell'ordine in cui si vedono. */
+    let shownProjectKeys = [];
 
     /** Insieme dei gruppi collassati della modalità corrente. */
     function collapsedSet() {
@@ -251,6 +274,78 @@
       });
     }
 
+    /* Trascinamento dei gruppi progetto, per la linguetta. Il rilascio si
+       segna sul gruppo sorvolato (riga sopra o sotto, `drop-before`/`drop-after`)
+       invece di spostare il gruppo dal vivo come le card: un fascicolo aperto
+       è alto, e farlo saltare sotto il cursore renderebbe impossibile mirare.
+       «Senza directory» (chiave vuota) non si sposta e non fa da bersaglio:
+       resta in fondo, come decide session-groups.js. */
+    const canDragGroups = () => !!Order && groupMode === 'project';
+    const isMovableGroup = (key) => canDragGroups() && !!key;
+
+    function clearDropMarks() {
+      for (const g of list.children) g.classList.remove('drop-before', 'drop-after');
+    }
+
+    function moveGroup(movedKey, targetKey, before) {
+      const next = Order.moveAdjacent(shownProjectKeys, movedKey, targetKey, { before });
+      if (next === shownProjectKeys) return false;
+      const shown = new Set(next);
+      projectOrder = [...next, ...projectOrder.filter((k) => !shown.has(k))].slice(0, MAX_SAVED_PROJECTS);
+      writeList(storage, PROJECT_ORDER_KEY, projectOrder);
+      return true;
+    }
+
+    function endGroupDrag() {
+      const d = draggingGroup;
+      draggingGroup = null;
+      dragEndedAt = Date.now();
+      d.group.classList.remove('group-dragging');
+      clearDropMarks();
+      const moved = d.drop && moveGroup(d.key, d.drop.key, d.drop.before);
+      const pend = pendingRender;
+      pendingRender = null;
+      if (moved || pend) render(...(pend || lastRender));
+    }
+
+    function attachGroupDrag(group, header, key) {
+      header.dataset.key = key;
+      header.draggable = isMovableGroup(key);
+      if (!header.draggable) return;
+      header.addEventListener('dragstart', (e) => {
+        draggingGroup = { key, group, drop: null };
+        group.classList.add('group-dragging');
+        if (e.dataTransfer) {
+          e.dataTransfer.effectAllowed = 'move';
+          try { e.dataTransfer.setData('text/plain', key); } catch {}
+        }
+      });
+      header.addEventListener('dragend', () => { if (draggingGroup) endGroupDrag(); });
+    }
+
+    function attachGroupDrop(group, key) {
+      if (!isMovableGroup(key)) return;
+      const accepts = () => draggingGroup && draggingGroup.key !== key;
+      const beforeHalf = (e) => {
+        const r = group.getBoundingClientRect();
+        return e.clientY < r.top + r.height / 2;
+      };
+      group.addEventListener('dragover', (e) => {
+        if (!accepts()) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+        const before = beforeHalf(e);
+        draggingGroup.drop = { key, before };
+        clearDropMarks();
+        group.classList.add(before ? 'drop-before' : 'drop-after');
+      });
+      group.addEventListener('drop', (e) => {
+        if (!accepts()) return;
+        e.preventDefault();
+        draggingGroup.drop = { key, before: beforeHalf(e) };
+      });
+    }
+
     function createSessionItem(t, activeId, groupKey, body) {
       const b = document.createElement('button');
       // L'id sulla card e non solo nella chiusura del click: dopo un render le
@@ -354,7 +449,8 @@
      * @param {string|null} activeId scheda in primo piano
      */
     function render(sessions, activeId) {
-      if (dragging) { pendingRender = [sessions, activeId]; return; }
+      if (dragging || draggingGroup) { pendingRender = [sessions, activeId]; return; }
+      lastRender = [sessions, activeId];
       painted = new Map();
       list.innerHTML = '';
       if (count) count.textContent = sessions.length ? `(${sessions.length})` : '';
@@ -366,7 +462,9 @@
         mode: groupMode,
         typeOrder: Groups.TYPE_ORDER,
         typeLabels: Groups.TYPE_LABELS,
+        projectOrder,
       });
+      shownProjectKeys = groups.filter((g) => g.kind === 'project' && g.key).map((g) => g.key);
       for (const g of groups) {
         // Gruppo espandibile/collassabile sempre, anche con una sola sessione:
         // la posizione delle card resta stabile quando il gruppo cresce.
@@ -406,12 +504,16 @@
       <span class="group-name">${escapeHtml(g.label)}</span>
       <span class="group-count">${g.items.length}</span>`;
         header.onclick = () => {
+          // Il rilascio del trascinamento della linguetta non è un click
+          if (Date.now() - dragEndedAt <= DRAG_CLICK_GUARD_MS) return;
           const set = collapsedSet();
           if (set.has(g.key)) set.delete(g.key);
           else set.add(g.key);
           saveCollapsed();
           render(sessions, activeId);
         };
+        attachGroupDrag(group, header, g.key);
+        attachGroupDrop(group, g.key);
         cap.appendChild(header);
         // «+» solo dove c'è una radice in cui creare: il gruppo «Senza
         // directory» (chiave vuota) non ce l'ha, e per tipo la directory non è nota.

@@ -1163,11 +1163,39 @@ const sidebar = Sidebar.createSidebar({
 });
 /* Ordine manuale delle card, deciso trascinandole. Vive qui insieme a `tabs`
    perché è una proprietà delle schede aperte, non della sidebar: il modulo
-   riceve già la lista ordinata. Le schede nuove entrano in coda. */
+   riceve già la lista ordinata. Le schede nuove entrano in coda, tranne quelle
+   che hanno un posto salvato da un avvio precedente (session-order.js). */
 let sessionOrder = [];
+const SAVED_ORDER_KEY = 'aisess.sessionOrder';
+let savedOrder = readSavedOrder();
+
+function readSavedOrder() {
+  try {
+    const v = JSON.parse(window.localStorage.getItem(SAVED_ORDER_KEY) || '[]');
+    return Array.isArray(v) ? v.filter((k) => typeof k === 'string') : [];
+  } catch { return []; }
+}
+
+/** Riscrive l'ordine salvato, solo se è cambiato: renderSidebar() è frequente. */
+function saveOrder() {
+  const next = Order.mergeSaved(sessionOrder.map((id) => Order.tabKeys(tabs.get(id))), savedOrder);
+  if (next.length === savedOrder.length && next.every((k, i) => k === savedOrder[i])) return;
+  savedOrder = next;
+  try { window.localStorage.setItem(SAVED_ORDER_KEY, JSON.stringify(next)); } catch (e) { console.warn('ordine delle schede non salvato', e); }
+}
+
+/** Posto salvato di una scheda: quello della prima delle sue chiavi che c'è. */
+function savedRanks() {
+  const rank = new Map(savedOrder.map((k, i) => [k, i]));
+  return (id) => {
+    const hit = Order.tabKeys(tabs.get(id)).find((k) => rank.has(k));
+    return hit === undefined ? undefined : rank.get(hit);
+  };
+}
 
 const renderSidebar = () => {
-  sessionOrder = Order.syncOrder(sessionOrder, [...tabs.keys()]);
+  sessionOrder = Order.syncOrder(sessionOrder, [...tabs.keys()], { rankOf: savedRanks() });
+  saveOrder();
   sidebar.render(Order.applyOrder([...tabs.values()], sessionOrder), activeId);
   // La barra in basso dice in che chat si è: cambia con la scheda attiva, un
   // rinomina, il titolo automatico — tutte strade che passano da qui.

@@ -300,17 +300,31 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .session-item .sub > span { direction: ltr; unicode-bidi: embed; }
 
 /* ---------- "L'assistente ha finito": lampeggio flebile della card ----------
-   Pulsazione lenta e a basso contrasto (nessun colore di stato nuovo: solo il
-   pomodoro d'azione a bassa opacità). Si spegne quando l'utente apre la sessione. */
+   Pulsazione lenta e a basso contrasto, del colore del TIPO di sessione: la
+   card che lampeggia è già riconoscibile dalla sua barra laterale e dal filetto
+   di selezione, e un pomodoro uguale per tutte spezzava quell'identità (di
+   sfuggita non si capiva chi stesse chiamando). Si spegne quando l'utente apre
+   la sessione.
+   Le due tinte si dichiarano QUI, sugli elementi che portano la classe .type-*:
+   una custom property che contiene var() viene sostituita sull'elemento che la
+   dichiara, quindi in :root il loro var(--type-color) cadrebbe sul fallback e
+   tornerebbero tutte dello stesso colore (stessa trappola di --shadow-session).
+   Il fondo si mescola col materiale che ha sotto — non con `transparent` —
+   perché resti un colore pieno e non un velo che si sporca. */
+.session-item.needs-attention { --attention-fill: color-mix(in srgb, var(--type-color, var(--accent)) 16%, var(--surface-group)); }
+.group-header.needs-attention { --attention-fill: color-mix(in srgb, var(--type-color, var(--accent)) 16%, var(--surface-cap)); }
+.session-item.needs-attention, .group-header.needs-attention {
+  --attention-ring: color-mix(in srgb, var(--type-color, var(--accent)) 40%, transparent);
+}
 @keyframes attention-pulse {
   0%, 100% { background: transparent; box-shadow: none; }
-  50%      { background: var(--action-soft); box-shadow: inset 0 0 0 1px var(--action-ring); }
+  50%      { background: var(--attention-fill); box-shadow: inset 0 0 0 1px var(--attention-ring); }
 }
 /* Stessa pulsazione sulla linguetta, ma il suo fondo a riposo è il materiale
    della cartellina, non il trasparente della riga. */
 @keyframes attention-pulse-cap {
   0%, 100% { background: var(--surface-cap); box-shadow: none; }
-  50%      { background: var(--action-soft); box-shadow: inset 0 0 0 1px var(--action-ring); }
+  50%      { background: var(--attention-fill); box-shadow: inset 0 0 0 1px var(--attention-ring); }
 }
 .session-item.needs-attention {
   animation: attention-pulse 2.4s ease-in-out infinite;
@@ -324,7 +338,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .session-item.needs-attention,
   .group-header.needs-attention { animation: none; }
   .session-item.needs-attention,
-  .group-header.needs-attention { background: var(--action-soft); }
+  .group-header.needs-attention { background: var(--attention-fill); }
 }
 
 .close-x { flex: 0 0 auto; border: none; background: transparent; color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 6px; }

@@ -36,6 +36,12 @@
     { id: '6', type: 'opencode', name: 'prova lunga con un nome che non ci sta', cwd: '/tmp', projectRoot: null, alive: true },
   ];
   const query = new URLSearchParams(location.search);
+  // ?attention=3,5 — accende il lampeggio su quelle sessioni, per guardare che
+  // la tinta sia quella del loro tipo
+  for (const id of (query.get('attention') || '').split(',').filter(Boolean)) {
+    const s = sessions.find((x) => x.id === id);
+    if (s) s.needsAttention = true;
+  }
   // ?collapsed=claude,shell — per guardare il fascicolo chiuso
   const collapsed = (query.get('collapsed') || '').split(',').filter(Boolean);
   localStorage.setItem('aisess.collapsedGroups', JSON.stringify(collapsed));
@@ -61,6 +67,14 @@
   const bubble = window.AisessConfirmBubble.createConfirmBubble();
   sidebar.setMode(query.get('mode') === 'project' ? 'project' : 'type');
   sidebar.render(sessions, '2');
+  // Per la foto: il lampeggio fermo sul colmo dell'onda, dove la tinta si vede
+  // (uno screenshot preso a caso lo becca quasi sempre a fondo trasparente).
+  if (query.has('attention')) {
+    for (const el of document.querySelectorAll('.needs-attention')) {
+      el.style.animationDelay = '-1.2s';
+      el.style.animationPlayState = 'paused';
+    }
+  }
   // ?confirm=<id> — apre il fumetto senza click, per la foto
   const auto = query.get('confirm');
   if (auto) {

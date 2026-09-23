@@ -17,14 +17,15 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 7 | [`feat/claude-account-login`](07-account-claude-login.md) | — | 1-2 gg | proposto, non pianificato |
 | 8 | [`feat/raggruppamento-per-progetto`](08-raggruppamento-sessioni.md) ([task](08-raggruppamento-sessioni-tasks.md)) | 2 | ~½ g | ✅ fatto |
 | 9 | [ordinamento manuale](09-ordinamento-manuale.md) — sul branch dell'8 | 8 | ~2h | ✅ fatto |
-| 10 | [`feat/pizza-branding`](10-pizza-branding.md) | — | ~1h | in corso |
+| 10 | [`feat/pizza-branding`](10-pizza-branding.md) | — | ~1h | ✅ fatto |
 | 11 | [`feat/nuova-sessione-nel-progetto`](11-nuova-sessione-nel-progetto.md) | 8 | ~1h | ✅ fatto |
 | 12 | [`feat/windows`](12-windows.md) | — | ~1 g | ✅ fatto (da provare su Windows) |
 | 13 | [`chore/release-build`](13-release-build.md) | 12 | ~2h | ✅ fatto |
-| 14 | [`feat/barra-usage`](14-barra-usage.md) | — | ~1 g | in corso |
-| 15 | [`feat/quota-token-5h`](15-quota-token-5h.md) | 14 | ~½ g | in corso |
+| 14 | [`feat/barra-usage`](14-barra-usage.md) | — | ~1 g | ✅ fatto |
+| 15 | [`feat/quota-token-5h`](15-quota-token-5h.md) | 14 | ~½ g | ✅ fatto |
 | 16 | [`spike/quota-claude`](16-spike-quota-claude.md) | 15 | ~3h | ✅ risposto ([risultati](16-risultati.md)) |
-| 17 | [`feat/quota-endpoint-claude`](17-quota-endpoint-claude.md) | 15, 16 | ~2h | in corso |
+| 17 | [`feat/quota-endpoint-claude`](17-quota-endpoint-claude.md) | 15, 16 | ~2h | ✅ fatto |
+| 18 | [aggiornamento automatico](18-aggiornamento-automatico.md) — 3 branch | 13 | ~1 g | proposto |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

@@ -159,3 +159,43 @@ ok('fumetto: con tmux dice che non ci si potrà più riattaccare', () => {
     a.cancel.onclick({ stopPropagation() {} });
   } finally { restore(); }
 });
+
+/* La variante a un pulsante, per i suggerimenti dell'onboarding
+   (renderer/hints.js). Compare mentre si sta lavorando: non deve togliere
+   niente al terminale. */
+
+function suggerisci() {
+  const bubble = Bubble.createConfirmBubble({ viewport: () => VIEWPORT });
+  const anchor = createElement('button');
+  anchor.rect = CARD;
+  document.body.appendChild(anchor);
+  const answer = bubble.tell({ anchor, title: 'Trascina le chat', text: 'per riordinarle', key: 'x' });
+  const el = descendants(document.body).find((n) => n.classes.has('confirm-bubble'));
+  return { bubble, el, answer };
+}
+
+ok('suggerimento: un pulsante solo, «Capito», e il testo passa come testo', async () => {
+  const restore = installDocument();
+  try {
+    const { el, answer } = suggerisci();
+    assert.ok(el.classes.has('is-hint'));
+    const bottoni = descendants(el).filter((n) => n.tag === 'button');
+    assert.deepStrictEqual(bottoni.map((b) => b.textContent), ['Capito']);
+    assert.ok(descendants(el).some((n) => n.textContent === 'Trascina le chat'));
+    bottoni[0].onclick({ stopPropagation() {} });
+    assert.strictEqual(await answer, true);
+  } finally { restore(); }
+});
+
+ok('suggerimento: non prende il fuoco e lascia passare Esc al terminale', async () => {
+  const restore = installDocument();
+  try {
+    const { el, bubble, answer } = suggerisci();
+    assert.ok(!el.focused, 'il fumetto ha rubato il fuoco a chi stava scrivendo');
+    const esc = fire(document, 'keydown', { key: 'Escape' });
+    assert.strictEqual(esc.defaultPrevented, false, 'Esc intercettato: agli agenti serve per interrompere');
+    assert.ok(bubble.isOpen(), 'Esc ha chiuso il suggerimento');
+    fire(document, 'mousedown', { target: createElement('div') });
+    assert.strictEqual(await answer, false, 'il click fuori non lo chiude');
+  } finally { restore(); }
+});

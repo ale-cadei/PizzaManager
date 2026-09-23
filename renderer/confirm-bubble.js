@@ -95,7 +95,7 @@
       if (!open) return;
       const { el, resolve, onKey, onDown, onMove } = open;
       open = null;
-      doc.removeEventListener('keydown', onKey, true);
+      if (onKey) doc.removeEventListener('keydown', onKey, true);
       doc.removeEventListener('mousedown', onDown, true);
       if (win) {
         win.removeEventListener('resize', onMove);
@@ -103,6 +103,40 @@
       }
       el.remove();
       resolve(answer);
+    }
+
+    /**
+     * Mette il fumetto nella pagina accanto ad `anchor` e lo fa chiudere (con
+     * risposta `false`) dal click fuori, dallo scroll e dal resize; con
+     * `closeOnEscape` anche da Esc. Restituisce la risposta.
+     */
+    function mount({ el, tip, anchor, key, closeOnEscape }) {
+      const host = deps.host || doc.body;
+      host.appendChild(el);
+
+      const onKey = closeOnEscape ? (e) => {
+        if (e.key === 'Escape') { if (e.preventDefault) e.preventDefault(); settle(false); }
+      } : null;
+      // mousedown e non click: chi va a cliccare altrove ha già deciso che non
+      // vuole rispondere, e il click finirebbe su un bersaglio che nel
+      // frattempo si è spostato.
+      const onDown = (e) => { if (!inside(e.target, el)) settle(false); };
+      // Il fumetto è ancorato a coordinate di finestra: se la lista scorre o la
+      // finestra cambia misura, la punta non indica più niente.
+      const onMove = () => settle(false);
+
+      if (onKey) doc.addEventListener('keydown', onKey, true);
+      doc.addEventListener('mousedown', onDown, true);
+      if (win) {
+        win.addEventListener('resize', onMove);
+        doc.addEventListener('scroll', onMove, true);
+      }
+
+      const answer = new Promise((resolve) => {
+        open = { el, tip, key, resolve, onKey, onDown, onMove };
+      });
+      pointAt(anchor);
+      return answer;
     }
 
     function label(el, cls, text) {
@@ -146,31 +180,7 @@
       actions.appendChild(yes);
       el.appendChild(actions);
 
-      const host = deps.host || doc.body;
-      host.appendChild(el);
-
-      const onKey = (e) => {
-        if (e.key === 'Escape') { if (e.preventDefault) e.preventDefault(); settle(false); }
-      };
-      // mousedown e non click: chi va a cliccare altrove ha già deciso che non
-      // vuole rispondere, e il click finirebbe su un bersaglio che nel
-      // frattempo si è spostato.
-      const onDown = (e) => { if (!inside(e.target, el)) settle(false); };
-      // Il fumetto è ancorato a coordinate di finestra: se la lista scorre o la
-      // finestra cambia misura, la punta non indica più niente.
-      const onMove = () => settle(false);
-
-      doc.addEventListener('keydown', onKey, true);
-      doc.addEventListener('mousedown', onDown, true);
-      if (win) {
-        win.addEventListener('resize', onMove);
-        doc.addEventListener('scroll', onMove, true);
-      }
-
-      const answer = new Promise((resolve) => {
-        open = { el, tip, key, resolve, onKey, onDown, onMove };
-      });
-      pointAt(anchor);
+      const answer = mount({ el, tip, anchor, key, closeOnEscape: true });
       no.onclick = (e) => { e.stopPropagation(); settle(false); };
       yes.onclick = (e) => { e.stopPropagation(); settle(true); };
       // Il fuoco sul fumetto, non su un pulsante: da lì Tab porta prima ad
@@ -179,6 +189,37 @@
       // pomodoro, che in un fumetto con un pulsante pieno pomodoro fa due
       // cose che gridano insieme.
       if (typeof el.focus === 'function') el.focus();
+      return answer;
+    }
+
+    /**
+     * Un suggerimento: stesso fumetto, un solo pulsante («Capito»). Compare
+     * mentre si lavora, quindi NON prende il fuoco e NON intercetta Esc: chi
+     * sta scrivendo nel terminale non deve perdere tasti, ed Esc agli agenti
+     * serve per interrompere. Lo chiudono il pulsante, il click fuori, lo
+     * scroll e il resize.
+     * @param {{anchor: Element, title: string, text: string, key?: string}} o
+     * @returns {Promise<boolean>} true se chiuso con «Capito»
+     */
+    function tell({ anchor, title, text, key = null }) {
+      settle(false);
+      const el = doc.createElement('div');
+      el.className = 'confirm-bubble is-hint';
+      el.setAttribute('role', 'status');
+      const tip = doc.createElement('span');
+      tip.className = 'confirm-bubble-tip';
+      el.appendChild(tip);
+      label(el, 'confirm-bubble-title', title);
+      label(el, 'confirm-bubble-text', text);
+      const actions = doc.createElement('div');
+      actions.className = 'confirm-bubble-actions';
+      const ok = doc.createElement('button');
+      ok.className = 'btn btn--ghost confirm-ok';
+      ok.textContent = 'Capito';
+      actions.appendChild(ok);
+      el.appendChild(actions);
+      const answer = mount({ el, tip, anchor, key, closeOnEscape: false });
+      ok.onclick = (e) => { e.stopPropagation(); settle(true); };
       return answer;
     }
 
@@ -198,7 +239,7 @@
       pointAt(anchor);
     }
 
-    return { ask, retarget, close: () => settle(false), isOpen: () => Boolean(open) };
+    return { ask, tell, retarget, close: () => settle(false), isOpen: () => Boolean(open) };
   }
 
   return { place, createConfirmBubble, GAP, MARGIN, TIP_INSET };

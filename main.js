@@ -5,6 +5,7 @@ const { getDefaultShell } = require('./lib/shell');
 const { getLoginPathSync, primeLoginPath } = require('./lib/login-path');
 const path = require('path');
 const { resolveAllBinaries } = require('./lib/binaries');
+const { checkDeps } = require('./lib/setup-check');
 const { detectTmux } = require('./lib/tmux');
 const { createHistoryStore } = require('./lib/history');
 const { createAccountStore } = require('./lib/accounts');
@@ -106,10 +107,8 @@ ipcMain.handle('get-defaults', async () => {
   };
 });
 
-ipcMain.handle('check-deps', async () => {
-  await primeLoginPath();
-  return { ...resolveAllBinaries(), path: getLoginPathSync() };
-});
+// Binari, PATH e (per la schermata vuota) che cosa manca: lib/setup-check.js
+ipcMain.handle('check-deps', async () => { await primeLoginPath(); return checkDeps({ tmuxAvailable: ptys.viaTmux }); });
 
 ipcMain.handle('dialog-cwd', async () => {
   const r = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });

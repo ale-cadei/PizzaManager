@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const fs = require('fs');
 const os = require('os');
-const { getDefaultShell } = require('./lib/shell');
+const { getDefaultShell, platformLabel } = require('./lib/shell');
 const { getLoginPathSync, primeLoginPath } = require('./lib/login-path');
 const path = require('path');
 const { resolveAllBinaries } = require('./lib/binaries');
@@ -101,6 +101,7 @@ ipcMain.handle('get-defaults', async () => {
     shell: getDefaultShell(),
     homedir: os.homedir(),
     platform: process.platform,
+    label: platformLabel(process.platform, getDefaultShell()),
     path: getLoginPathSync(),
     binaries: resolveAllBinaries(),
     tmux: { available: ptys.viaTmux, path: tmux ? tmux.bin : null },

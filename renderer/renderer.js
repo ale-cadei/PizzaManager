@@ -66,7 +66,8 @@ async function init() {
   const d = await window.aisess.getDefaults();
   tmuxAvailable = Boolean(d.tmux && d.tmux.available);
   tmuxPath = (d.tmux && d.tmux.path) || null;
-  $('#platform-label').textContent = d.platform + ' · ' + d.shell;
+  $('#platform-label').textContent = d.label || `${d.platform} · ${d.shell}`;
+  $('#platform-label').title = `${d.platform} · ${d.shell}`;
   $('#new-cwd').value = d.homedir;
   initWelcome();
   await refreshDeps();

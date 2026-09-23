@@ -3,6 +3,7 @@ const path = require('path');
 const os = require('os');
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
+const { readRendererApp } = require('./renderer-source');
 const { SESSION_TYPES } = require('../lib/command-profiles');
 
 // Verifiche sul markup e sugli stili: leggono i sorgenti del renderer,
@@ -32,7 +33,7 @@ ok('icone: ogni tipo ha il marchio ufficiale ed è incluso nella pagina', () => 
   for (const t of SESSION_TYPES) {
     assert.ok(html.includes(`data-icon="${t}"`), `manca il segnaposto icona per ${t}`);
   }
-  const js = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
+  const js = readRendererApp();
   assert.ok(js.includes('Icons.hydrate(document)'), 'i segnaposto icona non vengono riempiti');
   assert.ok(!/ICONS\s*=\s*\{/.test(js), 'restano icone emoji hardcoded nel renderer');
 
@@ -57,7 +58,7 @@ ok('sessioni: niente pallino di stato sulla card, dice quello che si vede già',
 
 ok('sessioni: la card lampeggia quando l assistente ha finito e si spegne alla selezione', () => {
   const root = path.join(__dirname, '..');
-  const js = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
+  const js = readRendererApp();
   assert.ok(js.includes('ATTENTION_IDLE_MS'), 'manca la soglia di inattività per rilevare la fine del turno');
   assert.ok(/onData\(\(\{ id, data \}\)[\s\S]{0,200}noteActivity/.test(js),
     'l output del terminale non alimenta il rilevamento');
@@ -85,7 +86,7 @@ ok('sessioni: la card lampeggia quando l assistente ha finito e si spegne alla s
 
 ok('sessioni: la card mostra quando la sessione sta lavorando', () => {
   const root = path.join(__dirname, '..');
-  const js = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
+  const js = readRendererApp();
   // La regola sta in renderer/running.js (provata sul comportamento): qui si
   // verifica che l'output la alimenti e che il silenzio la spenga.
   assert.ok(/onData\(\(\{ id, data \}\)[\s\S]{0,300}noteRunning\(t\)/.test(js),
@@ -155,8 +156,8 @@ ok('sidebar: il modulo della sidebar non conosce lo stato delle schede', () => {
   for (const cb of ['onSelect', 'onClose', 'onRename']) {
     assert.ok(js.includes(cb), `manca la callback ${cb}`);
   }
-  const main = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
-  assert.ok(!/function renderSidebar\(/.test(main), 'renderSidebar è ancora in renderer.js');
+  const main = readRendererApp();
+  assert.ok(!/function renderSidebar\(/.test(main), 'renderSidebar è ancora una funzione del renderer');
   assert.ok(fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8').includes('sidebar.js'),
     'sidebar.js non è incluso nella pagina');
 });

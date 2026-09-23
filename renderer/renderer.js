@@ -736,7 +736,7 @@ async function resolveProjectRoot(cwd) {
   return root;
 }
 
-async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null, startedAt = Date.now() } = {}) {
+async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null, previousSession = null, startedAt = Date.now() } = {}) {
   // attachSession: riaggancio di una sessione tmux gia' viva. Il comando e' gia'
   // stato risolto quando e' nata, quindi niente scelta del profilo.
   const picked = attachSession
@@ -761,6 +761,9 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   // dimensione piena (altrimenti la prima scheda nasce 20x10).
   const tab = { id, type, name: label, cwd, projectRoot: cwd || null, resumeId, startedAt, autoNamed: !name,
     session: attachSession, reattached: Boolean(attachSession),
+    // Nome tmux della sessione prima di un riavvio della macchina: la sola
+    // identità stabile di una shell ricreata, per ritrovarne il posto.
+    previousSession,
     promptCapture: PromptCapture.createPromptCapture(), namedFromPrompt: false, claudeAccountId, claudeAccountName, commandProfileId: picked.id, commandProfileLabel: picked.label, term: null, fit: null, ro: null, wrap, alive: true, needsAttention: false, idleTimer: null, running: false, runTimer: null };
   tabs.set(id, tab);
   updateEmpty();
@@ -1123,7 +1126,7 @@ async function offerRestore() {
       // Il registro si ricostruisce da solo con le nuove sessioni; quelle non scelte spariscono.
       await window.aisess.discardRestorable();
       for (const plan of chosen) {
-        await createTab(plan.type, { name: plan.name, cwd: plan.cwd, resumeId: plan.resumeId, claudeAccountId: plan.claudeAccountId, commandProfileId: plan.commandProfileId });
+        await createTab(plan.type, { name: plan.name, cwd: plan.cwd, resumeId: plan.resumeId, claudeAccountId: plan.claudeAccountId, commandProfileId: plan.commandProfileId, previousSession: plan.previousSession });
       }
     };
     dismissBtn.onclick = async () => { done(); await window.aisess.discardRestorable(); };
@@ -1134,7 +1137,7 @@ async function offerRestore() {
 /** Stessa logica di lib/live-sessions.js#restorePlan, lato renderer (che non puo' importarla). */
 function restorePlanFor(s) {
   const type = s.type || 'shell';
-  const base = { type, cwd: s.cwd || undefined, commandProfileId: s.profileId || null, claudeAccountId: s.accountId || null, name: s.label || null };
+  const base = { type, cwd: s.cwd || undefined, commandProfileId: s.profileId || null, claudeAccountId: s.accountId || null, name: s.label || null, previousSession: s.name || null };
   if (type !== 'shell' && s.resumeId) return { ...base, resumeId: s.resumeId, mode: 'resume' };
   return { ...base, resumeId: null, mode: 'fresh' };
 }
@@ -1146,7 +1149,7 @@ function restorePlanFor(s) {
 const sidebar = Sidebar.createSidebar({
   list: $('#session-list'), count: $('#count'),
   storage: window.localStorage, Icons, Slice: window.PizzaSlice,
-  Groups, Commands: window.AisessCommands, escapeHtml,
+  Groups, Order, Commands: window.AisessCommands, escapeHtml,
   modeButtons: { type: $('#group-mode-type'), project: $('#group-mode-project') },
   onSelect: (id) => setActive(id),
   onClose: (id, anchor) => { requestClose(id, anchor).catch(() => {}); },
@@ -1163,12 +1166,43 @@ const sidebar = Sidebar.createSidebar({
 });
 /* Ordine manuale delle card, deciso trascinandole. Vive qui insieme a `tabs`
    perché è una proprietà delle schede aperte, non della sidebar: il modulo
-   riceve già la lista ordinata. Le schede nuove entrano in coda. */
+   riceve già la lista ordinata. Le schede nuove entrano in coda, tranne quelle
+   che hanno un posto salvato da un avvio precedente (session-order.js). */
 let sessionOrder = [];
+const SAVED_ORDER_KEY = 'aisess.sessionOrder';
+let savedOrder = readSavedOrder();
+
+function readSavedOrder() {
+  try {
+    const v = JSON.parse(window.localStorage.getItem(SAVED_ORDER_KEY) || '[]');
+    return Array.isArray(v) ? v.filter((k) => typeof k === 'string') : [];
+  } catch { return []; }
+}
+
+/** Riscrive l'ordine salvato, solo se è cambiato: renderSidebar() è frequente. */
+function saveOrder() {
+  const next = Order.mergeSaved(sessionOrder.map((id) => Order.tabKeys(tabs.get(id))), savedOrder);
+  if (next.length === savedOrder.length && next.every((k, i) => k === savedOrder[i])) return;
+  savedOrder = next;
+  try { window.localStorage.setItem(SAVED_ORDER_KEY, JSON.stringify(next)); } catch (e) { console.warn('ordine delle schede non salvato', e); }
+}
+
+/** Posto salvato di una scheda: quello della prima delle sue chiavi che c'è. */
+function savedRanks() {
+  const rank = new Map(savedOrder.map((k, i) => [k, i]));
+  return (id) => {
+    const hit = Order.tabKeys(tabs.get(id)).find((k) => rank.has(k));
+    return hit === undefined ? undefined : rank.get(hit);
+  };
+}
 
 const renderSidebar = () => {
-  sessionOrder = Order.syncOrder(sessionOrder, [...tabs.keys()]);
+  sessionOrder = Order.syncOrder(sessionOrder, [...tabs.keys()], { rankOf: savedRanks() });
+  saveOrder();
   sidebar.render(Order.applyOrder([...tabs.values()], sessionOrder), activeId);
+  // La barra in basso dice in che chat si è: cambia con la scheda attiva, un
+  // rinomina, il titolo automatico — tutte strade che passano da qui.
+  if (usageBar) usageBar.setCurrent(activeId ? tabs.get(activeId) : null);
   // Il render ricrea le card: il fumetto di conferma resterebbe appeso a un
   // elemento che non è più nella pagina. Lo si rimette sulla card nuova della
   // stessa sessione (o lo si chiude, se quella sessione non c'è più).
@@ -1292,6 +1326,7 @@ function initUsageBar() {
   const root = $('#usagebar');
   if (!root || !window.AisessUsageBar) return;
   usageBar = window.AisessUsageBar.createUsageBar({ root, document });
+  usageBar.setCurrent(activeId ? tabs.get(activeId) : null);
   refreshUsage();
   if (usageTimer) clearInterval(usageTimer);
   usageTimer = setInterval(refreshUsage, USAGE_REFRESH_MS);

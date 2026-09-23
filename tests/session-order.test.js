@@ -4,7 +4,7 @@ const { test: ok } = require('node:test');
 /* Ordine manuale delle card della sidebar (trascinamento). Modulo puro in
    renderer/ per lo stesso motivo di session-groups.js: il renderer non ha
    require, il wrapper UMD lo rende comunque importabile qui. */
-const { moveAdjacent, applyOrder, syncOrder } = require('../renderer/session-order');
+const { moveAdjacent, applyOrder, syncOrder, tabKeys, mergeSaved } = require('../renderer/session-order');
 
 const ids = () => ['a', 'b', 'c', 'd'];
 
@@ -59,4 +59,64 @@ ok('syncOrder aggiunge le schede nuove in coda e toglie quelle chiuse', () => {
   const order = ['c', 'a'];
   syncOrder(order, ['a', 'c', 'd']);
   assert.deepStrictEqual(order, ['c', 'a'], 'non deve mutare l\'array di partenza');
+});
+
+/* Ordine salvato fra un avvio e l'altro. L'id della scheda nasce a runtime,
+   quindi si salvano chiavi stabili: l'id della conversazione (regge anche il
+   riavvio della macchina) e il nome della sessione tmux (regge la chiusura
+   dell'app). */
+
+ok('tabKeys: prima l id della conversazione, poi la sessione tmux; nessuna chiave senza identita', () => {
+  assert.deepStrictEqual(tabKeys({ type: 'claude', resumeId: 'r1', session: 'ais-claude-x' }), ['claude:r1', 'tmux:ais-claude-x']);
+  assert.deepStrictEqual(tabKeys({ type: 'shell', session: 'ais-shell-y' }), ['tmux:ais-shell-y']);
+  assert.deepStrictEqual(tabKeys({ type: 'shell' }), []);
+  assert.deepStrictEqual(tabKeys(null), []);
+});
+
+ok('syncOrder: una scheda che riappare torna al suo posto salvato, non in coda', () => {
+  const rank = new Map([['c', 0], ['a', 1], ['b', 2]]);
+  const rankOf = (id) => rank.get(id);
+  // All'avvio le schede si riagganciano una alla volta, in ordine qualsiasi
+  let order = syncOrder([], ['b'], { rankOf });
+  order = syncOrder(order, ['b', 'a'], { rankOf });
+  order = syncOrder(order, ['b', 'a', 'c', 'nuova'], { rankOf });
+  assert.deepStrictEqual(order, ['c', 'a', 'b', 'nuova']);
+});
+
+ok('syncOrder: il posto salvato non scavalca un ordine gia deciso in questa sessione', () => {
+  const rankOf = (id) => ({ a: 0, b: 1, c: 2 })[id];
+  // 'b' e 'a' sono gia stati riordinati a mano: 'c' entra dopo di loro
+  assert.deepStrictEqual(syncOrder(['b', 'a'], ['a', 'b', 'c'], { rankOf }), ['b', 'a', 'c']);
+});
+
+ok('mergeSaved: salva l ordine visibile e tiene al loro posto le schede non (ancora) aperte', () => {
+  // Salvato [B, A, C]; all'avvio c'e solo A: B e C non vanno persi
+  assert.deepStrictEqual(mergeSaved([['A']], ['B', 'A', 'C']), ['B', 'A', 'C']);
+  // L'utente ha spostato C sopra A mentre B e ancora chiusa
+  assert.deepStrictEqual(mergeSaved([['C'], ['A']], ['B', 'A', 'C']), ['B', 'C', 'A']);
+});
+
+ok('mergeSaved: quando una scheda cambia chiave (arriva l id della conversazione) la vecchia sparisce', () => {
+  const saved = ['tmux:x', 'tmux:y'];
+  const now = [['claude:r1', 'tmux:x'], ['tmux:y']];
+  assert.deepStrictEqual(mergeSaved(now, saved), ['claude:r1', 'tmux:y']);
+});
+
+ok('mergeSaved: le schede senza chiave non si salvano e la lista ha un tetto', () => {
+  assert.deepStrictEqual(mergeSaved([[], ['A']], []), ['A']);
+  const tante = Array.from({ length: 500 }, (_, i) => 'k' + i);
+  assert.strictEqual(mergeSaved([['nuova']], tante).length, 200);
+  assert.ok(mergeSaved([['nuova']], tante).includes('nuova'), 'il tetto taglia le vecchie, non quelle aperte');
+});
+
+ok('tabKeys: una scheda ricreata dopo un riavvio si riconosce anche dal vecchio nome tmux', () => {
+  assert.deepStrictEqual(
+    tabKeys({ type: 'shell', session: 'ais-shell-nuovo', previousSession: 'ais-shell-vecchio' }),
+    ['tmux:ais-shell-nuovo', 'tmux:ais-shell-vecchio'],
+  );
+  // Nel salvataggio la chiave vecchia lascia il posto a quella nuova
+  assert.deepStrictEqual(
+    mergeSaved([tabKeys({ type: 'shell', session: 'ais-shell-nuovo', previousSession: 'ais-shell-vecchio' })], ['tmux:a', 'tmux:ais-shell-vecchio', 'tmux:b']),
+    ['tmux:a', 'tmux:ais-shell-nuovo', 'tmux:b'],
+  );
 });

@@ -47,10 +47,12 @@ function mount(snap) {
     const root = createElement('footer');
     const bar = Bar.createUsageBar({ root, document: global.document });
     bar.update(snap);
+    // Solo i riquadri delle quote: la chat corrente ha i suoi test
+    const cells = root.children.filter((c) => c.classes.has('usage-cell'));
     return {
       root, bar,
-      texts: root.children.map((c) => c.children.map((x) => x.textContent).filter(Boolean).join(' ')),
-      titles: root.children.map((c) => c.title),
+      texts: cells.map((c) => c.children.map((x) => x.textContent).filter(Boolean).join(' ')),
+      titles: cells.map((c) => c.title),
     };
   } finally { restore(); }
 }
@@ -103,9 +105,9 @@ ok('usage bar: senza contesto calcolabile la barra sparisce e il valore dice —
 });
 
 ok('usage bar: senza sessione riconosciuta il riquadro dice — e spiega perche', () => {
-  const { root, texts } = mount(snapshot({ session: null }));
+  const { texts, titles } = mount(snapshot({ session: null }));
   assert.ok(texts[0].includes(Bar.EMPTY));
-  assert.ok(root.children[0].title.includes('shell'));
+  assert.ok(titles[0].includes('shell'));
 });
 
 ok('usage bar: la barra 5h disegna i token consumati, non il tempo passato', () => {
@@ -187,8 +189,8 @@ ok('usage bar: quanto manca si dice in giorni, ore o minuti', () => {
 });
 
 ok('usage bar: il tooltip elenca gli agenti e le sorgenti mancanti', () => {
-  const { root } = mount(snapshot());
-  const t = root.children[1].title;
+  const { titles } = mount(snapshot());
+  const t = titles[1];
   assert.ok(t.includes('claude:') && t.includes('codex:'));
   assert.ok(t.includes('antigravity: protobuf binario'));
 });
@@ -197,4 +199,34 @@ ok('usage bar: senza dati non si mostrano zeri inventati', () => {
   const { texts, bar } = mount(null);
   assert.ok(texts.every((t) => t.includes(Bar.EMPTY)));
   assert.strictEqual(bar.elements.week.bar.style.display, 'none');
+});
+
+/* Riquadro "dove sono": cartella e nome della chat in primo piano. */
+
+ok('chat corrente: cartella = nome della radice del progetto, nome = nome della scheda', () => {
+  const info = Bar.currentChat({ name: 'Fix login', type: 'claude', cwd: '/home/t/app/api', projectRoot: '/home/t/app' });
+  assert.deepStrictEqual(info, { folder: 'app', name: 'Fix login', title: 'Fix login\n/home/t/app/api' });
+});
+
+ok('chat corrente: senza radice di progetto si usa la cartella di lavoro, anche con percorsi Windows', () => {
+  assert.strictEqual(Bar.currentChat({ name: 'x', cwd: 'C:\\Users\\t\\blog\\', projectRoot: null }).folder, 'blog');
+  assert.strictEqual(Bar.currentChat({ name: 'x', cwd: '', projectRoot: null }).folder, '');
+  assert.strictEqual(Bar.currentChat(null), null);
+});
+
+ok('chat corrente: il riquadro mostra cartella e nome, e sparisce senza sessioni', () => {
+  const restore = installDocument();
+  try {
+    const root = createElement('footer');
+    const bar = Bar.createUsageBar({ root, document: global.document });
+    const cell = root.children.find((c) => c.classes.has('usage-current'));
+    assert.ok(cell, 'manca il riquadro della chat corrente');
+    assert.strictEqual(root.children[0], cell, 'la chat corrente sta a sinistra, prima delle quote');
+    bar.setCurrent({ name: '<b>Fix</b>', cwd: '/r/app', projectRoot: '/r/app' });
+    assert.deepStrictEqual(cell.children.map((c) => c.textContent), ['app', '<b>Fix</b>']);
+    assert.strictEqual(cell.title, '<b>Fix</b>\n/r/app');
+    assert.strictEqual(cell.hidden, false);
+    bar.setCurrent(null);
+    assert.strictEqual(cell.hidden, true);
+  } finally { restore(); }
 });

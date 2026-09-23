@@ -1169,6 +1169,9 @@ let sessionOrder = [];
 const renderSidebar = () => {
   sessionOrder = Order.syncOrder(sessionOrder, [...tabs.keys()]);
   sidebar.render(Order.applyOrder([...tabs.values()], sessionOrder), activeId);
+  // La barra in basso dice in che chat si è: cambia con la scheda attiva, un
+  // rinomina, il titolo automatico — tutte strade che passano da qui.
+  if (usageBar) usageBar.setCurrent(activeId ? tabs.get(activeId) : null);
   // Il render ricrea le card: il fumetto di conferma resterebbe appeso a un
   // elemento che non è più nella pagina. Lo si rimette sulla card nuova della
   // stessa sessione (o lo si chiude, se quella sessione non c'è più).
@@ -1292,6 +1295,7 @@ function initUsageBar() {
   const root = $('#usagebar');
   if (!root || !window.AisessUsageBar) return;
   usageBar = window.AisessUsageBar.createUsageBar({ root, document });
+  usageBar.setCurrent(activeId ? tabs.get(activeId) : null);
   refreshUsage();
   if (usageTimer) clearInterval(usageTimer);
   usageTimer = setInterval(refreshUsage, USAGE_REFRESH_MS);

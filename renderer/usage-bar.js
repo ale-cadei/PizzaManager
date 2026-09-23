@@ -244,6 +244,43 @@
     return ratio === null ? EMPTY : formatPercent(ratio);
   }
 
+  const SEP_RE = /[\\/]+/;
+
+  /** Ultima cartella di un percorso, Unix o Windows: "/r/app/" -> "app". */
+  function baseName(p) {
+    const parts = String(p || '').split(SEP_RE).filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : '';
+  }
+
+  /**
+   * Che cosa dire nel riquadro "dove sono": la cartella del progetto (la
+   * radice del repository se nota, altrimenti la cartella di lavoro) e il
+   * nome della chat, cioè quello della scheda in primo piano.
+   * @param {{name?: string, cwd?: string, projectRoot?: string|null}|null} tab
+   * @returns {{folder: string, name: string, title: string}|null}
+   */
+  function currentChat(tab) {
+    if (!tab) return null;
+    const name = String(tab.name || '');
+    const folder = baseName(tab.projectRoot || tab.cwd);
+    return { folder, name, title: [name, tab.cwd].filter(Boolean).join('\n') };
+  }
+
+  /** Il riquadro "dove sono": cartella smorzata, nome della chat in chiaro. */
+  function currentCell(document, root) {
+    const box = document.createElement('div');
+    box.className = 'usage-current';
+    const folder = document.createElement('span');
+    folder.className = 'usage-current-folder';
+    const name = document.createElement('span');
+    name.className = 'usage-current-name';
+    box.appendChild(folder);
+    box.appendChild(name);
+    box.hidden = true;
+    root.appendChild(box);
+    return { box, folder, name };
+  }
+
   /**
    * Costruisce la barra dentro `root` e restituisce l'oggetto per aggiornarla.
    * @param {{ root: object, document?: object }} deps
@@ -251,6 +288,7 @@
   function createUsageBar({ root, document: doc = (typeof document !== 'undefined' ? document : null) }) {
     if (!root || !doc) throw new Error('createUsageBar: servono root e document');
     root.innerHTML = '';
+    const current = currentCell(doc, root);
     const session = cell(doc, root, 'SESSIONE', true);
     const block = cell(doc, root, 'FINESTRA 5h', true, true);
     const week = cell(doc, root, 'SETTIMANA', true);
@@ -294,11 +332,20 @@
       root.title = '';
     }
 
-    return { update, elements: { session, block, week } };
+    /** @param {object|null} tab la scheda in primo piano, o null se non ce n'è */
+    function setCurrent(tab) {
+      const info = currentChat(tab);
+      current.box.hidden = !info;
+      current.folder.textContent = info ? info.folder : '';
+      current.name.textContent = info ? info.name : '';
+      current.box.title = info ? info.title : '';
+    }
+
+    return { update, setCurrent, elements: { current, session, block, week } };
   }
 
   return {
-    createUsageBar, formatTokens, formatPercent, formatClock, formatDelta, formatReset,
+    createUsageBar, currentChat, formatTokens, formatPercent, formatClock, formatDelta, formatReset,
     blockProgress, contextProgress, declaredProgress,
     sessionText, blockText, blockSub, blockTitle, weekText, detailText, tokensLine, EMPTY,
   };

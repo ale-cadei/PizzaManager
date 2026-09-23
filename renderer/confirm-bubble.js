@@ -95,7 +95,7 @@
       if (!open) return;
       const { el, resolve, onKey, onDown, onMove } = open;
       open = null;
-      doc.removeEventListener('keydown', onKey, true);
+      if (onKey) doc.removeEventListener('keydown', onKey, true);
       doc.removeEventListener('mousedown', onDown, true);
       if (win) {
         win.removeEventListener('resize', onMove);
@@ -103,6 +103,40 @@
       }
       el.remove();
       resolve(answer);
+    }
+
+    /**
+     * Mette il fumetto nella pagina accanto ad `anchor` e lo fa chiudere (con
+     * risposta `false`) dal click fuori, dallo scroll e dal resize; con
+     * `closeOnEscape` anche da Esc. Restituisce la risposta.
+     */
+    function mount({ el, tip, anchor, key, closeOnEscape }) {
+      const host = deps.host || doc.body;
+      host.appendChild(el);
+
+      const onKey = closeOnEscape ? (e) => {
+        if (e.key === 'Escape') { if (e.preventDefault) e.preventDefault(); settle(false); }
+      } : null;
+      // mousedown e non click: chi va a cliccare altrove ha già deciso che non
+      // vuole rispondere, e il click finirebbe su un bersaglio che nel
+      // frattempo si è spostato.
+      const onDown = (e) => { if (!inside(e.target, el)) settle(false); };
+      // Il fumetto è ancorato a coordinate di finestra: se la lista scorre o la
+      // finestra cambia misura, la punta non indica più niente.
+      const onMove = () => settle(false);
+
+      if (onKey) doc.addEventListener('keydown', onKey, true);
+      doc.addEventListener('mousedown', onDown, true);
+      if (win) {
+        win.addEventListener('resize', onMove);
+        doc.addEventListener('scroll', onMove, true);
+      }
+
+      const answer = new Promise((resolve) => {
+        open = { el, tip, key, resolve, onKey, onDown, onMove };
+      });
+      pointAt(anchor);
+      return answer;
     }
 
     function label(el, cls, text) {
@@ -146,31 +180,7 @@
       actions.appendChild(yes);
       el.appendChild(actions);
 
-      const host = deps.host || doc.body;
-      host.appendChild(el);
-
-      const onKey = (e) => {
-        if (e.key === 'Escape') { if (e.preventDefault) e.preventDefault(); settle(false); }
-      };
-      // mousedown e non click: chi va a cliccare altrove ha già deciso che non
-      // vuole rispondere, e il click finirebbe su un bersaglio che nel
-      // frattempo si è spostato.
-      const onDown = (e) => { if (!inside(e.target, el)) settle(false); };
-      // Il fumetto è ancorato a coordinate di finestra: se la lista scorre o la
-      // finestra cambia misura, la punta non indica più niente.
-      const onMove = () => settle(false);
-
-      doc.addEventListener('keydown', onKey, true);
-      doc.addEventListener('mousedown', onDown, true);
-      if (win) {
-        win.addEventListener('resize', onMove);
-        doc.addEventListener('scroll', onMove, true);
-      }
-
-      const answer = new Promise((resolve) => {
-        open = { el, tip, key, resolve, onKey, onDown, onMove };
-      });
-      pointAt(anchor);
+      const answer = mount({ el, tip, anchor, key, closeOnEscape: true });
       no.onclick = (e) => { e.stopPropagation(); settle(false); };
       yes.onclick = (e) => { e.stopPropagation(); settle(true); };
       // Il fuoco sul fumetto, non su un pulsante: da lì Tab porta prima ad

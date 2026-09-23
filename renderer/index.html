@@ -77,7 +77,7 @@
       <button data-action="term-font-smaller">Testo del terminale più piccolo<span class="mb-acc">Ctrl+-</span></button>
       <button data-action="term-font-reset">Testo del terminale normale<span class="mb-acc">Ctrl+0</span></button>
       <div class="mb-sep"></div>
-      <button data-action="type-colors">Colori delle sessioni…</button>
+      <button data-action="type-colors">Colori…</button>
       <div class="mb-sep"></div>
       <button data-action="fullscreen">Schermo intero<span class="mb-acc">F11</span></button>
     </div>
@@ -258,11 +258,11 @@
   </div>
 </div>
 
-<!-- Modal colori dei tipi di sessione (menu View, renderer/type-colors-ui.js) -->
+<!-- Modal colori: principale e tipi di sessione (menu View, renderer/type-colors-ui.js) -->
 <div class="modal-backdrop" id="modal-type-colors" hidden>
   <div class="modal">
-    <h2>Colori delle sessioni</h2>
-    <p class="muted small">Un colore per tipo: card, linguette, legenda e lampeggio cambiano mentre scegli.</p>
+    <h2>Colori</h2>
+    <p class="muted small">Il colore principale tinge pulsanti, selezioni, barre delle quote in basso e il separatore fra sidebar e terminale; poi un colore per tipo di sessione. Tutto cambia mentre scegli.</p>
     <div class="type-color-list" id="type-color-list"></div>
     <div class="modal-actions">
       <button class="btn btn--ghost type-colors-reset" id="type-colors-reset">Ripristina predefiniti</button>

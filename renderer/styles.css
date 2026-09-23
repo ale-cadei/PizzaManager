@@ -451,6 +451,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .dot.codex { background: var(--type-codex); }
 .dot.antigravity { background: var(--type-antigravity); }
 .dot.tmux { background: var(--text-muted); }
+.dot.action { background: var(--action); }
 /* Piede: legenda dei tipi + stato dei binari. Sono due blocchi nel markup ma
    una fascia sola a vedersi, quindi il separatore lo porta il primo e il
    padding inferiore il secondo. */
@@ -639,7 +640,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .term-scroll:hover .term-scroll-thumb { left: 1px; right: 1px; background: var(--text-faint); }
 /* Lontani dal fondo il cursore si accende, col colore del tipo di sessione
-   (quello scelto in View → Colori delle sessioni): l'output nuovo è più in basso. */
+   (quello scelto in View → Colori…): l'output nuovo è più in basso. */
 .term-scroll.is-scrolled .term-scroll-thumb { background: var(--type-color, var(--action-text)); }
 .term-scroll.is-dragging .term-scroll-thumb { left: 1px; right: 1px; background: var(--type-color, var(--action)); }
 /* Assoluto invece che in flusso: in colonna il terminale prende tutto lo
@@ -767,7 +768,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
-/* Colori delle sessioni (menu View): pallino col colore vivo, nome, selettore */
+/* Colori (menu View): pallino col colore vivo, nome, selettore */
 .type-color-list { display: flex; flex-direction: column; gap: 6px; }
 .modal label.type-color-row {
   flex-direction: row; align-items: center; gap: 10px;
@@ -780,6 +781,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .modal .type-color-row input[type="color"] {
   width: 56px; height: 30px; padding: 2px 4px; flex: 0 0 auto; cursor: pointer;
 }
+/* il colore principale apre l'elenco, staccato dai tipi: vale per tutta l'app */
+.modal label.type-color-row--action { margin-bottom: 8px; }
 .type-colors-reset { margin-right: auto; }
 
 /* Tabs: gruppo su fondo nero con padding 5px; attivo pomodoro tenue + bordo pomodoro */
@@ -958,12 +961,14 @@ a, .link { color: var(--action-text); }
      quello dichiarato dal CLI se c'e', altrimenti il massimo osservato in una
      finestra conclusa (docs/plans/15-quota-token-5h.md).
    - SETTIMANA: solo la quota dichiarata da un CLI.
-   Quando la quota non e' calcolabile la barra si nasconde, non va a zero. */
+   Quando la quota non e' calcolabile la barra si nasconde, non va a zero.
+   Binario e riempimento sono varianti del colore principale (--action-soft,
+   --action-text): cambiandolo da View → Colori… le barre lo seguono. */
 .usage-progress {
   display: inline-block; width: 46px; height: 4px; border-radius: 2px;
-  background: var(--border, #23262d); overflow: hidden;
+  background: var(--action-soft, #23262d); overflow: hidden;
 }
 .usage-progress-fill {
   display: block; height: 100%; width: 0;
-  background: var(--accent, #d98b2b); transition: width .4s ease;
+  background: var(--action-text, #d98b2b); transition: width .4s ease;
 }

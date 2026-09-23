@@ -39,10 +39,12 @@ const AI_TYPES = ['opencode', 'claude', 'codex', 'antigravity'];
 const termFont = window.AisessTermFont.createFontSizeStore(window.localStorage);
 const TERM_LINE_HEIGHT = 1.2;
 
-// Colori dei tipi di sessione cambiati dal menu View (renderer/type-colors.js):
+// Colore principale e colori dei tipi cambiati dal menu View (renderer/type-colors.js):
 // si applicano subito, prima che la sidebar disegni la prima card.
-const typeColors = window.AisessTypeColors.createTypeColorStore(window.localStorage, Groups.TYPE_ORDER);
-window.AisessTypeColors.applyTypeColors(document.documentElement.style, typeColors.get(), Groups.TYPE_ORDER);
+const COLOR_KEYS = [window.AisessTypeColors.ACTION, ...Groups.TYPE_ORDER];
+const COLOR_LABELS = { [window.AisessTypeColors.ACTION]: 'Colore principale', ...Groups.TYPE_LABELS };
+const typeColors = window.AisessTypeColors.createTypeColorStore(window.localStorage, COLOR_KEYS);
+window.AisessTypeColors.applyTypeColors(document.documentElement.style, typeColors.get(), COLOR_KEYS);
 
 /* Tema del terminale, allineato ai token (renderer/tokens.css): il fondo e il
    testo sono gli stessi dell'app, e i tre colori "di stato" della palette
@@ -54,8 +56,6 @@ window.AisessTypeColors.applyTypeColors(document.documentElement.style, typeColo
 const TERM_THEME = {
   background: '#070505',        // --bg
   foreground: '#F6F1EC',        // --text
-  cursor: '#F04E23',            // --action
-  selectionBackground: '#2B120A', // --action-soft
   black: '#070505',
   brightBlack: '#8A7A72',       // --text-faint
   white: '#F6F1EC',
@@ -64,6 +64,17 @@ const TERM_THEME = {
   red: '#FF4D74',               // --state-error
   yellow: '#F2C14E',            // --accent (crosta)
 };
+
+/* Cursore e selezione seguono il colore principale, che si può cambiare dal
+   menu View: si leggono da --action/--action-soft, non si ricopiano qui. */
+function termTheme() {
+  const css = getComputedStyle(document.documentElement);
+  return {
+    ...TERM_THEME,
+    cursor: css.getPropertyValue('--action').trim(),
+    selectionBackground: css.getPropertyValue('--action-soft').trim(),
+  };
+}
 
 async function init() {
   Icons.hydrate(document);
@@ -760,7 +771,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   // Le 1000 righe di default coprivano poco: allineate all'ordine di
   // grandezza di `history-limit`. Con tmux si azzera appena si sa (sotto):
   // la history è quella di tmux, e questa sarebbe a buchi.
-  const term = new Terminal({ cursorBlink: true, scrollback: 20000, fontSize: termFont.get(), lineHeight: TERM_LINE_HEIGHT, fontFamily: "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace", theme: TERM_THEME });
+  const term = new Terminal({ cursorBlink: true, scrollback: 20000, fontSize: termFont.get(), lineHeight: TERM_LINE_HEIGHT, fontFamily: "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace", theme: termTheme() });
   const fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
   try { term.loadAddon(new WebLinksAddon.WebLinksAddon()); } catch {}
@@ -875,10 +886,14 @@ function typeColorsDialog() {
       cancelBtn: $('#type-colors-cancel'),
       resetBtn: $('#type-colors-reset'),
       store: typeColors,
-      types: Groups.TYPE_ORDER,
-      labels: Groups.TYPE_LABELS,
+      types: COLOR_KEYS,
+      labels: COLOR_LABELS,
       style: root.style,
       readVar: (name) => getComputedStyle(root).getPropertyValue(name),
+      onChange: () => {
+        const theme = termTheme();
+        for (const tab of tabs.values()) if (tab.term) tab.term.options.theme = theme;
+      },
     });
   }
   return typeColorsDialogInstance;

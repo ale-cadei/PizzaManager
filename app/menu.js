@@ -59,7 +59,7 @@ function buildAppMenu({ sendToRenderer, platform = process.platform } = {}) {
         // Secondo acceleratore per «più grande»: su molte tastiere + è Shift+=
         { label: 'Testo del terminale più grande', accelerator: 'CmdOrCtrl+=', visible: false, click: () => sendToRenderer('menu-term-font-bigger') },
         { type: 'separator' },
-        { label: 'Colori delle sessioni…', click: () => sendToRenderer('menu-type-colors') },
+        { label: 'Colori…', click: () => sendToRenderer('menu-type-colors') },
         { type: 'separator' },
         { role: 'togglefullscreen', label: 'Schermo intero' },
       ],

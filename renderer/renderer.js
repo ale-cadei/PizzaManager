@@ -3,6 +3,7 @@ const tabs = new Map();
 let activeId = null;
 /* Con tmux le sessioni sopravvivono alla chiusura: la ✕ stacca, «Termina» uccide. */
 let tmuxAvailable = false;
+let tmuxPath = null;
 let counter = 1;
 let pendingNewType = 'shell';
 let resumeTab = 'opencode';
@@ -64,34 +65,11 @@ async function init() {
   Logo.hydrate(document);
   const d = await window.aisess.getDefaults();
   tmuxAvailable = Boolean(d.tmux && d.tmux.available);
+  tmuxPath = (d.tmux && d.tmux.path) || null;
   $('#platform-label').textContent = d.platform + ' · ' + d.shell;
   $('#new-cwd').value = d.homedir;
-  try {
-    const deps = await window.aisess.checkDeps();
-    const fmt = (b, name) => b && b.found ? `✔ ${name}: ${b.path}` : `✘ ${name} non trovato`;
-    $('#deps-status').textContent = AI_TYPES.map(n => `${deps[n] && deps[n].found ? '✔' : '✘'} ${n}`).join(' · ');
-    $('#deps-status').title = AI_TYPES.map(n => fmt(deps[n], n)).join('\n') + '\nPATH: ' + deps.path;
-    const mark = (id, b) => {
-      const el = $(id);
-      if (!el) return;
-      el.style.opacity = b && b.found ? '1' : '0.45';
-      el.title = b && b.found ? b.path + ' (' + (b.via || '') + ')' : 'NON TROVATO nel PATH:\n' + (b && b.searchedPath);
-    };
-    for (const n of AI_TYPES) mark('#dep-' + n, deps[n]);
-    // tmux non e' un tipo di sessione ma decide se le sessioni sopravvivono
-    // all'app: senza indicatore, chi non ce l'ha scopre la differenza solo
-    // perdendole. Stesso trattamento dei binari, con la spiegazione nel tooltip.
-    const tmuxEl = $('#dep-tmux');
-    if (tmuxEl) {
-      tmuxEl.style.opacity = tmuxAvailable ? '1' : '0.45';
-      tmuxEl.title = tmuxAvailable
-        ? `tmux: ${d.tmux.path}\nLe sessioni restano vive alla chiusura dell'app e tornano alla riapertura.`
-        : 'tmux non trovato: le sessioni muoiono con la finestra.\nInstallalo (brew install tmux / apt install tmux) e riavvia l\'app.';
-    }
-    if (AI_TYPES.some(n => !deps[n] || !deps[n].found)) {
-      console.warn('[PizzaManager] binari mancanti:', deps);
-    }
-  } catch (e) { console.warn('check-deps fallito', e); }
+  initWelcome();
+  await refreshDeps();
 
   $('#btn-new').addEventListener('click', () => openNewModal());
   $('#btn-resume').addEventListener('click', openResumeModal);
@@ -1230,9 +1208,62 @@ const renderSidebar = () => {
   closeConfirm.retarget((id) => document.querySelector(`#session-list .session-item[data-id="${CSS.escape(id)}"]`));
 };
 
+/* Pallini dei binari in fondo alla sidebar. Si rilegge anche da «Ricontrolla»
+   nella schermata vuota: chi ha appena installato un assistente deve vederlo
+   acceso senza riavviare. */
+async function refreshDeps() {
+  try {
+    const deps = await window.aisess.checkDeps();
+    if (welcome) welcome.update(deps.setup || null);
+    const fmt = (b, name) => b && b.found ? `✔ ${name}: ${b.path}` : `✘ ${name} non trovato`;
+    $('#deps-status').textContent = AI_TYPES.map(n => `${deps[n] && deps[n].found ? '✔' : '✘'} ${n}`).join(' · ');
+    $('#deps-status').title = AI_TYPES.map(n => fmt(deps[n], n)).join('\n') + '\nPATH: ' + deps.path;
+    const mark = (id, b) => {
+      const el = $(id);
+      if (!el) return;
+      el.style.opacity = b && b.found ? '1' : '0.45';
+      el.title = b && b.found ? b.path + ' (' + (b.via || '') + ')' : 'NON TROVATO nel PATH:\n' + (b && b.searchedPath);
+    };
+    for (const n of AI_TYPES) mark('#dep-' + n, deps[n]);
+    // tmux non e' un tipo di sessione ma decide se le sessioni sopravvivono
+    // all'app: senza indicatore, chi non ce l'ha scopre la differenza solo
+    // perdendole. Stesso trattamento dei binari, con la spiegazione nel tooltip.
+    const tmuxEl = $('#dep-tmux');
+    if (tmuxEl) {
+      tmuxEl.style.opacity = tmuxAvailable ? '1' : '0.45';
+      tmuxEl.title = tmuxAvailable
+        ? `tmux: ${tmuxPath}\nLe sessioni restano vive alla chiusura dell'app e tornano alla riapertura.`
+        : 'tmux non trovato: le sessioni muoiono con la finestra.\nInstallalo (brew install tmux / apt install tmux) e riavvia l\'app.';
+    }
+    if (AI_TYPES.some(n => !deps[n] || !deps[n].found)) {
+      console.warn('[PizzaManager] binari mancanti:', deps);
+    }
+  } catch (e) {
+    console.warn('check-deps fallito', e);
+    if (welcome) welcome.update(null);
+  }
+}
+
 function updateEmpty() {
   const el = $('#empty');
   if (el) el.style.display = tabs.size ? 'none' : 'block';
+}
+
+/* ---------- Schermata vuota (onboarding) ----------
+   Che cosa manca per usare l'app lo calcola il main (lib/setup-check.js) e
+   arriva con `check-deps`, la schermata lo disegna (renderer/welcome.js). Si
+   chiede all'avvio e a ogni «Ricontrolla»: non a ogni apertura della
+   schermata, perché cercare i binari legge il filesystem. */
+let welcome = null;
+
+function initWelcome() {
+  const root = $('#empty');
+  if (!root || !window.AisessWelcome) return;
+  welcome = window.AisessWelcome.createWelcome({
+    root, document,
+    onCopy: (text) => { window.aisess.clipboardWrite(text).catch((e) => console.warn('copia fallita', e)); },
+    onRecheck: () => { refreshDeps(); },
+  });
 }
 
 /* Menubar scura in-app: su macOS il menu nativo segue già il tema scuro,

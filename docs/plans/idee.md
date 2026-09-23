@@ -1,0 +1,141 @@
+# Idee — feature da valutare
+
+Raccolta dal brainstorming del 2026-09-23. Non sono piani: quando un'idea
+diventa un branch, qui si spunta «piano» e si rimanda al file numerato
+(`NN-nome.md`), che resta la fonte di verità.
+
+Legenda passi: **studio** = capire se/come farla · **piano** = file in
+`docs/plans/` · **fatto** = mergiato su `main` · **provato** = verificato
+nell'app installata.
+
+---
+
+## Prima di tutto
+
+### Dividere `renderer/renderer.js`
+Piano: [21-split-renderer.md](21-split-renderer.md). Era a 1464 righe
+(limite 800): avvio, modali nuova sessione / resume / account, creazione e
+chiusura delle schede, titoli automatici, attenzione e «sta lavorando»,
+ripristino dopo riavvio, ordine manuale, menubar, resize della sidebar,
+barra usage. Quasi ogni feature qui sotto ci mette le mani: dividerlo
+prima le rende più economiche. Refactor puro, stesso comportamento, merge in
+giornata.
+
+- [x] piano
+- [x] fatto (branch `refactor/split-renderer`, da mergiare)
+- [ ] provato
+
+---
+
+## Agenti in parallelo
+
+### Ogni agente nel suo git worktree
+«Nuova sessione in un worktree»: l'app crea `git worktree add` su un branch
+nuovo, ci lancia l'agente, la card mostra il branch. A lavoro finito: «Unisci»
+o «Butta» (rimuove worktree e branch). Due agenti sullo stesso repo smettono di
+pestarsi i file.
+
+- [ ] studio — dove vivono i worktree, nomi dei branch, cosa fare con
+      modifiche non committate, rapporto con i gruppi per progetto (piano 8)
+- [ ] piano
+- [ ] fatto
+- [ ] provato
+
+### Pannello «cosa ha cambiato»
+Accanto al terminale, `git diff` del progetto della sessione: file toccati,
+righe +/−, aggiornato mentre l'agente lavora. Con i worktree: diff del branch
+contro `main`.
+
+- [ ] studio — pannello a scomparsa o scheda? quanto spazio ruba al terminale?
+- [ ] piano
+- [ ] fatto
+- [ ] provato
+
+### Segnale esatto «ha finito / ti sta chiedendo qualcosa»
+Oggi il lampeggio c'è, ma è **dedotto dall'output** (`renderer/attention.js`:
+soglie di byte e di tempo) e si vede solo dentro l'app. L'idea:
+- per Claude, usare i suoi hook `Stop` e `Notification`: è Claude stesso a
+  dire «ho finito» o «mi serve un permesso», niente euristiche; distingue anche
+  i due casi (lampeggio diverso per «aspetta te»);
+- notifica di sistema macOS/Linux e badge sul Dock quando l'app non è in
+  primo piano;
+- Codex/opencode restano sull'euristica attuale.
+
+- [ ] studio — come installare l'hook senza sporcare la config dell'utente
+- [ ] piano
+- [ ] fatto
+- [ ] provato
+
+---
+
+## Navigazione e memoria
+
+### Ricerca in tutte le conversazioni passate
+Casella di ricerca testuale sui `.jsonl` di Claude, Codex e opencode (i
+lettori esistono già in `lib/*-sessions.js`); risultato → «Riprendi» con
+`--resume` nella sua directory.
+
+- [ ] studio — indice o scansione a ogni ricerca? quanto pesano i `.jsonl`?
+- [ ] piano
+- [ ] fatto
+- [ ] provato
+
+### Esportare una conversazione in Markdown
+Dalla card o dal resume: «Esporta in .md» → file con domande, risposte e
+tool usati, leggibile e condivisibile.
+
+- [ ] piano
+- [ ] fatto
+- [ ] provato
+
+### Due sessioni affiancate
+Es. agente a sinistra, shell dello stesso progetto a destra. Dubbio aperto: con
+la sidebar diventano tre colonne. Possibili risposte: sidebar che si riduce a
+icone quando lo split è attivo, oppure split solo orizzontale (shell in basso,
+bassa e a scomparsa).
+
+- [ ] studio — decidere il layout prima di tutto
+- [ ] piano
+- [ ] fatto
+- [ ] provato
+
+---
+
+## Fuori dalla scrivania
+
+### Vista web in sola lettura
+PizzaManager apre un piccolo server web sulla rete di casa/ufficio; dal
+telefono si apre l'indirizzo e si vede la lista delle sessioni (chi lavora, chi
+ha finito, chi aspetta) e l'ultimo pezzo di output. Sola lettura: non si scrive
+nei terminali. Serve un token nell'URL/QR code per non esporre i terminali a
+chiunque sia sulla stessa Wi-Fi.
+
+- [ ] studio — sicurezza (token, solo LAN) prima di tutto
+- [ ] piano
+- [ ] fatto
+- [ ] provato
+
+### Sessioni su una macchina remota
+Le sessioni girano in tmux su un'altra macchina via SSH e continuano col Mac
+spento. Non serve per forza comprare un server: basta una macchina sempre
+accesa (un PC Linux, un Raspberry, una VPS da pochi euro al mese).
+
+- [ ] studio — c'è una macchina adatta?
+- [ ] piano
+- [ ] fatto
+- [ ] provato
+
+---
+
+## Distribuzione
+
+### Aggiornamento automatico
+Già pianificato: [18-aggiornamento-automatico.md](18-aggiornamento-automatico.md)
+(repo pubblico solo per le release, `electron-updater`, banner «Riavvia»).
+Tre branch:
+
+- [ ] `chore/release-pubblica`
+- [ ] `feat/auto-update`
+- [ ] `chore/firma-mac` (facoltativo)
+- [ ] provato su macOS
+- [ ] provato su Linux (collega)

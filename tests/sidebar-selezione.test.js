@@ -262,7 +262,34 @@ ok('lampeggio: la pulsazione è del colore del tipo, dichiarato dove il tipo esi
     assert.ok(/var\(--type-color/.test(decl[2]), `${prop} non deriva dal colore del tipo: ${decl[2]}`);
   }
   // Anche chi ha disattivato le animazioni vede la tinta giusta, non il pomodoro.
-  const ridotto = css.match(/@media \(prefers-reduced-motion: reduce\)[\s\S]*?\n\}\n/);
-  assert.ok(/needs-attention[\s\S]{0,120}background:\s*var\(--attention-fill\)/.test(ridotto[0]),
+  const ridotti = css.match(/@media \(prefers-reduced-motion: reduce\)[\s\S]*?\n\}\n/g) || [];
+  assert.ok(ridotti.some((b) => /needs-attention[\s\S]{0,120}background:\s*var\(--attention-fill\)/.test(b)),
     'senza animazioni la card resta del colore sbagliato');
+});
+
+/* Il lampeggio deve SALIRE e scendere, non accendersi e spegnersi di scatto.
+   Una custom property non registrata vale del testo: `background:
+   var(--attention-fill)` resta un color-mix() da fare, e un valore che si
+   risolve così tardi il Chromium di Electron 33 non lo interpola — misurato,
+   l'animazione diventava a due stati. Registrandole con @property il colore è
+   calcolato subito e il motore ci mescola sopra. Vale finché le tinte passano
+   da color-mix: se un giorno tornassero colori scritti a mano, questo test si
+   può togliere insieme a loro. */
+ok('lampeggio: le tinte animate sono colori registrati, o l animazione va a scatti', () => {
+  const css = styles();
+  const pulse = (css.match(/@keyframes attention-pulse[\s\S]*?\n\}/g) || []).join('\n');
+  const usate = [...new Set([...pulse.matchAll(/var\((--[\w-]+)\)/g)].map((m) => m[1]))];
+  assert.ok(usate.length, 'la pulsazione non usa nessuna tinta');
+  for (const prop of usate) {
+    const reg = css.match(new RegExp(`@property ${prop} \\{[^}]*\\}`));
+    assert.ok(reg, `${prop} non è registrata: il suo color-mix arriva all animazione come testo e il lampeggio scatta`);
+    assert.ok(/syntax:\s*'<color>'/.test(reg[0]), `${prop} non è registrata come colore: ${reg[0]}`);
+  }
+  // Gli estremi del ciclo devono essere tinte registrate anche loro: un
+  // `transparent` o un `none` scritto lì rimetterebbe a confronto due valori
+  // che il motore non sa mescolare.
+  for (const k of css.match(/@keyframes attention-pulse[\s\S]*?\n\}/g) || []) {
+    assert.ok(!/(background|box-shadow):[^;]*\b(transparent|none)\b/.test(k),
+      `un estremo del ciclo non è una tinta registrata: ${k}`);
+  }
 });

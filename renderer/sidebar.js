@@ -22,6 +22,10 @@
   const DOUBLE_CLICK_MS = 450;
   /* Finestra in cui un click che segue un trascinamento viene ignorato. */
   const DRAG_CLICK_GUARD_MS = 250;
+  /* I due tooltip della card: il segnale può accendersi e spegnersi senza
+     ridisegnarla (signal()), quindi la scritta va rimessa a posto lì. */
+  const ATTENTION_TITLE = 'L\'assistente ha finito: apri la sessione per vedere il risultato';
+  const RENAME_TITLE = 'Doppio click per rinominare';
 
   /**
    * Quanti fogli spuntano sotto la linguetta di un gruppo COLLASSATO, cioè il
@@ -254,9 +258,11 @@
       // conferma) deve poterla ritrovare.
       b.dataset.id = t.id;
       const isActive = t.id === activeId;
-      b.className = `session-item type-${t.type}` + (isActive ? ' active' : '') + (t.needsAttention ? ' needs-attention' : '');
+      b.className = `session-item type-${t.type}` + (isActive ? ' active' : '')
+        + (t.needsAttention ? ' needs-attention' : '')
+        + (t.running ? ' is-running' : '');
       if (isActive) b.setAttribute('aria-current', 'true');
-      if (t.needsAttention) b.title = 'L\'assistente ha finito: apri la sessione per vedere il risultato';
+      if (t.needsAttention) b.title = ATTENTION_TITLE;
       // Il comando si mostra solo se per quel tipo ce n'è più di uno configurato
       const multiCommand = Commands && Commands.profilesFor(t.type).length > 1;
       const extras = [t.claudeAccountName, multiCommand ? t.commandProfileLabel : null].filter(Boolean);
@@ -285,7 +291,7 @@
         if (isDouble) { onRename(t); return; }
         onSelect(t.id);
       };
-      b.title = b.title || 'Doppio click per rinominare';
+      b.title = b.title || RENAME_TITLE;
       // Una sola ✕, e chiude la sessione per davvero. Prima erano due (✕ che
       // staccava, ⏻ che terminava): per sceglierne una bisognava sapere che
       // cos'è tmux. La conferma la chiede il renderer, che riceve la card su cui
@@ -311,12 +317,45 @@
       return add;
     }
 
+    /* Le card disegnate, per id. Serve a `signal()` per ritrovare una card senza
+       ridisegnare la lista: render() svuota `list` e ricostruisce tutto, e con
+       gli elementi ripartono da capo anche le animazioni CSS. */
+    let painted = new Map();
+
+    /**
+     * Accende o spegne un segnale su una card già disegnata.
+     * Passare da render() per un cambio di classe farebbe ripartire da zero il
+     * lampeggio di TUTTE le card: quella che dice «ho finito» tornerebbe di
+     * colpo trasparente ogni volta che un'altra sessione comincia o smette di
+     * lavorare, e la pulsazione si vedrebbe a scatti invece che graduale.
+     * @param {string} id
+     * @param {{running?: boolean, needsAttention?: boolean}} flags
+     * @returns {boolean} false se la card non è disegnata: chi chiama rifaccia la sidebar
+     */
+    function signal(id, flags) {
+      const p = painted.get(id);
+      if (!p) return false;
+      if ('running' in flags) p.card.classList.toggle('is-running', !!flags.running);
+      if ('needsAttention' in flags) {
+        p.card.classList.toggle('needs-attention', !!flags.needsAttention);
+        p.card.title = flags.needsAttention ? ATTENTION_TITLE : RENAME_TITLE;
+        // Se il gruppo è chiuso la card non si vede: il segnale sta sulla
+        // linguetta, e lì vale per tutte le sessioni che ci sono dentro.
+        if (p.body.hidden) {
+          const acceso = p.cards.some((c) => c.classList.contains('needs-attention'));
+          p.header.classList.toggle('needs-attention', acceso);
+        }
+      }
+      return true;
+    }
+
     /**
      * @param {object[]} sessions schede aperte, nell'ordine di apertura
      * @param {string|null} activeId scheda in primo piano
      */
     function render(sessions, activeId) {
       if (dragging) { pendingRender = [sessions, activeId]; return; }
+      painted = new Map();
       list.innerHTML = '';
       if (count) count.textContent = sessions.length ? `(${sessions.length})` : '';
       if (!sessions.length) {
@@ -381,7 +420,13 @@
         const body = document.createElement('div');
         body.className = 'group-body';
         if (collapsed) body.hidden = true;
-        for (const t of g.items) body.appendChild(createSessionItem(t, activeId, g.key, body));
+        const cards = [];
+        for (const t of g.items) {
+          const card = createSessionItem(t, activeId, g.key, body);
+          cards.push(card);
+          painted.set(t.id, { card, header, body, cards });
+          body.appendChild(card);
+        }
         attachBodyDrag(body, g.key);
         group.appendChild(body);
         list.appendChild(group);
@@ -389,7 +434,7 @@
     }
 
     updateModeButtons();
-    return { render, getMode, setMode, expandGroupOf, groupKeyFor };
+    return { render, signal, getMode, setMode, expandGroupOf, groupKeyFor };
   }
 
   return { createSidebar, sheetCount, GROUP_MODES, DOUBLE_CLICK_MS };

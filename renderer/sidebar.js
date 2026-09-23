@@ -281,24 +281,44 @@
       });
     }
 
-    /* Trascinamento dei gruppi progetto, per la linguetta. Il rilascio si
-       segna sul gruppo sorvolato (riga sopra o sotto, `drop-before`/`drop-after`)
-       invece di spostare il gruppo dal vivo come le card: un fascicolo aperto
-       è alto, e farlo saltare sotto il cursore renderebbe impossibile mirare.
-       «Senza directory» (chiave vuota) non si sposta e non fa da bersaglio:
+    /* Trascinamento dei gruppi progetto, per la linguetta. Stesso riordino
+       "vivo" delle card: il gruppo preso in mano si sposta DAVVERO nella lista e
+       fa da segnaposto (chiuso, per non essere alto quanto le sue sessioni), gli
+       altri scorrono con FLIP, e il rilascio conferma l'ordine che si vede.
+       Il rilascio si accetta su tutta la lista, spazi fra i gruppi compresi: un
+       rilascio rifiutato fa tornare indietro l'immagine trascinata prima che la
+       lista si aggiorni, ed è il salto che si vedeva.
+       «Senza directory» (chiave vuota) non si sposta e nessuno le passa sotto:
        resta in fondo, come decide session-groups.js. */
     const canDragGroups = () => !!Order && groupMode === 'project';
     const isMovableGroup = (key) => canDragGroups() && !!key;
+    const groupsInList = () => [...list.children].filter((n) => n.classList && n.classList.contains('session-group'));
+    const movableGroups = () => groupsInList().filter((g) => isMovableGroup(g.dataset.groupKey));
 
-    function clearDropMarks() {
-      for (const g of list.children) g.classList.remove('drop-before', 'drop-after');
+    /**
+     * Porta il segnaposto prima del primo progetto il cui centro sta sotto il
+     * cursore, o dopo l'ultimo progetto. Stabile: spostarlo oltre un gruppo
+     * sposta quel gruppo dalla parte giusta, non lo riporta sotto il cursore.
+     */
+    function placeGroup(clientY) {
+      const el = draggingGroup.el;
+      const others = movableGroups().filter((g) => g !== el);
+      if (!others.length) return;
+      const next = others.find((g) => {
+        const r = g.getBoundingClientRect();
+        return clientY < r.top + r.height / 2;
+      });
+      const ref = next || others[others.length - 1].nextElementSibling;
+      if (ref === el || el.nextElementSibling === ref) return;
+      flip(groupsInList(), el, () => list.insertBefore(el, ref));
     }
 
-    function moveGroup(movedKey, targetKey, before) {
-      const next = Order.moveAdjacent(shownProjectKeys, movedKey, targetKey, { before });
-      if (next === shownProjectKeys) return false;
-      const shown = new Set(next);
-      projectOrder = [...next, ...projectOrder.filter((k) => !shown.has(k))].slice(0, MAX_SAVED_PROJECTS);
+    /** Salva l'ordine letto dal DOM. Falso se il gruppo è dove era partito. */
+    function commitGroupsFromDom() {
+      const keys = movableGroups().map((g) => g.dataset.groupKey);
+      if (keys.every((k, i) => k === shownProjectKeys[i])) return false;
+      const shown = new Set(keys);
+      projectOrder = [...keys, ...projectOrder.filter((k) => !shown.has(k))].slice(0, MAX_SAVED_PROJECTS);
       writeList(storage, PROJECT_ORDER_KEY, projectOrder);
       return true;
     }
@@ -307,21 +327,31 @@
       const d = draggingGroup;
       draggingGroup = null;
       dragEndedAt = Date.now();
-      d.group.classList.remove('group-dragging');
-      clearDropMarks();
-      const moved = d.drop && moveGroup(d.key, d.drop.key, d.drop.before);
+      d.el.classList.remove('group-dragging');
+      list.classList.remove('reordering-groups');
+      const moved = commitGroupsFromDom();
       const pend = pendingRender;
       pendingRender = null;
+      // Il render dopo lo spostamento ridisegna lo stesso ordine che già si
+      // vede: serve a riallineare lo stato interno, non muove niente.
       if (moved || pend) render(...(pend || lastRender));
     }
 
     function attachGroupDrag(group, header, key) {
       header.dataset.key = key;
+      group.dataset.groupKey = key;
       header.draggable = isMovableGroup(key);
       if (!header.draggable) return;
       header.addEventListener('dragstart', (e) => {
-        draggingGroup = { key, group, drop: null };
-        group.classList.add('group-dragging');
+        draggingGroup = { key, el: group };
+        // Come per le card: l'immagine che segue il cursore si fotografa dopo
+        // questo handler, il segnaposto si disegna al frame dopo.
+        const mark = () => {
+          if (!draggingGroup || draggingGroup.el !== group) return;
+          group.classList.add('group-dragging');
+          list.classList.add('reordering-groups');
+        };
+        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(mark); else mark();
         if (e.dataTransfer) {
           e.dataTransfer.effectAllowed = 'move';
           try { e.dataTransfer.setData('text/plain', key); } catch {}
@@ -330,26 +360,19 @@
       header.addEventListener('dragend', () => { if (draggingGroup) endGroupDrag(); });
     }
 
-    function attachGroupDrop(group, key) {
-      if (!isMovableGroup(key)) return;
-      const accepts = () => draggingGroup && draggingGroup.key !== key;
-      const beforeHalf = (e) => {
-        const r = group.getBoundingClientRect();
-        return e.clientY < r.top + r.height / 2;
-      };
-      group.addEventListener('dragover', (e) => {
-        if (!accepts()) return;
+    /* Sulla lista, una volta sola: la lista sopravvive ai render, i gruppi no.
+       Il dragover di un gruppo ci arriva per bubbling. */
+    if (Order) {
+      list.addEventListener('dragover', (e) => {
+        if (!draggingGroup) return;
         e.preventDefault();
         if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-        const before = beforeHalf(e);
-        draggingGroup.drop = { key, before };
-        clearDropMarks();
-        group.classList.add(before ? 'drop-before' : 'drop-after');
+        placeGroup(e.clientY);
       });
-      group.addEventListener('drop', (e) => {
-        if (!accepts()) return;
+      list.addEventListener('drop', (e) => {
+        if (!draggingGroup) return;
         e.preventDefault();
-        draggingGroup.drop = { key, before: beforeHalf(e) };
+        // L'ordine è già quello che si vede: lo conferma dragend.
       });
     }
 
@@ -520,7 +543,6 @@
           render(sessions, activeId);
         };
         attachGroupDrag(group, header, g.key);
-        attachGroupDrop(group, g.key);
         cap.appendChild(header);
         // «+» solo dove c'è una radice in cui creare: il gruppo «Senza
         // directory» (chiave vuota) non ce l'ha, e per tipo la directory non è nota.

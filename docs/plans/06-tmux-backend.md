@@ -155,6 +155,15 @@ trovato una strada migliore:
   scrollback di xterm è a 0; senza tmux la barra scorre quello di xterm. Le TUI
   che chiedono il mouse tengono la rotella; nell'alternate screen (less, vim)
   la rotella manda frecce, come farebbe xterm.
+- ✅ **Barra nelle TUI a schermo intero (23/09/2026).** claude, opencode e codex
+  girano nell'alternate screen col mouse acceso: tmux ha `history_size` 0 e la
+  barra restava nascosta. La history è del programma e da fuori non si vede:
+  la barra ne stima la posizione contando gli scatti di rotella inviati (xterm
+  ne manda uno per evento), esatta in fondo e indicativa salendo. Click e
+  trascinamento generano eventi `wheel` sull'elemento di xterm, che li codifica
+  per il programma (SGR/X10) come quelli veri. Scrivere riporta la stima in
+  fondo; uscire dall'alternate screen la azzera. Acceso, il cursore prende
+  `--type-color` (il wrap del terminale porta la classe `type-*`).
 
 ## Rimasto fuori, volutamente
 

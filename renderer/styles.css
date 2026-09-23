@@ -545,7 +545,11 @@ button:focus-visible, input:focus-visible, select:focus-visible {
    che dice «questa cosa sta sopra» — due segnali diversi, due disegni diversi.
    Il gruppo si limita ad alzare i bordi (sopra). */
 /* Gruppo chiuso che contiene la sessione attiva: stesso marker delle card */
-.group-header.has-active .sel-mark { visibility: visible; }
+/* Sulla linguetta il marker non tiene il posto come sulle card: lo spazio vuoto
+   fra fetta e icona spingeva il nome a destra, lontano dalla fetta e schiacciato
+   sul contatore. Compare solo a gruppo chiuso, che già cambia la linguetta. */
+.group-header .sel-mark { display: none; }
+.group-header.has-active .sel-mark { display: inline-block; visibility: visible; }
 /* La fetta di pizza al posto della freccina: la punta guarda a destra (gruppo
    chiuso) e ruota di 90° in senso orario quando il gruppo è aperto, finendo in
    basso. Il verso lo dà lo stato ARIA dell'header, non un secondo glifo. */
@@ -634,9 +638,10 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   transition: background-color 120ms ease, left 120ms ease, right 120ms ease;
 }
 .term-scroll:hover .term-scroll-thumb { left: 1px; right: 1px; background: var(--text-faint); }
-/* Lontani dal fondo: il cursore si accende, l'output nuovo è più in basso. */
-.term-scroll.is-scrolled .term-scroll-thumb { background: var(--action-text); }
-.term-scroll.is-dragging .term-scroll-thumb { left: 1px; right: 1px; background: var(--action); }
+/* Lontani dal fondo il cursore si accende, col colore del tipo di sessione
+   (quello scelto in View → Colori delle sessioni): l'output nuovo è più in basso. */
+.term-scroll.is-scrolled .term-scroll-thumb { background: var(--type-color, var(--action-text)); }
+.term-scroll.is-dragging .term-scroll-thumb { left: 1px; right: 1px; background: var(--type-color, var(--action)); }
 /* Assoluto invece che in flusso: in colonna il terminale prende tutto lo
    spazio, e il messaggio finirebbe schiacciato in cima. `inset` lascia fuori
    la barra dell'uso, `margin: auto` centra. */
@@ -761,6 +766,21 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   box-shadow: 0 0 0 3px var(--action-ring);
 }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Colori delle sessioni (menu View): pallino col colore vivo, nome, selettore */
+.type-color-list { display: flex; flex-direction: column; gap: 6px; }
+.modal label.type-color-row {
+  flex-direction: row; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: var(--radius);
+  background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); font-size: 14px;
+}
+.type-color-row .dot { width: 10px; height: 10px; flex: 0 0 auto; }
+.type-color-name { flex: 1; min-width: 0; }
+.modal .type-color-row input[type="color"] {
+  width: 56px; height: 30px; padding: 2px 4px; flex: 0 0 auto; cursor: pointer;
+}
+.type-colors-reset { margin-right: auto; }
 
 /* Tabs: gruppo su fondo nero con padding 5px; attivo pomodoro tenue + bordo pomodoro */
 .tabs {

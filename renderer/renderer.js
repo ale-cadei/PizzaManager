@@ -39,6 +39,11 @@ const AI_TYPES = ['opencode', 'claude', 'codex', 'antigravity'];
 const termFont = window.AisessTermFont.createFontSizeStore(window.localStorage);
 const TERM_LINE_HEIGHT = 1.2;
 
+// Colori dei tipi di sessione cambiati dal menu View (renderer/type-colors.js):
+// si applicano subito, prima che la sidebar disegni la prima card.
+const typeColors = window.AisessTypeColors.createTypeColorStore(window.localStorage, Groups.TYPE_ORDER);
+window.AisessTypeColors.applyTypeColors(document.documentElement.style, typeColors.get(), Groups.TYPE_ORDER);
+
 /* Tema del terminale, allineato ai token (renderer/tokens.css): il fondo e il
    testo sono gli stessi dell'app, e i tre colori "di stato" della palette
    prendono il posto dei corrispondenti ANSI, così un ✔ verde del terminale è
@@ -82,6 +87,7 @@ async function init() {
     window.aisess.onMenu('menu-term-font-bigger', () => runTermFontAction('term-font-bigger'));
     window.aisess.onMenu('menu-term-font-smaller', () => runTermFontAction('term-font-smaller'));
     window.aisess.onMenu('menu-term-font-reset', () => runTermFontAction('term-font-reset'));
+    window.aisess.onMenu('menu-type-colors', () => typeColorsDialog().open());
     window.aisess.onMenuEdit((action) => runEditAction(action));
   } catch {}
 
@@ -729,7 +735,8 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   const claudeAccountName = type === 'claude' ? claudeAccountLabel(claudeAccountId) : null;
 
   const wrap = document.createElement('div');
-  wrap.className = 'term-wrap';
+  // La classe del tipo dà --type-color alla barra di scorrimento (styles.css)
+  wrap.className = 'term-wrap type-' + type;
   wrap.id = 'wrap-' + id;
   const inner = document.createElement('div');
   inner.style.width = '100%'; inner.style.height = '100%';
@@ -783,7 +790,10 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
     applyTypedPrompt(tab, d);
     // L'utente ha chiesto qualcosa qui: la risposta va segnalata anche se breve.
     // Non i report che xterm manda da solo (mouse, focus): lampeggio a caso.
-    if (Attention.isTyping(d)) attention.typed(id);
+    if (Attention.isTyping(d)) {
+      attention.typed(id);
+      tab.scroller.noteTyping();
+    }
   });
   // xterm accetta un solo gestore tasti: qui si compongono quelli dei moduli.
   // Copia/incolla: la selezione di xterm non è una selezione del documento.
@@ -851,6 +861,28 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
    Con il fuoco (o una selezione) sul terminale attivo copia/incolla passano da
    xterm; altrove restano le azioni native, che funzionano su input e testo. */
 const EDIT_ACTIONS = ['undo', 'redo', 'cut', 'copy', 'paste', 'selectAll'];
+
+// Il dialogo dei colori si costruisce alla prima apertura (renderer/type-colors-ui.js)
+let typeColorsDialogInstance = null;
+function typeColorsDialog() {
+  if (!typeColorsDialogInstance) {
+    const root = document.documentElement;
+    typeColorsDialogInstance = window.AisessTypeColorsUI.createTypeColorsDialog({
+      doc: document,
+      backdrop: $('#modal-type-colors'),
+      list: $('#type-color-list'),
+      saveBtn: $('#type-colors-save'),
+      cancelBtn: $('#type-colors-cancel'),
+      resetBtn: $('#type-colors-reset'),
+      store: typeColors,
+      types: Groups.TYPE_ORDER,
+      labels: Groups.TYPE_LABELS,
+      style: root.style,
+      readVar: (name) => getComputedStyle(root).getPropertyValue(name),
+    });
+  }
+  return typeColorsDialogInstance;
+}
 
 /**
  * Dimensione del testo dei terminali, da menu nativo o menubar in-app.

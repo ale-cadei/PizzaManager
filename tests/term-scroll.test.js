@@ -48,6 +48,7 @@ function setup({ backendState = { history: 76, position: 0, rows: 24, inMode: fa
   const calls = [];
   let wheel = null;
   const typed = [];
+  const wheels = [];
   const term = {
     rows: 24,
     modes: { mouseTrackingMode: mouse, applicationCursorKeysMode: false },
@@ -60,10 +61,13 @@ function setup({ backendState = { history: 76, position: 0, rows: 24, inMode: fa
     state: async () => { calls.push(['state']); return state; },
   };
   const host = createElement('div');
-  const ctl = S.attach({ term, host, backend: () => backend, rowHeight: () => 20, sendKeys: (d) => typed.push(d), doc: { createElement } });
+  // Come xterm: lo scatto generato passa anche dal gestore della rotella, che non deve contarlo due volte.
+  const sendWheel = (up) => { wheels.push(up ? 'su' : 'giù'); wheel({ deltaY: up ? -1 : 1, deltaMode: 1, preventDefault() {} }); };
+  const ctl = S.attach({ term, host, backend: () => backend, rowHeight: () => 20, sendKeys: (d) => typed.push(d), doc: { createElement }, sendWheel });
   const bar = host.children.find((c) => c.classes.has('term-scroll'));
   bar.rect = { top: 0, left: 0, width: 8, height: 400 };
-  return { ctl, bar, thumb: bar.children[0], calls, typed, wheel: (e) => wheel({ preventDefault() { this.prevented = true; }, ...e }) };
+  const setState = (next) => { state = { ...state, ...next }; };
+  return { ctl, bar, thumb: bar.children[0], calls, typed, wheels, setState, wheel: (e) => wheel({ preventDefault() { this.prevented = true; }, ...e }) };
 }
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
@@ -136,4 +140,51 @@ ok('xtermBackend: senza tmux la history è quella di xterm', async () => {
   await b.scroll(3);
   await b.scrollTo(40);
   assert.deepStrictEqual(scrolled, [['lines', -3], ['line', 60]]);
+});
+
+const TUI = { backendState: { history: 0, position: 0, rows: 24, inMode: false, alternate: true }, mouse: 'any' };
+
+ok('schermo intero col mouse: la rotella resta al programma, la barra stima dagli scatti', async () => {
+  const s = setup(TUI);
+  await s.ctl.refresh();
+  assert.ok(!s.bar.classes.has('is-empty'), 'la barra si vede anche senza history di tmux');
+  assert.strictEqual(s.thumb.style.transform, 'translateY(' + (400 - s.thumb.style.height.replace('px', '')) + 'px)', 'in fondo');
+  assert.strictEqual(s.wheel({ deltaY: -60, deltaMode: 0 }), true, 'xterm manda lo scatto al programma');
+  s.wheel({ deltaY: -60, deltaMode: 0 });
+  s.wheel({ deltaY: -5, deltaMode: 0 });
+  assert.ok(s.bar.classes.has('is-scrolled'), 'salito: la barra si accende');
+  assert.strictEqual(s.calls.filter((c) => c[0] === 'scroll').length, 0, 'tmux non c entra');
+  s.wheel({ deltaY: 60, deltaMode: 0 });
+  s.wheel({ deltaY: 60, deltaMode: 0 });
+  s.wheel({ deltaY: 60, deltaMode: 0 });
+  assert.ok(!s.bar.classes.has('is-scrolled'), 'sotto il fondo non si scende');
+});
+
+ok('schermo intero: click e trascinamento mandano scatti veri, contati una volta sola', async () => {
+  const s = setup(TUI);
+  await s.ctl.refresh();
+  fire(s.bar, 'pointerdown', { clientY: 0, button: 0, pointerId: 1, target: s.bar });
+  // 24 righe / 3 per scatto = 8 scatti a schermata, history supposta 3 schermate
+  assert.strictEqual(s.wheels.length, 24);
+  assert.ok(s.wheels.every((w) => w === 'su'));
+  assert.strictEqual(s.thumb.style.transform, 'translateY(0px)', 'durante il trascinamento la lunghezza non cresce');
+  fire(s.bar, 'pointermove', { clientY: 400, pointerId: 1 });
+  assert.strictEqual(s.wheels.filter((w) => w === 'giù').length, 24, 'di nuovo in fondo');
+  fire(s.bar, 'pointerup', { pointerId: 1 });
+  assert.ok(!s.bar.classes.has('is-scrolled'));
+});
+
+ok('schermo intero: scrivere riporta la stima in fondo, uscire dal programma la azzera', async () => {
+  const s = setup(TUI);
+  await s.ctl.refresh();
+  s.ctl.scrollBy(5);
+  assert.deepStrictEqual(s.wheels, ['su', 'su', 'su', 'su', 'su']);
+  assert.ok(s.bar.classes.has('is-scrolled'));
+  s.ctl.noteTyping();
+  assert.ok(!s.bar.classes.has('is-scrolled'));
+  s.ctl.scrollBy(3);
+  s.setState({ alternate: false, history: 0 });
+  await s.ctl.refresh();
+  assert.ok(!s.bar.classes.has('is-scrolled'));
+  assert.ok(s.bar.classes.has('is-empty'), 'shell senza history: niente barra');
 });

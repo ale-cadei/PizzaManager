@@ -15,7 +15,10 @@ app/           Ciò che dipende da Electron per natura e non ha senso testare in
                isolamento: finestra (window.js), menu (menu.js), ciclo di vita
                dei pty (pty.js), config tmux distribuita (tmux.conf).
 renderer/      UI: HTML, CSS, JS della finestra. Gira sandboxed, parla col main
-               solo tramite preload.js.
+               solo tramite preload.js. Moduli UMD puri (sidebar.js, attention.js…)
+               e, caricati dopo, gli script dell'app divisi per area
+               (app-state.js … renderer.js): condividono lo scope globale,
+               quindi l'ordine in index.html conta (tests/renderer-load.test.js).
 tests/         Runner di Node (`npm run test:unit`, `npm run test:coverage`).
 docs/plans/    Un piano per branch, autosufficienti.
 ```

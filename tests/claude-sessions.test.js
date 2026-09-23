@@ -3,6 +3,7 @@ const path = require("path");
 const os = require("os");
 const assert = require("node:assert");
 const { test: ok } = require("node:test");
+const { readRendererApp } = require("./renderer-source");
 
 /* ---------- Sessioni Claude: titolo dalla conversazione ---------- */
 
@@ -111,7 +112,7 @@ ok('claude resume: senza prompt utile resta un titolo leggibile, mai vuoto', () 
 });
 
 ok('nomi: la scheda non prende l id come nome finché manca il prompt', () => {
-  const js = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'renderer.js'), 'utf8');
+  const js = readRendererApp();
   assert.ok(/s\.titled === false/.test(js),
     'il renderer applica anche i titoli di ripiego');
 });

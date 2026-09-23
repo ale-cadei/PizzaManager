@@ -27,7 +27,7 @@
    */
   function groupSessions(sessions, options = {}) {
     const list = Array.isArray(sessions) ? sessions : [];
-    return options.mode === 'project' ? groupByProject(list) : groupByType(list, options);
+    return options.mode === 'project' ? groupByProject(list, options.projectOrder) : groupByType(list, options);
   }
 
   function groupByType(sessions, { typeOrder = TYPE_ORDER, typeLabels = TYPE_LABELS } = {}) {
@@ -48,7 +48,12 @@
     return out;
   }
 
-  function groupByProject(sessions) {
+  /**
+   * @param {object[]} sessions
+   * @param {string[]} [projectOrder] radici nell'ordine scelto dall'utente
+   *   (trascinando le linguette). Chi non c'è va in coda, in ordine alfabetico.
+   */
+  function groupByProject(sessions, projectOrder) {
     const byKey = new Map();
     for (const s of sessions) {
       const key = s && typeof s.projectRoot === 'string' && s.projectRoot ? s.projectRoot : NO_PROJECT_KEY;
@@ -57,11 +62,13 @@
     }
     const roots = [...byKey.keys()].filter((k) => k !== NO_PROJECT_KEY);
     const labels = projectLabels(roots);
+    const rank = new Map((Array.isArray(projectOrder) ? projectOrder : []).map((k, i) => [k, i]));
+    const byRank = (a, b) => (rank.has(a.key) ? rank.get(a.key) : Infinity) - (rank.has(b.key) ? rank.get(b.key) : Infinity);
     // A parità di etichetta si ordina sulla chiave: così l'ordine è totale e
     // due render successivi non invertono mai due gruppi.
     const out = roots
       .map((key) => ({ key, kind: 'project', label: labels.get(key), title: key, items: byKey.get(key) }))
-      .sort((a, b) => a.label.localeCompare(b.label) || a.key.localeCompare(b.key));
+      .sort((a, b) => byRank(a, b) || a.label.localeCompare(b.label) || a.key.localeCompare(b.key));
     if (byKey.has(NO_PROJECT_KEY)) {
       out.push({ key: NO_PROJECT_KEY, kind: 'project', label: NO_PROJECT_LABEL, title: NO_PROJECT_LABEL, items: byKey.get(NO_PROJECT_KEY) });
     }

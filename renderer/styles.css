@@ -314,6 +314,15 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .group-body.reordering .session-item { transition: transform .16s ease; }
 .group-body.reordering .session-item.dragging { transition: none; }
 
+/* Riordino dei progetti per la linguetta. Il fascicolo preso in mano sbiadisce;
+   dove andrà lo dice una riga d'azione sopra o sotto il fascicolo sorvolato.
+   È un'ombra e non un bordo: un bordo cambierebbe l'altezza e farebbe saltare
+   la lista sotto il cursore. */
+.session-group.group-dragging { opacity: .45; }
+.session-group.drop-before { box-shadow: 0 -3px 0 0 var(--action, var(--accent)); }
+.session-group.drop-after  { box-shadow: 0 3px 0 0 var(--action, var(--accent)); }
+.group-header[draggable="true"] { cursor: grab; }
+
 /* `visibility` invece di `display`: lo spazio resta occupato, le card non si spostano */
 .sel-mark {
   flex: 0 0 auto; width: 12px; text-align: center;

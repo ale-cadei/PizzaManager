@@ -10,6 +10,13 @@
  * con { history, position, rows, inMode, alternate }: position è quante righe
  * sopra il fondo sta la vista.
  *
+ * I programmi a schermo intero che chiedono il mouse (claude, opencode) hanno
+ * una history loro, che da fuori non si vede: tmux ne ha zero righe. Lì la
+ * rotella va al programma e la barra STIMA la posizione contando gli scatti
+ * mandati — esatta in fondo, indicativa salendo, perché non si sa dove finisce
+ * il testo. Click e trascinamento mandano scatti veri, generati come eventi
+ * rotella sull'elemento di xterm: la codifica (SGR, X10) resta affar suo.
+ *
  * Wrapper UMD come gli altri moduli del renderer: globale nella pagina,
  * module.exports sotto Node per i test. */
 (function (root, factory) {
@@ -21,6 +28,13 @@
   // Aggiornare lo stato a ogni pezzo di output sarebbe un processo tmux per
   // pezzo: basta qualche volta al secondo perché la barra segua la history.
   const OUTPUT_REFRESH_MS = 250;
+  // Stima per i programmi a schermo intero: righe mosse da uno scatto di
+  // rotella (claude e opencode ne fanno circa 3) e history minima supposta,
+  // in schermate, finché gli scatti non dicono che ce n'è di più.
+  const LINES_PER_TICK = 3;
+  const VIRTUAL_MIN_SCREENS = 3;
+  // Un salto dalla barra non manda più di tanti scatti in una volta.
+  const MAX_TICKS_PER_MOVE = 200;
 
   const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
 
@@ -71,9 +85,10 @@
    * Barra dentro `host` e rotella di `term`.
    * @param {{ term: object, host: HTMLElement, backend: () => object,
    *   rowHeight: () => number, sendKeys: (data: string) => void,
-   *   isVisible?: () => boolean, doc?: Document }} opts
+   *   isVisible?: () => boolean, doc?: Document,
+   *   sendWheel?: (up: boolean) => void }} opts
    */
-  function attach({ term, host, backend, rowHeight, sendKeys, isVisible = () => true, doc = document }) {
+  function attach({ term, host, backend, rowHeight, sendKeys, isVisible = () => true, doc = document, sendWheel = null }) {
     const bar = doc.createElement('div');
     bar.className = 'term-scroll is-empty';
     bar.setAttribute('aria-hidden', 'true');
@@ -89,13 +104,35 @@
     let inflight = false;
     let drag = null;
     let outputTimer = null;
+    // Posizione stimata nei programmi a schermo intero, in scatti sopra il
+    // fondo; `reach` è il più in alto a cui si è arrivati.
+    let virtual = { offset: 0, reach: 0 };
+    let synthesizing = false;
 
     const trackPx = () => bar.getBoundingClientRect().height;
 
+    function isVirtual() {
+      return term.modes.mouseTrackingMode !== 'none' && isAlternate();
+    }
+
+    function virtualState() {
+      const rows = Math.max(1, Math.round(term.rows / LINES_PER_TICK));
+      // Durante il trascinamento la lunghezza resta ferma: crescerebbe sotto il
+      // dito a ogni movimento verso l'alto e il cursore scapperebbe.
+      const history = drag && drag.history ? drag.history : Math.max(rows * VIRTUAL_MIN_SCREENS, virtual.reach + rows);
+      return { history, position: Math.min(virtual.offset, history), rows, inMode: virtual.offset > 0, alternate: true };
+    }
+
+    /** Lo stato che la barra disegna: quello vero, o la stima. */
+    function view() {
+      return isVirtual() ? virtualState() : state;
+    }
+
     function render() {
-      geometry = thumbGeometry(state && { ...state, track: trackPx() });
+      const v = view();
+      geometry = thumbGeometry(v && { ...v, track: trackPx() });
       bar.classList.toggle('is-empty', !geometry.scrollable);
-      bar.classList.toggle('is-scrolled', Boolean(state && state.position > 0));
+      bar.classList.toggle('is-scrolled', Boolean(v && v.position > 0));
       thumb.style.height = geometry.size + 'px';
       thumb.style.transform = 'translateY(' + geometry.offset + 'px)';
     }
@@ -103,7 +140,40 @@
     function apply(next) {
       if (!next) return;
       state = next;
+      // Il programma a schermo intero è uscito: la stima non vale più.
+      if (!next.alternate) virtual = { offset: 0, reach: 0 };
       render();
+    }
+
+    function moveVirtual(ticks) {
+      const offset = Math.max(0, virtual.offset + ticks);
+      virtual = { offset, reach: Math.max(virtual.reach, offset) };
+      render();
+    }
+
+    /** Uno scatto di rotella finto sul terminale: xterm lo codifica per il programma come uno vero. */
+    function dispatchWheel(up) {
+      const el = term.element;
+      const win = doc.defaultView;
+      if (!el || !win || !win.WheelEvent) return;
+      const r = el.getBoundingClientRect();
+      el.dispatchEvent(new win.WheelEvent('wheel', {
+        deltaY: up ? -1 : 1, deltaMode: 1, bubbles: true, cancelable: true,
+        clientX: r.left + r.width / 2, clientY: r.top + r.height / 2,
+      }));
+    }
+
+    function sendTicks(n) {
+      const count = Math.min(Math.abs(n), MAX_TICKS_PER_MOVE);
+      if (!count) return;
+      const send = sendWheel || dispatchWheel;
+      synthesizing = true;
+      try {
+        for (let i = 0; i < count; i++) send(n > 0);
+      } finally {
+        synthesizing = false;
+      }
+      moveVirtual(n > 0 ? count : -count);
     }
 
     /** Una richiesta alla volta: gli scatti arrivati nel frattempo partono insieme, il salto più recente vince. */
@@ -120,11 +190,13 @@
 
     function scrollBy(lines) {
       if (!lines) return;
+      if (isVirtual()) { sendTicks(lines); return; }
       pending = { ...pending, lines: pending.lines + lines };
       pump();
     }
 
     function scrollTo(fromBottom) {
+      if (isVirtual()) { sendTicks(fromBottom - virtual.offset); return; }
       pending = { lines: 0, target: fromBottom };
       // La barra si sposta subito sotto il dito: tmux conferma dopo.
       if (state) apply({ ...state, position: fromBottom });
@@ -137,8 +209,14 @@
     }
 
     term.attachCustomWheelEventHandler((e) => {
-      // La TUI ha chiesto il mouse (menu, liste): la rotella è sua.
-      if (term.modes.mouseTrackingMode !== 'none') return true;
+      // La TUI ha chiesto il mouse (menu, liste): la rotella è sua. xterm le
+      // manda uno scatto per evento che muove almeno una riga: stessa misura qui.
+      if (term.modes.mouseTrackingMode !== 'none') {
+        if (synthesizing) return true;
+        const lines = wheelLines(e, rowHeight(), term.rows);
+        if (lines && isAlternate()) moveVirtual(Math.sign(lines));
+        return true;
+      }
       if (e.preventDefault) e.preventDefault();
       const lines = wheelLines(e, rowHeight(), term.rows);
       if (!lines) return false;
@@ -154,16 +232,17 @@
 
     function dragTo(clientY) {
       const top = bar.getBoundingClientRect().top;
-      scrollTo(fromBottomAt({ thumbTop: clientY - top - drag.grab, track: trackPx(), size: geometry.size, history: state.history }));
+      scrollTo(fromBottomAt({ thumbTop: clientY - top - drag.grab, track: trackPx(), size: geometry.size, history: drag.history }));
     }
 
     bar.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0 || !state || !geometry.scrollable) return;
+      const v = view();
+      if (e.button !== 0 || !v || !geometry.scrollable) return;
       if (e.preventDefault) e.preventDefault();
       const y = e.clientY - bar.getBoundingClientRect().top;
       const onThumb = y >= geometry.offset && y <= geometry.offset + geometry.size;
       // Sul cursore lo si prende dov'è; sulla barra il cursore salta lì, centrato, e si continua a trascinare.
-      drag = { id: e.pointerId, grab: onThumb ? y - geometry.offset : geometry.size / 2 };
+      drag = { id: e.pointerId, grab: onThumb ? y - geometry.offset : geometry.size / 2, history: v.history };
       if (bar.setPointerCapture) { try { bar.setPointerCapture(e.pointerId); } catch {} }
       bar.classList.add('is-dragging');
       if (!onThumb) dragTo(e.clientY);
@@ -171,7 +250,7 @@
     bar.addEventListener('pointermove', (e) => {
       if (drag && e.pointerId === drag.id) dragTo(e.clientY);
     });
-    const endDrag = () => { drag = null; bar.classList.remove('is-dragging'); };
+    const endDrag = () => { drag = null; bar.classList.remove('is-dragging'); render(); };
     bar.addEventListener('pointerup', endDrag);
     bar.addEventListener('pointercancel', endDrag);
 
@@ -185,7 +264,14 @@
       outputTimer = setTimeout(() => { outputTimer = null; if (!drag) refresh(); }, OUTPUT_REFRESH_MS);
     }
 
-    return { refresh, noteOutput, render, scrollBy, scrollTo };
+    /** L'utente ha scritto: i programmi a schermo intero tornano in fondo, la stima pure. */
+    function noteTyping() {
+      if (!virtual.offset) return;
+      virtual = { ...virtual, offset: 0 };
+      render();
+    }
+
+    return { refresh, noteOutput, noteTyping, render, scrollBy, scrollTo };
   }
 
   return { MIN_THUMB, thumbGeometry, fromBottomAt, createWheelAccumulator, xtermBackend, attach };

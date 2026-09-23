@@ -70,7 +70,7 @@ ok('sessioni: la card lampeggia quando l assistente ha finito e si spegne alla s
   // dedurre da sola — l'utente che scrive, che guarda, e che se ne va.
   assert.ok(/function setActive\(id\)[\s\S]{0,300}attention\.left\(activeId\)/.test(js),
     'lasciare una scheda non apre la finestra di silenzio: il suo ridisegno la riaccenderebbe');
-  assert.ok(/term\.onData\(\([\s\S]{0,400}if \(Attention\.isTyping\(d\)\) attention\.typed\(id\)/.test(js),
+  assert.ok(/term\.onData\(\([\s\S]{0,400}if \(Attention\.isTyping\(d\)\) \{?\s*attention\.typed\(id\)/.test(js),
     'quello che l utente digita non arriva alla regola del lampeggio, o ci arrivano anche i report del mouse');
   const sidebar = fs.readFileSync(path.join(root, 'renderer', 'sidebar.js'), 'utf8');
   assert.ok(sidebar.includes("t.needsAttention ? ' needs-attention' : ''"), 'la card non riceve la classe di lampeggio');

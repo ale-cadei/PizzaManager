@@ -42,7 +42,7 @@ contextBridge.exposeInMainWorld('aisess', {
   clipboardRead: () => ipcRenderer.invoke('clipboard-read'),
   onMenuEdit: (cb) => ipcRenderer.on('menu-edit', (_e, action) => cb(action)),
   onMenu: (channel, cb) => {
-    const allowed = ['menu-new-session', 'menu-open-config', 'menu-term-font-bigger', 'menu-term-font-smaller', 'menu-term-font-reset'];
+    const allowed = ['menu-new-session', 'menu-open-config', 'menu-term-font-bigger', 'menu-term-font-smaller', 'menu-term-font-reset', 'menu-type-colors'];
     if (!allowed.includes(channel)) return;
     ipcRenderer.on(channel, () => cb());
   },

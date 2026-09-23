@@ -1205,7 +1205,8 @@ const renderSidebar = () => {
   // Il render ricrea le card: il fumetto di conferma resterebbe appeso a un
   // elemento che non è più nella pagina. Lo si rimette sulla card nuova della
   // stessa sessione (o lo si chiude, se quella sessione non c'è più).
-  closeConfirm.retarget((id) => document.querySelector(`#session-list .session-item[data-id="${CSS.escape(id)}"]`));
+  closeConfirm.retarget(findAnchor);
+  scheduleHint();
 };
 
 /* Pallini dei binari in fondo alla sidebar. Si rilegge anche da «Ricontrolla»
@@ -1247,6 +1248,43 @@ async function refreshDeps() {
 function updateEmpty() {
   const el = $('#empty');
   if (el) el.style.display = tabs.size ? 'none' : 'block';
+}
+
+/* ---------- Suggerimenti una volta sola (onboarding) ----------
+   Quale mostrare lo decide renderer/hints.js; qui si sceglie QUANDO: poco
+   dopo un render, a layout assestato, e mai sopra qualcos'altro — la
+   conferma di chiusura ha la precedenza, e un modale aperto vuol dire che
+   l'utente sta facendo altro. Il fumetto è lo stesso della conferma. */
+const HINT_DELAY_MS = 800;
+const hintStore = window.AisessHints ? window.AisessHints.createHintStore(window.localStorage) : null;
+let hintTimer = null;
+
+/** L'elemento a cui appendere un fumetto: `group:<radice>` è una linguetta, il resto una card. */
+function findAnchor(key) {
+  if (key.startsWith('group:')) {
+    return document.querySelector(`#session-list .group-header[data-key="${CSS.escape(key.slice('group:'.length))}"]`);
+  }
+  return document.querySelector(`#session-list .session-item[data-id="${CSS.escape(key)}"]`);
+}
+
+function scheduleHint() {
+  if (!hintStore) return;
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(showHint, HINT_DELAY_MS);
+}
+
+function showHint() {
+  if (closeConfirm.isOpen() || document.querySelector('.modal-backdrop:not([hidden])')) return;
+  const mode = sidebar.getMode();
+  const groups = Groups.groupSessions(Order.applyOrder([...tabs.values()], sessionOrder), { mode });
+  const hint = window.AisessHints.nextHint({ seen: hintStore.seen(), groups, mode });
+  if (!hint) return;
+  const key = hint.anchor.kind === 'group' ? `group:${hint.anchor.key}` : hint.anchor.key;
+  const anchor = findAnchor(key);
+  // Dentro un gruppo chiuso la card c'è ma non si vede: si riprova al prossimo render
+  if (!anchor || anchor.offsetParent === null) return;
+  hintStore.markSeen(hint.id);
+  closeConfirm.tell({ anchor, title: hint.title, text: hint.text, key }).catch(() => {});
 }
 
 /* ---------- Schermata vuota (onboarding) ----------

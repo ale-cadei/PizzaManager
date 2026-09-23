@@ -646,6 +646,9 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   text-align: center; padding: 20px; display: none;
 }
 #empty .muted { font-size: 14px; }
+/* Con la sezione Strumenti la colonna è alta: in una finestra bassa scorre
+   invece di finire tagliata sotto la barra dell'uso. */
+#empty { max-height: calc(100% - var(--usagebar-h)); overflow-y: auto; box-sizing: border-box; }
 
 /* La schermata vuota (renderer/welcome.js): la riga di sempre centrata, sotto
    le sezioni in colonna leggibile. Le sezioni sono allineate a sinistra: sono
@@ -680,6 +683,12 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .setup-copy { padding: 2px 8px; font-size: 11px; }
 .setup-note { flex-basis: 100%; font-size: 12px; color: var(--text-muted); }
+.welcome-actions { display: flex; gap: 8px; justify-content: center; }
+/* Come i pulsanti gemelli in cima alla sidebar: glifo e parola distanziati. */
+.welcome-actions .btn { display: inline-flex; align-items: center; gap: 6px; }
+.tips-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.tip { font-size: 13px; line-height: 1.45; color: var(--text); }
+.tip::marker { color: var(--text-dim); }
 
 /* ---------- Modali ---------- */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: grid; place-items: center; z-index: 50; }

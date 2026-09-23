@@ -92,3 +92,40 @@ ok('welcome: i nomi arrivano come testo, mai come HTML', () => {
     assert.ok(descendants(root).every((n) => !n.html), 'qualcosa e passato da innerHTML');
   } finally { restore(); }
 });
+
+/* Le cose da sapere: funzioni che guardando l'app non si scoprono. */
+
+ok('welcome: le cose da sapere ci sono sempre, anche a installazione completa', () => {
+  const { restore, root, w } = mount();
+  try {
+    const all = Object.fromEntries(['claude', 'codex', 'opencode', 'antigravity'].map((t) => [t, found('/b/' + t)]));
+    w.update(setupReport({ binaries: all, tmuxAvailable: true, platform: 'darwin' }));
+    const tips = byClass(root, 'tip').map(text).join('\n');
+    assert.ok(/doppio click/i.test(tips), 'manca la rinomina');
+    assert.ok(/trascina/i.test(tips), 'manca il riordino');
+    assert.ok(tips.includes('+'), 'manca il + del progetto');
+    assert.ok(/barra in basso/i.test(tips), 'manca la barra d uso');
+  } finally { restore(); }
+});
+
+ok('welcome: la promessa di tmux si fa solo se tmux c e', () => {
+  const { restore, root, w } = mount();
+  try {
+    const bin = { claude: found('/b/claude') };
+    w.update(setupReport({ binaries: bin, tmuxAvailable: true, platform: 'darwin' }));
+    assert.ok(byClass(root, 'tip').some((t) => /restano vive/i.test(text(t))));
+    w.update(setupReport({ binaries: bin, tmuxAvailable: false, platform: 'darwin' }));
+    assert.ok(!byClass(root, 'tip').some((t) => /restano vive/i.test(text(t))), 'promette sessioni che sopravvivono senza tmux');
+  } finally { restore(); }
+});
+
+ok('welcome: Nuova e Resume chiamano il renderer', () => {
+  const calls = [];
+  const { restore, root, w } = mount({ onNew: () => calls.push('new'), onResume: () => calls.push('resume') });
+  try {
+    w.update(null);
+    byClass(root, 'welcome-new')[0].onclick();
+    byClass(root, 'welcome-resume')[0].onclick();
+    assert.deepStrictEqual(calls, ['new', 'resume']);
+  } finally { restore(); }
+});

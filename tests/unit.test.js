@@ -3,6 +3,7 @@ const path = require('path');
 const os = require('os');
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
+const { readRendererApp } = require('./renderer-source');
 
 const { buildCommand, installHint, aliasHint, INSTALL_HINTS } = require('../lib/commands');
 const { createProfileStore } = require('../lib/profiles');
@@ -126,7 +127,7 @@ ok('i file e i moduli caricati dall app esistono tutti', () => {
     'lib/accounts.js', 'lib/antigravity-sessions.js', 'lib/binaries.js', 'lib/claude-sessions.js',
     'lib/codex-sessions.js', 'lib/commands.js', 'lib/history.js', 'lib/login-path.js',
     'lib/opencode-sessions.js', 'lib/shell.js', 'lib/workdir.js',
-    'renderer/index.html', 'renderer/renderer.js', 'renderer/pizza-logo.js', 'renderer/pizza-slice.js',
+    'renderer/index.html', 'renderer/renderer.js', 'renderer/app-state.js', 'renderer/pizza-logo.js', 'renderer/pizza-slice.js',
     'renderer/prompt-capture.js',
     'renderer/session-titles.js', 'renderer/styles.css', 'renderer/tokens.css',
     'assets/icon.png',
@@ -144,7 +145,7 @@ ok('sidebar: unico pulsante nuova sessione (niente data-new)', () => {
 });
 
 ok('renderer: fit robusto primo tab (proposeDimensions + ResizeObserver)', () => {
-  const js = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'renderer.js'), 'utf8');
+  const js = readRendererApp();
   assert.ok(js.includes('proposeDimensions'), 'manca proposeDimensions');
   assert.ok(js.includes('ResizeObserver'), 'manca ResizeObserver');
   assert.ok(js.includes('refitTab'), 'manca refitTab');

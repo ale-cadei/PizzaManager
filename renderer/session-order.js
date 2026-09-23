@@ -90,8 +90,10 @@
   /**
    * Chiavi stabili di una scheda, dalla più duratura: l'id della conversazione
    * (sopravvive al riavvio della macchina) e la sessione tmux (sopravvive alla
-   * chiusura dell'app). Vuoto se non ne ha nessuna.
-   * @param {{type?: string, resumeId?: string|null, session?: string|null}|null} tab
+   * chiusura dell'app). In coda il nome tmux che la sessione aveva prima di un
+   * riavvio, se è stata ricreata dal ripristino: per una shell è l'unico
+   * aggancio al posto di prima. Vuoto se non ne ha nessuna.
+   * @param {{type?: string, resumeId?: string|null, session?: string|null, previousSession?: string|null}|null} tab
    * @returns {string[]}
    */
   function tabKeys(tab) {
@@ -99,6 +101,7 @@
     return [
       tab.resumeId ? `${tab.type || 'shell'}:${tab.resumeId}` : null,
       tab.session ? `tmux:${tab.session}` : null,
+      tab.previousSession ? `tmux:${tab.previousSession}` : null,
     ].filter(Boolean);
   }
 

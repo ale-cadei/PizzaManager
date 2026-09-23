@@ -736,7 +736,7 @@ async function resolveProjectRoot(cwd) {
   return root;
 }
 
-async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null, startedAt = Date.now() } = {}) {
+async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null, previousSession = null, startedAt = Date.now() } = {}) {
   // attachSession: riaggancio di una sessione tmux gia' viva. Il comando e' gia'
   // stato risolto quando e' nata, quindi niente scelta del profilo.
   const picked = attachSession
@@ -761,6 +761,9 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   // dimensione piena (altrimenti la prima scheda nasce 20x10).
   const tab = { id, type, name: label, cwd, projectRoot: cwd || null, resumeId, startedAt, autoNamed: !name,
     session: attachSession, reattached: Boolean(attachSession),
+    // Nome tmux della sessione prima di un riavvio della macchina: la sola
+    // identità stabile di una shell ricreata, per ritrovarne il posto.
+    previousSession,
     promptCapture: PromptCapture.createPromptCapture(), namedFromPrompt: false, claudeAccountId, claudeAccountName, commandProfileId: picked.id, commandProfileLabel: picked.label, term: null, fit: null, ro: null, wrap, alive: true, needsAttention: false, idleTimer: null, running: false, runTimer: null };
   tabs.set(id, tab);
   updateEmpty();
@@ -1123,7 +1126,7 @@ async function offerRestore() {
       // Il registro si ricostruisce da solo con le nuove sessioni; quelle non scelte spariscono.
       await window.aisess.discardRestorable();
       for (const plan of chosen) {
-        await createTab(plan.type, { name: plan.name, cwd: plan.cwd, resumeId: plan.resumeId, claudeAccountId: plan.claudeAccountId, commandProfileId: plan.commandProfileId });
+        await createTab(plan.type, { name: plan.name, cwd: plan.cwd, resumeId: plan.resumeId, claudeAccountId: plan.claudeAccountId, commandProfileId: plan.commandProfileId, previousSession: plan.previousSession });
       }
     };
     dismissBtn.onclick = async () => { done(); await window.aisess.discardRestorable(); };
@@ -1134,7 +1137,7 @@ async function offerRestore() {
 /** Stessa logica di lib/live-sessions.js#restorePlan, lato renderer (che non puo' importarla). */
 function restorePlanFor(s) {
   const type = s.type || 'shell';
-  const base = { type, cwd: s.cwd || undefined, commandProfileId: s.profileId || null, claudeAccountId: s.accountId || null, name: s.label || null };
+  const base = { type, cwd: s.cwd || undefined, commandProfileId: s.profileId || null, claudeAccountId: s.accountId || null, name: s.label || null, previousSession: s.name || null };
   if (type !== 'shell' && s.resumeId) return { ...base, resumeId: s.resumeId, mode: 'resume' };
   return { ...base, resumeId: null, mode: 'fresh' };
 }

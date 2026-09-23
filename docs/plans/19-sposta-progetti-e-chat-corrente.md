@@ -44,7 +44,10 @@ riavvio della macchina) e la sessione tmux (`tmux:<nome>`, regge la chiusura
 dell'app). Una scheda che riappare con una di quelle chiavi torna al suo posto;
 le schede ancora chiuse restano nella lista accanto a chi le precedeva
 (`mergeSaved`), così il riaggancio una alla volta all'avvio non le perde.
-Una shell senza tmux, o ricreata pulita dopo un riavvio, non ha chiave: in coda.
+Una sessione ricreata dal ripristino dopo un riavvio porta anche il suo vecchio
+nome tmux (`previousSession`, da `live-sessions.json`): è così che una shell,
+che non ha id di conversazione, ritrova il suo posto. Solo una shell senza tmux
+(Windows) non ha chiave e va in coda.
 
 ## Fuori scope
 

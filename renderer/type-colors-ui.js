@@ -1,7 +1,9 @@
-/* Dialogo «Colori delle sessioni»: un selettore per tipo, anteprima dal vivo.
+/* Dialogo «Colori»: un selettore per il colore principale e uno per tipo di
+ * sessione, anteprima dal vivo.
  *
- * Ogni ritocco si applica subito a :root, quindi card, linguette, legenda e
- * lampeggio cambiano mentre si sceglie. «Annulla» (o Esc, o click fuori)
+ * Ogni ritocco si applica subito a :root, quindi pulsanti, card, linguette,
+ * legenda e lampeggio cambiano mentre si sceglie. `onChange` avvisa chi i
+ * colori non li legge dal CSS (il tema di xterm). «Annulla» (o Esc, o click fuori)
  * rimette i colori salvati; «Ripristina predefiniti» torna a tokens.css.
  * La logica pura sta in type-colors.js; qui solo il DOM.
  *
@@ -16,19 +18,22 @@
    *   saveBtn: HTMLElement, cancelBtn: HTMLElement, resetBtn: HTMLElement,
    *   store: ReturnType<TC['createTypeColorStore']>, types: string[],
    *   labels: Record<string, string>, style: CSSStyleDeclaration,
-   *   readVar: (name: string) => string }} opts
+   *   readVar: (name: string) => string, onChange?: () => void }} opts
    */
-  function createTypeColorsDialog({ doc, backdrop, list, saveBtn, cancelBtn, resetBtn, store, types, labels, style, readVar }) {
+  function createTypeColorsDialog({ doc, backdrop, list, saveBtn, cancelBtn, resetBtn, store, types, labels, style, readVar, onChange = () => {} }) {
     let draft = {};
     let inputs = {};
     let isOpen = false;
 
-    const apply = (overrides) => TC.applyTypeColors(style, overrides, types);
+    const apply = (overrides) => {
+      TC.applyTypeColors(style, overrides, types);
+      onChange();
+    };
     const current = (t) => TC.toInputColor(readVar(TC.cssVar(t)));
 
     function buildRow(t) {
       const row = doc.createElement('label');
-      row.className = 'type-color-row';
+      row.className = 'type-color-row type-color-row--' + t;
       const dot = doc.createElement('span');
       dot.className = 'dot ' + t;
       const name = doc.createElement('span');

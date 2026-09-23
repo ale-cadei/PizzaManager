@@ -128,3 +128,50 @@ ok('dialogo: Ripristina predefiniti torna a tokens.css, e resta così solo se si
   assert.deepStrictEqual(s.store.get(), {});
   assert.ok(!(TC.STORAGE_KEY in s.storage.data));
 });
+
+ok('colore principale: una scelta sola scrive --action e tutte le sue varianti', () => {
+  const style = rootStyle();
+  const keys = [TC.ACTION, ...TYPES];
+  TC.applyTypeColors(style, { action: '#3366CC' }, keys);
+  assert.deepStrictEqual(Object.keys(style.inline).sort(), [...TC.ACTION_VARS].sort());
+  assert.strictEqual(style.inline['--action'], '#3366cc');
+  assert.strictEqual(style.inline['--action-ring'], 'rgba(51,102,204,0.22)');
+  TC.applyTypeColors(style, {}, keys);
+  assert.deepStrictEqual(style.inline, {}, 'tolto, tornano tutte le varianti di tokens.css');
+});
+
+ok('colore principale: le varianti hanno col colore gli stessi rapporti del pomodoro', () => {
+  const v = TC.actionVars('#F04E23');
+  assert.strictEqual(v['--action-soft'], '#2a100a', 'fondo tenue ≈ #2B120A di tokens.css');
+  assert.strictEqual(v['--action-ink'], '#180804', 'inchiostro scuro ≈ #1A0A05');
+  assert.ok(TC.contrast(v['--action'], v['--action-ink']) >= 4.5);
+});
+
+ok('colore principale: su un principale scuro la scritta del pulsante diventa chiara', () => {
+  const v = TC.actionVars('#1a237e');
+  assert.strictEqual(v['--action-ink'], '#f6f1ec');
+  assert.ok(TC.contrast(v['--action'], v['--action-ink']) >= 4.5);
+});
+
+ok('dialogo: il colore principale apre l\'elenco e avvisa chi legge i colori da fuori (xterm)', () => {
+  const doc = createElement('html');
+  doc.createElement = createElement;
+  const els = Object.fromEntries(['backdrop', 'list', 'saveBtn', 'cancelBtn', 'resetBtn'].map((k) => [k, createElement('div')]));
+  const style = rootStyle();
+  const keys = [TC.ACTION, ...TYPES];
+  const store = TC.createTypeColorStore(memoryStorage(), keys);
+  let changes = 0;
+  const dialog = createTypeColorsDialog({ doc, ...els, store, types: keys, labels: { action: 'Colore principale' }, style,
+    readVar: (k) => (k === '--action' ? '#F04E23' : style.read(k)), onChange: () => { changes += 1; } });
+  dialog.open();
+  const first = els.list.children[0];
+  assert.strictEqual(first.children[1].textContent, 'Colore principale');
+  assert.strictEqual(first.children[2].value, '#f04e23');
+  first.children[2].value = '#00aa88';
+  fire(first.children[2], 'input', {});
+  assert.strictEqual(style.inline['--action'], '#00aa88');
+  assert.strictEqual(changes, 1);
+  fire(els.cancelBtn, 'click', {});
+  assert.deepStrictEqual(style.inline, {});
+  assert.strictEqual(changes, 2, 'anche l\'annullamento riallinea il terminale');
+});

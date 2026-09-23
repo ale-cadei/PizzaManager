@@ -145,6 +145,16 @@ trovato una strada migliore:
     già (la sessione la si lascia lì e basta).
 - ✅ Test d'integrazione su tmux reale (`tests/integration.test.js`), su un
   socket dedicato al test: le sessioni reali dell'app non si toccano.
+- ✅ **Scorrimento (23/09/2026).** Nella shell la rotella non scorreva: tmux
+  ridisegna il terminale esterno con `CSI n S` e xterm.js quelle righe non le
+  mette nello scrollback (buffer di 24 righe dopo `seq 200`; forzando i newline
+  lo scrollback compare ma a buchi, perché tmux salta i fotogrammi). La history
+  vera è quella di tmux: rotella e barra laterale (`renderer/term-scroll.js`)
+  muovono la copy-mode (`scrollArgs`/`scrollToArgs` in `lib/tmux.js`), un tasto
+  premuto la chiude prima di arrivare al programma (`app/pty.js`). Con tmux lo
+  scrollback di xterm è a 0; senza tmux la barra scorre quello di xterm. Le TUI
+  che chiedono il mouse tengono la rotella; nell'alternate screen (less, vim)
+  la rotella manda frecce, come farebbe xterm.
 
 ## Rimasto fuori, volutamente
 

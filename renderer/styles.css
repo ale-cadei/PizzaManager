@@ -609,6 +609,31 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .term-wrap.active { display: block; }
 .term-wrap .xterm { height: 100%; }
+
+/* Barra laterale dei terminali (renderer/term-scroll.js). Quella nativa di
+   xterm si nasconde: dietro tmux scorrerebbe una history a buchi, e la nostra
+   muove quella vera. Sta nel padding destro del wrap, fuori dal testo. */
+.term-wrap { position: relative; }
+.term-wrap .xterm-viewport { scrollbar-width: none; }
+.term-wrap .xterm-viewport::-webkit-scrollbar { display: none; }
+.term-scroll {
+  position: absolute; top: 14px; bottom: 14px; right: 3px;
+  width: 10px; border-radius: 999px;
+  cursor: default; touch-action: none;
+  transition: background-color 120ms ease;
+}
+.term-scroll:hover, .term-scroll.is-dragging { background: var(--surface-2); }
+.term-scroll.is-empty { visibility: hidden; }
+.term-scroll-thumb {
+  position: absolute; top: 0; left: 2px; right: 2px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  transition: background-color 120ms ease, left 120ms ease, right 120ms ease;
+}
+.term-scroll:hover .term-scroll-thumb { left: 1px; right: 1px; background: var(--text-faint); }
+/* Lontani dal fondo: il cursore si accende, l'output nuovo è più in basso. */
+.term-scroll.is-scrolled .term-scroll-thumb { background: var(--action-text); }
+.term-scroll.is-dragging .term-scroll-thumb { left: 1px; right: 1px; background: var(--action); }
 /* Assoluto invece che in flusso: in colonna il terminale prende tutto lo
    spazio, e il messaggio finirebbe schiacciato in cima. `inset` lascia fuori
    la barra dell'uso, `margin: auto` centra. */

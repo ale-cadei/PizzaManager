@@ -238,9 +238,53 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     return (await tmux.control.list()).map((s) => ({ ...s, attachedHere: attachedNow.has(s.name) }));
   }
 
+  /*
+   * Con la copy-mode aperta dallo scorrimento i tasti andrebbero ai comandi
+   * della copy-mode (q, spazio, frecce) e non al programma. Si chiude prima,
+   * come un terminale che torna in fondo quando scrivi; i tasti che arrivano
+   * nel frattempo aspettano in coda, per non scavalcarsi.
+   */
   function write(id, data) {
     const c = clients.get(id);
-    if (c) c.p.write(data);
+    if (!c) return;
+    if (c.inMode) {
+      c.inMode = false;
+      c.typedSinceScroll = true;
+      // Uno scroll ancora in volo aprirebbe la copy-mode DOPO la chiusura: si aspetta lui.
+      c.pending = Promise.resolve(c.scrolling).then(() => tmux.control.cancelScroll(c.session)).catch(() => {});
+    }
+    if (!c.pending) { c.p.write(data); return; }
+    const next = c.pending.then(() => { try { c.p.write(data); } catch {} });
+    c.pending = next;
+    next.then(() => { if (c.pending === next) c.pending = null; });
+  }
+
+  /**
+   * Scorrimento nella history di tmux (vedi lib/tmux.js): `lines` righe
+   * (> 0 verso l'alto), oppure salto a `fromBottom` righe dal fondo, oppure
+   * nessuno dei due per leggere soltanto lo stato. null senza tmux: allora la
+   * history e' quella di xterm e il renderer scorre da se'.
+   */
+  async function scroll(id, { lines, fromBottom } = {}) {
+    const c = clients.get(id);
+    if (!viaTmux || !c || !c.session) return null;
+    const ctl = tmux.control;
+    const moving = fromBottom !== undefined || lines !== undefined;
+    const move = fromBottom !== undefined ? ctl.scrollTo(c.session, fromBottom)
+      : lines !== undefined ? ctl.scroll(c.session, lines)
+        : ctl.scrollState(c.session);
+    if (moving) {
+      // Il comando e' un processo a parte: puo' arrivare a tmux prima che si
+      // sappia com'e' andata. Da subito i tasti vanno trattati come in
+      // copy-mode (write la chiude, dopo aver aspettato questo).
+      c.inMode = true;
+      c.typedSinceScroll = false;
+      c.scrolling = move.catch(() => null);
+    }
+    const state = await move.catch(() => null);
+    // Se nel frattempo si e' scritto, la copy-mode l'ha gia' chiusa write.
+    if (state && !c.typedSinceScroll) c.inMode = state.inMode;
+    return state;
   }
 
   function resize(id, cols, rows) {
@@ -311,7 +355,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
   }
 
   return {
-    spawn, attach, listLive, setLabel, setMeta, restorable, discardRestorable, write, resize, close, terminate, terminateSession, closeAll,
+    spawn, attach, listLive, setLabel, setMeta, restorable, discardRestorable, write, scroll, resize, close, terminate, terminateSession, closeAll,
     get viaTmux() { return viaTmux; },
     get size() { return clients.size; },
     // compatibilita' con il nome precedente

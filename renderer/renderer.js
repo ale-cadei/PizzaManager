@@ -184,6 +184,7 @@ async function init() {
     const t = tabs.get(id);
     if (!t) return;
     t.term.write(data);
+    if (t.scroller) t.scroller.noteOutput();
     noteActivity(t, data ? data.length : 0);
     noteRunning(t);
   });
@@ -769,10 +770,10 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   updateEmpty();
   setActive(id);
 
-  // scrollback: ora che tmux non usa l'alternate screen (app/tmux.conf) la
-  // history con cui scorre la rotella è QUESTA, non più quella di tmux. Le
-  // 1000 righe di default coprivano poco: allineate all'ordine di grandezza
-  // di `history-limit`.
+  // scrollback: senza tmux la history con cui scorre la rotella è QUESTA.
+  // Le 1000 righe di default coprivano poco: allineate all'ordine di
+  // grandezza di `history-limit`. Con tmux si azzera appena si sa (sotto):
+  // la history è quella di tmux, e questa sarebbe a buchi.
   const term = new Terminal({ cursorBlink: true, scrollback: 20000, fontSize: termFont.get(), lineHeight: TERM_LINE_HEIGHT, fontFamily: "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace", theme: TERM_THEME });
   const fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
@@ -781,11 +782,29 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   tab.term = term;
   tab.fit = fit;
 
+  // Rotella e barra laterale: con tmux scorrono la history di tmux (copy-mode),
+  // senza quella di xterm. Vedi renderer/term-scroll.js.
+  const tmuxScroll = {
+    scroll: (n) => window.aisess.scroll(id, n),
+    scrollTo: (n) => window.aisess.scrollTo(id, n),
+    state: () => window.aisess.scrollState(id),
+  };
+  const xtermScroll = window.AisessTermScroll.xtermBackend(term);
+  tab.scroller = window.AisessTermScroll.attach({
+    term, host: wrap,
+    backend: () => (tab.session ? tmuxScroll : xtermScroll),
+    rowHeight: () => inner.clientHeight / Math.max(1, term.rows),
+    sendKeys: (d) => window.aisess.write(id, d),
+    isVisible: () => wrap.classList.contains('active'),
+  });
+  term.onScroll(() => { if (!tab.session) tab.scroller.refresh(); });
+
   term.onData((d) => {
     window.aisess.write(id, d);
     applyTypedPrompt(tab, d);
-    // L'utente ha chiesto qualcosa qui: la risposta va segnalata anche se breve
-    attention.typed(id);
+    // L'utente ha chiesto qualcosa qui: la risposta va segnalata anche se breve.
+    // Non i report che xterm manda da solo (mouse, focus): lampeggio a caso.
+    if (Attention.isTyping(d)) attention.typed(id);
   });
   // xterm accetta un solo gestore tasti: qui si compongono quelli dei moduli.
   // Copia/incolla: la selezione di xterm non è una selezione del documento.
@@ -819,6 +838,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
     tab.alive = false;
   } else {
     if (res.session) tab.session = res.session;
+    if (tab.session) term.options.scrollback = 0;
     // Il main può spostare la sessione (cwd vuota, con ~ o inesistente finisce
     // nella home): senza la directory vera il titolo automatico non troverebbe
     // mai la conversazione, che viene riconosciuta proprio dalla directory.
@@ -905,6 +925,7 @@ function refitTab(id) {
   // Le schede nascoste hanno dimensione 0: fittare qui le rovinerebbe
   if (!t.wrap.classList.contains('active')) return;
   try { t.fit.fit(); window.aisess.resize(t.id, t.term.cols, t.term.rows); } catch {}
+  if (t.scroller) t.scroller.refresh();
 }
 
 function fitActive() {

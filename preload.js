@@ -4,6 +4,10 @@ contextBridge.exposeInMainWorld('aisess', {
   spawn: (opts) => ipcRenderer.invoke('pty-spawn', opts),
   write: (id, data) => ipcRenderer.send('pty-write', { id, data }),
   resize: (id, cols, rows) => ipcRenderer.send('pty-resize', { id, cols, rows }),
+  // Scorrimento nella history di tmux; null senza tmux (scorre xterm)
+  scroll: (id, lines) => ipcRenderer.invoke('pty-scroll', { id, lines }),
+  scrollTo: (id, fromBottom) => ipcRenderer.invoke('pty-scroll', { id, fromBottom }),
+  scrollState: (id) => ipcRenderer.invoke('pty-scroll', { id }),
   kill: (id) => ipcRenderer.invoke('pty-kill', { id }),
   // Sessioni dentro tmux: riattacco e terminazione esplicita
   attach: (opts) => ipcRenderer.invoke('pty-attach', opts),

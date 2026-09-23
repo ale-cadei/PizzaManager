@@ -118,3 +118,29 @@ test('le sessioni sono indipendenti: quella vista resta spenta se un’altra fin
   assert.equal(raffica(att, 'b', c), true, 'la sessione b ha finito davvero');
   assert.equal(att.isFlagged('a'), false, 'a non deve accendersi per colpa di b');
 });
+
+/* Il lampeggio "a caso": claude e opencode chiedono il mouse (?1003h, ogni
+ * movimento), e xterm manda i report da solo, via onData, appena il mouse
+ * passa sopra il terminale. Contati come "l'utente ha scritto", facevano
+ * lampeggiare la card al primo ritocco della TUI (~140 byte ogni 8 s). */
+const { isTyping } = require('../renderer/attention.js');
+
+test('isTyping: i report che xterm genera da solo non sono input dell utente', () => {
+  for (const d of [
+    '\x1b[<35;40;12M',                  // movimento del mouse, SGR
+    '\x1b[<35;40;12M\x1b[<35;41;12M',   // più movimenti in un colpo
+    '\x1b[<0;10;5m',                    // rilascio
+    '\x1b[M #!',                        // mouse X10
+    '\x1b[I', '\x1b[O',                 // focus dentro/fuori
+    '\x1b[?62;22c', '\x1b[>0;276;0c',   // risposte DA
+    '\x1b[12;40R',                      // posizione del cursore
+    '\x1b]11;rgb:0707/0505/0505\x1b\\', // colore di fondo
+    '',
+  ]) assert.strictEqual(isTyping(d), false, JSON.stringify(d));
+});
+
+test('isTyping: tasti, frecce e incolla sono input', () => {
+  for (const d of ['a', '\r', 'ciao\r', '\x1b[A', '\x1b', '\x03', '\x1b[200~testo\x1b[201~', '\x1b[<35;40;12Mx']) {
+    assert.strictEqual(isTyping(d), true, JSON.stringify(d));
+  }
+});

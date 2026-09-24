@@ -69,7 +69,7 @@ Serve se vuoi modificare l'app o provare `main` prima di una release.
 | **Tutti** | [Node.js](https://nodejs.org) 22 o più recente | Almeno uno fra `claude`, `codex`, `opencode`, `agy` nel PATH |
 | **macOS** | Xcode Command Line Tools (`xcode-select --install`, per compilare `node-pty`) | `brew install tmux` |
 | **Linux** | `build-essential` e `python3` (per `node-pty`) | `sudo apt install tmux` (o l'equivalente della tua distro) |
-| **Windows** | [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) con il carico di lavoro C++ (per `node-pty`) | — |
+| **Windows** | niente altro: `node-pty` usa i suoi binari precompilati | — |
 
 Senza `tmux` l'app funziona lo stesso: le sessioni però muoiono con la finestra. Su Windows `tmux` non esiste, quindi lì è sempre così.
 
@@ -182,7 +182,7 @@ Funziona con PowerShell come terminale e con le CLI installate via `npm i -g` (`
 
 **Il comando funziona nel terminale ma non qui.** Probabilmente è un alias o una funzione di shell: qui i comandi girano senza shell. Riscrivilo per esteso, variabili comprese.
 
-**`npm install` fallisce su `node-pty`.** Manca il compilatore: Xcode CLT su macOS, `build-essential` su Linux, Build Tools con C++ su Windows. Poi `npm rebuild node-pty`.
+**L'app dice «node-pty non installato».** Su macOS e Linux `npm install` ricompila `node-pty` per Electron e, se manca il compilatore, lo segnala senza fermarsi: installa Xcode CLT (macOS) o `build-essential` (Linux), poi `npm run postinstall`. Su Windows non si ricompila niente: riesegui `npm install`.
 
 **Le sessioni spariscono chiudendo l'app.** `tmux` non è installato o non è nel PATH; la legenda in basso lo dice. Dopo averlo installato riavvia l'app.
 

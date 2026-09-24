@@ -34,6 +34,19 @@ su Windows, e che una CI su Windows impedisca di rompere di nuovo le cose.
 `ci.yml` gira anche su `windows-2022`: i casi `platform: 'win32'` iniettati
 restano, ma adesso la suite deve passare anche sull'host Windows.
 
+Il job Windows di `release.yml` e `npm run dist:win` passano
+`-c.npmRebuild=false`: il pacchetto usa i prebuilds di node-pty, come il
+setup costruito e installato a mano durante la prova (funziona), e non
+dipende più dalla versione di Visual Studio del runner.
+
+## Stato
+
+Suite su Windows: 537 passano, 11 saltati (permessi POSIX, `/bin/sh`,
+integrazioni coi tool non installati). Smoke test dell'app da sorgente dopo
+un `npm install` pulito e del setup `dist:win` installato: checklist del
+piano 12 tutta verde. Da fare dopo il merge: vedere verde la CI Windows e
+fare una release (la v1.0.2 scaricabile oggi è indietro di 41 commit).
+
 ## Fuori scope (annotati, non fatti qui)
 
 - La sidebar e le directory recenti mostrano `Desktop/PizzaManager` con `/`

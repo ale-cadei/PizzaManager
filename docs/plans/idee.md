@@ -86,7 +86,7 @@ tool usati, leggibile e condivisibile. Branch `feat/export-markdown` (piano 23):
 `lib/transcripts.js`.
 
 - [x] piano — [23-export-markdown.md](23-export-markdown.md)
-- [ ] fatto
+- [x] fatto — ⤓ sulla card e «⤓ .md» nel Resume (Claude Code e Codex; domande, risposte e nomi dei tool)
 - [ ] provato
 
 ### Due sessioni affiancate

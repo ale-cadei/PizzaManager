@@ -117,32 +117,27 @@ Preload: `exportConversation(source, id)`.
 
 ### Nel renderer
 
-Dipende dalla scelta 1 (sotto). In ogni caso:
+Card della sidebar e voci del Resume (scelta 1). In entrambi:
 - bottone visibile solo per `claude` e `codex` con un id;
 - esito: riuscito → niente (il file l'utente l'ha appena scelto); errore →
   messaggio con `textContent` (nel Resume una nota sotto la voce, sulla card
   il fumetto di `confirm-bubble.js`, che ha già `tell`).
 
-## Da decidere con l'utente
+## Decisioni prese con l'utente (2026-09-24)
 
-1. **Da dove si esporta.** Bottone «⤓ .md» sulle voci del Resume e della
+Tutte e tre come consigliato:
+1. **Da dove: entrambi.** Bottone «⤓ .md» sulle voci del Resume e della
    ricerca; icona ⤓ sulla card della sidebar accanto alla ✕ (la card conosce
-   `type` e `resumeId`); o entrambi. *Consiglio: entrambi.* Il Resume copre le
-   conversazioni vecchie, la card il caso più frequente («salvami quello che
-   ho appena fatto»), e il costo in più è una callback `onExport` nella
-   sidebar.
-2. **Cosa entra nel .md.** Solo domande e risposte, o anche i tool usati.
-   *Consiglio: una riga compatta per risposta*, `_Strumenti: Bash ×12 · Edit
-   ×3_`, **senza argomenti**: con 1 036 Bash l'elenco completo è illeggibile,
-   e gli argomenti dei comandi possono contenere segreti (token in un `curl`,
-   variabili d'ambiente) in un file fatto per essere condiviso. Richiede di
-   estendere `lib/transcripts.js` con i nomi dei tool senza cambiare ciò che
-   vede la ricerca.
-3. **Dove salva.** Dialog «Salva con nome» aperto su Download col nome
-   proposto, o direttamente in Download. *Consiglio: il dialog*: si sceglie
-   dove metterlo e si vede il nome prima di scriverlo; direttamente in
-   Download servirebbe comunque un modo per dire dove è finito il file e per
-   non sovrascrivere un export precedente.
+   `type` e `resumeId`). Il Resume copre le conversazioni vecchie, la card il
+   caso più frequente («salvami quello che ho appena fatto»).
+2. **Cosa entra: una riga compatta di tool per risposta**, «Strumenti:
+   Bash ×12 · Edit ×3», **senza argomenti**: con 1 036 Bash l'elenco
+   completo è illeggibile, e gli argomenti dei comandi possono contenere
+   segreti (token in un `curl`, variabili d'ambiente) in un file fatto per
+   essere condiviso. `lib/transcripts.js` si estende con i nomi dei tool senza
+   cambiare ciò che vede la ricerca.
+3. **Dove salva: dialog «Salva con nome»** aperto su Download col nome
+   proposto: si sceglie dove metterlo e si vede il nome prima di scriverlo.
 
 ## Test
 
@@ -162,3 +157,45 @@ Dipende dalla scelta 1 (sotto). In ogni caso:
 2. `refactor:` `codexIdFromFile` e i pezzi del lettore Codex esportati
 3. `feat:` `lib/transcript-markdown.js` + `lib/transcript-export.js` + test
 4. `feat:` handler, preload e bottoni nell'interfaccia
+
+## Com'è andata (2026-09-24)
+
+Differenze rispetto a quanto scritto sopra:
+- Il refactor esporta anche `rolloutFromLines` (le righe già lette al posto
+  del file) e `codexTitle` (indice → primo prompt → id), che prima stava dentro
+  il ciclo di `listCodexSessions`.
+- `buildExport({ source, id }, { home, timeZone, exportedAt })` in
+  `lib/transcript-export.js` mette insieme lettura, Markdown e nome: l'handler
+  in `app/export.js` fa solo dialog e scrittura. `main.js` a 205 righe, tetto
+  a 210 invariato.
+- Misura vera sul file da 25 MB: la prima versione ci metteva **quasi un
+  secondo**, per un `Intl.DateTimeFormat` creato a ogni voce. Con il
+  formattatore in cache: lettura asincrona ~60 ms, poi ~125 ms di main fermo
+  (voci ~60, titolo ~45, Markdown ~20). Niente worker, come deciso.
+- `EXPORTABLE_TYPES` sta in `renderer/sidebar.js` e lo usa anche il Resume:
+  una sola lista di chi si può esportare.
+- Il ⤓ sulla card compare passando sopra la card, per non affollare la
+  lista. Nel Resume, dopo il salvataggio il bottone diventa «✓ .md» col
+  percorso nel tooltip: senza, non si capiva se era successo qualcosa.
+- Dalla revisione: i blocchi di codice aperti si chiudono seguendo il
+  recinto come in CommonMark (```` e ~~~ compresi), non contando i ```; il
+  ⤓ della card ignora un secondo clic mentre l'export è in corso; su Linux
+  un nome salvato senza estensione prende `.md`.
+- La linguetta «Cronologia» del Resume (le sessioni aperte dall'app) non
+  offre l'export: le stesse conversazioni stanno nelle linguette Claude e
+  Codex.
+
+## Fuori, annotato
+
+- Gli a capo singoli nei messaggi dell'utente: il testo va così com'è, e in
+  Markdown due righe consecutive diventano un paragrafo solo. Trasformarli in
+  a capo forzati vuol dire toccare il testo fuori dai blocchi di codice.
+- opencode e Antigravity (stesso limite della ricerca, piano 22).
+- Le conversazioni di config dir diverse da `~/.claude` (account con
+  `CLAUDE_CONFIG_DIR`): come per Resume e ricerca, non si trovano. Con
+  l'export il limite pesa di più: una scheda con quel profilo può ricevere
+  un `resumeId` dal titolo automatico (`pickAutoSession` cerca in
+  `~/.claude` per directory e ora di avvio) e il suo ⤓ esporterebbe la
+  conversazione di un'altra sessione partita nella stessa directory. Da
+  sistemare nel titolo automatico (non cercare l'id per le schede con
+  `CLAUDE_CONFIG_DIR`), non qui. Trovato in revisione.

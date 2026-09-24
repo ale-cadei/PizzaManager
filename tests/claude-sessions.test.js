@@ -103,7 +103,7 @@ ok('claude resume: senza prompt utile resta un titolo leggibile, mai vuoto', () 
     writeClaudeSession(home, '-home-tester-progetto', 'eee12345-0000', [
       { type: 'mode', mode: 'normal' },
     ]);
-    const r = claude.listClaudeSessions(10, { home });
+    const r = claude.listClaudeSessions(10, { home, platform: 'linux' });
     assert.ok(r.sessions[0].title, 'titolo vuoto');
     assert.strictEqual(r.sessions[0].cwd, '/home/tester/progetto');
     // Claude crea il file all'avvio: finché non c'è un prompt il titolo è finto

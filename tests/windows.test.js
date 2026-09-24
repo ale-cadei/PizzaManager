@@ -134,6 +134,21 @@ ok('win: un .exe si lancia direttamente, senza cmd.exe', () => {
   assert.strictEqual(r.commandLine, undefined);
 });
 
+/* Il test sotto usa un file vero in tmpdir: su Unix il percorso non ha
+   backslash, quindi non vedeva il tokenizer mangiarli. Qui la stringa è
+   quella che un utente Windows scrive nella configurazione comandi. */
+ok('win: nei comandi dei profili il backslash è un separatore, e ~\ si espande', () => {
+  const profiles = require('../lib/command-profiles');
+  const r = profiles.resolveProfileCommand(
+    { command: 'C:\\Tools\\claude.exe --add-dir ~\\repo', resumeArgs: '--resume {id}' },
+    { home: HOME, platform: 'win32', resumeId: 'abc' });
+  assert.strictEqual(r.ok, true, r.error);
+  assert.strictEqual(r.bin, 'C:\\Tools\\claude.exe');
+  assert.deepStrictEqual(r.args, ['--add-dir', 'C:\\Users\\jack\\repo', '--resume', 'abc']);
+  assert.deepStrictEqual(profiles.tokenizeCommand('"C:\\Program Files\\x\\x.exe" --y', { platform: 'win32' }), ['C:\\Program Files\\x\\x.exe', '--y']);
+  assert.deepStrictEqual(profiles.tokenizeCommand('C:\\Tools\\claude.exe', { platform: 'linux' }), ['C:Toolsclaude.exe'], 'su Unix resta un escape');
+});
+
 ok('win: un percorso con backslash o lettera di unità è esplicito, non un nome da cercare nel PATH', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-win-'));
   const exe = path.join(dir, 'mio.exe');

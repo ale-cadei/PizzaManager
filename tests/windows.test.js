@@ -228,3 +228,47 @@ ok('win: etichette e sottocartelle dei progetti capiscono i backslash', () => {
   ], { mode: 'project' });
   assert.deepStrictEqual(groups.map((g) => g.label), ['jack/repo', 'lavoro/repo'], 'due radici omonime si disambiguano col genitore');
 });
+
+// ---------- opencode via execFile ----------
+/* Da Node 18.20.2 execFile rifiuta un .cmd con spawn EINVAL (CVE-2024-27980):
+   opencode installato con npm -g, su Windows, è opencode.cmd, e Resume e barra
+   dell'uso di OpenCode fallivano. */
+const { execFileArgs } = require('../lib/win-command');
+const { listOpencodeSessions } = require('../lib/opencode-sessions');
+
+ok('win: execFileArgs avvolge .cmd/.bat in cmd.exe, il resto passa com\'è', () => {
+  const cmd = execFileArgs('C:\\npm\\opencode.cmd', ['session', 'list'], { platform: 'win32', env: {} });
+  assert.strictEqual(cmd.file, 'cmd.exe');
+  assert.deepStrictEqual(cmd.args, [windowsCommandLine('C:\\npm\\opencode.cmd', ['session', 'list'])]);
+  assert.deepStrictEqual(cmd.options, { windowsVerbatimArguments: true });
+  assert.strictEqual(execFileArgs('C:\\x.cmd', [], { platform: 'win32', env: { ComSpec: 'C:\\W\\cmd.exe' } }).file, 'C:\\W\\cmd.exe');
+  assert.deepStrictEqual(execFileArgs('C:\\oc\\opencode.exe', ['a'], { platform: 'win32', env: {} }), { file: 'C:\\oc\\opencode.exe', args: ['a'], options: {} });
+  assert.deepStrictEqual(execFileArgs('/usr/bin/x.cmd', ['a'], { platform: 'linux' }), { file: '/usr/bin/x.cmd', args: ['a'], options: {} });
+});
+
+ok('win: listOpencodeSessions lancia opencode.cmd tramite cmd.exe', async () => {
+  let call;
+  const run = (file, args, opts, cb) => { call = { file, args, opts }; cb(null, '[]', ''); };
+  const r = await listOpencodeSessions(5, { bin: 'C:\\npm\\opencode.cmd', run, platform: 'win32' });
+  assert.strictEqual(r.ok, true, r.error);
+  assert.match(call.file, /cmd\.exe$/i);
+  assert.match(call.args[0], /opencode\.cmd .*session.*list/);
+  assert.strictEqual(call.opts.windowsVerbatimArguments, true);
+});
+
+/* Il caso vero: execFile di Node su un .cmd, con uno spazio nel percorso. Il
+   .cmd è fatto come gli shim di npm (`node script %*`), quindi verifica anche
+   che gli argomenti arrivino interi al programma dietro lo shim. */
+ok('win: un opencode.cmd vero risponde, niente spawn EINVAL', { skip: process.platform !== 'win32' && 'serve cmd.exe' }, async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ais oc-'));
+  const script = path.join(dir, 'opencode.js');
+  fs.writeFileSync(script, "console.log(JSON.stringify([{ id: 'ses_1', title: process.argv.slice(2).join(' ') }]));\n");
+  const bin = path.join(dir, 'opencode.cmd');
+  fs.writeFileSync(bin, `@"${process.execPath}" "${script}" %*\r\n`);
+  try {
+    const r = await listOpencodeSessions(5, { bin });
+    assert.strictEqual(r.ok, true, r.error);
+    assert.deepStrictEqual(r.sessions.map((s) => [s.id, s.title]), [['ses_1', 'session list --format json -n 5']]);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+

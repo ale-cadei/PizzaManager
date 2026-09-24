@@ -99,7 +99,7 @@ async function init() {
     resumeCache = emptyResumeCache();
     await renderResumeList();
   });
-  $('#resume-search').addEventListener('input', () => renderResumeList(true));
+  $('#resume-search').addEventListener('input', onResumeSearchInput);
 
   window.aisess.onData(({ id, data }) => {
     const t = tabs.get(id);

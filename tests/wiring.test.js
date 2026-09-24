@@ -273,3 +273,15 @@ ok('ricerca: handler, preload e worker collegati; il main non cerca da sé', () 
   assert.ok(!main.includes("require('./lib/conversation-search')"), 'searchConversations nel main bloccherebbe i terminali');
   assert.ok(read('preload.js').includes("searchConversations: (query) => ipcRenderer.invoke('search-conversations'"), 'manca searchConversations nel preload');
 });
+
+ok('ricerca: la linguetta Cerca sta in testa al Resume e usa la ricerca del main', () => {
+  const html = read('renderer', 'index.html');
+  const tabs = [...html.matchAll(/data-tab="(\w+)"/g)].map((m) => m[1]);
+  assert.strictEqual(tabs[0], 'search', 'la linguetta Cerca va in testa alle altre');
+  assert.ok(html.indexOf('<script src="search-results.js">') < html.indexOf('<script src="app-state.js">'), 'il modulo va caricato prima del renderer');
+  const js = readRendererApp();
+  assert.ok(js.includes('window.aisess.searchConversations('), 'il renderer non chiama la ricerca');
+  assert.ok(js.includes("addEventListener('input', onResumeSearchInput)"), 'la casella non passa dal debounce della ricerca');
+  assert.ok(/createSearchItem[\s\S]{0,200}createResumeItem\(r\.source/.test(js), 'Resume deve riusare le viste esistenti (e la scelta dell account)');
+  assert.ok(/resumeTab !== 'claude' && resumeTab !== 'search'/.test(js), 'la scelta dell account Claude manca nella linguetta Cerca');
+});

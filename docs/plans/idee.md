@@ -85,7 +85,7 @@ Dalla card o dal resume: «Esporta in .md» → file con domande, risposte e
 tool usati, leggibile e condivisibile. Branch `feat/export-markdown` (piano 23): riusa il suo
 `lib/transcripts.js`.
 
-- [ ] piano
+- [x] piano — [23-export-markdown.md](23-export-markdown.md)
 - [ ] fatto
 - [ ] provato
 

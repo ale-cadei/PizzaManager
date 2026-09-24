@@ -142,3 +142,25 @@ ok('cerca: i testi di stato dicono cosa succede', () => {
   assert.strictEqual(hitsText(1), '1 occorrenza');
   assert.strictEqual(hitsText(7), '7 occorrenze');
 });
+
+ok('cerca: senza timer passati usa quelli globali senza staccarli da window', async () => {
+  // Nel browser setTimeout chiamato come metodo di un altro oggetto lancia
+  // «Illegal invocation»; Node non se ne accorge, quindi lo si imita qui.
+  const real = { setTimeout: globalThis.setTimeout, clearTimeout: globalThis.clearTimeout };
+  const strict = (fn) => function (...args) {
+    if (this !== undefined && this !== globalThis) throw new TypeError('Illegal invocation');
+    return fn(...args);
+  };
+  globalThis.setTimeout = strict(real.setTimeout);
+  globalThis.clearTimeout = strict(real.clearTimeout);
+  try {
+    const queries = [];
+    const runner = createSearchRunner({ search: async (q) => { queries.push(q); return { ok: true, results: [] }; }, render: () => {}, delay: 1 });
+    runner.schedule('lo');
+    runner.schedule('login');
+    await new Promise((r) => real.setTimeout(r, 20));
+    assert.deepStrictEqual(queries, ['login']);
+  } finally {
+    Object.assign(globalThis, real);
+  }
+});

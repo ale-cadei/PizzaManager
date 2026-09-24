@@ -33,6 +33,10 @@
      ridisegnarla (signal()), quindi la scritta va rimessa a posto lì. */
   const ATTENTION_TITLE = 'L\'assistente ha finito: apri la sessione per vedere il risultato';
   const RENAME_TITLE = 'Doppio click per rinominare';
+  /* Le conversazioni di cui si legge il testo (lib/transcripts.js): solo per
+     loro la card offre l'export in Markdown. Lo usa anche il Resume. */
+  const EXPORTABLE_TYPES = Object.freeze(['claude', 'codex']);
+  const canExport = (t) => EXPORTABLE_TYPES.includes(t.type) && Boolean(t.resumeId);
 
   /**
    * Quanti fogli spuntano sotto la linguetta di un gruppo COLLASSATO, cioè il
@@ -74,6 +78,7 @@
    *   modeButtons?: {type: Element, project: Element},
    *   onSelect: (id: string) => void, onClose: (id: string) => void,
    *   onRename: (session: object) => void,
+   *   onExport?: (session: object, card: Element) => void,
    *   onNewInProject?: (projectRoot: string) => void,
    *   onReorder?: (movedId: string, targetId: string, opts: {before: boolean}) => void,
    *   Order?: {moveAdjacent: Function}}} deps
@@ -87,6 +92,9 @@
     /* Creare una sessione è affare del renderer (dialog, tipo, account): la
        sidebar segnala solo in quale radice l'utente la vuole. */
     const onNewInProject = typeof deps.onNewInProject === 'function' ? deps.onNewInProject : null;
+    /* Anche esportare è affare del renderer (dialog, esito): la sidebar passa la
+       sessione e la card, su cui appoggiare un eventuale errore. */
+    const onExport = typeof deps.onExport === 'function' ? deps.onExport : null;
     const Order = deps.Order && typeof deps.Order.moveAdjacent === 'function' ? deps.Order : null;
 
     /* Collassi in liste separate per modalità: collassare "Claude" e collassare
@@ -425,9 +433,22 @@
       x.className = 'close-x'; x.textContent = '✕';
       x.title = 'Chiudi — termina la sessione';
       x.onclick = (e) => { e.stopPropagation(); onClose(t.id, b); };
+      if (onExport && canExport(t)) b.appendChild(createExportButton(t, b));
       b.appendChild(x);
       attachDrag(b, t, groupKey, body);
       return b;
+    }
+
+    /** ⤓ sulla card: la conversazione in un file Markdown. */
+    function createExportButton(t, card) {
+      const ex = document.createElement('span');
+      ex.className = 'export-md';
+      ex.textContent = '⤓';
+      ex.setAttribute('role', 'button');
+      ex.title = 'Esporta la conversazione in Markdown';
+      // Come la ✕: il click non deve arrivare alla card e selezionarla
+      ex.onclick = (e) => { e.stopPropagation(); onExport(t, card); };
+      return ex;
     }
 
     /** Il «+» accanto alla linguetta di un progetto: nuova sessione in quella radice. */
@@ -568,5 +589,5 @@
     return { render, signal, getMode, setMode, expandGroupOf, groupKeyFor };
   }
 
-  return { createSidebar, sheetCount, GROUP_MODES, DOUBLE_CLICK_MS };
+  return { createSidebar, sheetCount, GROUP_MODES, DOUBLE_CLICK_MS, EXPORTABLE_TYPES };
 });

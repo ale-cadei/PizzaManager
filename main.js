@@ -23,6 +23,7 @@ const { createWindow } = require('./app/window');
 const { runMenuAction } = require('./app/menu');
 const { createPtyManager } = require('./app/pty');
 const { registerClipboardHandlers } = require('./app/clipboard');
+const { registerExportHandlers } = require('./app/export');
 
 // La cartella dei dati NON segue il nome dell'app. Electron la deriva da
 // productName: un rebrand ("PizzaManager") la sposterebbe in una cartella nuova
@@ -187,6 +188,8 @@ ipcMain.handle('list-antigravity-sessions', async (event, { limit } = {}) => {
   try { return listAntigravitySessions(limit); } catch (e) { return { ...fail('', e), sessions: [] }; }
 });
 ipcMain.handle('search-conversations', async (event, { query } = {}) => conversationSearch().search(query));
+// Una conversazione in Markdown: il percorso lo sceglie il dialog, non il renderer
+registerExportHandlers(ipcMain, { getWindow: () => mainWindow });
 
 // ---------- Uso di token: sessione, finestra 5h, settimana (barra in basso) ----------
 ipcMain.handle('usage-snapshot', async (event, { active } = {}) => {

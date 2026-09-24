@@ -144,3 +144,25 @@ ok('claude resume: senza directory delle conversazioni risponde con un errore le
     assert.deepStrictEqual(r.sessions, []);
   });
 });
+
+ok('claude: claudeSessionFiles elenca un file per conversazione con il suo progetto', () => {
+  const claude = require('../lib/claude-sessions');
+  withClaudeFixture((home) => {
+    writeClaudeSession(home, '-home-tester-a', 'uno', [{ type: 'mode' }]);
+    writeClaudeSession(home, '-home-tester-b', 'due', [{ type: 'mode' }]);
+    fs.writeFileSync(path.join(home, '.claude', 'projects', '-home-tester-a', 'note.txt'), 'non è una conversazione');
+    const r = claude.claudeSessionFiles(claude.projectsDir(home));
+    assert.strictEqual(r.skipped, 0);
+    assert.deepStrictEqual(r.files.map((f) => [f.projectDir, f.id]).sort(), [['-home-tester-a', 'uno'], ['-home-tester-b', 'due']]);
+    assert.ok(r.files.every((f) => fs.existsSync(f.file)), 'i percorsi devono essere quelli veri');
+  });
+});
+
+ok('claude: userMessageText toglie i blocchi iniettati ma tiene gli a capo; userPromptText li appiattisce', () => {
+  const { userMessageText, userPromptText } = require('../lib/claude-sessions');
+  const line = { type: 'user', message: { role: 'user', content: '<system-reminder>ignora</system-reminder>prima riga\nseconda riga' } };
+  assert.strictEqual(userMessageText(line), 'prima riga\nseconda riga');
+  assert.strictEqual(userPromptText(line), 'prima riga seconda riga');
+  assert.strictEqual(userMessageText({ ...line, isMeta: true }), null);
+  assert.strictEqual(userMessageText({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', content: 'output' }] } }), null);
+});

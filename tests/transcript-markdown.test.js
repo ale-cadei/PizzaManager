@@ -64,6 +64,15 @@ ok('markdown: un blocco di codice lasciato aperto si chiude prima della sezione 
   assert.strictEqual((closed.match(/```/g) || []).length, 2, 'un blocco già chiuso non si tocca');
 });
 
+ok('markdown: i blocchi si seguono come in CommonMark, stesso carattere e lunghezza', () => {
+  const four = toMarkdown({ ...base, entries: [entry('assistant', '````md\n```js\nx'), entry('user', 'dopo')] });
+  assert.ok(four.includes('```js\nx\n````\n\n## Tu'), 'un blocco di quattro backtick si chiude con quattro');
+  const tilde = toMarkdown({ ...base, entries: [entry('assistant', '~~~\n```\n~~~'), entry('user', 'dopo')] });
+  assert.ok(tilde.includes('~~~\n```\n~~~\n\n## Tu'), 'un ``` dentro un blocco ~~~ è testo, non una chiusura');
+  const openTilde = toMarkdown({ ...base, entries: [entry('assistant', '~~~\ntesto'), entry('user', 'dopo')] });
+  assert.ok(openTilde.includes('testo\n~~~\n\n## Tu'), openTilde);
+});
+
 ok('markdown: senza cwd né date le righe dell\'intestazione mancano, non restano vuote', () => {
   const md = toMarkdown({ ...base, cwd: '', entries: [entry('user', 'x', null)] });
   assert.ok(!md.includes('Progetto'));

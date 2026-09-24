@@ -1,0 +1,60 @@
+/* ---------------------------------------------------------------------------
+   AI Session Manager — contenitore di gruppo
+   Stile «Pila»
+
+   Da importare DOPO tokens.css (palette D).
+
+   La Pila è la card chiusa con la testata DENTRO (niente linguetta sporgente)
+   e uno o due fogli sfalsati che spuntano sotto il bordo inferiore. I colori
+   sono già quelli del tema: qui si aggiunge solo la geometria dei fogli, che
+   finora viveva sparsa nel CSS ed è la cosa che va tenuta coerente.
+
+   Gli stessi token servono anche al Fascicolo, che usa la stessa pila: cambia
+   solo la testata (linguetta fuori invece che dentro).
+
+   Le regole che li usano stanno in styles.css, sezione «Gruppi sessioni»,
+   scritte sul DOM che la sidebar produce già (.group-cap, .group-header,
+   .group-body): il trascinamento e i fumetti si appoggiano a quelle classi.
+--------------------------------------------------------------------------- */
+
+:root {
+  /* --- geometria dei fogli ------------------------------------------------
+     Il foglio è alto quanto basta a mostrare il suo raggio inferiore: sotto
+     i 10px l'arco si schiaccia e sembra una riga, sopra i 14px sembra una
+     seconda card. */
+  --sheet-height: 12px;
+
+  /* Quanto ogni foglio rientra per lato rispetto al pannello. Il secondo
+     rientra circa il doppio del primo: è questo rapporto a dare la
+     prospettiva, non l'opacità. */
+  --sheet-inset-1: 7px;
+  --sheet-inset-2: 15px;
+  --sheet-inset-solo: 9px;  /* foglio unico: sta in mezzo ai due valori sopra */
+
+  /* Di quanto ogni foglio sporge sotto il pannello. */
+  --sheet-offset-1: 6px;
+  --sheet-offset-2: 11px;
+
+  /* Opacità del foglio più profondo. Non scendere sotto .45: sparisce. */
+  --sheet-fade: 0.55;
+
+  /* --- stacco fra gruppi --------------------------------------------------
+     space-6 più i ~4px che i fogli occupano fuori dal pannello. Sotto i 24px
+     il gruppo successivo appoggia sui fogli del precedente. */
+  --space-group-stack: 28px;
+
+  /* --- scala della palette D che tokens.css non ha ---------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --radius-pill: 999px;
+}
+
+/* Nomi della palette D per i colori che tokens.css chiama in un altro modo.
+   Stanno su #sidebar e non su :root: una custom property che contiene var()
+   si risolve sull'elemento che la dichiara, e su :root prenderebbe la palette
+   forno invece di quella della sidebar. */
+#sidebar {
+  --ink:           var(--text);
+  --ink-muted:     var(--text-muted);
+  --border-subtle: var(--border);
+}

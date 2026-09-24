@@ -20,6 +20,13 @@
   const DELAY_MS = 300;
   const ROLE_LABEL = { user: 'tu', assistant: 'agente' };
 
+  /* Chiamati come metodi di un altro oggetto, setTimeout e clearTimeout del
+     browser lanciano «Illegal invocation»: si avvolgono, non si copiano. */
+  const GLOBAL_TIMERS = {
+    setTimeout: (fn, ms) => setTimeout(fn, ms),
+    clearTimeout: (id) => clearTimeout(id),
+  };
+
   const errorText = (e) => String((e && e.message) || e || 'errore sconosciuto');
 
   /** Stato da mostrare per una risposta del main, o null se va ignorata. */
@@ -36,7 +43,7 @@
    *   delay?: number, timers?: { setTimeout: Function, clearTimeout: Function } }} o
    * @returns {{ run: (q: string) => Promise<void>, schedule: (q: string) => void, cancel: () => void }}
    */
-  function createSearchRunner({ search, render, delay = DELAY_MS, timers = { setTimeout, clearTimeout } }) {
+  function createSearchRunner({ search, render, delay = DELAY_MS, timers = GLOBAL_TIMERS }) {
     let seq = 0;
     let timer = null;
 

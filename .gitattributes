@@ -1,0 +1,7 @@
+# LF ovunque, anche nei checkout Windows (core.autocrlf=true): i test leggono
+# gli stessi byte che su macOS e Linux, e app/tmux.conf e scripts/*.sh restano
+# leggibili da tmux e sh se si impacchetta da una macchina Windows.
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.icns binary

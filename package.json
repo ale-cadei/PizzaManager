@@ -9,13 +9,13 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "postinstall": "electron-rebuild -f -w node-pty || true",
+    "postinstall": "node scripts/postinstall.js",
     "dist:linux": "electron-builder --linux deb AppImage",
     "dist:mac": "electron-builder --mac dmg zip",
     "dist": "electron-builder",
     "test:unit": "node --test \"tests/**/*.test.js\"",
     "test:coverage": "node --test --experimental-test-coverage \"tests/**/*.test.js\"",
-    "dist:win": "electron-builder --win",
+    "dist:win": "electron-builder --win -c.npmRebuild=false",
     "install:mac": "sh scripts/install-mac.sh"
   },
   "dependencies": {

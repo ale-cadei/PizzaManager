@@ -2,6 +2,7 @@
    I token vivono in tokens.css (copia di aisessionmanager-tokens.css in root);
    qui sotto solo gli stili specifici dell'app, che usano esclusivamente i token. */
 @import url('tokens.css');
+@import url('tokens-gruppo-pila.css');
 
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
@@ -182,7 +183,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
    appoggerebbe sui fogli di quello sopra, quando è chiuso. Il padding in basso
    serve allo stesso motivo se il gruppo chiuso è l'ultimo: dorso e fogli
    scendono 24px oltre la linguetta. */
-#session-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 28px; padding: 0 16px 24px; }
+#session-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-group-stack); padding: 0 16px 24px; }
 .session-item {
   position: relative;
   display: flex; align-items: center; gap: var(--gap-sm);
@@ -314,26 +315,25 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .group-body.reordering .session-item { transition: transform .16s ease; }
 .group-body.reordering .session-item.dragging { transition: none; }
 
-/* Riordino dei progetti per la linguetta: stesso linguaggio delle card. Il
-   fascicolo preso in mano resta nella lista come segnaposto tratteggiato, nel
-   punto dove finirebbe, e si chiude (niente pannello, fogli né dorso): aperto
-   sarebbe alto quanto le sue sessioni e la lista salterebbe a ogni passo.
-   `#session-list` davanti: le regole del fascicolo più sotto (dorso, bordi del
-   gruppo attivo) hanno lo stesso peso e vincerebbero per posizione. */
+/* Riordino dei progetti per la testata: stesso linguaggio delle card. Il
+   gruppo preso in mano resta nella lista come segnaposto tratteggiato, nel
+   punto dove finirebbe, e si chiude (niente corpo né fogli): aperto sarebbe
+   alto quanto le sue sessioni e la lista salterebbe a ogni passo.
+   `#session-list` davanti: le regole della pila più sotto (bordi del gruppo
+   attivo, testata chiusa) hanno lo stesso peso e vincerebbero per posizione. */
 #session-list .session-group.group-dragging > .group-body { display: none; }
 #session-list .session-group.group-dragging::before,
-#session-list .session-group.group-dragging::after,
-#session-list .session-group.group-dragging > .group-cap::after { display: none; }
-#session-list .session-group.group-dragging > .group-cap > .group-header {
+#session-list .session-group.group-dragging::after { display: none; }
+#session-list .session-group.group-dragging > .group-cap {
   background: transparent;
   border: 1px dashed var(--action, var(--accent));
-  border-radius: var(--radius-cap, var(--radius));
-  margin-bottom: 0;
+  border-radius: var(--radius-lg);
+  padding-bottom: var(--space-1);
   box-shadow: none;
 }
 #session-list .session-group.group-dragging > .group-cap > .group-header > *,
 #session-list .session-group.group-dragging > .group-cap > .group-add { opacity: .3; }
-/* Gli altri fascicoli scorrono per fare spazio (FLIP, come le card); chi ha
+/* Gli altri gruppi scorrono per fare spazio (FLIP, come le card); chi ha
    ridotto le animazioni li vede solo cambiare posto. */
 @media (prefers-reduced-motion: no-preference) {
   #session-list.reordering-groups > .session-group { transition: transform .16s ease; }
@@ -392,8 +392,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   --attention-fill: color-mix(in srgb, var(--type-color, var(--accent)) 16%, var(--surface-group));
 }
 .group-header.needs-attention {
-  --attention-rest: color-mix(in srgb, var(--type-color, var(--accent)) 0%, var(--surface-cap));
-  --attention-fill: color-mix(in srgb, var(--type-color, var(--accent)) 16%, var(--surface-cap));
+  --attention-rest: color-mix(in srgb, var(--type-color, var(--accent)) 0%, var(--surface-group));
+  --attention-fill: color-mix(in srgb, var(--type-color, var(--accent)) 16%, var(--surface-group));
 }
 .session-item.needs-attention, .group-header.needs-attention {
   --attention-ring-off: color-mix(in srgb, var(--type-color, var(--accent)) 0%, transparent);
@@ -411,7 +411,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   0%, 100% { background: var(--attention-rest); box-shadow: inset 0 0 0 1px var(--attention-ring-off); }
   50%      { background: var(--attention-fill); box-shadow: inset 0 0 0 1px var(--attention-ring); }
 }
-/* Stessa pulsazione sulla linguetta, che ha sotto il materiale della cartellina. */
+/* Stessa pulsazione sulla testata del gruppo chiuso. */
 @keyframes attention-pulse-cap {
   0%, 100% { background: var(--attention-rest); box-shadow: inset 0 0 0 1px var(--attention-ring-off); }
   50%      { background: var(--attention-fill); box-shadow: inset 0 0 0 1px var(--attention-ring); }
@@ -459,96 +459,76 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 #session-list + .side-footer { border-top: 1px solid var(--divider); margin-top: 8px; padding-top: 16px; }
 .side-footer.muted { color: var(--text-dim); }
 
-/* ---------- Gruppi sessioni: il fascicolo (collassabile) ----------
-   Linguetta a cartellina sopra, spessore di fogli sotto. Linguetta e fogli sono
-   lo stesso materiale (--surface-cap), il pannello un altro (--surface-group):
-   è questo che tiene insieme il pezzo invece di farlo sembrare una card con due
-   decorazioni. */
+/* ---------- Gruppi sessioni: la pila (collassabile) ----------
+   Card chiusa con la testata DENTRO, prima riga del pannello, e uno o due
+   fogli sfalsati che spuntano sotto il bordo inferiore. Geometria dei fogli e
+   stacco fra gruppi: tokens-gruppo-pila.css.
+   Il pannello sono due pezzi del DOM: la riga della testata (.group-cap) e il
+   corpo con le sessioni (.group-body). Sono loro, posizionati e con z-index,
+   a coprire i fogli, senza z-index negativo (che si rompe dentro un antenato
+   con transform, filter o isolation). Chiuso, la testata è tutto il pannello. */
 .session-group { position: relative; display: flex; flex-direction: column; }
 
 /* I fogli: due pseudo-elementi, quanti se ne vedono lo dice `data-sheets`
-   (calcolato da `sheetCount` in sidebar.js). Si vedono SOLO a fascicolo
-   chiuso — aperto le sessioni sono già lì e i fogli ripeterebbero quello che il
-   pannello dice — e restano sullo sfondo: non seguono lo stato di focus. Li
-   copre il pannello col suo z-index, senza ricorrere a uno z-index negativo
-   (che si rompe dentro un antenato con transform/isolate). */
+   (calcolato da `sheetCount` in sidebar.js). Si vedono SOLO a gruppo chiuso —
+   aperto le sessioni sono già lì e i fogli ripeterebbero quello che il
+   pannello dice — e restano sullo sfondo: non seguono lo stato di focus. */
 .session-group::before,
 .session-group::after {
-  content: ''; position: absolute; height: 8px;
+  content: ''; position: absolute; height: var(--sheet-height);
   background: var(--surface-cap);
-  border: 1px solid var(--border);
-  /* Raggio più corto del resto: su 8px di altezza i 6px della linguetta
-     arrotonderebbero il foglio fino a farne una pillola. */
-  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  border-top: none;            /* si vede solo la parte sotto la card */
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   pointer-events: none;
 }
-/* Le larghezze vanno a scalare verso il basso: è quello che dà la pila. Ogni
-   foglio spunta da sotto quello sopra — il primo da sotto il dorso — invece di
-   stargli accanto: due rettangoli interi affiancati si leggono come due righe,
-   non come uno spessore. */
-.session-group::after  { left: 8px;  right: 8px;  bottom: -18px; }                /* primo foglio */
-.session-group::before { left: 16px; right: 16px; bottom: -24px; opacity: .55; }  /* secondo */
+.session-group::after  { left: var(--sheet-inset-1); right: var(--sheet-inset-1); bottom: calc(-1 * var(--sheet-offset-1)); }  /* primo foglio */
+.session-group::before { left: var(--sheet-inset-2); right: var(--sheet-inset-2); bottom: calc(-1 * var(--sheet-offset-2)); opacity: var(--sheet-fade); }  /* secondo */
+/* Foglio unico: rientra a metà fra i due. */
+.session-group[data-sheets="1"]::after { left: var(--sheet-inset-solo); right: var(--sheet-inset-solo); }
 .session-group[data-sheets="1"]::before,
 .session-group[data-sheets="0"]::before,
 .session-group[data-sheets="0"]::after { display: none; }
 
-/* La riga della linguetta: nome del gruppo a sinistra, «+» all'estremità
-   destra, dove non collide con la ✕ della prima sessione. */
-.group-cap { position: relative; z-index: 2; display: flex; align-items: flex-end; }
-
-/* Il dorso: il pannello visto di taglio, quando il fascicolo è chiuso. Senza,
-   sotto la linguetta — che è stretta, al massimo il 75% — restavano solo due
-   fogli più larghi di lei: una pila con le carte più larghe di quella sopra non
-   si legge come una pila. Il dorso è largo quanto il fascicolo ed è dello stesso
-   materiale del pannello aperto, così chiudere un gruppo lo schiaccia invece di
-   farlo sparire. Sta sul `::after` della riga della linguetta perché i due
-   pseudo-elementi del gruppo sono già i fogli. */
-.group-cap:has(> .group-header[aria-expanded="false"])::after {
-  content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 12px;
-  background: var(--surface-group); border: 1px solid var(--border);
-  /* Angolo vivo in alto a sinistra: è lì che si innesta la linguetta, come nel
-     pannello aperto. */
-  border-radius: 0 var(--radius-lg) var(--radius-lg) var(--radius-lg);
+/* La testata: metà superiore del pannello. Nome del gruppo a sinistra, «+»
+   all'estremità destra, dove non collide con la ✕ della prima sessione. */
+.group-cap {
+  position: relative; z-index: 1;
+  display: flex; align-items: center;
+  padding: var(--space-1) var(--space-1) 0;
+  background: var(--surface-group);
+  border: 1px solid var(--border-subtle); border-bottom: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+/* Chiuso non c'è corpo sotto: la testata si chiude e porta lei l'ombra. */
+.group-cap:has(> .group-header[aria-expanded="false"]) {
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-stack);
-  pointer-events: none;
 }
 .group-header {
-  display: inline-flex; align-items: center; gap: var(--gap-xs);
-  width: auto; max-width: 75%; min-width: 0;
-  box-sizing: border-box; padding: 5px 10px;
-  background: var(--surface-cap); border: 1px solid var(--border);
-  /* Angoli arrotondati solo in alto: in basso la linguetta si innesta nel
-     pannello. `margin-bottom: -1px` e nessun bordo inferiore la saldano. */
-  border-radius: var(--radius-cap, var(--radius)) var(--radius-cap, var(--radius)) 0 0;
-  border-bottom: 0; margin-bottom: -1px;
-  color: var(--text);
-  font-family: var(--font-ui); font-size: 12px; font-weight: 600;
+  display: flex; align-items: center; gap: var(--space-2);
+  flex: 1; min-width: 0;
+  box-sizing: border-box; padding: 6px var(--space-2) var(--space-2);
+  background: transparent; border: 0; border-radius: var(--radius);
+  color: var(--ink);
+  font-family: var(--font-ui); font-size: 13px; line-height: 16px; font-weight: 600;
   cursor: pointer; text-align: left;
 }
-/* Da collassato non c'è pannello a cui saldarsi: la linguetta si chiude. */
-.group-header[aria-expanded="false"] {
-  border-bottom: 1px solid var(--border); margin-bottom: 0;
-  border-radius: var(--radius-cap, var(--radius));
-}
-/* La cartellina non ha un quarto gradino di superficie oltre --surface-cap:
-   l'hover è un velo chiaro sopra il materiale, non un colore nuovo. */
-.group-header:hover {
-  border-color: var(--border-strong);
-  box-shadow: inset 0 0 0 99px rgba(236, 233, 230, 0.045);
-}
-/* Il fascicolo che contiene la sessione in primo piano alza i bordi — dorso
-   compreso: chiuso è lui a fare da pannello. */
-.session-group.is-focused > .group-cap > .group-header,
-.session-group.is-focused > .group-cap::after,
+/* Il pannello non ha un gradino di superficie in più per l'hover: è un velo
+   chiaro sopra il materiale, non un colore nuovo. */
+.group-header:hover { box-shadow: inset 0 0 0 99px rgba(236, 233, 230, 0.045); }
+/* Il gruppo che contiene la sessione in primo piano alza i bordi, aperto o
+   chiuso: niente accento, il viola è della sessione e l'ambra del progetto. */
+.session-group.is-focused > .group-cap,
 .session-group.is-focused > .group-body { border-color: var(--border-strong); }
 /* Il filetto colorato NON arriva fin qui: è il segnale di «questa riga è
-   selezionata», e la riga è una sola. Sul fascicolo resta l'ombra della pila,
-   che dice «questa cosa sta sopra» — due segnali diversi, due disegni diversi.
-   Il gruppo si limita ad alzare i bordi (sopra). */
-/* Gruppo chiuso che contiene la sessione attiva: stesso marker delle card */
-/* Sulla linguetta il marker non tiene il posto come sulle card: lo spazio vuoto
-   fra fetta e icona spingeva il nome a destra, lontano dalla fetta e schiacciato
-   sul contatore. Compare solo a gruppo chiuso, che già cambia la linguetta. */
+   selezionata», e la riga è una sola. Sul gruppo resta l'ombra della pila,
+   che dice «questa cosa sta sopra» — due segnali diversi, due disegni diversi. */
+/* Gruppo chiuso che contiene la sessione attiva: stesso marker delle card.
+   Sulla testata il marker non tiene il posto come sulle card: lo spazio vuoto
+   fra fetta e icona spingerebbe il nome a destra. Compare solo a gruppo chiuso. */
 .group-header .sel-mark { display: none; }
 .group-header.has-active .sel-mark { display: inline-block; visibility: visible; }
 /* La fetta di pizza al posto della freccina: la punta guarda a destra (gruppo
@@ -565,24 +545,23 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .group-header .icon { font-size: 14px; }
 .group-header .group-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* Il contatore non è più un chip: dentro la linguetta il suo fondo sarebbe lo
-   stesso materiale della cartellina, e il bordo del chip la sporcherebbe. */
 .group-count {
   flex: 0 0 auto;
-  font-family: var(--font-mono); font-size: 10px; font-weight: 600; color: var(--text-muted);
+  font-size: 11px; line-height: 1; font-weight: 600; color: var(--ink-muted);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-pill);
+  padding: 2px 7px;
 }
-/* «+» all'estremità destra della riga della linguetta: nuova sessione in quella
-   radice. Stesso trattamento della ✕ delle card (discreto, si accende al
-   passaggio), ma con l'arancione dell'azione invece del rosso: non distrugge, crea. */
+/* «+» all'estremità destra della testata: nuova sessione in quella radice.
+   Stesso trattamento della ✕ delle card (discreto, si accende al passaggio),
+   ma con l'arancione dell'azione invece del rosso: non distrugge, crea. */
 .group-add {
-  flex: 0 0 auto; margin: 0 4px 3px auto; padding: 0 6px; border-radius: 6px;
+  flex: 0 0 auto; margin: 0 4px 0 auto; padding: 2px 6px; border-radius: 6px;
   color: var(--text-dim); font-size: 15px; font-weight: 500; line-height: 1; cursor: pointer;
 }
 .group-cap:hover .group-add { color: var(--text-muted); }
 .group-add:hover { color: var(--action); background: var(--action-soft); }
 
-/* Il pannello. Angolo vivo in alto a sinistra: è lì che si innesta la
-   linguetta. `z-index` sopra i fogli, che nel DOM non lo precedono. */
+/* Il corpo: metà inferiore del pannello, attaccata alla testata. */
 .group-body {
   position: relative; z-index: 1;
   /* Il gap è quello che il filetto della riga attiva si prende sotto di sé
@@ -590,11 +569,12 @@ button:focus-visible, input:focus-visible, select:focus-visible {
      cambiare sessione fa saltare la lista di quei pixel. */
   display: flex; flex-direction: column; gap: var(--space-session-gap);
   /* Margine attorno alle card: più dello spazio che c'è fra due righe, o il
-     bordo del fascicolo le stringe più di quanto stiano fra loro e la pila
-     sembra il contenuto di una tabella. */
-  padding: 8px;
-  background: var(--surface-group); border: 1px solid var(--border);
-  border-radius: 0 var(--radius-lg) var(--radius-lg) var(--radius-lg);
+     bordo del pannello le stringe più di quanto stiano fra loro e la pila
+     sembra il contenuto di una tabella. Sopra niente: c'è la testata. */
+  padding: 8px; padding-top: 0;
+  background: var(--surface-group);
+  border: 1px solid var(--border-subtle); border-top: 0;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   box-shadow: var(--shadow-stack);
 }
 /* `display: flex` sovrascriverebbe il `display: none` dell'UA stylesheet

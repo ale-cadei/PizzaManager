@@ -77,49 +77,44 @@ ok('fascicolo: quello con la sessione in primo piano alza i bordi, aperto o chiu
   } finally { restore(); }
 });
 
-ok('fascicolo: il CSS salda la linguetta al pannello e non chiude l angolo di innesto', () => {
+/* La Pila: la testata è la prima riga del pannello, non una linguetta che
+   sporge. Il pannello sono testata e corpo attaccati; chiuso resta la testata. */
+ok('pila: la testata sta dentro il pannello, niente linguetta', () => {
   const fs = require('node:fs');
   const path = require('node:path');
   const css = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'styles.css'), 'utf8');
   const header = css.match(/\n\.group-header \{[^}]*\}/);
-  assert.ok(header, 'manca la regola della linguetta');
-  assert.ok(/border-bottom:\s*0/.test(header[0]) && /margin-bottom:\s*-1px/.test(header[0]),
-    'la linguetta non è saldata al pannello: resterebbe una card con una decorazione sopra');
+  assert.ok(header, 'manca la regola della testata');
+  assert.ok(/background:\s*transparent/.test(header[0]) && /border:\s*0/.test(header[0]),
+    'la testata ha un fondo o un bordo suo: torna a essere una linguetta');
+  const cap = css.match(/\n\.group-cap \{[^}]*\}/);
+  assert.ok(cap && /background:\s*var\(--surface-group\)/.test(cap[0]),
+    'la riga della testata non è del materiale del pannello');
   const body = css.match(/\n\.group-body \{[^}]*\}/);
-  assert.ok(body, 'manca la regola del pannello');
-  assert.ok(/border-radius:\s*0 /.test(body[0]),
-    'il pannello arrotonda l angolo in alto a sinistra, dove si innesta la linguetta');
-  assert.ok(/\.group-header\[aria-expanded="false"\][\s\S]{0,200}border-radius:\s*var\(--radius[^;]*\);/.test(css),
-    'da collassato la linguetta non si chiude su tutti gli angoli');
+  assert.ok(body && /border-top:\s*0/.test(body[0]) && /border-radius:\s*0 0 /.test(body[0]),
+    'il corpo non si attacca alla testata: si vedrebbero due card');
+  const closed = css.match(/\n\.group-cap:has\(> \.group-header\[aria-expanded="false"\]\) \{[^}]*\}/);
+  assert.ok(closed && /border-radius:\s*var\(--radius-lg\);/.test(closed[0]),
+    'da chiuso la testata non si chiude su tutti gli angoli');
 });
 
-/* Chiuso, il pannello sparisce e restavano due barrette larghe sotto una
-   linguetta stretta: niente che si legga come una pila. Il dorso è il pannello
-   visto di taglio — largo quanto il fascicolo, dello stesso materiale — ed è
-   quello che rende i fogli sottostanti una pila invece che due righe. */
-ok('fascicolo: da chiuso resta il dorso del pannello, e i fogli stanno sotto', () => {
+ok('pila: i fogli usano la geometria dei token e vanno a scalare', () => {
   const fs = require('node:fs');
   const path = require('node:path');
   const css = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'styles.css'), 'utf8');
-  const spine = css.match(/\n\.group-cap:has\(> \.group-header\[aria-expanded="false"\]\)::after \{[^}]*\}/);
-  assert.ok(spine, 'manca il dorso del pannello chiuso');
-  assert.ok(/background:\s*var\(--surface-group\)/.test(spine[0]),
-    'il dorso non è il materiale del pannello: si leggerebbe come un terzo foglio');
-  assert.ok(/left:\s*0/.test(spine[0]) && /right:\s*0/.test(spine[0]),
-    'il dorso deve essere largo quanto il fascicolo, altrimenti i fogli restano più larghi di lui');
-
-  // I fogli scendono sotto il dorso, a scalare: primo più largo, secondo più stretto
-  // Le posizioni stanno nelle regole a riga singola, non nel blocco che i due
-  // fogli condividono (`[^\n}]*`: la regola finisce sulla sua riga).
+  const tokens = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'tokens-gruppo-pila.css'), 'utf8');
+  const px = (name) => Number(tokens.match(new RegExp(`--${name}:\\s*([\\d.]+)`))[1]);
   const first = css.match(/\n\.session-group::after\s+\{[^\n}]*\}/);
   const second = css.match(/\n\.session-group::before\s+\{[^\n}]*\}/);
-  assert.ok(first && second, 'mancano le regole dei due fogli');
-  const bottom = (rule) => Number(rule.match(/bottom:\s*-(\d+)px/)[1]);
-  const left = (rule) => Number(rule.match(/left:\s*(\d+)px/)[1]);
-  const height = Number(css.match(/\n\.session-group::before,\n\.session-group::after \{[^}]*height:\s*(\d+)px/)[1]);
-  const spineHeight = Number(spine[0].match(/height:\s*(\d+)px/)[1]);
-  assert.ok(bottom(first[0]) - height > 0 && bottom(first[0]) - height < spineHeight,
-    'il primo foglio deve spuntare da sotto il dorso, non staccarsene né sparirci dentro');
-  assert.ok(bottom(second[0]) > bottom(first[0]), 'il secondo foglio non sta sotto il primo');
-  assert.ok(left(second[0]) > left(first[0]), 'i fogli non vanno a scalare: la pila non si legge');
+  assert.ok(first && /--sheet-inset-1/.test(first[0]) && /--sheet-offset-1/.test(first[0]), 'il primo foglio non usa i suoi token');
+  assert.ok(second && /--sheet-inset-2/.test(second[0]) && /--sheet-offset-2/.test(second[0]), 'il secondo foglio non usa i suoi token');
+  assert.ok(px('sheet-inset-2') > px('sheet-inset-1'), 'i fogli non vanno a scalare: la pila non si legge');
+  assert.ok(px('sheet-offset-2') > px('sheet-offset-1'), 'il secondo foglio non sta sotto il primo');
+  const solo = px('sheet-inset-solo');
+  assert.ok(solo > px('sheet-inset-1') && solo < px('sheet-inset-2'), 'il foglio unico non sta in mezzo ai due');
+  const h = px('sheet-height');
+  assert.ok(h >= 10 && h <= 14, `foglio alto ${h}px: sotto 10 sembra una riga, sopra 14 una seconda card`);
+  assert.ok(px('sheet-fade') >= 0.45, 'il foglio più profondo sparisce');
+  assert.ok(px('space-group-stack') >= 24, 'il gruppo successivo appoggia sui fogli del precedente');
+  assert.ok(/#session-list \{[^}]*gap:\s*var\(--space-group-stack\)/.test(css), 'lo stacco fra gruppi non viene dal token');
 });

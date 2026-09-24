@@ -9,15 +9,15 @@ const { candidatesFor, nodeToolCandidates, isExecutable, resolveBinary, augmente
 
 ok('i candidati di ogni tool AI sono percorsi assoluti e non vuoti', () => {
   for (const tool of Object.values(AI_BINARIES)) {
-    const list = candidatesFor(tool, '/home/tizio');
+    const list = candidatesFor(tool, '/home/tizio', { platform: 'linux' });
     assert.ok(list.length, `nessun candidato per ${tool}`);
-    for (const c of list) assert.ok(path.isAbsolute(c), `candidato relativo: ${c}`);
-    assert.ok(list.every((c) => path.basename(c) === tool), `un candidato di ${tool} punta a un altro binario`);
+    for (const c of list) assert.ok(path.posix.isAbsolute(c), `candidato relativo: ${c}`);
+    assert.ok(list.every((c) => path.posix.basename(c) === tool), `un candidato di ${tool} punta a un altro binario`);
   }
 });
 
 ok('un tool sconosciuto non ha candidati', () => {
-  assert.deepStrictEqual(candidatesFor('tool-inventato', '/home/tizio'), []);
+  assert.deepStrictEqual(candidatesFor('tool-inventato', '/home/tizio', { platform: 'linux' }), []);
 });
 
 ok('i candidati coprono i gestori di versioni piu diffusi', () => {
@@ -28,10 +28,11 @@ ok('i candidati coprono i gestori di versioni piu diffusi', () => {
 });
 
 ok('opencode viene cercato anche nella sua directory dedicata', () => {
-  assert.ok(candidatesFor('opencode', '/home/tizio').includes('/home/tizio/.opencode/bin/opencode'));
+  assert.ok(candidatesFor('opencode', '/home/tizio', { platform: 'linux' }).includes('/home/tizio/.opencode/bin/opencode'));
 });
 
-ok('isExecutable distingue file eseguibili, non eseguibili e directory', () => {
+// Su Windows non c'e' il bit di esecuzione: i casi win32 sono in windows.test.js
+ok('isExecutable distingue file eseguibili, non eseguibili e directory', { skip: process.platform === 'win32' && 'niente bit x su Windows' }, () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-exec-'));
   const script = path.join(dir, 'script');
   fs.writeFileSync(script, '#!/bin/sh\n', { mode: 0o755 });
@@ -48,9 +49,11 @@ ok('isExecutable distingue file eseguibili, non eseguibili e directory', () => {
 
 ok('resolveBinary trova un binario nel PATH che gli viene passato', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-path-'));
-  fs.writeFileSync(path.join(dir, 'finto-tool'), '#!/bin/sh\n', { mode: 0o755 });
+  // Su Windows e' eseguibile un file con estensione di PATHEXT, e il nome si cerca senza
+  const file = process.platform === 'win32' ? 'finto-tool.cmd' : 'finto-tool';
+  fs.writeFileSync(path.join(dir, file), '#!/bin/sh\n', { mode: 0o755 });
   const r = resolveBinary('finto-tool', { searchPath: dir, home: '/home/nessuno' });
-  assert.strictEqual(r.path, path.join(dir, 'finto-tool'));
+  assert.strictEqual(r.path, path.join(dir, file));
   assert.ok(r.via.startsWith('PATH:'));
   fs.rmSync(dir, { recursive: true, force: true });
 });
@@ -69,7 +72,8 @@ ok('augmentedEnv dichiara un terminale a colori pieni e preserva le altre variab
 });
 
 ok('augmentedEnv aggiunge al PATH la directory dei binari indicati', () => {
-  const env = augmentedEnv(['/opt/strumenti/mio-tool'], {}, { PATH: '/bin' });
+  const env = augmentedEnv(['/opt/strumenti/mio-tool'], {}, { PATH: '/bin' },
+    { platform: 'linux', searchPath: '', resolve: () => ({ path: null }) });
   assert.ok(env.PATH.split(':').includes('/opt/strumenti'));
 });
 
@@ -92,6 +96,7 @@ ok('il PATH della shell di login viene anteposto a quello del processo', () => {
     env: { PATH: '/bin' },
     exec: () => '/opt/homebrew/bin:/usr/bin\n',
     shell: '/bin/zsh',
+    platform: 'linux',
   });
   assert.strictEqual(p, '/opt/homebrew/bin:/usr/bin:/bin');
 });
@@ -110,6 +115,7 @@ ok('viene letta solo l ultima riga, cosi i messaggi della rc non sporcano il PAT
     env: { PATH: '/bin' },
     exec: () => 'Benvenuto!\nnvm caricato\n/opt/bin:/usr/bin\n',
     shell: '/bin/zsh',
+    platform: 'linux',
   });
   assert.strictEqual(p, '/opt/bin:/usr/bin:/bin');
 });
@@ -120,8 +126,8 @@ ok('un output della shell senza percorsi viene ignorato', () => {
 });
 
 ok('dedupePath tiene la prima occorrenza e scarta le successive', () => {
-  assert.strictEqual(dedupePath('/a:/b:/a:/c:/b'), '/a:/b:/c');
-  assert.strictEqual(dedupePath('/a::/b:'), '/a:/b', 'le voci vuote vanno tolte');
+  assert.strictEqual(dedupePath('/a:/b:/a:/c:/b', { delimiter: ':' }), '/a:/b:/c');
+  assert.strictEqual(dedupePath('/a::/b:', { delimiter: ':' }), '/a:/b', 'le voci vuote vanno tolte');
 });
 
 // ---------- lib/claude-sessions ----------
@@ -226,9 +232,9 @@ ok('primeLoginPath: chiamate concorrenti condividono UNA shell, e riempiono la c
   let calls = 0;
   const run = (sh, args, opts, cb) => { calls++; setTimeout(() => cb(null, '/opt/homebrew/bin:/usr/bin\n'), 10); };
   const [a, b, c] = await Promise.all([
-    primeLoginPath({ env: { PATH: '/bin' }, run, shell: '/bin/zsh' }),
-    primeLoginPath({ env: { PATH: '/bin' }, run, shell: '/bin/zsh' }),
-    primeLoginPath({ env: { PATH: '/bin' }, run, shell: '/bin/zsh' }),
+    primeLoginPath({ env: { PATH: '/bin' }, run, shell: '/bin/zsh', platform: 'linux' }),
+    primeLoginPath({ env: { PATH: '/bin' }, run, shell: '/bin/zsh', platform: 'linux' }),
+    primeLoginPath({ env: { PATH: '/bin' }, run, shell: '/bin/zsh', platform: 'linux' }),
   ]);
   assert.strictEqual(calls, 1, 'tre chiamate all avvio devono lanciare una sola shell');
   assert.strictEqual(a, '/opt/homebrew/bin:/usr/bin:/bin');
@@ -243,11 +249,12 @@ ok('computeLoginPathAsync: se la shell fallisce si resta col PATH del processo',
 });
 
 ok('computeLoginPathAsync: legge solo l ultima riga, le rc possono stampare', async () => {
-  const p = await computeLoginPathAsync({ env: { PATH: '/bin' }, run: (s, a, o, cb) => cb(null, 'Benvenuto!\n/opt/bin:/usr/bin\n'), shell: '/bin/zsh' });
+  const p = await computeLoginPathAsync({ env: { PATH: '/bin' }, run: (s, a, o, cb) => cb(null, 'Benvenuto!\n/opt/bin:/usr/bin\n'), shell: '/bin/zsh', platform: 'linux' });
   assert.strictEqual(p, '/opt/bin:/usr/bin:/bin');
 });
 
-ok('claude-sessions: i file illeggibili vengono contati, non nascosti', () => {
+// mode 0o000 su Windows non toglie la lettura: il caso non si riproduce
+ok('claude-sessions: i file illeggibili vengono contati, non nascosti', { skip: process.platform === 'win32' && 'niente permessi POSIX su Windows' }, () => {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-proj-'));
   const proj = path.join(base, '-Users-tizio-app');
   fs.mkdirSync(proj);

@@ -187,7 +187,7 @@ const { cwdFromProjectDir } = require('../lib/claude-sessions');
 
 ok('win: il nome della cartella di progetto di Claude torna un percorso con unità e backslash', () => {
   assert.strictEqual(cwdFromProjectDir('C--Users-jack-repo', { platform: 'win32' }), 'C:\\Users\\jack\\repo');
-  assert.strictEqual(cwdFromProjectDir('-home-jack-repo'), '/home/jack/repo', 'su Unix come prima');
+  assert.strictEqual(cwdFromProjectDir('-home-jack-repo', { platform: 'linux' }), '/home/jack/repo', 'su Unix come prima');
 });
 
 // ---------- lib/tmux ----------

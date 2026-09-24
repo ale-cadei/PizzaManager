@@ -29,7 +29,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 19 | [`feat/sposta-progetti-e-chat-corrente`](19-sposta-progetti-e-chat-corrente.md) | 8, 9, 14 | ~2h | fatto, da provare nell'app |
 | 20 | [`feat/onboarding`](20-onboarding.md) | — | ~1 g | fatto, da provare nell'app |
 | 21 | [`refactor/split-renderer`](21-split-renderer.md) | — | ~2h | ✅ fatto (PR #30) |
-| 22 | [`feat/ricerca-conversazioni`](22-ricerca-conversazioni.md) | 21 | ~1 g | pianificato |
+| 22 | [`feat/ricerca-conversazioni`](22-ricerca-conversazioni.md) | 21 | ~1 g | fatto, da provare nell'app |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

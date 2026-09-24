@@ -117,6 +117,26 @@ annullamento fra un file e l'altro).
 4. `feat:` `lib/conversation-search.js` + worker + IPC + test
 5. `feat:` linguetta Cerca nel Resume
 
+## Com'è andata (2026-09-24)
+
+Differenze rispetto a quanto scritto sopra:
+- `searchConversations(query, { home, limit, isCancelled })`: `home` come
+  i lettori (i test passano una tmpdir), `isCancelled` al posto del flag
+  del worker; `now` non è servito.
+- `userPromptText` era già esportata ma appiattisce gli a capo: il refactor
+  ha estratto `userMessageText`, che li tiene (serve all'export, 23).
+  `listCodexSessions` ha preso `{ home }` come il lettore Claude.
+- Esclusi anche i riassunti della compattazione, i sotto-agenti, gli errori
+  API e le risposte `<synthetic>` di Claude Code.
+- Annullamento: contatore in `SharedArrayBuffer`, perché il thread non
+  riceve messaggi mentre lavora. Il `Worker` si carica da `app.asar` senza
+  `asarUnpack` (provato con Electron 33).
+- La parte verificabile della linguetta (debounce, sequenza, frammento con
+  `<mark>`) sta in `renderer/search-results.js`, UMD come `sidebar.js`.
+- Il tetto di righe di `main.js` nel test passa da 200 a 210: tre righe di
+  cablaggio per l'handler.
+- Misure sui dati reali: 0,5–1,5 s a ricerca; «worktree» → 16 conversazioni.
+
 ## Fuori, annotato
 
 - Testo delle conversazioni opencode (SQLite: serve `better-sqlite3` o

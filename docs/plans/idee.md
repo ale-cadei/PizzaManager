@@ -77,7 +77,7 @@ lettori esistono già in `lib/*-sessions.js`); risultato → «Riprendi» con
 
 - [x] studio — scansione senza indice (~1,5 s su 300 MB), solo nei messaggi
 - [x] piano — [22-ricerca-conversazioni.md](22-ricerca-conversazioni.md)
-- [ ] fatto
+- [x] fatto — linguetta 🔎 Cerca nel Resume (Claude Code e Codex; opencode e Antigravity solo per titolo)
 - [ ] provato
 
 ### Esportare una conversazione in Markdown

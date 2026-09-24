@@ -164,7 +164,9 @@ ok('claude: ANTHROPIC_API_KEY nel profilo + account a chiave API viene bloccato 
   cfg.profiles.claude = [{ id: 'claude:k', label: 'Con chiave', command: `ANTHROPIC_API_KEY=sk-ant-nel-profilo ${SYSTEM_SHELL}`, resumeArgs: '' }];
   profiles.save(cfg);
 
-  const mgr = createPtyManager({ accounts: () => accounts, history: () => history, profiles, sendToRenderer: () => {} });
+  let exited;
+  const exit = new Promise((resolve) => { exited = resolve; });
+  const mgr = createPtyManager({ accounts: () => accounts, history: () => history, profiles, sendToRenderer: (c) => { if (c === 'pty-exit') exited(); } });
   const r = await mgr.spawn({ id: 't2', type: 'claude', cwd: dir, claudeAccountId: accId, commandProfileId: 'claude:k' });
   assert.strictEqual(r.ok, false);
   assert.ok(/imposta già ANTHROPIC_API_KEY/.test(r.error), r.error);
@@ -174,7 +176,9 @@ ok('claude: ANTHROPIC_API_KEY nel profilo + account a chiave API viene bloccato 
   const ok2 = await mgr.spawn({ id: 't3', type: 'claude', cwd: dir, claudeAccountId: 'oauth', commandProfileId: 'claude:k' });
   assert.strictEqual(ok2.ok, true, ok2.error);
   mgr.kill('t3');
-  fs.rmSync(dir, { recursive: true, force: true });
+  // Su Windows la cwd di un processo vivo non si cancella: prima si aspetta che esca
+  await Promise.race([exit, new Promise((resolve) => setTimeout(resolve, 5000).unref())]);
+  fs.rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 });
 
 // ---------- Resume Antigravity ----------

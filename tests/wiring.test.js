@@ -264,3 +264,12 @@ ok('la cartella dei dati e fissa e non segue productName: un rebrand non deve re
   // deve avvenire prima di qualunque uso degli store (che leggono app.getPath('userData'))
   assert.ok(main.indexOf("app.setPath('userData'") < main.indexOf("app.getPath('userData')"), 'setPath deve precedere il primo getPath');
 });
+
+// ---------- Ricerca nelle conversazioni (piano 22) ----------
+ok('ricerca: handler, preload e worker collegati; il main non cerca da sé', () => {
+  const main = read('main.js');
+  assert.ok(main.includes("'search-conversations'"), 'manca handler search-conversations');
+  assert.ok(main.includes("require('./lib/search-worker')"), 'la ricerca deve passare dal worker');
+  assert.ok(!main.includes("require('./lib/conversation-search')"), 'searchConversations nel main bloccherebbe i terminali');
+  assert.ok(read('preload.js').includes("searchConversations: (query) => ipcRenderer.invoke('search-conversations'"), 'manca searchConversations nel preload');
+});

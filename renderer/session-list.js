@@ -13,6 +13,8 @@ const sidebar = Sidebar.createSidebar({
   onSelect: (id) => setActive(id),
   onClose: (id, anchor) => { requestClose(id, anchor).catch(() => {}); },
   onRename: (t) => { renameTab(t).catch(() => {}); },
+  // ⤓ sulla card: se l'export non riesce, il perché esce dalla card
+  onExport: (t, anchor) => { exportFromCard(t, anchor).catch(() => {}); },
   // Il «+» di un gruppo progetto: stesso dialog, directory già impostata sulla
   // radice; il tipo lo si sceglie lì come sempre.
   onNewInProject: (root) => { openNewModal(undefined, { cwd: root }).catch(() => {}); },
@@ -104,4 +106,24 @@ function showHint() {
   if (!anchor || anchor.offsetParent === null) return;
   hintStore.markSeen(hint.id);
   closeConfirm.tell({ anchor, title: hint.title, text: hint.text, key }).catch(() => {});
+}
+
+/* Schede con un export in corso: un doppio clic su ⤓ aprirebbe due dialog di
+   salvataggio uno dopo l'altro. */
+let exportingCards = new Set();
+
+/** Esporta la conversazione di una card; riuscito o annullato non c'è niente da dire. */
+async function exportFromCard(t, anchor) {
+  if (exportingCards.has(t.id)) return;
+  exportingCards = new Set(exportingCards).add(t.id);
+  let res = null;
+  try {
+    res = await window.aisess.exportConversation(t.type, t.resumeId);
+  } catch (e) {
+    res = { ok: false, error: String((e && e.message) || e) };
+  } finally {
+    exportingCards = new Set([...exportingCards].filter((id) => id !== t.id));
+  }
+  if (res.ok || res.cancelled) return;
+  await closeConfirm.tell({ anchor, title: 'Esportazione non riuscita', text: res.error || 'Errore sconosciuto.', key: t.id });
 }

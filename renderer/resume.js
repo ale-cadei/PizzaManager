@@ -27,8 +27,16 @@ async function ensureResumeData(tab) {
   return resumeCache[tab];
 }
 
+const SEARCH_PLACEHOLDER = {
+  search: 'Cerca nei messaggi delle conversazioni…',
+  list: 'Cerca per titolo, directory o id…',
+};
+
 async function renderResumeList(keepCache = false) {
   const box = $('#resume-list');
+  $('#resume-search').placeholder = resumeTab === 'search' ? SEARCH_PLACEHOLDER.search : SEARCH_PLACEHOLDER.list;
+  if (resumeTab === 'search') return conversationSearch.run($('#resume-search').value);
+  conversationSearch.cancel(); // una risposta in ritardo non deve coprire questa lista
   const q = ($('#resume-search').value || '').toLowerCase();
   box.innerHTML = '<p class="muted">Caricamento…</p>';
   const data = await ensureResumeData(resumeTab);
@@ -54,6 +62,50 @@ async function renderResumeList(keepCache = false) {
     note.textContent = data.skipped === 1 ? '1 sessione non leggibile, esclusa dall\'elenco.' : `${data.skipped} sessioni non leggibili, escluse dall'elenco.`;
     box.appendChild(note);
   }
+}
+
+/* ---------- Linguetta «Cerca»: nei messaggi, non nei titoli ---------- */
+
+const conversationSearch = ConvSearch.createSearchRunner({
+  search: (q) => window.aisess.searchConversations(q),
+  render: renderSearchState,
+});
+
+/** La casella del Resume: filtra la lista, o cerca nei messaggi dopo una pausa. */
+function onResumeSearchInput() {
+  if (resumeTab === 'search') conversationSearch.schedule($('#resume-search').value);
+  else renderResumeList(true);
+}
+
+function mutedNote(text, extraClass) {
+  const p = document.createElement('p');
+  p.className = 'muted' + (extraClass ? ' ' + extraClass : '');
+  p.textContent = text;
+  return p;
+}
+
+function renderSearchState(state) {
+  if (resumeTab !== 'search') return;
+  const box = $('#resume-list');
+  box.innerHTML = '';
+  if (state.phase !== 'results') {
+    box.appendChild(mutedNote(ConvSearch.statusText(state)));
+    return;
+  }
+  for (const r of state.results) box.appendChild(createSearchItem(r));
+  if (state.truncated) box.appendChild(mutedNote(`Solo le ${state.results.length} conversazioni più recenti: aggiungi una parola per restringere.`, 'small'));
+  if (state.skipped > 0) box.appendChild(mutedNote(`${state.skipped} conversazioni non leggibili, escluse dalla ricerca.`, 'small'));
+}
+
+/* Un risultato è una voce del Resume (stesse viste, stessa scelta dell'account
+   Claude) con sotto i frammenti trovati. */
+function createSearchItem(r) {
+  const el = createResumeItem(r.source, { id: r.id, title: r.title, cwd: r.cwd, mtime: r.mtime });
+  el.classList.add('search-result');
+  const meta = el.querySelector('.meta');
+  for (const snip of r.snippets) meta.appendChild(ConvSearch.snippetElement(document, snip));
+  if (r.hits > r.snippets.length) meta.appendChild(mutedNote(ConvSearch.hitsText(r.hits), 'small search-hits'));
+  return el;
 }
 
 /* Descrittori per tab: come mostrare una voce e come riaprirla.

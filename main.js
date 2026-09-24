@@ -15,6 +15,7 @@ const { listClaudeSessions } = require('./lib/claude-sessions');
 const { listOpencodeSessions } = require('./lib/opencode-sessions');
 const { listCodexSessions } = require('./lib/codex-sessions');
 const { listAntigravitySessions } = require('./lib/antigravity-sessions');
+const { createSearchWorker } = require('./lib/search-worker');
 const { collectUsage } = require('./lib/usage');
 const { computeRecentDirs } = require('./lib/recent-dirs');
 const { findProjectRoot } = require('./lib/project-root');
@@ -43,6 +44,8 @@ const history = lazy(() => createHistoryStore({ dir: app.getPath('userData') }))
 const accounts = lazy(() => createAccountStore({ dir: app.getPath('userData') }));
 const profiles = lazy(() => createProfileStore({ dir: app.getPath('userData') }));
 const liveStore = lazy(() => createLiveSessionsStore({ dir: app.getPath('userData') }));
+// Ricerca nei messaggi delle conversazioni: in un thread, il main resta libero
+const conversationSearch = lazy(() => createSearchWorker());
 
 // tmux, se c'e', fa vivere le sessioni fuori dall'app (docs/plans/06-tmux-backend.md).
 // Senza, si ricade sul comportamento classico: il processo muore con la finestra.
@@ -183,6 +186,7 @@ ipcMain.handle('list-claude-sessions', async (event, { limit } = {}) => {
 ipcMain.handle('list-antigravity-sessions', async (event, { limit } = {}) => {
   try { return listAntigravitySessions(limit); } catch (e) { return { ...fail('', e), sessions: [] }; }
 });
+ipcMain.handle('search-conversations', async (event, { query } = {}) => conversationSearch().search(query));
 
 // ---------- Uso di token: sessione, finestra 5h, settimana (barra in basso) ----------
 ipcMain.handle('usage-snapshot', async (event, { active } = {}) => {

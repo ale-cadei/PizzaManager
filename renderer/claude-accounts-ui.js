@@ -59,7 +59,8 @@ async function updateClaudeAccountRow() {
 async function updateResumeAccountRow() {
   const row = $('#resume-account-row');
   if (!row) return;
-  if (resumeTab !== 'claude') { row.hidden = true; return; }
+  // Anche in «Cerca»: fra i risultati ci sono conversazioni Claude da riaprire
+  if (resumeTab !== 'claude' && resumeTab !== 'search') { row.hidden = true; return; }
   await ensureClaudeAccounts();
   const multi = claudeAccountOptions().length > 1;
   row.hidden = !multi;

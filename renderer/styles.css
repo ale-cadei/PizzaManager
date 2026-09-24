@@ -789,6 +789,18 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   direction: rtl; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
 }
+/* Linguetta «Cerca»: i frammenti dei messaggi sotto titolo e percorso */
+.resume-item.search-result { align-items: flex-start; }
+.search-snippet {
+  margin-top: 6px; font-size: 12px; line-height: 1.45; color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+.search-snippet .search-role { font-weight: 600; margin-right: 4px; }
+.search-snippet mark {
+  background: var(--action-soft); color: var(--text);
+  border-radius: 3px; padding: 0 2px;
+}
+.search-hits { margin: 4px 0 0; }
 /* ---------- Comandi di avvio: configurazione e scelta ---------- */
 #config-list {
   max-height: min(48vh, 520px); overflow-y: auto;

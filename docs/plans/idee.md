@@ -22,8 +22,8 @@ prima le rende più economiche. Refactor puro, stesso comportamento, merge in
 giornata.
 
 - [x] piano
-- [x] fatto (branch `refactor/split-renderer`, da mergiare)
-- [ ] provato
+- [x] fatto (PR #30)
+- [x] provato
 
 ---
 
@@ -75,14 +75,15 @@ Casella di ricerca testuale sui `.jsonl` di Claude, Codex e opencode (i
 lettori esistono già in `lib/*-sessions.js`); risultato → «Riprendi» con
 `--resume` nella sua directory.
 
-- [ ] studio — indice o scansione a ogni ricerca? quanto pesano i `.jsonl`?
-- [ ] piano
-- [ ] fatto
+- [x] studio — scansione senza indice (~1,5 s su 300 MB), solo nei messaggi
+- [x] piano — [22-ricerca-conversazioni.md](22-ricerca-conversazioni.md)
+- [x] fatto — linguetta 🔎 Cerca nel Resume (Claude Code e Codex; opencode e Antigravity solo per titolo)
 - [ ] provato
 
 ### Esportare una conversazione in Markdown
 Dalla card o dal resume: «Esporta in .md» → file con domande, risposte e
-tool usati, leggibile e condivisibile.
+tool usati, leggibile e condivisibile. Branch dopo il 22: riusa il suo
+`lib/transcripts.js`.
 
 - [ ] piano
 - [ ] fatto

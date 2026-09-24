@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld('aisess', {
   listClaude: (limit) => ipcRenderer.invoke('list-claude-sessions', { limit }),
   listCodex: (limit) => ipcRenderer.invoke('list-codex-sessions', { limit }),
   listAntigravity: (limit) => ipcRenderer.invoke('list-antigravity-sessions', { limit }),
+  searchConversations: (query) => ipcRenderer.invoke('search-conversations', { query }),
   listClaudeAccounts: () => ipcRenderer.invoke('list-claude-accounts'),
   addClaudeAccount: ({ name, apiKey }) => ipcRenderer.invoke('add-claude-account', { name, apiKey }),
   deleteClaudeAccount: (id) => ipcRenderer.invoke('delete-claude-account', { id }),

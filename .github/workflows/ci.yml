@@ -1,5 +1,7 @@
-# Test a ogni push e PR. Ubuntu basta: i casi Windows girano da Unix con
-# `platform: 'win32'` iniettato (tests/windows.test.js).
+# Test a ogni push e PR. I casi Windows girano anche da Unix con
+# `platform: 'win32'` iniettato (tests/windows.test.js), ma solo un host
+# Windows vede i test che presumono Unix senza dirlo, e prova davvero
+# cmd.exe, i .cmd e node-pty (docs/plans/23-windows-prova-vera.md).
 name: ci
 on:
   push:
@@ -7,7 +9,11 @@ on:
   pull_request:
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-2022]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

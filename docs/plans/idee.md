@@ -82,7 +82,7 @@ lettori esistono già in `lib/*-sessions.js`); risultato → «Riprendi» con
 
 ### Esportare una conversazione in Markdown
 Dalla card o dal resume: «Esporta in .md» → file con domande, risposte e
-tool usati, leggibile e condivisibile. Branch dopo il 22: riusa il suo
+tool usati, leggibile e condivisibile. Branch `feat/export-markdown` (piano 23): riusa il suo
 `lib/transcripts.js`.
 
 - [ ] piano

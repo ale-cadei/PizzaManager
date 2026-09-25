@@ -39,6 +39,15 @@ Il job Windows di `release.yml` e `npm run dist:win` passano
 setup costruito e installato a mano durante la prova (funziona), e non
 dipende più dalla versione di Visual Studio del runner.
 
+## `npm run install:win`
+
+Il gemello di `install:mac` (richiesto durante la prova): `scripts/install-win.js`
+si ferma se PizzaManager è aperta (il setup non sovrascrive un .exe in uso),
+lancia `dist:win` e poi il setup NSIS in silenzio (`/S`): installazione per
+utente in `%LOCALAPPDATA%\Programs\PizzaManager`, collegamento nel menu Start,
+come chi scarica il setup dalla Release. Provato: installa, aggiorna una copia
+già installata, e con l'app aperta si rifiuta prima di costruire.
+
 ## Stato
 
 Suite su Windows: 537 passano, 11 saltati (permessi POSIX, `/bin/sh`,

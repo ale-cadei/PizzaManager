@@ -88,6 +88,7 @@ npm start
 
 ```bash
 npm run install:mac   # macOS: costruisce PizzaManager.app e la copia in /Applications
+npm run install:win   # Windows: costruisce il setup e installa in %LOCALAPPDATA%\Programs, con il collegamento nel menu Start
 npm run dist          # qualsiasi sistema: i pacchetti della piattaforma corrente in dist/
 ```
 

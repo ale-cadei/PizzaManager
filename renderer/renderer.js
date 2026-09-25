@@ -43,6 +43,7 @@ async function init() {
     $$('.type-card').forEach(x => x.classList.remove('selected'));
     c.classList.add('selected');
     pendingNewType = c.dataset.type;
+    showNewError('');
     updateClaudeAccountRow();
   }));
   $('#new-cancel').addEventListener('click', () => $('#modal-new').hidden = true);
@@ -53,10 +54,16 @@ async function init() {
       markSelectedRecentDir();
     }
   });
-  $('#new-cwd').addEventListener('input', () => markSelectedRecentDir());
+  $('#new-cwd').addEventListener('input', () => { markSelectedRecentDir(); showNewError(''); });
   $('#new-confirm').addEventListener('click', async () => {
     const name = $('#new-name').value.trim();
     const cwd = $('#new-cwd').value.trim() || undefined;
+    // Una sessione git ha senso solo dentro un repository: il modal resta aperto
+    if (pendingNewType === 'git') {
+      const problem = await gitRepoProblem(cwd);
+      if (problem) { showNewError(problem); return; }
+    }
+    showNewError('');
     const claudeAccountId = pendingNewType === 'claude' ? ($('#new-claude-account') || {}).value || null : null;
     if (claudeAccountId) { try { localStorage.setItem('aisess.claudeAccount', claudeAccountId); } catch {} }
     $('#modal-new').hidden = true;

@@ -32,6 +32,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 22 | [`feat/ricerca-conversazioni`](22-ricerca-conversazioni.md) | 21 | ~1 g | fatto, da provare nell'app |
 | 23 | [`feat/export-markdown`](23-export-markdown.md) | 22 | ~½ g | fatto, da provare nell'app |
 | 24 | [`fix/windows`](24-windows-prova-vera.md) | 12, 13 | ~½ g | fatto, CI verde (PR #33), da mergiare |
+| 25 | [`feat/sessione-git`](25-sessione-git.md) | 21 | ~1 g | fatto, da provare nell'app |
 | 25 | [`feat/scrollback-shell`](25-scrollback-shell.md) | 6, 8 | ~½ g | fatto, da provare nell'app |
 | 25b | [`feat/scrollback-senza-tmux`](25-scrollback-shell.md) — Windows | 25 | ~1 g | proposto |
 

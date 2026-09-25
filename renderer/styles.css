@@ -773,11 +773,12 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   font-family: var(--font-mono); font-size: 11px; line-height: 1; padding: 3px 6px;
   border-radius: var(--radius); border: 1px solid var(--border-strong); color: var(--text-2); white-space: nowrap;
 }
-/* --ref-color: colore della linea del branch, messo dal renderer */
-.git-ref--branch, .git-ref--head { --ref: var(--ref-color, var(--type-git)); border-color: color-mix(in srgb, var(--ref) 70%, transparent); color: var(--ref); }
+/* --ref-color: colore della linea del branch, messo dal renderer.
+   Un branch su origin ha lo stesso colore; lo distingue il bordo tratteggiato. */
+.git-ref--branch, .git-ref--head, .git-ref--remote { --ref: var(--ref-color, var(--type-git)); border-color: color-mix(in srgb, var(--ref) 70%, transparent); color: var(--ref); }
 .git-ref--head { background: color-mix(in srgb, var(--ref) 22%, transparent); font-weight: 600; }
 .git-ref--tag { border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--accent); }
-.git-ref--remote { color: var(--text-faint); border-style: dashed; }
+.git-ref--remote { border-style: dashed; }
 .git-subject { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .git-author { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .git-date { color: var(--text-dim); font-family: var(--font-mono); font-size: 12px; white-space: nowrap; }

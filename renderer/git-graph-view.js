@@ -109,7 +109,7 @@
     // Un branch ha il colore della sua linea: la corsia del commit a cui punta
     function drawRef(ref, color) {
       const chip = el('span', `git-ref git-ref--${ref.kind}` + (ref.head ? ' git-ref--head' : ''), ref.name);
-      if (ref.kind === 'branch' || ref.kind === 'head') chip.style.setProperty('--ref-color', color);
+      if (ref.kind !== 'tag') chip.style.setProperty('--ref-color', color);
       if (ref.head) chip.title = ref.kind === 'head' ? 'HEAD staccata' : 'Branch corrente (HEAD)';
       return chip;
     }

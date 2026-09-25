@@ -11,6 +11,7 @@ const { createHistoryStore } = require('./lib/history');
 const { createAccountStore } = require('./lib/accounts');
 const { createProfileStore } = require('./lib/profiles');
 const { createLiveSessionsStore } = require('./lib/live-sessions');
+const { createScrollbackStore } = require('./lib/scrollback');
 const { listClaudeSessions } = require('./lib/claude-sessions');
 const { listOpencodeSessions } = require('./lib/opencode-sessions');
 const { listCodexSessions } = require('./lib/codex-sessions');
@@ -24,6 +25,7 @@ const { createWindow } = require('./app/window');
 const { runMenuAction } = require('./app/menu');
 const { createPtyManager } = require('./app/pty');
 const { registerClipboardHandlers } = require('./app/clipboard');
+const { installQuitCapture } = require('./app/quit-capture');
 const { registerExportHandlers } = require('./app/export');
 
 // La cartella dei dati NON segue il nome dell'app. Electron la deriva da
@@ -46,6 +48,7 @@ const history = lazy(() => createHistoryStore({ dir: app.getPath('userData') }))
 const accounts = lazy(() => createAccountStore({ dir: app.getPath('userData') }));
 const profiles = lazy(() => createProfileStore({ dir: app.getPath('userData') }));
 const liveStore = lazy(() => createLiveSessionsStore({ dir: app.getPath('userData') }));
+const scrollbackStore = lazy(() => createScrollbackStore({ dir: app.getPath('userData') }));
 // Ricerca nei messaggi delle conversazioni: in un thread, il main resta libero
 const conversationSearch = lazy(() => createSearchWorker());
 
@@ -54,7 +57,7 @@ const conversationSearch = lazy(() => createSearchWorker());
 const tmux = detectTmux({ confPath: path.join(__dirname, 'app', 'tmux.conf') });
 
 const ptys = createPtyManager({
-  accounts, history, profiles: { load: () => profiles().load() }, sendToRenderer, tmux, liveStore,
+  accounts, history, profiles: { load: () => profiles().load() }, sendToRenderer, tmux, liveStore, scrollbackStore,
   // Lingua di sistema: sceglie LANG per i processi quando l'app, avviata dal
   // Finder, non ce l'ha. Funzione perche' app.getLocale() vale solo dopo `ready`.
   systemLocale: () => { try { return app.getLocale(); } catch { return null; } },
@@ -70,6 +73,10 @@ app.whenReady().then(() => {
   // La shell di login si interroga in background: la finestra appare subito,
   // gli handler che hanno bisogno del PATH completo la aspettano (await).
   primeLoginPath();
+  // Il testo delle shell: via i file orfani, poi si salva a intervalli (un
+  // riavvio non avvisa) e un'ultima volta prima di uscire.
+  ptys.startCapture();
+  installQuitCapture({ app, ptys });
   mainWindow = createWindow({ onRendererReload: () => ptys.closeAll() });
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow({ onRendererReload: () => ptys.closeAll() });

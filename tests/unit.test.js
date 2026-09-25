@@ -53,12 +53,13 @@ ok('codex: il resume passa il sottocomando resume <id>', () => {
   else assert.strictEqual(r.missing, 'codex');
 });
 
-ok('shell: sessione interattiva; il resume non e supportato e viene rifiutato', () => {
+// /bin/sh e' un percorso esplicito e deve esistere: il caso Windows e' il test «su Windows la shell…»
+ok('shell: sessione interattiva; il resume non e supportato e viene rifiutato', { skip: process.platform === 'win32' && 'niente /bin/sh su Windows' }, () => {
   const profiles = freshProfiles({ shell: '/bin/sh', platform: 'linux' });
-  const nuova = buildCommand('shell', null, null, { profiles });
+  const nuova = buildCommand('shell', null, null, { profiles, platform: 'linux' });
   assert.deepStrictEqual(nuova.args, ['-i']);
   assert.ok(nuova.cmd, 'la shell deve sempre risolversi');
-  const resume = buildCommand('shell', 'un-id', null, { profiles });
+  const resume = buildCommand('shell', 'un-id', null, { profiles, platform: 'linux' });
   assert.strictEqual(resume.cmd, null);
   assert.ok(/non supporta il resume/.test(resume.error), resume.error);
 });
@@ -174,7 +175,7 @@ ok('account claude: la lista non espone mai le API key', () => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-ok('account claude: il file delle chiavi non e leggibile da altri utenti', () => {
+ok('account claude: il file delle chiavi non e leggibile da altri utenti', { skip: process.platform === 'win32' && 'Windows non ha i permessi POSIX: li proteggono le ACL di %APPDATA%' }, () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-acc-'));
   const { createAccountStore } = require('../lib/accounts');
   const store = createAccountStore({ dir });
@@ -307,7 +308,7 @@ const { sessionFromLines, cwdFromProjectDir, TITLE_MAX } = require('../lib/claud
 function parseFixture(name, projectDirName = '-Users-tizio-fallback') {
   return sessionFromLines(fs.readFileSync(path.join(FIXTURES, name), 'utf8').split('\n'), {
     id: 'abcdef1234-0000',
-    fallbackCwd: cwdFromProjectDir(projectDirName),
+    fallbackCwd: cwdFromProjectDir(projectDirName, { platform: 'linux' }),
   });
 }
 

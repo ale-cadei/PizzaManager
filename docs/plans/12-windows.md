@@ -39,16 +39,21 @@ Windows non falliscono (e non proteggono: lì contano le ACL, fuori scope).
 
 ## Checklist di prova su Windows (a mano)
 
-Prerequisiti: Node 22+, `npm i -g @anthropic-ai/claude-code`, Visual Studio
-Build Tools (per compilare `node-pty`). Poi `npm install && npm start`.
+Prerequisiti: Node 22+, `npm i -g @anthropic-ai/claude-code` (o l'installer
+nativo di Claude). Poi `npm install && npm start`. I Build Tools non servono:
+vedi il piano 24.
 
-- [ ] La finestra si apre, la menubar in-app c'è (come su Linux)
-- [ ] «Nuova» → Terminale: parte PowerShell nella directory scelta
-- [ ] Legenda in basso: `claude` trovato (tooltip col percorso `.cmd` o `.exe`)
-- [ ] «Nuova» → Claude in una cartella con `.git`: Claude parte, il titolo
+Provata il 2026-09-24 su Windows 11 (piano 24), da sorgente, col pacchetto
+v1.0.2 e col setup costruito da `dist:win`:
+
+- [x] La finestra si apre, la menubar in-app c'è (come su Linux)
+- [x] «Nuova» → Terminale: parte PowerShell nella directory scelta
+- [x] Legenda in basso: `claude` trovato (tooltip col percorso `.cmd` o `.exe`)
+- [x] «Nuova» → Claude in una cartella con `.git`: Claude parte, il titolo
       automatico arriva, la sidebar per Progetto la raggruppa con il nome
       della cartella
-- [ ] Resume → Claude: elenca le conversazioni, riapre con `--resume`
-- [ ] Riapri il dialog «Nuova»: la directory appena usata è fra le recenti
-- [ ] Chiudi e riapri l'app: nessun modal di ripristino (senza tmux non
+- [x] Resume → Claude: elenca le conversazioni (la riapertura con `--resume`
+      non è stata provata)
+- [x] Riapri il dialog «Nuova»: la directory appena usata è fra le recenti
+- [x] Chiudi e riapri l'app: nessun modal di ripristino (senza tmux non
       c'è niente da ripristinare), nessun errore in console

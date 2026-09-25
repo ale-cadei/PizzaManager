@@ -130,6 +130,14 @@ accesa (un PC Linux, un Raspberry, una VPS da pochi euro al mese).
 
 ## Distribuzione
 
+### Installare da sorgente su Windows: `npm run install:win`
+Come `install:mac`: costruisce il setup e lo installa in silenzio, rifiuta
+se l'app è aperta. Nel piano [24-windows-prova-vera.md](24-windows-prova-vera.md).
+
+- [x] piano
+- [ ] fatto (branch `fix/windows`)
+- [x] provato su Windows 11
+
 ### Aggiornamento automatico
 Già pianificato: [18-aggiornamento-automatico.md](18-aggiornamento-automatico.md)
 (repo pubblico solo per le release, `electron-updater`, banner «Riavvia»).

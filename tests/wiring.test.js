@@ -12,6 +12,8 @@ const { readRendererApp } = require('./renderer-source');
 const ROOT = path.join(__dirname, '..');
 const read = (...p) => fs.readFileSync(path.join(ROOT, ...p), 'utf8');
 const tmp = (prefix) => fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+// Un eseguibile che esiste di sicuro, per i profili che non devono dipendere da claude
+const SYSTEM_SHELL = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
 
 // ---------- Shift+Invio ----------
 ok('terminale: Shift+Invio e copia/incolla condividono l unico gestore tasti di xterm', () => {
@@ -116,9 +118,9 @@ ok('claude: account a chiave API + profilo con CLAUDE_CONFIG_DIR viene bloccato 
   const profiles = createProfileStore({ dir });
   accounts.add({ name: 'lavoro', apiKey: 'sk-ant-x' });
   const accId = accounts.list()[0].id;
-  // percorso esplicito a /bin/sh: non dipende da claude installato
+  // una shell di sistema al posto di claude: non dipende da claude installato
   const cfg = profiles.load();
-  cfg.profiles.claude = [{ id: 'claude:iso', label: 'Isolato', command: 'CLAUDE_CONFIG_DIR=/tmp/cfg-iso /bin/sh', resumeArgs: '' }];
+  cfg.profiles.claude = [{ id: 'claude:iso', label: 'Isolato', command: `CLAUDE_CONFIG_DIR=/tmp/cfg-iso ${SYSTEM_SHELL}`, resumeArgs: '' }];
   profiles.save(cfg);
 
   const sent = [];
@@ -134,7 +136,7 @@ ok('claude: account a chiave API + profilo con CLAUDE_CONFIG_DIR viene bloccato 
 });
 
 // ---------- Correzioni del branch 3 ----------
-ok('profili: il file puo contenere segreti e non e leggibile da altri utenti', () => {
+ok('profili: il file puo contenere segreti e non e leggibile da altri utenti', { skip: process.platform === 'win32' && 'Windows non ha i permessi POSIX: li proteggono le ACL di %APPDATA%' }, () => {
   const { createProfileStore, FILE_MODE } = require('../lib/profiles');
   const dir = tmp('ais-prof-');
   const profiles = createProfileStore({ dir });
@@ -159,10 +161,12 @@ ok('claude: ANTHROPIC_API_KEY nel profilo + account a chiave API viene bloccato 
   accounts.add({ name: 'lavoro', apiKey: 'sk-ant-account' });
   const accId = accounts.list()[0].id;
   const cfg = profiles.load();
-  cfg.profiles.claude = [{ id: 'claude:k', label: 'Con chiave', command: 'ANTHROPIC_API_KEY=sk-ant-nel-profilo /bin/sh', resumeArgs: '' }];
+  cfg.profiles.claude = [{ id: 'claude:k', label: 'Con chiave', command: `ANTHROPIC_API_KEY=sk-ant-nel-profilo ${SYSTEM_SHELL}`, resumeArgs: '' }];
   profiles.save(cfg);
 
-  const mgr = createPtyManager({ accounts: () => accounts, history: () => history, profiles, sendToRenderer: () => {} });
+  let exited;
+  const exit = new Promise((resolve) => { exited = resolve; });
+  const mgr = createPtyManager({ accounts: () => accounts, history: () => history, profiles, sendToRenderer: (c) => { if (c === 'pty-exit') exited(); } });
   const r = await mgr.spawn({ id: 't2', type: 'claude', cwd: dir, claudeAccountId: accId, commandProfileId: 'claude:k' });
   assert.strictEqual(r.ok, false);
   assert.ok(/imposta già ANTHROPIC_API_KEY/.test(r.error), r.error);
@@ -172,7 +176,9 @@ ok('claude: ANTHROPIC_API_KEY nel profilo + account a chiave API viene bloccato 
   const ok2 = await mgr.spawn({ id: 't3', type: 'claude', cwd: dir, claudeAccountId: 'oauth', commandProfileId: 'claude:k' });
   assert.strictEqual(ok2.ok, true, ok2.error);
   mgr.kill('t3');
-  fs.rmSync(dir, { recursive: true, force: true });
+  // Su Windows la cwd di un processo vivo non si cancella: prima si aspetta che esca
+  await Promise.race([exit, new Promise((resolve) => setTimeout(resolve, 5000).unref())]);
+  fs.rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 });
 
 // ---------- Resume Antigravity ----------
@@ -193,9 +199,11 @@ ok('antigravity: main + preload + UI collegati', () => {
    trova mai la conversazione, perche' confronta le directory. */
 ok('nomi: la scheda adotta la directory davvero usata dal pty', () => {
   const { resolveWorkdir } = require('../lib/workdir');
-  const home = '/home/tizio';
-  const isDir = (p) => p === home || p === '/home/tizio/progetto';
-  assert.strictEqual(resolveWorkdir('~/progetto', { home, isDir }), '/home/tizio/progetto', 'la tilde non viene espansa');
+  // path.resolve: su Windows '/home/tizio' diventa 'C:\home\tizio', ed e' quello che il pty usa
+  const home = path.resolve('/home/tizio');
+  const progetto = path.join(home, 'progetto');
+  const isDir = (p) => p === home || p === progetto;
+  assert.strictEqual(resolveWorkdir('~/progetto', { home, isDir }), progetto, 'la tilde non viene espansa');
   assert.strictEqual(resolveWorkdir('/non/esiste', { home, isDir }), home, 'una directory inesistente non ripiega sulla home');
   assert.strictEqual(resolveWorkdir('', { home, isDir }), home);
   assert.ok(/return \{ ok: true, cwd: workdir\b/.test(read('app', 'pty.js')), 'pty.spawn non restituisce la directory risolta');

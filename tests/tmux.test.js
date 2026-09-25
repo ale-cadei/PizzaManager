@@ -136,8 +136,8 @@ ok('createTmuxControl.create: il client new-session gira col PATH della sessione
 });
 
 ok('detectTmux: null senza binario, altrimenti bin + config + controllo', () => {
-  assert.strictEqual(t.detectTmux({ confPath: conf, resolve: () => ({ path: null }) }), null);
-  const d = t.detectTmux({ confPath: conf, resolve: () => ({ path: '/opt/homebrew/bin/tmux' }) });
+  assert.strictEqual(t.detectTmux({ confPath: conf, platform: 'linux', resolve: () => ({ path: null }) }), null);
+  const d = t.detectTmux({ confPath: conf, platform: 'linux', resolve: () => ({ path: '/opt/homebrew/bin/tmux' }) });
   assert.strictEqual(d.bin, '/opt/homebrew/bin/tmux');
   assert.strictEqual(d.confPath, conf);
   assert.strictEqual(d.socket, t.SOCKET);
@@ -152,7 +152,7 @@ ok('tmux: la config si passa dal percorso fuori dall asar', () => {
   assert.strictEqual(t.externalPath('/opt/PizzaManager/resources/app.asar/app/tmux.conf'), '/opt/PizzaManager/resources/app.asar.unpacked/app/tmux.conf');
   assert.strictEqual(t.externalPath('C:\\PizzaManager\\resources\\app.asar\\app\\tmux.conf'), 'C:\\PizzaManager\\resources\\app.asar.unpacked\\app\\tmux.conf');
   assert.strictEqual(t.externalPath('/src/PizzaManager/app/tmux.conf'), '/src/PizzaManager/app/tmux.conf', 'da sorgente non cambia');
-  const d = t.detectTmux({ confPath: '/x/app.asar/app/tmux.conf', resolve: () => ({ path: '/usr/bin/tmux' }) });
+  const d = t.detectTmux({ confPath: '/x/app.asar/app/tmux.conf', platform: 'linux', resolve: () => ({ path: '/usr/bin/tmux' }) });
   assert.strictEqual(d.confPath, '/x/app.asar.unpacked/app/tmux.conf');
 });
 

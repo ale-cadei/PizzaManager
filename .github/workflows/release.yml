@@ -44,10 +44,12 @@ jobs:
             args: --mac --x64
           - os: ubuntu-latest
             args: --linux
+          # Su Windows node-pty non si ricompila: usa i suoi prebuilds N-API
+          # (vedi scripts/postinstall.js). Resta windows-2022 per prudenza:
           # windows-latest e' passato a Visual Studio 2026, che node-gyp non
-          # riconosce ancora: node-pty non si compilerebbe.
+          # riconosceva ancora.
           - os: windows-2022
-            args: --win
+            args: --win -c.npmRebuild=false
     runs-on: ${{ matrix.os }}
     # Un build che non finisce deve fallire, non occupare un runner per ore
     timeout-minutes: 40
@@ -58,9 +60,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # Niente test qui: girano gia' in ci.yml su ogni push e PR, e il tag parte
-      # da un main verificato. Sul runner Windows la suite (scritta per Unix:
-      # permessi, path POSIX) fallirebbe per motivi che non riguardano il build.
+      # Niente test qui: girano gia' in ci.yml su ogni push e PR (anche su
+      # Windows), e il tag parte da un main verificato.
       - run: npx electron-builder ${{ matrix.args }} --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

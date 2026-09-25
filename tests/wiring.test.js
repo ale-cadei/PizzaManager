@@ -293,3 +293,19 @@ ok('ricerca: la linguetta Cerca sta in testa al Resume e usa la ricerca del main
   assert.ok(/createSearchItem[\s\S]{0,200}createResumeItem\(r\.source/.test(js), 'Resume deve riusare le viste esistenti (e la scelta dell account)');
   assert.ok(/resumeTab !== 'claude' && resumeTab !== 'search'/.test(js), 'la scelta dell account Claude manca nella linguetta Cerca');
 });
+
+// ---------- Export in Markdown (piano 23) ----------
+ok('export: handler registrato dal main, preload, bottoni nel Resume e sulla card', () => {
+  const main = read('main.js');
+  assert.ok(main.includes("require('./app/export')"), 'main.js non usa app/export.js');
+  assert.ok(main.includes('registerExportHandlers(ipcMain'), 'main.js non registra l handler dell export');
+  const handler = read('app', 'export.js');
+  assert.ok(handler.includes("'export-conversation'"), 'manca handler export-conversation');
+  assert.ok(handler.includes('dialog.showSaveDialog('), 'il percorso deve sceglierlo il dialog');
+  assert.ok(read('preload.js').includes("exportConversation: (source, id) => ipcRenderer.invoke('export-conversation', { source, id })"),
+    'il preload deve mandare solo fonte e id, mai un percorso');
+  const js = readRendererApp();
+  assert.ok(js.includes('Sidebar.EXPORTABLE_TYPES.includes(tab)'), 'il Resume non offre l export');
+  assert.ok(/onExport: \(t, anchor\) =>/.test(js), 'la sidebar non riceve onExport');
+  assert.ok(js.includes('window.aisess.exportConversation('), 'il renderer non chiama l export');
+});

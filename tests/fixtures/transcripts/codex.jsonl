@@ -2,6 +2,9 @@
 {"timestamp": "2026-09-20T10:00:02Z", "type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "<environment_context>cwd</environment_context>"}]}}
 {"timestamp": "2026-09-20T10:00:03Z", "type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "Rinomina la funzione di login"}]}}
 {"timestamp": "2026-09-20T10:00:03Z", "type": "event_msg", "payload": {"type": "user_message", "message": "Rinomina la funzione di login", "images": []}}
+{"timestamp": "2026-09-20T10:00:04Z", "type": "response_item", "payload": {"type": "function_call", "name": "exec_command", "arguments": "{\"cmd\":\"rg login\"}", "call_id": "x"}}
+{"timestamp": "2026-09-20T10:00:04Z", "type": "response_item", "payload": {"type": "custom_tool_call", "name": "apply_patch", "input": "*** Begin Patch", "call_id": "y"}}
+{"timestamp": "2026-09-20T10:00:04Z", "type": "response_item", "payload": {"type": "web_search_call", "status": "completed"}}
 {"timestamp": "2026-09-20T10:00:04Z", "type": "response_item", "payload": {"type": "function_call_output", "call_id": "x", "output": "login.js"}}
 {"timestamp": "2026-09-20T10:00:05Z", "type": "event_msg", "payload": {"type": "agent_reasoning", "text": "penso al login"}}
 {"timestamp": "2026-09-20T10:00:06Z", "type": "event_msg", "payload": {"type": "agent_message", "message": "Rinominata in `signIn`."}}

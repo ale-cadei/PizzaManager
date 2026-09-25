@@ -49,8 +49,31 @@ ok('claude: il resume passa --resume <id>', () => {
 
 ok('codex: il resume passa il sottocomando resume <id>', () => {
   const r = buildCommand('codex', '019f472a', null, { profiles: freshProfiles() });
-  if (r.cmd) assert.deepStrictEqual(r.args, ['resume', '019f472a']);
+  if (r.cmd) assert.deepStrictEqual(r.args, ['resume', '019f472a', '--no-alt-screen']);
   else assert.strictEqual(r.missing, 'codex');
+});
+
+// Nell'alternate screen la rotella diventa freccia su/giù e codex sfoglia i
+// prompt inviati invece della chat (docs/plans/28-rotella-codex.md).
+const fakeCodex = () => ({ path: '/opt/bin/codex', via: 'test' });
+
+ok('codex: parte inline, senza alternate screen, anche col profilo salvato prima', () => {
+  const r = buildCommand('codex', null, null, { profiles: freshProfiles(), resolve: fakeCodex });
+  assert.deepStrictEqual(r.args, ['--no-alt-screen']);
+});
+
+ok('codex: un profilo che chiede già --no-alt-screen non lo riceve due volte', () => {
+  const profiles = freshProfiles();
+  const cfg = profiles.load();
+  profiles.save({ ...cfg, profiles: { ...cfg.profiles, codex: [{ id: 'codex:x', label: 'X', command: 'codex --no-alt-screen -m o3', resumeArgs: 'resume {id}' }] } });
+  const r = buildCommand('codex', 'abc', 'codex:x', { profiles, resolve: fakeCodex });
+  assert.deepStrictEqual(r.args, ['--no-alt-screen', '-m', 'o3', 'resume', 'abc']);
+});
+
+ok('il flag inline è solo di codex: claude e opencode restano come sono', () => {
+  const resolve = (bin) => ({ path: '/opt/bin/' + bin, via: 'test' });
+  assert.deepStrictEqual(buildCommand('claude', null, null, { profiles: freshProfiles(), resolve }).args, []);
+  assert.deepStrictEqual(buildCommand('opencode', null, null, { profiles: freshProfiles(), resolve }).args, []);
 });
 
 // /bin/sh e' un percorso esplicito e deve esistere: il caso Windows e' il test «su Windows la shell…»

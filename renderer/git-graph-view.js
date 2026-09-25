@@ -53,7 +53,26 @@
     return (Array.isArray(refs) ? refs : []).slice().sort((a, b) => (rank[a.kind] ?? 3) - (rank[b.kind] ?? 3));
   }
 
-  function createGitView({ root, document, onRefresh, onCopy }) {
+  /**
+   * Solo la linea `lane` (indice di colore): i suoi commit, uno sotto
+   * l'altro su una corsia sola.
+   */
+  function focusRows(rows, lane) {
+    const kept = (Array.isArray(rows) ? rows : []).filter((r) => r.color === lane);
+    return kept.map((r, i) => ({ ...r, col: 0, edges: i < kept.length - 1 ? [{ from: 0, to: 0, color: lane }] : [] }));
+  }
+
+  /** Nome da mostrare per una linea: il primo branch che punta a un suo commit. */
+  function laneLabel(rows, lane) {
+    for (const r of Array.isArray(rows) ? rows : []) {
+      if (r.color !== lane) continue;
+      const ref = visibleRefs(r.commit.refs).find((x) => x.kind === 'branch' || x.kind === 'remote');
+      if (ref) return ref.name;
+    }
+    return '';
+  }
+
+  function createGitView({ root, document, onRefresh, onCopy, onBranchClick }) {
     const el = (tag, cls, text) => {
       const e = document.createElement(tag);
       if (cls) e.className = cls;
@@ -70,9 +89,14 @@
     };
 
     const view = el('div', 'git-view');
+    // focusabile: Esc torna a tutte le linee
+    view.tabIndex = -1;
     const head = el('header', 'git-head');
     const repo = el('span', 'git-repo');
-    const branch = el('span', 'git-branch');
+    const branch = el('button', 'git-branch');
+    branch.type = 'button';
+    branch.title = 'Cambia branch o creane uno nuovo';
+    branch.addEventListener('click', () => onBranchClick && onBranchClick());
     const count = el('span', 'git-count muted small');
     const refresh = el('button', 'btn btn--ghost git-refresh', '⟳ Aggiorna');
     refresh.type = 'button';
@@ -95,21 +119,29 @@
       const lines = svgEl('g', { fill: 'none', 'stroke-width': 2, 'stroke-linecap': 'round' });
       const dots = svgEl('g', {});
       rows.forEach((r, i) => {
-        for (const e of r.edges) lines.appendChild(svgEl('path', { d: edgePath(i, e.from, e.to) }, { stroke: colorOf(e.color) }));
+        for (const e of r.edges) {
+          const d = edgePath(i, e.from, e.to);
+          lines.appendChild(svgEl('path', { d, 'data-lane': e.color }, { stroke: colorOf(e.color), '--lane-color': colorOf(e.color) }));
+          // tratto largo e trasparente sopra la linea: così si riesce a cliccarla
+          lines.appendChild(svgEl('path', { d, class: 'git-hit', 'data-lane': e.color }));
+        }
         const merge = r.commit.parents.length > 1;
         const isHead = r.commit.refs.some((ref) => ref.head);
         dots.appendChild(svgEl('circle', {
-          cx: laneX(r.col), cy: rowY(i), r: isHead ? DOT_R + 1.5 : DOT_R, 'stroke-width': merge || isHead ? 2.5 : 0,
-        }, { fill: merge ? 'var(--bg)' : colorOf(r.color), stroke: colorOf(r.color) }));
+          cx: laneX(r.col), cy: rowY(i), r: isHead ? DOT_R + 1.5 : DOT_R, 'stroke-width': merge || isHead ? 2.5 : 0, 'data-lane': r.color,
+        }, { fill: merge ? 'var(--bg)' : colorOf(r.color), stroke: colorOf(r.color), '--lane-color': colorOf(r.color) }));
       });
       svg.append(lines, dots);
       return { svg, w };
     }
 
     // Un branch ha il colore della sua linea: la corsia del commit a cui punta
-    function drawRef(ref, color) {
+    function drawRef(ref, lane) {
       const chip = el('span', `git-ref git-ref--${ref.kind}` + (ref.head ? ' git-ref--head' : ''), ref.name);
-      if (ref.kind !== 'tag') chip.style.setProperty('--ref-color', color);
+      if (ref.kind !== 'tag') {
+        chip.style.setProperty('--ref-color', colorOf(lane));
+        chip.dataset.lane = String(lane);
+      }
       if (ref.head) chip.title = ref.kind === 'head' ? 'HEAD staccata' : 'Branch corrente (HEAD)';
       return chip;
     }
@@ -118,7 +150,7 @@
       const c = r.commit;
       const li = el('li', 'git-row');
       const refs = el('span', 'git-refs');
-      refs.append(...visibleRefs(c.refs).map((ref) => drawRef(ref, colorOf(r.color))));
+      refs.append(...visibleRefs(c.refs).map((ref) => drawRef(ref, r.color)));
       const subject = el('span', 'git-subject', c.subject);
       subject.title = c.subject;
       const hash = el('button', 'git-hash', c.hash.slice(0, HASH_LEN));
@@ -136,19 +168,23 @@
       return li;
     }
 
-    /** @param {{ok: boolean, root?: string, head?: string|null, rows?: object[], width?: number, truncated?: boolean, error?: string}} data */
-    function update(data) {
-      if (!data || !data.ok) {
-        showStatus((data && data.error) || 'Impossibile leggere il repository.', true);
-        return;
-      }
-      repo.textContent = data.root || '';
-      repo.title = data.root || '';
-      branch.textContent = data.head ? `⎇ ${data.head}` : 'HEAD staccata';
-      const rows = data.rows || [];
-      count.textContent = rows.length ? `${rows.length} commit${data.truncated ? ' (i più recenti)' : ''}` : '';
+    let data = null;
+    let lit = null; // corsia illuminata dal passaggio del mouse, o null
+    let focus = null; // indice di colore della linea isolata, o null = tutte
+    let focusTip = ''; // hash del commit più recente della linea: la ritrova dopo un aggiornamento
+
+    function render({ keepScroll }) {
+      lit = null; // gli elementi illuminati stanno per essere ridisegnati
+      view.classList.remove('git-view--lit');
+      const all = data.rows || [];
+      const rows = focus === null ? all : focusRows(all, focus);
+      const label = focus === null ? '' : laneLabel(all, focus);
+      count.textContent = focus === null
+        ? (all.length ? `${all.length} commit${data.truncated ? ' (i più recenti)' : ''}` : '')
+        : `${rows.length} commit di ${label || 'questa linea'} · Esc per vederle tutte`;
+      view.classList.toggle('git-view--focus', focus !== null);
       if (!rows.length) { showStatus('Nessun commit ancora.'); return; }
-      const { svg, w } = drawGraph(rows, data.width || 1);
+      const { svg, w } = drawGraph(rows, focus === null ? data.width || 1 : 1);
       const body = el('div', 'git-body');
       body.style.setProperty('--git-graph-w', w + 'px');
       body.style.setProperty('--git-row-h', ROW_H + 'px');
@@ -156,18 +192,78 @@
       list.append(...rows.map(drawRow));
       body.append(svg, list);
       // Chi stava guardando più in basso non deve tornare in cima a ogni aggiornamento
-      const top = scroll.scrollTop;
+      const top = keepScroll ? scroll.scrollTop : 0;
       scroll.replaceChildren(body);
       scroll.scrollTop = top;
     }
+
+    /** Isola la linea `lane`; la stessa linea, o null, torna a tutte. */
+    function setFocus(lane) {
+      if (!data || !data.ok) return;
+      const next = lane === null || lane === focus ? null : lane;
+      if (next === focus) return;
+      focus = next;
+      const tip = focus === null ? null : (data.rows || []).find((r) => r.color === focus);
+      focusTip = tip ? tip.commit.hash : '';
+      render({ keepScroll: false });
+      view.focus({ preventScroll: true });
+    }
+
+    /** @param {{ok: boolean, root?: string, head?: string|null, rows?: object[], width?: number, truncated?: boolean, error?: string}} next */
+    function update(next) {
+      if (!next || !next.ok) {
+        showStatus((next && next.error) || 'Impossibile leggere il repository.', true);
+        return;
+      }
+      data = next;
+      repo.textContent = data.root || '';
+      repo.title = data.root || '';
+      branch.textContent = (data.head ? `⎇ ${data.head}` : 'HEAD staccata') + ' ▾';
+      // Dopo un aggiornamento i colori possono cambiare: la linea isolata si
+      // ritrova dal suo commit più recente, se c'è ancora
+      if (focus !== null) {
+        const tip = (data.rows || []).find((r) => r.commit.hash === focusTip);
+        focus = tip ? tip.color : null;
+      }
+      render({ keepScroll: true });
+    }
+
+    // Clic su una linea, un pallino o il nome di un branch: solo quella linea.
+    // Clic altrove nel pannello: di nuovo tutte. Non contano i pulsanti
+    // (l'hash copia, Aggiorna aggiorna) né la scelta del branch.
+    const KEEP_FOCUS = '.git-hash, .git-head button, .git-picker';
+    view.addEventListener('click', (e) => {
+      const target = e.target.closest ? e.target : e.target.parentElement;
+      const hit = target && target.closest('[data-lane]');
+      if (hit) { setFocus(Number(hit.getAttribute('data-lane'))); return; }
+      if (focus !== null && !(target && target.closest(KEEP_FOCUS))) setFocus(null);
+    });
+    // Passaggio del mouse su linea, pallino o nome di branch: la corsia si
+    // illumina (styles.css, .is-lit). Stesso bersaglio del clic.
+    function light(lane) {
+      if (lane === lit) return;
+      lit = lane;
+      view.classList.toggle('git-view--lit', lane !== null);
+      const key = String(lane);
+      for (const e of scroll.querySelectorAll('[data-lane]')) e.classList.toggle('is-lit', lane !== null && e.getAttribute('data-lane') === key);
+    }
+    view.addEventListener('mouseover', (e) => {
+      const target = e.target.closest ? e.target : e.target.parentElement;
+      const hit = target && target.closest('[data-lane]');
+      light(hit ? Number(hit.getAttribute('data-lane')) : null);
+    });
+    view.addEventListener('mouseleave', () => light(null));
+    view.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && focus !== null) { e.preventDefault(); setFocus(null); }
+    });
 
     function setLoading(on) {
       refresh.disabled = Boolean(on);
       view.classList.toggle('loading', Boolean(on));
     }
 
-    return { update, setLoading, showStatus, element: view };
+    return { update, setLoading, showStatus, setFocus, element: view };
   }
 
-  return { createGitView, edgePath, formatDate, visibleRefs, colorOf, graphWidth, ROW_H, LANE_W, PALETTE };
+  return { createGitView, edgePath, formatDate, visibleRefs, colorOf, graphWidth, focusRows, laneLabel, ROW_H, LANE_W, PALETTE };
 });

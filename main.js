@@ -19,12 +19,12 @@ const { createSearchWorker } = require('./lib/search-worker');
 const { collectUsage } = require('./lib/usage');
 const { computeRecentDirs } = require('./lib/recent-dirs');
 const { findProjectRoot } = require('./lib/project-root');
-const { readGitGraph } = require('./lib/git-graph');
 const { createWindow } = require('./app/window');
 const { runMenuAction } = require('./app/menu');
 const { createPtyManager } = require('./app/pty');
 const { registerClipboardHandlers } = require('./app/clipboard');
 const { registerExportHandlers } = require('./app/export');
+const { registerGitHandlers } = require('./app/git');
 
 // La cartella dei dati NON segue il nome dell'app. Electron la deriva da
 // productName: un rebrand ("PizzaManager") la sposterebbe in una cartella nuova
@@ -142,8 +142,6 @@ ipcMain.handle('resolve-project', async (event, { cwd } = {}) => {
     return { ...fail('', e), root: null };
   }
 });
-// Sessione git: timeline dei branch locali (lib/git-graph.js)
-ipcMain.handle('git-graph', async (event, { cwd, limit } = {}) => readGitGraph({ cwd, limit }).catch((e) => fail('git: ', e)));
 
 // ---------- Account Claude ----------
 // Le chiavi API non lasciano mai il main process: alla UI vanno solo id+nomi.
@@ -206,3 +204,4 @@ ipcMain.handle('usage-snapshot', async (event, { active } = {}) => {
 
 // ---------- Appunti (per term-clipboard.js nel renderer) ----------
 registerClipboardHandlers(ipcMain);
+registerGitHandlers(ipcMain);

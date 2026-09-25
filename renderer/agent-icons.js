@@ -21,6 +21,19 @@
         { d: 'M12.2 14.2h6v1.8h-6z' },
       ],
     },
+    /* Git: due commit su una linea e un branch che se ne stacca. Disegnato in
+       casa (a tratto, come Antigravity): il marchio ufficiale è un rombo che
+       a 16px non si distingue. */
+    git: {
+      label: 'Git',
+      paths: [
+        { d: 'M6 7.5v9', stroke: true, width: 2 },
+        { d: 'M18 9.5c0 4.5-6 4-10.2 7.6', stroke: true, width: 2 },
+        { d: 'M6 2.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5Z', stroke: true, width: 2 },
+        { d: 'M6 16.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5Z', stroke: true, width: 2 },
+        { d: 'M18 4.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5Z', stroke: true, width: 2 },
+      ],
+    },
     opencode: {
       label: 'OpenCode',
       paths: [{ d: 'M22 24H2V0h20zM17 4.8H7v14.4h10z', rule: 'evenodd' }],

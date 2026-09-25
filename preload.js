@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('aisess', {
   getHistory: () => ipcRenderer.invoke('get-history'),
   getRecentDirs: (limit) => ipcRenderer.invoke('get-recent-dirs', { limit }),
   resolveProject: (cwd) => ipcRenderer.invoke('resolve-project', { cwd }),
+  gitGraph: (cwd, limit) => ipcRenderer.invoke('git-graph', { cwd, limit }),
   listOpencode: (limit) => ipcRenderer.invoke('list-opencode-sessions', { limit }),
   listClaude: (limit) => ipcRenderer.invoke('list-claude-sessions', { limit }),
   listCodex: (limit) => ipcRenderer.invoke('list-codex-sessions', { limit }),

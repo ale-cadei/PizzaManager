@@ -32,6 +32,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 22 | [`feat/ricerca-conversazioni`](22-ricerca-conversazioni.md) | 21 | ~1 g | fatto, da provare nell'app |
 | 23 | [`feat/export-markdown`](23-export-markdown.md) | 22 | ~½ g | fatto, da provare nell'app |
 | 24 | [`fix/windows`](24-windows-prova-vera.md) | 12, 13 | ~½ g | fatto, CI verde (PR #33), da mergiare |
+| 25 | [`feat/sessione-git`](25-sessione-git.md) | 21 | ~1 g | fatto, da provare nell'app |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

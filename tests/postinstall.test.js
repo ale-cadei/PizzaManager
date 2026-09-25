@@ -13,8 +13,8 @@ ok('postinstall: su Windows node-pty non si ricompila', () => {
 
 ok('postinstall: su macOS e Linux ricompila node-pty per Electron', () => {
   const calls = [];
-  const r = postinstall({ platform: 'linux', spawn: (cmd, args) => { calls.push([cmd, ...args]); return { status: 0 }; }, log: quiet });
-  assert.deepStrictEqual(calls, [['electron-rebuild', '-f', '-w', 'node-pty']]);
+  const r = postinstall({ platform: 'linux', spawn: (cmd) => { calls.push(cmd); return { status: 0 }; }, log: quiet });
+  assert.deepStrictEqual(calls, ['electron-rebuild -f -w node-pty']);
   assert.deepStrictEqual(r, { rebuilt: true });
 });
 

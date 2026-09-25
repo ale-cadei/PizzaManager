@@ -197,6 +197,34 @@ ok('win: la radice si trova risalendo con i backslash, fino all unità', () => {
   assert.strictEqual(findProjectRoot('C:\\Users\\jack\\altro', { exists, pathImpl: win }), 'C:\\Users\\jack\\altro', 'senza .git vale la directory di partenza');
 });
 
+// ---------- lib/git-graph ----------
+const { readGitGraph } = require('../lib/git-graph');
+
+/* git su Windows risponde `C:/Users/...` con gli slash, mentre findProjectRoot
+   (e il resto dell'app) usa `C:\Users\...`. La sidebar raggruppa confrontando
+   la stringa: senza normalizzare, la scheda git starebbe in un gruppo suo. */
+ok('win: la radice di git arriva coi backslash, come quella di findProjectRoot', async () => {
+  const run = async (args) => {
+    if (args.includes('--show-toplevel')) return 'C:/Users/jack/repo\n';
+    if (args.includes('remote')) return '';
+    throw new Error('fatal: your current branch does not have any commits yet');
+  };
+  const r = await readGitGraph({ cwd: 'C:\\Users\\jack\\repo\\src', run, platform: 'win32' });
+  assert.strictEqual(r.ok, true, r.error);
+  assert.strictEqual(r.root, 'C:\\Users\\jack\\repo');
+  assert.strictEqual(r.root, findProjectRoot('C:\\Users\\jack\\repo\\src', { exists: (p) => p === 'C:\\Users\\jack\\repo\\.git', pathImpl: win }));
+});
+
+ok('git: fuori da Windows la radice resta quella che dice git', async () => {
+  const run = async (args) => {
+    if (args.includes('--show-toplevel')) return '/Users/jack/repo\n';
+    if (args.includes('remote')) return '';
+    throw new Error('fatal: your current branch does not have any commits yet');
+  };
+  const r = await readGitGraph({ cwd: '/Users/jack/repo/src', run, platform: 'darwin' });
+  assert.strictEqual(r.root, '/Users/jack/repo');
+});
+
 // ---------- lib/claude-sessions ----------
 const { cwdFromProjectDir } = require('../lib/claude-sessions');
 

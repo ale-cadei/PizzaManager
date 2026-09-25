@@ -18,7 +18,8 @@ function postinstall({ platform = process.platform, spawn = spawnSync, log = con
     log('[postinstall] Windows: node-pty usa i binari precompilati, niente rebuild.');
     return { rebuilt: false };
   }
-  const r = spawn('electron-rebuild', ['-f', '-w', 'node-pty'], { stdio: 'inherit', shell: true });
+  // Riga unica con shell: Node ≥ 22 depreca argv separati con shell: true
+  const r = spawn('electron-rebuild -f -w node-pty', { stdio: 'inherit', shell: true });
   if (r.status !== 0) {
     log('[postinstall] electron-rebuild di node-pty non riuscito: vedi il README, «Cosa serve».');
     return { rebuilt: false, failed: true };

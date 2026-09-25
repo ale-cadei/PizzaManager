@@ -343,7 +343,10 @@ ok('git: readGitGraph legge branch, merge e repository vuoti con il git installa
   const { readGitGraph } = require('../lib/git-graph');
   const bin = resolveBinary('git');
   if (!bin.path) return t.skip('git non installato su questa macchina');
-  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-git-')));
+  // .native come git: su macOS risolve /var -> /private/var, su Windows
+  // espande i nomi corti 8.3 della tmpdir (RUNNER~1 -> runneradmin), che
+  // realpathSync semplice lascia com'erano.
+  const dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-git-')));
   const env = { ...process.env, GIT_AUTHOR_NAME: 'Prova', GIT_AUTHOR_EMAIL: 'p@x', GIT_COMMITTER_NAME: 'Prova', GIT_COMMITTER_EMAIL: 'p@x' };
   const git = (...args) => execFileSync(bin.path, args, { cwd: dir, env });
   try {

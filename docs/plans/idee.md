@@ -120,7 +120,8 @@ non torna (un server che girava va rilanciato), torna quello che c'era scritto.
 - Windows (senza tmux): addon `serialize` di xterm, lo stesso di VS Code.
 
 - [x] piano — [25-scrollback-shell.md](25-scrollback-shell.md) (due branch: con tmux e senza)
-- [ ] fatto
+- [x] fatto con tmux (macOS, Linux) — branch `feat/scrollback-shell`
+- [ ] fatto senza tmux (Windows) — branch `feat/scrollback-senza-tmux`
 - [ ] provato
 
 ---

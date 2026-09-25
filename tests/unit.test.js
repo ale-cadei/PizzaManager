@@ -377,6 +377,10 @@ ok('main.js e solo cablaggio: nessuna funzione di logica definita al suo interno
   const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
   const fns = [...main.matchAll(/^function (\w+)/gm)].map((m) => m[1]);
   assert.deepStrictEqual(fns, ['sendToRenderer', 'fail'], 'main.js definisce logica che dovrebbe stare in lib/ o app/: ' + fns.join(', '));
-  // 210: soglia alzata di 10 per l'handler della ricerca (piano 22), solo cablaggio
-  assert.ok(main.split('\n').length < 210, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
+  // 215: soglia alzata di 5 per lo scrollback delle shell (piano 26) — store,
+  // avvio del salvataggio e aggancio alla chiusura. La logica sta in
+  // lib/scrollback.js e app/quit-capture.js: qui restano solo le chiamate.
+  // 220: altre 5 per l'handler della sessione git (lib/git-graph.js), arrivato
+  // su main in parallelo — anche quello solo cablaggio.
+  assert.ok(main.split('\n').length < 220, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
 });

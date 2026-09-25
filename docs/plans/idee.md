@@ -119,8 +119,9 @@ non torna (un server che girava va rilanciato), torna quello che c'era scritto.
   conversazione da sé;
 - Windows (senza tmux): addon `serialize` di xterm, lo stesso di VS Code.
 
-- [ ] piano
-- [ ] fatto
+- [x] piano — [26-scrollback-shell.md](26-scrollback-shell.md) (due branch: con tmux e senza)
+- [x] fatto con tmux (macOS, Linux) — branch `feat/scrollback-shell`
+- [ ] fatto senza tmux (Windows) — branch `feat/scrollback-senza-tmux`
 - [ ] provato
 
 ---

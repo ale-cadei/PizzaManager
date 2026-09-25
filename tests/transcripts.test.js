@@ -46,3 +46,41 @@ ok('transcripts: parseRecord scarta righe vuote, non JSON e troncate', () => {
   assert.strictEqual(parseRecord('{"a":'), null);
   assert.deepStrictEqual(parseRecord('  {"a":1}  '), { a: 1 });
 });
+
+/* ---------- Conversazione per l'export: messaggi e tool (piano 23) ---------- */
+
+const { claudeTranscript, codexTranscript } = require('../lib/transcripts');
+const roles = (entries) => entries.map((e) => [e.role, e.text]);
+
+ok('transcript claude: i messaggi e, al loro posto, i nomi dei tool (senza argomenti)', () => {
+  const entries = claudeTranscript(fixture('claude.jsonl'));
+  assert.deepStrictEqual(roles(entries), [
+    ['user', 'Perché il login va in timeout?\nSuccede solo in produzione.'],
+    ['assistant', 'Guardo la configurazione del pool.'],
+    ['tool', 'Bash'],
+    ['user', 'Ok, allora alza il timeout a 30 s.'],
+    ['assistant', 'Fatto: timeout a 30 s.'],
+  ]);
+  assert.strictEqual(entries[2].at, '2026-09-20T10:00:02Z');
+  assert.ok(!JSON.stringify(entries).includes('git worktree list'), 'gli argomenti dei tool non escono');
+});
+
+ok('transcript claude: i tool dei sotto-agenti non contano', () => {
+  const sub = JSON.stringify({ isSidechain: true, message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Read', input: {} }] } });
+  assert.deepStrictEqual(claudeTranscript([sub]), []);
+});
+
+ok('transcript codex: function_call, custom_tool_call e web_search, non gli output', () => {
+  assert.deepStrictEqual(roles(codexTranscript(fixture('codex.jsonl'))), [
+    ['user', 'Rinomina la funzione di login'],
+    ['tool', 'exec_command'],
+    ['tool', 'apply_patch'],
+    ['tool', 'web_search'],
+    ['assistant', 'Rinominata in `signIn`.'],
+  ]);
+});
+
+ok('transcripts: la ricerca non vede i tool', () => {
+  assert.ok(codexMessages(fixture('codex.jsonl')).every((m) => m.role !== 'tool'));
+  assert.ok(claudeMessages(fixture('claude.jsonl')).every((m) => m.role !== 'tool'));
+});

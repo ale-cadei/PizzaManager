@@ -184,6 +184,42 @@ function createResumeItem(tab, s) {
     $('#modal-resume').hidden = true;
     await view.open();
   };
+  if (Sidebar.EXPORTABLE_TYPES.includes(tab) && s.id) el.appendChild(createExportButton(tab, s.id, el));
   el.appendChild(btn);
   return el;
+}
+
+/* ---------- «⤓ .md»: la conversazione in un file Markdown (piano 23) ----------
+   Il modal resta aperto: l'esito sta sul bottone, un errore in una nota sotto
+   la voce. Il percorso lo sceglie il dialog nel main. */
+
+const EXPORT_LABEL = '⤓ .md';
+
+function createExportButton(source, id, item) {
+  const btn = document.createElement('button');
+  btn.className = 'btn btn--ghost resume-export';
+  btn.style.width = 'auto';
+  btn.textContent = EXPORT_LABEL;
+  btn.title = 'Esporta la conversazione in Markdown';
+  btn.onclick = async () => {
+    btn.disabled = true;
+    const res = await window.aisess.exportConversation(source, id)
+      .catch((e) => ({ ok: false, error: String((e && e.message) || e) }));
+    btn.disabled = false;
+    showExportOutcome(item, btn, res);
+  };
+  return btn;
+}
+
+function showExportOutcome(item, btn, res) {
+  const previous = item.querySelector('.export-error');
+  if (previous) previous.remove();
+  if (res.ok) {
+    btn.textContent = '✓ .md';
+    btn.title = 'Salvata in ' + res.path;
+    return;
+  }
+  btn.textContent = EXPORT_LABEL;
+  if (res.cancelled) return;
+  item.querySelector('.meta').appendChild(mutedNote('⚠ ' + (res.error || 'Esportazione non riuscita.'), 'small export-error'));
 }

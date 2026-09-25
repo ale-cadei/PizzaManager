@@ -41,9 +41,9 @@ Windows non falliscono (e non proteggono: lì contano le ACL, fuori scope).
 
 Prerequisiti: Node 22+, `npm i -g @anthropic-ai/claude-code` (o l'installer
 nativo di Claude). Poi `npm install && npm start`. I Build Tools non servono:
-vedi il piano 23.
+vedi il piano 24.
 
-Provata il 2026-09-24 su Windows 11 (piano 23), da sorgente, col pacchetto
+Provata il 2026-09-24 su Windows 11 (piano 24), da sorgente, col pacchetto
 v1.0.2 e col setup costruito da `dist:win`:
 
 - [x] La finestra si apre, la menubar in-app c'è (come su Linux)

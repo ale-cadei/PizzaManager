@@ -1,4 +1,4 @@
-# 23 — Windows: la prova vera
+# 24 — Windows: la prova vera
 
 Branch: `fix/windows` · Dipende da: 12, 13 · Taglia: ~½ g
 

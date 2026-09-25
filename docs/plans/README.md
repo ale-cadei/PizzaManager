@@ -19,7 +19,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 9 | [ordinamento manuale](09-ordinamento-manuale.md) — sul branch dell'8 | 8 | ~2h | ✅ fatto |
 | 10 | [`feat/pizza-branding`](10-pizza-branding.md) | — | ~1h | ✅ fatto |
 | 11 | [`feat/nuova-sessione-nel-progetto`](11-nuova-sessione-nel-progetto.md) | 8 | ~1h | ✅ fatto |
-| 12 | [`feat/windows`](12-windows.md) | — | ~1 g | ✅ fatto, provato su Windows (vedi 23) |
+| 12 | [`feat/windows`](12-windows.md) | — | ~1 g | ✅ fatto, provato su Windows (vedi 24) |
 | 13 | [`chore/release-build`](13-release-build.md) | 12 | ~2h | ✅ fatto |
 | 14 | [`feat/barra-usage`](14-barra-usage.md) | — | ~1 g | ✅ fatto |
 | 15 | [`feat/quota-token-5h`](15-quota-token-5h.md) | 14 | ~½ g | ✅ fatto |
@@ -30,7 +30,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 20 | [`feat/onboarding`](20-onboarding.md) | — | ~1 g | fatto, da provare nell'app |
 | 21 | [`refactor/split-renderer`](21-split-renderer.md) | — | ~2h | ✅ fatto (PR #30) |
 | 22 | [`feat/ricerca-conversazioni`](22-ricerca-conversazioni.md) | 21 | ~1 g | fatto, da provare nell'app |
-| 23 | [`fix/windows`](23-windows-prova-vera.md) | 12, 13 | ~½ g | fatto, CI Windows da vedere verde |
+| 24 | [`fix/windows`](24-windows-prova-vera.md) | 12, 13 | ~½ g | fatto, CI Windows da vedere verde |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

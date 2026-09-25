@@ -1,7 +1,7 @@
 # Test a ogni push e PR. I casi Windows girano anche da Unix con
 # `platform: 'win32'` iniettato (tests/windows.test.js), ma solo un host
 # Windows vede i test che presumono Unix senza dirlo, e prova davvero
-# cmd.exe, i .cmd e node-pty (docs/plans/23-windows-prova-vera.md).
+# cmd.exe, i .cmd e node-pty (docs/plans/24-windows-prova-vera.md).
 name: ci
 on:
   push:

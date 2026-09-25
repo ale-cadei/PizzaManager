@@ -132,7 +132,7 @@ accesa (un PC Linux, un Raspberry, una VPS da pochi euro al mese).
 
 ### Installare da sorgente su Windows: `npm run install:win`
 Come `install:mac`: costruisce il setup e lo installa in silenzio, rifiuta
-se l'app è aperta. Nel piano [23-windows-prova-vera.md](23-windows-prova-vera.md).
+se l'app è aperta. Nel piano [24-windows-prova-vera.md](24-windows-prova-vera.md).
 
 - [x] piano
 - [ ] fatto (branch `fix/windows`)

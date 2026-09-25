@@ -775,7 +775,6 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(90px, 160px) 128px 64px;
   align-items: center; gap: 10px; font-size: 13px; color: var(--text);
 }
-.git-row:hover { background: var(--surface-2); }
 .git-msg { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .git-refs { display: flex; gap: 4px; flex: 0 0 auto; }
 .git-refs:empty { display: none; }
@@ -789,6 +788,21 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .git-ref--head { background: color-mix(in srgb, var(--ref) 22%, transparent); font-weight: 600; }
 .git-ref--tag { border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--accent); }
 .git-ref--remote { border-style: dashed; }
+/* Passando sopra una linea, un suo pallino o il nome di un branch la corsia
+   si illumina (.is-lit, messa dal renderer) e le altre si attenuano: si
+   vede cosa isolerebbe un clic. --lane-color: colore della corsia. */
+.git-graph path, .git-graph circle { transition: opacity .12s ease, stroke-width .12s ease; }
+.git-ref { transition: box-shadow .12s ease, background-color .12s ease; }
+.git-view--lit .git-graph [data-lane]:not(.is-lit):not(.git-hit) { opacity: .3; }
+.git-graph path.is-lit:not(.git-hit) { stroke-width: 3.5; filter: drop-shadow(0 0 4px var(--lane-color)); }
+.git-graph circle.is-lit { filter: drop-shadow(0 0 5px var(--lane-color)); }
+.git-ref.is-lit {
+  background: color-mix(in srgb, var(--ref) 20%, transparent);
+  box-shadow: 0 0 0 1px var(--ref), 0 0 10px color-mix(in srgb, var(--ref) 55%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .git-graph path, .git-graph circle, .git-ref { transition: none; }
+}
 .git-subject { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .git-author { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .git-date { color: var(--text-dim); font-family: var(--font-mono); font-size: 12px; white-space: nowrap; }
@@ -800,11 +814,18 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .git-hash.copied { color: var(--state-ok); }
 /* Scelta del branch (renderer/git-branch-picker.js), appesa sotto l'intestazione */
 .git-picker {
-  position: absolute; top: 52px; left: 16px; z-index: 5; width: min(440px, calc(100% - 32px));
+  /* la larghezza la mette il renderer (bordo destro trascinabile) */
+  position: absolute; top: 52px; left: 16px; z-index: 5; width: min(440px, calc(100% - 32px)); max-width: calc(100% - 32px);
   background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius);
   box-shadow: var(--shadow-modal); padding: 8px; display: flex; flex-direction: column; gap: 6px;
 }
 .git-picker[hidden] { display: none; }
+.git-picker-grip { position: absolute; top: 0; bottom: 0; right: -4px; width: 8px; cursor: col-resize; }
+.git-picker-grip::before {
+  content: ''; position: absolute; top: 8px; bottom: 8px; left: 3px; width: 2px;
+  border-radius: 1px; background: transparent; transition: background-color .12s ease;
+}
+.git-picker-grip:hover::before, .git-picker-grip.dragging::before { background: var(--type-git); }
 .git-picker.loading { opacity: .6; pointer-events: none; }
 .git-picker-input {
   background: var(--bg); color: var(--text); border: 1px solid var(--border-strong); border-radius: var(--radius);

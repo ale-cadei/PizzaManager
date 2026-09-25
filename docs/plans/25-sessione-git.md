@@ -39,9 +39,8 @@ punto per commit, e per ogni commit messaggio, autore, data e ora, hash.
 
 ## Da fare / idee emerse
 
-- **Le schede git non si ripristinano dopo un riavvio**: non vivono in tmux
-  e non stanno in `live-sessions.json`. Riaprirle costa poco, ma andrebbero
-  ricordate.
+- ~~Le schede git non si ripristinano dopo un riavvio~~: fatto nel piano 27
+  (`lib/git-sessions.js`).
 - Niente aggiornamento automatico mentre la scheda è in primo piano (un
   commit fatto da un'altra sessione si vede solo con "Aggiorna" o cambiando
   scheda). Un watcher su `.git/refs` e `.git/HEAD` risolverebbe.

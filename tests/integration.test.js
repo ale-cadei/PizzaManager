@@ -333,3 +333,40 @@ ok('tmux: il testo di una shell sopravvive alla morte della sessione', async (t)
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// ---------- git: la timeline della sessione git su un repository vero ----------
+ok('git: readGitGraph legge branch, merge e repository vuoti con il git installato', async (t) => {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const path = require('path');
+  const { resolveBinary } = require('../lib/binaries');
+  const { readGitGraph } = require('../lib/git-graph');
+  const bin = resolveBinary('git');
+  if (!bin.path) return t.skip('git non installato su questa macchina');
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-git-')));
+  const env = { ...process.env, GIT_AUTHOR_NAME: 'Prova', GIT_AUTHOR_EMAIL: 'p@x', GIT_COMMITTER_NAME: 'Prova', GIT_COMMITTER_EMAIL: 'p@x' };
+  const git = (...args) => execFileSync(bin.path, args, { cwd: dir, env });
+  try {
+    git('init', '-q', '-b', 'main');
+    const empty = await readGitGraph({ cwd: dir });
+    assert.deepStrictEqual({ ok: empty.ok, rows: empty.rows }, { ok: true, rows: [] }, empty.error || '');
+    git('commit', '-q', '--allow-empty', '-m', 'primo');
+    git('checkout', '-q', '-b', 'feat/x');
+    git('commit', '-q', '--allow-empty', '-m', 'sul branch');
+    git('checkout', '-q', 'main');
+    git('commit', '-q', '--allow-empty', '-m', 'su main');
+    git('merge', '-q', '--no-ff', '--no-edit', 'feat/x');
+    const r = await readGitGraph({ cwd: dir });
+    assert.strictEqual(r.ok, true, r.error || '');
+    assert.strictEqual(r.root, dir);
+    assert.strictEqual(r.head, 'main');
+    assert.strictEqual(r.rows.length, 4);
+    assert.strictEqual(r.width, 2);
+    assert.strictEqual(r.rows[0].commit.parents.length, 2, 'il primo commit non è il merge');
+    assert.ok(r.rows.some((row) => row.commit.refs.some((ref) => ref.name === 'feat/x')), 'il branch feat/x non compare');
+    const outside = await readGitGraph({ cwd: os.tmpdir() });
+    if (!outside.ok) assert.strictEqual(outside.notRepo, true);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

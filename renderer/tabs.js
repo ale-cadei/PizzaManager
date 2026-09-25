@@ -41,6 +41,8 @@ async function resolveProjectRoot(cwd) {
 }
 
 async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null, previousSession = null, startedAt = Date.now() } = {}) {
+  // La sessione git non ha pty: è un pannello (renderer/git-tab.js)
+  if (type === 'git') return createGitTab({ name, cwd, startedAt });
   // attachSession: riaggancio di una sessione tmux gia' viva. Il comando e' gia'
   // stato risolto quando e' nata, quindi niente scelta del profilo.
   const picked = attachSession
@@ -179,6 +181,7 @@ function setActive(id) {
   // La scheda che lascia il primo piano si ridisegna per il refit: quell'output
   // è una conseguenza della visita, non un lavoro nuovo (attention.js).
   if (activeId && activeId !== id) attention.left(activeId);
+  const previousId = activeId;
   activeId = id;
   tabs.forEach((t) => t.wrap.classList.toggle('active', t.id === id));
   // Selezionare la sessione è la conferma che l'utente ha visto il lavoro finito
@@ -188,6 +191,8 @@ function setActive(id) {
   // richiuderebbe e riaprirebbe subito il gruppo della scheda attiva.
   const t = tabs.get(id);
   if (t) sidebar.expandGroupOf(t);
+  // La timeline git si rilegge tornando in primo piano: intanto si è lavorato
+  if (t && t.git && id !== previousId) refreshGitTab(t);
   renderSidebar();
   setTimeout(() => fitActive(), 30);
   refreshUsage(); // il riquadro SESSIONE parla della scheda in primo piano
@@ -209,7 +214,7 @@ function fitActive() {
 async function closeTab(id) {
   const t = tabs.get(id);
   if (!t) return;
-  await window.aisess.kill(id);
+  if (t.type !== 'git') await window.aisess.kill(id);
   clearAttention(id);
   attention.forget(id);
   clearTimeout(t.runTimer);
@@ -243,7 +248,8 @@ const closeConfirm = ConfirmBubble.createConfirmBubble();
 async function requestClose(id, anchor) {
   const t = tabs.get(id);
   if (!t) return;
-  if (t.alive && anchor) {
+  // Una scheda git non ha processi da perdere: niente domanda
+  if (t.alive && anchor && t.type !== 'git') {
     const yes = await closeConfirm.ask({
       anchor,
       key: id,

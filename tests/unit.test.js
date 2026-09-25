@@ -380,5 +380,7 @@ ok('main.js e solo cablaggio: nessuna funzione di logica definita al suo interno
   // 215: soglia alzata di 5 per lo scrollback delle shell (piano 25) — store,
   // avvio del salvataggio e aggancio alla chiusura. La logica sta in
   // lib/scrollback.js e app/quit-capture.js: qui restano solo le chiamate.
-  assert.ok(main.split('\n').length < 215, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
+  // 220: altre 5 per l'handler della sessione git (lib/git-graph.js), arrivato
+  // su main in parallelo — anche quello solo cablaggio.
+  assert.ok(main.split('\n').length < 220, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
 });

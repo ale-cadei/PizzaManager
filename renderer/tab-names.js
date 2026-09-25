@@ -160,6 +160,7 @@ async function renameTab(tab) {
   if (tab.resumeId) titleStore.setName(tab.type, tab.resumeId, clean);
   if (clean) { tab.name = clean.slice(0, 40); tab.autoNamed = false; syncLabel(tab); }
   else { tab.autoNamed = true; }
+  if (tab.type === 'git') saveGitSessions();
   renderSidebar();
   if (!clean) refreshAutoTitles().catch(() => {});
 }

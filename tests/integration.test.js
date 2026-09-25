@@ -370,3 +370,53 @@ ok('git: readGitGraph legge branch, merge e repository vuoti con il git installa
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// ---------- git: cambiare e creare branch su un repository vero ----------
+ok('git: switchBranch e createBranch con il git installato, remoti compresi', async (t) => {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const path = require('path');
+  const { resolveBinary } = require('../lib/binaries');
+  const { listBranches, switchBranch, createBranch } = require('../lib/git-branches');
+  const bin = resolveBinary('git');
+  if (!bin.path) return t.skip('git non installato su questa macchina');
+  const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-gitb-')));
+  const env = { ...process.env, GIT_AUTHOR_NAME: 'Prova', GIT_AUTHOR_EMAIL: 'p@x', GIT_COMMITTER_NAME: 'Prova', GIT_COMMITTER_EMAIL: 'p@x' };
+  const origin = path.join(base, 'origin');
+  const dir = path.join(base, 'clone');
+  const git = (cwd, ...args) => execFileSync(bin.path, args, { cwd, env, stdio: 'pipe' }).toString();
+  try {
+    fs.mkdirSync(origin);
+    git(origin, 'init', '-q', '-b', 'main');
+    git(origin, 'commit', '-q', '--allow-empty', '-m', 'primo');
+    git(origin, 'branch', 'fix/remoto');
+    git(base, 'clone', '-q', origin, dir);
+    const list = await listBranches({ cwd: dir });
+    assert.strictEqual(list.ok, true, list.error || '');
+    assert.deepStrictEqual(list.local.map((b) => [b.name, b.current]), [['main', true]]);
+    assert.deepStrictEqual(list.remote.map((b) => b.name).sort(), ['origin/fix/remoto', 'origin/main']);
+
+    // un remoto senza locale: nasce il locale che lo segue
+    const fromRemote = await switchBranch({ cwd: dir, name: 'origin/fix/remoto', kind: 'remote' });
+    assert.deepStrictEqual(fromRemote, { ok: true, branch: 'fix/remoto' });
+    assert.strictEqual(git(dir, 'rev-parse', '--abbrev-ref', 'HEAD').trim(), 'fix/remoto');
+    assert.strictEqual(git(dir, 'rev-parse', '--abbrev-ref', '@{upstream}').trim(), 'origin/fix/remoto');
+
+    const created = await createBranch({ cwd: dir, name: 'feat/nuovo' });
+    assert.deepStrictEqual(created, { ok: true, branch: 'feat/nuovo' });
+    const again = await createBranch({ cwd: dir, name: 'feat/nuovo' });
+    assert.strictEqual(again.ok, false);
+
+    // modifiche che il cambio di branch perderebbe: git rifiuta, niente va perso
+    fs.writeFileSync(path.join(dir, 'a.txt'), 'uno\n');
+    git(dir, 'add', 'a.txt');
+    git(dir, 'commit', '-q', '-m', 'a su feat/nuovo');
+    fs.writeFileSync(path.join(dir, 'a.txt'), 'modificato\n');
+    const blocked = await switchBranch({ cwd: dir, name: 'main', kind: 'local' });
+    assert.strictEqual(blocked.ok, false);
+    assert.strictEqual(fs.readFileSync(path.join(dir, 'a.txt'), 'utf8'), 'modificato\n');
+    assert.strictEqual(git(dir, 'rev-parse', '--abbrev-ref', 'HEAD').trim(), 'feat/nuovo');
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+});

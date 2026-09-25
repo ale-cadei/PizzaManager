@@ -121,7 +121,7 @@
       rows.forEach((r, i) => {
         for (const e of r.edges) {
           const d = edgePath(i, e.from, e.to);
-          lines.appendChild(svgEl('path', { d }, { stroke: colorOf(e.color) }));
+          lines.appendChild(svgEl('path', { d, 'data-lane': e.color }, { stroke: colorOf(e.color), '--lane-color': colorOf(e.color) }));
           // tratto largo e trasparente sopra la linea: così si riesce a cliccarla
           lines.appendChild(svgEl('path', { d, class: 'git-hit', 'data-lane': e.color }));
         }
@@ -129,7 +129,7 @@
         const isHead = r.commit.refs.some((ref) => ref.head);
         dots.appendChild(svgEl('circle', {
           cx: laneX(r.col), cy: rowY(i), r: isHead ? DOT_R + 1.5 : DOT_R, 'stroke-width': merge || isHead ? 2.5 : 0, 'data-lane': r.color,
-        }, { fill: merge ? 'var(--bg)' : colorOf(r.color), stroke: colorOf(r.color) }));
+        }, { fill: merge ? 'var(--bg)' : colorOf(r.color), stroke: colorOf(r.color), '--lane-color': colorOf(r.color) }));
       });
       svg.append(lines, dots);
       return { svg, w };
@@ -169,10 +169,13 @@
     }
 
     let data = null;
+    let lit = null; // corsia illuminata dal passaggio del mouse, o null
     let focus = null; // indice di colore della linea isolata, o null = tutte
     let focusTip = ''; // hash del commit più recente della linea: la ritrova dopo un aggiornamento
 
     function render({ keepScroll }) {
+      lit = null; // gli elementi illuminati stanno per essere ridisegnati
+      view.classList.remove('git-view--lit');
       const all = data.rows || [];
       const rows = focus === null ? all : focusRows(all, focus);
       const label = focus === null ? '' : laneLabel(all, focus);
@@ -235,6 +238,21 @@
       if (hit) { setFocus(Number(hit.getAttribute('data-lane'))); return; }
       if (focus !== null && !(target && target.closest(KEEP_FOCUS))) setFocus(null);
     });
+    // Passaggio del mouse su linea, pallino o nome di branch: la corsia si
+    // illumina (styles.css, .is-lit). Stesso bersaglio del clic.
+    function light(lane) {
+      if (lane === lit) return;
+      lit = lane;
+      view.classList.toggle('git-view--lit', lane !== null);
+      const key = String(lane);
+      for (const e of scroll.querySelectorAll('[data-lane]')) e.classList.toggle('is-lit', lane !== null && e.getAttribute('data-lane') === key);
+    }
+    view.addEventListener('mouseover', (e) => {
+      const target = e.target.closest ? e.target : e.target.parentElement;
+      const hit = target && target.closest('[data-lane]');
+      light(hit ? Number(hit.getAttribute('data-lane')) : null);
+    });
+    view.addEventListener('mouseleave', () => light(null));
     view.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && focus !== null) { e.preventDefault(); setFocus(null); }
     });

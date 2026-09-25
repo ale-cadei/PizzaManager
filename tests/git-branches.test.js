@@ -163,3 +163,16 @@ ok('branch: il filtro del selettore cerca in locali e remoti senza distinguere m
   assert.strictEqual(filterBranches(branches, '').local.length, 2);
   assert.deepStrictEqual(filterBranches(null, 'x'), { local: [], remote: [], create: 'x' });
 });
+
+const { clampPickerWidth, PICKER_MIN_W, PICKER_DEFAULT_W } = require('../renderer/git-branch-picker');
+
+ok('branch: la larghezza del selettore resta fra il minimo e lo spazio disponibile', () => {
+  assert.strictEqual(clampPickerWidth(600, 1000), 600);
+  assert.strictEqual(clampPickerWidth(1500, 1000), 1000, 'non esce dal pannello');
+  assert.strictEqual(clampPickerWidth(100, 1000), PICKER_MIN_W);
+  assert.strictEqual(clampPickerWidth(500, 200), PICKER_MIN_W, 'pannello stretto: vince il minimo');
+  assert.strictEqual(clampPickerWidth(null, 1000), PICKER_DEFAULT_W, 'niente di salvato');
+  assert.strictEqual(clampPickerWidth('boh', 1000), PICKER_DEFAULT_W);
+  assert.strictEqual(clampPickerWidth('512', 1000), 512, 'da localStorage arriva una stringa');
+  assert.strictEqual(clampPickerWidth(333.6, 1000), 334);
+});

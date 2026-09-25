@@ -27,7 +27,21 @@
     return { local, remote, create: q && !exists ? q : '' };
   }
 
-  function createBranchPicker({ document, host, load, onSwitch, onCreate }) {
+  /* Larghezza: si trascina il bordo destro, vale per tutte le schede git e
+     resta fra un'apertura e l'altra (localStorage, come la sidebar). */
+  const MIN_W = 280;
+  const DEFAULT_W = 440;
+  const MARGIN = 32; // 16px a sinistra (styles.css) + 16px di respiro a destra
+  const WIDTH_KEY = 'aisess.gitPickerW';
+
+  /** Larghezza fra MIN_W e lo spazio disponibile; un valore illeggibile vale DEFAULT_W. */
+  function clampPickerWidth(width, available) {
+    const w = Number(width);
+    const max = Math.max(MIN_W, Number(available) || 0);
+    return Math.round(Math.min(max, Math.max(MIN_W, Number.isFinite(w) && w > 0 ? w : DEFAULT_W)));
+  }
+
+  function createBranchPicker({ document, host, load, onSwitch, onCreate, storage = null }) {
     const el = (tag, cls, text) => {
       const e = document.createElement(tag);
       if (cls) e.className = cls;
@@ -45,8 +59,41 @@
     error.hidden = true;
     const note = el('p', 'git-picker-note small muted',
       'Cambia il branch della directory: vale anche per le altre sessioni aperte lì.');
-    box.append(input, list, error, note);
+    const grip = el('div', 'git-picker-grip');
+    grip.title = 'Trascina per cambiare la larghezza · doppio clic: larghezza iniziale';
+    box.append(input, list, error, note, grip);
     host.appendChild(box);
+
+    const savedWidth = () => {
+      try { return storage ? storage.getItem(WIDTH_KEY) : null; } catch { return null; }
+    };
+    const saveWidth = (w) => {
+      try { if (storage) storage.setItem(WIDTH_KEY, String(w)); } catch {}
+    };
+    function applyWidth(w) {
+      const width = clampPickerWidth(w, host.clientWidth - MARGIN);
+      box.style.width = width + 'px';
+      return width;
+    }
+    grip.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startW = box.getBoundingClientRect().width;
+      let width = startW;
+      grip.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      const onMove = (ev) => { width = applyWidth(startW + ev.clientX - startX); };
+      const onUp = () => {
+        grip.classList.remove('dragging');
+        document.body.style.cursor = '';
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        saveWidth(Math.round(width));
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+    grip.addEventListener('dblclick', () => saveWidth(applyWidth(DEFAULT_W)));
 
     let branches = { local: [], remote: [] };
     let busy = false;
@@ -104,6 +151,7 @@
 
     async function open() {
       box.hidden = false;
+      applyWidth(savedWidth());
       input.value = '';
       showError('');
       list.replaceChildren(el('p', 'git-picker-empty small muted', 'Carico i branch…'));
@@ -142,5 +190,5 @@
     return { open, close, toggle, destroy, isOpen: () => !box.hidden, element: box };
   }
 
-  return { createBranchPicker, filterBranches };
+  return { createBranchPicker, filterBranches, clampPickerWidth, PICKER_MIN_W: MIN_W, PICKER_DEFAULT_W: DEFAULT_W };
 });

@@ -90,7 +90,7 @@ async function createGitTab({ name, cwd, startedAt = Date.now(), restoring = fal
     onBranchClick: () => picker.toggle(),
   });
   const picker = GitBranchPicker.createBranchPicker({
-    document, host: view.element,
+    document, host: view.element, storage: window.localStorage,
     load: () => window.aisess.gitBranches(tab.cwd),
     onSwitch: (name, kind) => afterBranchChange(tab, window.aisess.gitSwitch(tab.cwd, name, kind)),
     onCreate: (name) => afterBranchChange(tab, window.aisess.gitCreateBranch(tab.cwd, name)),

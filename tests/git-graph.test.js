@@ -119,6 +119,9 @@ ok('git: gitLogArgs chiede solo i branch locali, con limite e senza colori', () 
 });
 
 /* readGitGraph con un finto `git`: si verifica cosa chiede e cosa restituisce */
+// Percorsi Unix, quindi piattaforma Unix: su win32 la radice passerebbe per
+// path.win32 (tests/windows.test.js) e sul CI Windows /repo diventerebbe \repo.
+const unix = { platform: 'linux' };
 function fakeGit(responses) {
   const calls = [];
   const run = async (args, opts) => {
@@ -137,7 +140,7 @@ ok('git: readGitGraph restituisce radice, branch corrente e righe', async () => 
     remote: 'origin\n',
     log: rec('b', ['a'], 'secondo', { refs: 'HEAD -> main' }) + '\n' + rec('a', [], 'primo'),
   });
-  const r = await readGitGraph({ cwd: '/repo/src', run });
+  const r = await readGitGraph({ cwd: '/repo/src', run, ...unix });
   assert.strictEqual(r.ok, true);
   assert.strictEqual(r.root, '/repo');
   assert.strictEqual(r.head, 'main');
@@ -148,7 +151,7 @@ ok('git: readGitGraph restituisce radice, branch corrente e righe', async () => 
 
 ok('git: readGitGraph fuori da un repository lo dice senza eccezioni', async () => {
   const { run } = fakeGit({ '--show-toplevel': new Error('fatal: not a git repository') });
-  const r = await readGitGraph({ cwd: '/tmp', run });
+  const r = await readGitGraph({ cwd: '/tmp', run, ...unix });
   assert.strictEqual(r.ok, false);
   assert.strictEqual(r.notRepo, true);
   assert.match(r.error, /repository git/);
@@ -157,7 +160,7 @@ ok('git: readGitGraph fuori da un repository lo dice senza eccezioni', async () 
 ok('git: readGitGraph con una directory inesistente non dice "non è un repository"', async () => {
   const gone = Object.assign(new Error('spawn git ENOENT'), { code: 'ENOENT' });
   const { run } = fakeGit({ '--show-toplevel': gone });
-  const r = await readGitGraph({ cwd: '/non/esiste', run });
+  const r = await readGitGraph({ cwd: '/non/esiste', run, ...unix });
   assert.strictEqual(r.ok, false);
   assert.ok(!r.notRepo);
   assert.match(r.error, /non esiste/);
@@ -165,7 +168,7 @@ ok('git: readGitGraph con una directory inesistente non dice "non è un reposito
 
 ok('git: troncata solo se oltre il limite c\'è davvero altro', async () => {
   const log = rec('c', ['b'], '3') + rec('b', ['a'], '2') + rec('a', [], '1');
-  const read = (limit) => readGitGraph({ cwd: '/repo', limit, run: fakeGit({ '--show-toplevel': '/repo\n', remote: '', log }).run });
+  const read = (limit) => readGitGraph({ cwd: '/repo', limit, run: fakeGit({ '--show-toplevel': '/repo\n', remote: '', log }).run, ...unix });
   const exact = await read(3);
   assert.strictEqual(exact.rows.length, 3);
   assert.strictEqual(exact.truncated, false, 'esattamente 3 commit con limite 3 non è troncata');
@@ -177,7 +180,7 @@ ok('git: troncata solo se oltre il limite c\'è davvero altro', async () => {
 ok('git: readGitGraph in un repository senza commit restituisce zero righe', async () => {
   const err = Object.assign(new Error("fatal: your current branch 'main' does not have any commits yet"), { stderr: 'does not have any commits yet' });
   const { run } = fakeGit({ '--show-toplevel': '/repo\n', remote: '', log: err });
-  const r = await readGitGraph({ cwd: '/repo', run });
+  const r = await readGitGraph({ cwd: '/repo', run, ...unix });
   assert.strictEqual(r.ok, true);
   assert.deepStrictEqual(r.rows, []);
 });

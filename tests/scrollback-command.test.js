@@ -5,9 +5,12 @@ const { test: ok } = require('node:test');
 const { replayCommand, REPLAY_SCRIPT, ARGV0 } = require('../lib/scrollback-command');
 
 const file = '/Users/x/Library/Application Support/AISessionManager/scrollback/ais-shell-1.txt';
+// Il comando vale su macOS e Linux: lo si prova su quelle piattaforme anche
+// quando i test girano su Windows (dove replayCommand restituisce null).
+const unix = { platform: 'darwin' };
 
 ok('il comando e una costante: niente di variabile finisce nella riga', () => {
-  const c = replayCommand({ file, shell: '/bin/zsh', args: ['-i'] });
+  const c = replayCommand({ file, shell: '/bin/zsh', args: ['-i'], ...unix });
   // La regola del repo (comandi senza shell) protegge dai comandi DELL'UTENTE.
   // Qui il comando e' dell'app: la stringa dopo -c e' fissa e il percorso
   // viaggia nell'ambiente, che nessun parser interpreta.
@@ -21,10 +24,10 @@ ok('il comando e una costante: niente di variabile finisce nella riga', () => {
 ok('gli argomenti del profilo arrivano alla shell', () => {
   // Il profilo di default e' `<shell> -i`: perdere -i darebbe una shell non
   // interattiva, cioe' senza prompt ne' configurazione dell'utente.
-  const c = replayCommand({ file, shell: '/bin/zsh', args: ['-i'] });
+  const c = replayCommand({ file, shell: '/bin/zsh', args: ['-i'], ...unix });
   assert.deepStrictEqual(c.args.slice(2), [ARGV0, '-i'], 'dopo lo script vengono $0 e poi gli argomenti');
   assert.match(REPLAY_SCRIPT, /exec "\$AIS_SHELL" "\$@"$/, '"$@" li espande uno per uno, senza rileggerli');
-  const senza = replayCommand({ file, shell: '/bin/zsh' });
+  const senza = replayCommand({ file, shell: '/bin/zsh', ...unix });
   assert.deepStrictEqual(senza.args, ['-c', REPLAY_SCRIPT, ARGV0], 'senza argomenti resta solo $0');
 });
 
@@ -37,8 +40,8 @@ ok('il testo vecchio viene prima, la shell sostituisce il guscio', () => {
 });
 
 ok('senza file o senza shell non si ripristina niente', () => {
-  assert.strictEqual(replayCommand({ file: null, shell: '/bin/zsh' }), null);
-  assert.strictEqual(replayCommand({ file, shell: '' }), null);
+  assert.strictEqual(replayCommand({ file: null, shell: '/bin/zsh', ...unix }), null);
+  assert.strictEqual(replayCommand({ file, shell: '', ...unix }), null);
 });
 
 ok('su Windows non esiste questa strada: la cattura la fa il renderer', () => {

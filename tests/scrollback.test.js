@@ -19,7 +19,7 @@ ok('store: salva, rilegge, cancella', () => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-ok('store: il file e leggibile solo dal proprietario (puo contenere segreti)', () => {
+ok('store: il file e leggibile solo dal proprietario (puo contenere segreti)', { skip: process.platform === 'win32' && 'Windows non ha i permessi POSIX: li proteggono le ACL di %APPDATA%' }, () => {
   const dir = tmp();
   const store = createScrollbackStore({ dir });
   store.save('ais-shell-1', 'export TOKEN=sk-segretissimo');

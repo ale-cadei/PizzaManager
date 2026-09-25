@@ -4,6 +4,8 @@ const { buildCommand, installHint } = require('../lib/commands');
 const { augmentedEnv } = require('../lib/binaries');
 const { resolveWorkdir } = require('../lib/workdir');
 const tmuxLib = require('../lib/tmux');
+const { shouldCapture } = require('../lib/scrollback');
+const { replayCommand } = require('../lib/scrollback-command');
 
 let pty = null;
 try {
@@ -15,6 +17,10 @@ try {
 const TERM_NAME = 'xterm-256color';
 const DEFAULT_COLS = 80;
 const DEFAULT_ROWS = 24;
+/* Ogni mezzo minuto, e solo sulle sessioni che hanno scritto qualcosa: dieci
+   shell ferme non fanno nulla. Al massimo si perde mezzo minuto di output in
+   uno spegnimento brusco (docs/plans/25-scrollback-shell.md). */
+const CAPTURE_EVERY_MS = 30000;
 
 /**
  * Ciclo di vita dei processi in pty.
@@ -31,7 +37,7 @@ const DEFAULT_ROWS = 24;
 /* `systemLocale` (es. `it-IT`, da app.getLocale(), anche come funzione) serve
    a scegliere LANG per i processi quando l'app, avviata dal Finder, non ce
    l'ha (lib/locale.js). */
-function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = null, liveStore = null, systemLocale = null }) {
+function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = null, liveStore = null, systemLocale = null, scrollbackStore = null }) {
   const localeOpts = () => {
     const v = typeof systemLocale === 'function' ? systemLocale() : systemLocale;
     return v ? { systemLocale: v } : {};
@@ -92,9 +98,15 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     return out;
   }
 
-  function track(id, p, session) {
-    clients.set(id, { p, session });
-    p.onData((data) => sendToRenderer('pty-data', { id, data }));
+  function track(id, p, session, type) {
+    const c = { p, session, type, dirty: false };
+    clients.set(id, c);
+    p.onData((data) => {
+      // Il segnale per la cattura periodica: senza output non c'e' niente di
+      // nuovo da salvare.
+      c.dirty = true;
+      sendToRenderer('pty-data', { id, data });
+    });
     p.onExit(({ exitCode, signal }) => {
       clients.delete(id);
       sendToRenderer('pty-exit', { id, exitCode, signal, session });
@@ -117,7 +129,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     });
   }
 
-  async function spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId, label, cols, rows }) {
+  async function spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId, label, cols, rows, previousSession = null }) {
     if (!pty) return { ok: false, error: 'node-pty non installato. Esegui: npm install' };
 
     const workdir = resolveWorkdir(cwd);
@@ -144,8 +156,18 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
         // Al processo dentro tmux arrivano esplicitamente le variabili che
         // contano; il resto lo eredita dal server (vedi lib/tmux.js, spawnArgs).
         const sessionEnv = { PATH: env.PATH, COLORTERM: env.COLORTERM, ...localeVars(env), ...identity.vars, ...(profileEnv || {}) };
+        // Ripristino dopo un riavvio: la sessione stampa il testo di prima e
+        // poi DIVENTA la shell (exec). Il testo finisce cosi' nella history di
+        // tmux, che e' quella con cui scorre la rotella.
+        const replay = restoreFor({ type, previousSession, cmd, args });
         const created = await tmux.control.create({
-          name: session, cmd, args, cwd: workdir, env: sessionEnv,
+          name: session,
+          cmd: replay ? replay.cmd : cmd,
+          args: replay ? replay.args : args,
+          cwd: workdir,
+          env: replay ? { ...sessionEnv, ...replay.env } : sessionEnv,
+          cols,
+          rows,
           meta: {
             type,
             cwd: workdir,
@@ -166,7 +188,10 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
         // ricomporla dall'argv con regole che cmd.exe non capirebbe.
         p = openPty(cmd, commandLine || args, { cols, rows, cwd: workdir, env });
       }
-      track(id, p, session);
+      track(id, p, session, type);
+      // Consumato: il file di prima ha fatto il suo mestiere e puo' contenere
+      // segreti. Da qui in avanti si salva sotto il nome della sessione nuova.
+      if (previousSession && scrollbackStore) scrollbackStore().remove(previousSession);
       if (session) syncSnapshot();
       history().append({
         type,
@@ -192,7 +217,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
    * Una sessione sparita nel frattempo e' un caso normale, non un errore:
    * il chiamante la degrada a "ricreabile via resume".
    */
-  async function attach({ id, session, cols, rows }) {
+  async function attach({ id, session, type, cols, rows }) {
     if (!viaTmux) return { ok: false, error: 'tmux non disponibile: niente a cui riattaccarsi.' };
     if (!tmuxLib.isAisSession(session)) return { ok: false, error: `Sessione non riconosciuta: ${session}` };
     if (!(await tmux.control.has(session))) return { ok: false, gone: true, error: `La sessione ${session} non esiste più.` };
@@ -203,7 +228,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
       const p = openPty(tmux.bin, tmuxLib.attachArgs({ confPath: tmux.confPath, socket: tmux.socket, name: session }), {
         cols, rows, cwd: os.homedir(), env: augmentedEnv([tmux.bin], {}, process.env, localeOpts()),
       });
-      track(id, p, session);
+      track(id, p, session, type);
       syncSnapshot();
       return { ok: true, session };
     } catch (e) {
@@ -287,6 +312,70 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     return state;
   }
 
+  /**
+   * Il comando iniziale per una sessione che riparte con il testo di prima,
+   * oppure null se non c'e' niente da ripristinare. Solo le shell: gli agenti
+   * ricaricano la conversazione con --resume e sono TUI in alternate screen,
+   * dove una cattura sarebbe un fotogramma, non una cronologia.
+   */
+  function restoreFor({ type, previousSession, cmd, args }) {
+    if (!previousSession || !scrollbackStore || !shouldCapture({ type, alternate: false })) return null;
+    const store = scrollbackStore();
+    const text = store.read(previousSession);
+    if (!text) return null;
+    return replayCommand({ file: store.fileFor(previousSession), shell: cmd, args });
+  }
+
+  /**
+   * Salva il testo di una sessione, se ha senso salvarlo. Si legge prima lo
+   * stato del pane: con un pager o un vim aperto (alternate screen) si
+   * terrebbe il file di prima, che e' piu' utile di un fotogramma.
+   */
+  async function captureOne(c) {
+    if (!c.session || !scrollbackStore || !shouldCapture({ type: c.type, alternate: false })) return false;
+    const state = await tmux.control.scrollState(c.session).catch(() => null);
+    if (!state || !shouldCapture({ type: c.type, alternate: state.alternate })) return false;
+    const text = await tmux.control.capture(c.session).catch(() => null);
+    if (text == null) return false;
+    scrollbackStore().save(c.session, text);
+    c.dirty = false;
+    return true;
+  }
+
+  /** Le sole sessioni che hanno scritto qualcosa dall'ultimo salvataggio. */
+  function captureDirty() {
+    if (!viaTmux || !scrollbackStore) return Promise.resolve();
+    return Promise.all([...clients.values()].filter((c) => c.dirty).map((c) => captureOne(c).catch(() => false)));
+  }
+
+  /**
+   * I file di sessioni che non esistono piu': l'app uccisa prima di poterli
+   * cancellare li lascia indietro, e contengono cio' che si e' visto a
+   * schermo. Senza questa passata la cartella cresce per sempre.
+   */
+  async function sweepScrollback() {
+    if (!viaTmux || !scrollbackStore) return;
+    try {
+      const live = await tmux.control.list();
+      scrollbackStore().sweep(live.map((s) => s.name));
+    } catch { /* niente lista, niente pulizia: si riprova al prossimo avvio */ }
+  }
+
+  let captureTimer = null;
+  /** Avvia il salvataggio periodico, dopo aver ripulito gli orfani dell'avvio precedente. */
+  function startCapture(everyMs = CAPTURE_EVERY_MS) {
+    if (captureTimer || !viaTmux || !scrollbackStore) return;
+    sweepScrollback();
+    captureTimer = setInterval(() => { captureDirty(); }, everyMs);
+    // Il timer non deve tenere vivo il processo da solo.
+    if (typeof captureTimer.unref === 'function') captureTimer.unref();
+  }
+
+  function stopCapture() {
+    if (captureTimer) clearInterval(captureTimer);
+    captureTimer = null;
+  }
+
   function resize(id, cols, rows) {
     const c = clients.get(id);
     if (!c || !(cols > 0) || !(rows > 0)) return;
@@ -312,7 +401,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
   /** Termina davvero: uccide la sessione tmux (e con lei il processo), poi il client. */
   async function terminate(id) {
     const c = clients.get(id);
-    if (c && c.session) await tmux.control.kill(c.session);
+    if (c && c.session) { await tmux.control.kill(c.session); forget(c.session); }
     const r = close(id);
     if (c && c.session) { await settle(); await syncSnapshot(); }
     return r;
@@ -323,6 +412,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     if (!viaTmux || !tmuxLib.isAisSession(session)) return { ok: false };
     for (const [id, c] of clients) if (c.session === session) close(id);
     const ok = await tmux.control.kill(session);
+    forget(session);
     await settle(); await syncSnapshot();
     return { ok };
   }
@@ -346,6 +436,14 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     return { ok: true };
   }
 
+  /**
+   * Il testo salvato di una sessione che non esiste piu'. Si cancella subito:
+   * e' quello che si e' visto a schermo, e li' passano token e chiavi.
+   */
+  function forget(session) {
+    if (session && scrollbackStore) scrollbackStore().remove(session);
+  }
+
   /** Alla chiusura dell'ultima finestra: stacca tutti i client. Con tmux le sessioni sopravvivono. */
   function closeAll() {
     for (const [, c] of clients) {
@@ -356,6 +454,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
 
   return {
     spawn, attach, listLive, setLabel, setMeta, restorable, discardRestorable, write, scroll, resize, close, terminate, terminateSession, closeAll,
+    startCapture, stopCapture, captureDirty, sweepScrollback,
     get viaTmux() { return viaTmux; },
     get size() { return clients.size; },
     // compatibilita' con il nome precedente

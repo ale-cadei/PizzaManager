@@ -745,20 +745,30 @@ button:focus-visible, input:focus-visible, select:focus-visible {
    (--git-row-h), così pallini e testo restano allineati. */
 .term-wrap.git-wrap { padding: 0; }
 .term-wrap.git-wrap.active { display: flex; }
-.git-view { flex: 1; min-width: 0; display: flex; flex-direction: column; font-family: var(--font-ui); }
+.git-view { flex: 1; min-width: 0; display: flex; flex-direction: column; font-family: var(--font-ui); position: relative; outline: none; }
 .git-head {
   display: flex; align-items: center; gap: var(--gap); padding: 10px 16px;
   border-bottom: 1px solid var(--border); flex: 0 0 auto;
 }
 .git-repo { font-family: var(--font-mono); font-size: 13px; color: var(--text-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.git-branch { font-family: var(--font-mono); font-size: 13px; color: var(--type-git); white-space: nowrap; }
+.git-branch {
+  font-family: var(--font-mono); font-size: 13px; color: var(--type-git); white-space: nowrap;
+  background: none; border: 1px solid transparent; border-radius: var(--radius); padding: 4px 8px; cursor: pointer;
+}
+.git-branch:hover { border-color: color-mix(in srgb, var(--type-git) 55%, transparent); background: var(--surface-2); }
 .git-count { margin-right: auto; white-space: nowrap; }
 .git-view.loading .git-refresh { opacity: .5; }
 .git-scroll { flex: 1; min-height: 0; overflow: auto; }
 .git-status { padding: 16px; margin: 0; }
 .git-status--error { color: var(--state-error); white-space: pre-wrap; }
 .git-body { position: relative; }
-.git-graph { position: absolute; top: 0; left: 0; }
+/* Sopra le righe (che partono da sinistra anche loro) ma trasparente ai
+   clic, tranne linee e pallini: cliccarli isola la linea */
+.git-graph { position: absolute; top: 0; left: 0; z-index: 1; pointer-events: none; }
+.git-graph circle { pointer-events: all; cursor: pointer; }
+.git-hit { stroke: transparent; stroke-width: 10; pointer-events: stroke; cursor: pointer; }
+.git-ref[data-lane] { cursor: pointer; }
+.git-view--focus .git-count { color: var(--text-2); }
 .git-rows { list-style: none; margin: 0; padding: 0; }
 .git-row {
   height: var(--git-row-h); padding-left: var(--git-graph-w); padding-right: 16px;
@@ -788,6 +798,37 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .git-hash:hover { color: var(--action-text); }
 .git-hash.copied { color: var(--state-ok); }
+/* Scelta del branch (renderer/git-branch-picker.js), appesa sotto l'intestazione */
+.git-picker {
+  position: absolute; top: 52px; left: 16px; z-index: 5; width: min(440px, calc(100% - 32px));
+  background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius);
+  box-shadow: var(--shadow-modal); padding: 8px; display: flex; flex-direction: column; gap: 6px;
+}
+.git-picker[hidden] { display: none; }
+.git-picker.loading { opacity: .6; pointer-events: none; }
+.git-picker-input {
+  background: var(--bg); color: var(--text); border: 1px solid var(--border-strong); border-radius: var(--radius);
+  padding: 8px 10px; font-family: var(--font-mono); font-size: 13px;
+}
+.git-picker-list { max-height: 320px; overflow: auto; display: flex; flex-direction: column; }
+.git-picker-group {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--text-dim); padding: 8px 8px 4px;
+}
+.git-picker-item {
+  display: flex; justify-content: space-between; gap: 12px; align-items: baseline;
+  background: none; border: 0; border-radius: var(--radius); padding: 6px 8px; cursor: pointer;
+  color: var(--text); font-family: var(--font-mono); font-size: 13px; text-align: left;
+}
+.git-picker-item:hover, .git-picker-item:focus-visible { background: var(--action-soft); }
+.git-picker-item--current { cursor: default; color: var(--type-git); }
+.git-picker-item--current:hover { background: none; }
+.git-picker-item--create { color: var(--action-text); }
+.git-picker-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.git-picker-hint { color: var(--text-dim); font-size: 11px; white-space: nowrap; }
+.git-picker-error { color: var(--state-error); margin: 0; white-space: pre-wrap; }
+.git-picker-error[hidden] { display: none; }
+.git-picker-note, .git-picker-empty { margin: 0; padding: 0 4px; }
 .modal-error { color: var(--state-error); margin: 0; white-space: pre-wrap; }
 .modal-error[hidden] { display: none; }
 

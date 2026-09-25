@@ -1,8 +1,11 @@
 /* Scheda di tipo git: niente pty né xterm, un pannello con la timeline dei
    branch locali (renderer/git-graph-view.js) letta dal main (lib/git-graph.js).
-   Si aggiorna quando torna in primo piano e dal pulsante del pannello. */
+   Si aggiorna quando torna in primo piano e dal pulsante del pannello; dal
+   nome del branch si cambia branch o se ne crea uno (git-branch-picker.js).
+   Le schede aperte si salvano (lib/git-sessions.js) e tornano al riavvio. */
 
 const GitView = window.AisessGitView;
+const GitBranchPicker = window.AisessGitBranchPicker;
 
 /** Legge la timeline e la disegna. Una sola lettura alla volta per scheda:
     chi chiama durante una lettura aspetta quella in corso. */
@@ -27,6 +30,15 @@ async function loadGitTab(tab) {
   }
 }
 
+/* Dopo un cambio o una creazione di branch riuscita la timeline si rilegge:
+   il branch corrente è cambiato. L'esito torna al selettore, che mostra
+   l'errore di git se qualcosa è andato storto. */
+async function afterBranchChange(tab, request) {
+  const r = await request;
+  if (r && r.ok) await refreshGitTab(tab);
+  return r;
+}
+
 /* Senza un nome scelto, la scheda prende quello del repository */
 function nameGitTab(tab, root) {
   const repoName = String(root || '').split(/[\\/]/).filter(Boolean).pop();
@@ -40,7 +52,30 @@ function nameGitTab(tab, root) {
   }
 }
 
-async function createGitTab({ name, cwd, startedAt = Date.now() } = {}) {
+/* Le schede git non hanno una sessione tmux che le ricordi: la lista si
+   salva a ogni apertura, chiusura o rinomina. Un nome dato dal repository non
+   si salva (null): al ritorno lo riprende da sé. */
+function saveGitSessions() {
+  const sessions = [...tabs.values()].filter((t) => t.type === 'git')
+    .map((t) => ({ cwd: t.cwd, name: t.autoNamed ? null : t.name, startedAt: t.startedAt }));
+  return window.aisess.saveGitSessions(sessions)
+    .then((r) => { if (r && !r.ok) console.warn('git-sessions-save fallito:', r.error); })
+    .catch((e) => console.warn('git-sessions-save non raggiungibile', e));
+}
+
+/* All'avvio: le schede git aperte alla chiusura tornano da sole, senza
+   chiedere, perché non fanno partire nessun processo. Una directory che non è
+   più un repository si apre lo stesso e lo dice nel pannello. */
+async function restoreGitSessions() {
+  let r = null;
+  try { r = await window.aisess.gitSessions(); } catch (e) { console.warn('git-sessions non raggiungibile', e); return; }
+  if (!r || !r.ok) { if (r) console.warn('git-sessions fallito:', r.error); return; }
+  for (const s of r.sessions) {
+    await createGitTab({ name: s.name, cwd: s.cwd, startedAt: s.startedAt, restoring: true });
+  }
+}
+
+async function createGitTab({ name, cwd, startedAt = Date.now(), restoring = false } = {}) {
   const id = 'tab-' + Date.now() + '-' + Math.floor(Math.random() * 1e6);
   const wrap = document.createElement('div');
   wrap.className = 'term-wrap git-wrap type-git';
@@ -52,10 +87,20 @@ async function createGitTab({ name, cwd, startedAt = Date.now() } = {}) {
     root: wrap, document,
     onRefresh: () => refreshGitTab(tab),
     onCopy: (hash) => { window.aisess.clipboardWrite(hash).catch((e) => console.warn('copia fallita', e)); },
+    onBranchClick: () => picker.toggle(),
   });
-  tab.git = { view, pending: null };
+  const picker = GitBranchPicker.createBranchPicker({
+    document, host: view.element,
+    load: () => window.aisess.gitBranches(tab.cwd),
+    onSwitch: (name, kind) => afterBranchChange(tab, window.aisess.gitSwitch(tab.cwd, name, kind)),
+    onCreate: (name) => afterBranchChange(tab, window.aisess.gitCreateBranch(tab.cwd, name)),
+  });
+  tab.git = { view, picker, pending: null };
   tabs.set(id, tab);
   updateEmpty();
   setActive(id);
+  // Durante il ripristino la lista su disco è già quella giusta: riscriverla
+  // a ogni scheda la accorcerebbe, se l'app si chiudesse a metà
+  if (!restoring) saveGitSessions();
   await refreshGitTab(tab);
 }

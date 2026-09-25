@@ -221,6 +221,7 @@ async function closeTab(id) {
   running.forget(id);
   try { if (t.ro) t.ro.disconnect(); } catch {}
   try { if (t.term) t.term.dispose(); } catch {}
+  try { if (t.git) t.git.picker.destroy(); } catch {}
   t.wrap.remove();
   tabs.delete(id);
   if (activeId === id) {
@@ -231,6 +232,7 @@ async function closeTab(id) {
   updateEmpty();
   if (tabs.size) fitActive();
   renderSidebar();
+  if (t.type === 'git') saveGitSessions();
 }
 
 /** Termina davvero: uccide la sessione tmux e poi chiude la scheda. */

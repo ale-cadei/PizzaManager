@@ -215,3 +215,23 @@ ok('git: i colori girano sulla tavolozza, i ref remoti vanno in coda', () => {
   assert.deepStrictEqual(View.visibleRefs(refs).map((r) => r.name), ['main', 'v1', 'origin/main']);
   assert.strictEqual(refs[0].name, 'origin/main', 'visibleRefs ha riordinato l elenco originale');
 });
+
+const R = (hash, color, refs = []) => ({ commit: { hash, parents: [], refs, subject: hash, author: 'a', date: '' }, col: color, color, edges: [{ from: color, to: 0, color }] });
+
+ok('git: isolare una linea tiene solo i suoi commit, su una corsia dritta', () => {
+  const rows = [R('m', 0), R('f2', 1), R('f1', 1), R('a', 0)];
+  const f = View.focusRows(rows, 1);
+  assert.deepStrictEqual(f.map((r) => r.commit.hash), ['f2', 'f1']);
+  assert.deepStrictEqual(f.map((r) => r.col), [0, 0]);
+  assert.deepStrictEqual(f[0].edges, [{ from: 0, to: 0, color: 1 }], 'i commit della linea non sono collegati');
+  assert.deepStrictEqual(f[1].edges, [], 'l ultimo commit prosegue verso commit nascosti');
+  assert.strictEqual(rows[1].col, 1, 'focusRows ha modificato le righe originali');
+  assert.deepStrictEqual(View.focusRows(rows, 9), []);
+});
+
+ok('git: una linea prende il nome del primo branch che la tocca', () => {
+  const rows = [R('m', 0, [{ name: 'main', kind: 'branch', head: true }]), R('f2', 1, [{ name: 'v1', kind: 'tag' }, { name: 'origin/feat/x', kind: 'remote' }]), R('f1', 1)];
+  assert.strictEqual(View.laneLabel(rows, 0), 'main');
+  assert.strictEqual(View.laneLabel(rows, 1), 'origin/feat/x', 'un tag non è il nome di una linea');
+  assert.strictEqual(View.laneLabel(rows, 5), '');
+});

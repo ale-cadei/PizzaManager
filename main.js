@@ -204,4 +204,4 @@ ipcMain.handle('usage-snapshot', async (event, { active } = {}) => {
 
 // ---------- Appunti (per term-clipboard.js nel renderer) ----------
 registerClipboardHandlers(ipcMain);
-registerGitHandlers(ipcMain);
+registerGitHandlers(ipcMain, { userDataDir: () => app.getPath('userData') });

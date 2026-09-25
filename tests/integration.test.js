@@ -269,3 +269,67 @@ ok('tmux: lo scorrimento muove la copy-mode e scrivere la chiude', async (t) => 
     try { require('child_process').execFileSync(found.bin, ['-L', socket, 'kill-server']); } catch {}
   }
 });
+
+/* Il giro completo dello scrollback (piano 25) su un tmux vero: si cattura il
+   testo di una sessione, la si uccide come farebbe un riavvio, e la sessione
+   ricreata deve ritrovarsi quel testo nella history — coi colori, e con la
+   shell vera come processo, non il guscio che l'ha stampato. */
+ok('tmux: il testo di una shell sopravvive alla morte della sessione', async (t) => {
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const { execFileSync } = require('child_process');
+  const { detectTmux, createTmuxControl } = require('../lib/tmux');
+  const { createScrollbackStore } = require('../lib/scrollback');
+  const { replayCommand } = require('../lib/scrollback-command');
+
+  const found = detectTmux({ confPath: null });
+  if (!found) return t.skip('tmux non installato su questa macchina');
+
+  const socket = 'aistest-scrollback-' + process.pid;
+  const confPath = path.join(__dirname, '..', 'app', 'tmux.conf');
+  const control = createTmuxControl({ bin: found.bin, confPath, socket });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-sb-int-'));
+  const store = createScrollbackStore({ dir });
+  const prima = 'ais-shell-prima';
+
+  try {
+    // Una shell che ha scritto qualcosa di riconoscibile, in verde.
+    const gen = path.join(dir, 'gen.sh');
+    fs.writeFileSync(gen, '#!/bin/sh\nprintf "\\033[32mCIAMBELLA-42\\033[0m\\n"\nsleep 30\n', { mode: 0o700 });
+    assert.ok((await control.create({ name: prima, cmd: '/bin/sh', args: [gen], cols: 120, rows: 40 })).ok);
+    await new Promise((r) => setTimeout(r, 600));
+
+    const testo = await control.capture(prima);
+    assert.ok(testo && testo.includes('CIAMBELLA-42'), 'la cattura non ha preso il testo');
+    assert.ok(testo.includes('\x1b['), 'senza -e i colori si perderebbero');
+    store.save(prima, testo);
+
+    // Quello che fa un riavvio della macchina: il server muore con tutto dentro.
+    await control.kill(prima);
+    assert.strictEqual(await control.has(prima), false);
+
+    // La sessione ricreata stampa il salvato e poi diventa la shell.
+    // Una shell DIVERSA dal guscio `/bin/sh`: e' l'unico modo di vedere che
+    // `exec` l'ha sostituito davvero (su macOS /bin/sh e' bash, quindi con sh
+    // il confronto non proverebbe niente).
+    const shell = fs.existsSync('/bin/zsh') ? '/bin/zsh' : '/bin/bash';
+    const replay = replayCommand({ file: store.fileFor(prima), shell, args: [] });
+    const dopo = 'ais-shell-dopo';
+    assert.ok((await control.create({ name: dopo, cmd: replay.cmd, args: replay.args, env: replay.env, cols: 120, rows: 40 })).ok);
+    await new Promise((r) => setTimeout(r, 600));
+
+    const ripristinato = await control.capture(dopo);
+    assert.ok(ripristinato.includes('CIAMBELLA-42'), 'il testo di prima non e tornato nella history');
+    assert.ok(ripristinato.includes('cronologia ripristinata'), 'manca il separatore');
+    assert.ok(ripristinato.includes('\x1b[32m'), 'il verde di prima si e perso per strada');
+
+    // `exec` deve aver sostituito il guscio: il processo e' la shell vera.
+    const cmd = execFileSync(found.bin, ['-L', socket, 'display-message', '-p', '-t', `=${dopo}:`, '#{pane_current_command}'], { timeout: 5000 }).toString().trim();
+    assert.strictEqual(cmd, path.basename(shell), `nel pane c'e ${cmd}: il guscio sh non e stato sostituito`);
+  } finally {
+    // SOLO il socket di prova: su 'aisession' ci sono le sessioni dell'utente.
+    try { execFileSync(found.bin, ['-L', socket, 'kill-server']); } catch {}
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

@@ -225,3 +225,38 @@ ok('createTmuxControl.scroll: stato letto dalla risposta, null se tmux fallisce'
   const bad = t.createTmuxControl({ bin: '/bin/tmux', run: (b, a, o, cb) => cb(new Error('x'), '', 'no server') });
   assert.strictEqual(await bad.scroll('ais-x-1', 3), null);
 });
+
+ok('captureArgs: socket dedicato, bersaglio col due punti, tetto di righe', () => {
+  const a = t.captureArgs({ confPath: conf, name: 'ais-shell-1', lines: 2000 });
+  assert.deepStrictEqual(a.slice(0, 4), ['-L', 'aisession', '-f', conf], 'senza -L colpirebbe le sessioni personali');
+  assert.ok(a.includes('capture-pane'));
+  assert.ok(a.includes('-p'), 'senza -p il testo non arriva sullo stdout');
+  assert.ok(a.includes('-e'), 'senza -e si perdono i colori');
+  // Con `=nome` nudo tmux risponde "can't find pane" (verificato su 3.7c),
+  // come gia' per lo scorrimento: il bersaglio pane vuole i due punti.
+  assert.ok(a.includes('=ais-shell-1:'), a.join(' '));
+  assert.ok(a.includes('-2000'), 'il tetto di righe si passa a -S, negativo');
+});
+
+ok('captureArgs: un tetto assurdo o assente ricade sul default', () => {
+  const start = (args) => args[args.indexOf('-S') + 1];
+  assert.strictEqual(start(t.captureArgs({ name: 'ais-shell-1' })), '-2000');
+  assert.strictEqual(start(t.captureArgs({ name: 'ais-shell-1', lines: 0 })), '-2000');
+  assert.strictEqual(start(t.captureArgs({ name: 'ais-shell-1', lines: -5 })), '-2000');
+  assert.strictEqual(start(t.captureArgs({ name: 'ais-shell-1', lines: 1e9 })), '-' + t.MAX_SCROLL_STEP);
+});
+
+ok('spawnArgs: la sessione nasce gia della misura del client', () => {
+  // La sessione nasce staccata e il client si attacca dopo: senza -x/-y il
+  // pane e' 80x24, e il testo ripristinato resterebbe mandato a capo a 80
+  // colonne DENTRO la history, dove il resize non lo raddrizza piu'.
+  const a = t.spawnArgs({ confPath: conf, name: 'ais-shell-1', cmd: '/bin/zsh', cols: 203, rows: 51 });
+  assert.strictEqual(a[a.indexOf('-x') + 1], '203');
+  assert.strictEqual(a[a.indexOf('-y') + 1], '51');
+  const senza = t.spawnArgs({ confPath: conf, name: 'ais-shell-1', cmd: '/bin/zsh' });
+  assert.ok(!senza.includes('-x'), 'senza misure si lascia decidere tmux');
+  for (const bad of [0, -5, null, 1.5, 1e9]) {
+    const s = t.spawnArgs({ confPath: conf, name: 'ais-shell-1', cmd: '/bin/zsh', cols: bad, rows: bad });
+    assert.ok(!s.includes('-x'), `misura non valida accettata: ${bad}`);
+  }
+});

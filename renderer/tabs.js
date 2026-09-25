@@ -129,8 +129,8 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
     if (dims && dims.cols > 0 && dims.rows > 0) { cols = dims.cols; rows = dims.rows; }
   } catch {}
   const res = attachSession
-    ? await window.aisess.attach({ id, session: attachSession, cols, rows })
-    : await window.aisess.spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId: picked.id, label, cols, rows });
+    ? await window.aisess.attach({ id, session: attachSession, type, cols, rows })
+    : await window.aisess.spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId: picked.id, label, cols, rows, previousSession });
   if (!res.ok && res.gone) {
     // La sessione tmux non c'e' piu' (riavvio della macchina, terminata altrove):
     // caso normale, non un errore. Si offre la strada per ricrearla.

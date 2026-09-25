@@ -375,12 +375,12 @@ ok('git: readGitGraph legge branch, merge e repository vuoti con il git installa
 });
 
 // ---------- git: cambiare e creare branch su un repository vero ----------
-ok('git: switchBranch e createBranch con il git installato, remoti compresi', async (t) => {
+ok('git: switchBranch, createBranch e deleteBranch con il git installato, remoti compresi', async (t) => {
   const { execFileSync } = require('child_process');
   const os = require('os');
   const path = require('path');
   const { resolveBinary } = require('../lib/binaries');
-  const { listBranches, switchBranch, createBranch } = require('../lib/git-branches');
+  const { listBranches, switchBranch, createBranch, deleteBranch } = require('../lib/git-branches');
   const bin = resolveBinary('git');
   if (!bin.path) return t.skip('git non installato su questa macchina');
   const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-gitb-')));
@@ -419,6 +419,18 @@ ok('git: switchBranch e createBranch con il git installato, remoti compresi', as
     assert.strictEqual(blocked.ok, false);
     assert.strictEqual(fs.readFileSync(path.join(dir, 'a.txt'), 'utf8'), 'modificato\n');
     assert.strictEqual(git(dir, 'rev-parse', '--abbrev-ref', 'HEAD').trim(), 'feat/nuovo');
+
+    // eliminare: il corrente no; uno non unito solo con force; uno unito subito
+    git(dir, 'checkout', '-q', '--', 'a.txt');
+    const current = await deleteBranch({ cwd: dir, name: 'feat/nuovo' });
+    assert.strictEqual(current.ok, false);
+    git(dir, 'switch', '-q', 'main');
+    const unmerged = await deleteBranch({ cwd: dir, name: 'feat/nuovo' });
+    assert.strictEqual(unmerged.notMerged, true, unmerged.error);
+    assert.ok(git(dir, 'branch', '--list', 'feat/nuovo').trim(), 'il branch non unito deve restare');
+    assert.deepStrictEqual(await deleteBranch({ cwd: dir, name: 'feat/nuovo', force: true }), { ok: true, branch: 'feat/nuovo' });
+    assert.deepStrictEqual(await deleteBranch({ cwd: dir, name: 'fix/remoto' }), { ok: true, branch: 'fix/remoto' });
+    assert.strictEqual(git(dir, 'branch', '--list').trim(), '* main');
   } finally {
     fs.rmSync(base, { recursive: true, force: true });
   }

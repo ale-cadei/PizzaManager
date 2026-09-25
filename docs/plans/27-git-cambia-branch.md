@@ -11,6 +11,8 @@ Dalla sessione git:
   suo pallino e restano solo quei commit. Riclic, clic altrove nel pannello
   o Esc tornano a tutte le linee.
 - **riaprire le schede git** che erano aperte quando l'app si è chiusa.
+- **eliminare un branch locale** dal cestino accanto al suo nome nel
+  selettore.
 
 ## Scelte
 
@@ -26,6 +28,10 @@ Dalla sessione git:
   `git check-ref-format --branch`. Sempre `execFile`, niente shell.
 - La linea isolata si riconosce dall'indice di colore (è l'identità della
   corsia); dopo un aggiornamento si ritrova dal suo commit più recente.
+- Eliminare è `git branch -d` dopo una conferma nella riga stessa. Se git
+  rifiuta perché i commit non sono uniti altrove, la riga lo dice in rosso e
+  solo "Elimina comunque" passa a `-D`. Il branch corrente non ha il
+  cestino (e git lo rifiuterebbe comunque); i remoti non si toccano.
 
 ## Fatto
 
@@ -47,6 +53,10 @@ Dalla sessione git:
   riscrive a ogni apertura, chiusura (✕) o rinomina. All'avvio le schede
   tornano da sole, senza chiedere: non fanno partire processi. Vale anche
   senza tmux (Windows). Test: `tests/git-sessions.test.js`.
+- Eliminazione: `deleteBranch` (`notMerged` quando `-d` rifiuta), IPC
+  `git-delete-branch`, cestino e conferma in `git-branch-picker.js`. Esc o
+  Annulla chiudono la conferma, non il selettore. Test unitari e, nel
+  repository vero, branch corrente rifiutato, non unito → `-D`, unito → `-d`.
 
 ## Da fare / idee emerse
 

@@ -1,6 +1,6 @@
 'use strict';
 const { readGitGraph } = require('../lib/git-graph');
-const { listBranches, switchBranch, createBranch } = require('../lib/git-branches');
+const { listBranches, switchBranch, createBranch, deleteBranch } = require('../lib/git-branches');
 const { createGitSessionsStore } = require('../lib/git-sessions');
 
 /**
@@ -26,6 +26,7 @@ function registerGitHandlers(ipcMain, { userDataDir } = {}) {
   ipcMain.handle('git-branches', guard(({ cwd }) => listBranches({ cwd })));
   ipcMain.handle('git-switch', guard(({ cwd, name, kind }) => switchBranch({ cwd, name, kind })));
   ipcMain.handle('git-create-branch', guard(({ cwd, name }) => createBranch({ cwd, name })));
+  ipcMain.handle('git-delete-branch', guard(({ cwd, name, force }) => deleteBranch({ cwd, name, force: force === true })));
   // Schede git aperte, da riaprire al prossimo avvio (lib/git-sessions.js)
   ipcMain.handle('git-sessions', guard(() => ({ ok: true, sessions: sessions().read() })));
   ipcMain.handle('git-sessions-save', guard(({ sessions: list }) => ({ ok: true, sessions: sessions().write(list) })));

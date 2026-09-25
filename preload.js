@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld('aisess', {
   gitBranches: (cwd) => ipcRenderer.invoke('git-branches', { cwd }),
   gitSwitch: (cwd, name, kind) => ipcRenderer.invoke('git-switch', { cwd, name, kind }),
   gitCreateBranch: (cwd, name) => ipcRenderer.invoke('git-create-branch', { cwd, name }),
+  gitDeleteBranch: (cwd, name, force) => ipcRenderer.invoke('git-delete-branch', { cwd, name, force }),
   gitSessions: () => ipcRenderer.invoke('git-sessions'),
   saveGitSessions: (sessions) => ipcRenderer.invoke('git-sessions-save', { sessions }),
   listOpencode: (limit) => ipcRenderer.invoke('list-opencode-sessions', { limit }),

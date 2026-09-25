@@ -842,6 +842,33 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   color: var(--text); font-family: var(--font-mono); font-size: 13px; text-align: left;
 }
 .git-picker-item:hover, .git-picker-item:focus-visible { background: var(--action-soft); }
+/* Branch locale: voce + cestino. Il cestino si vede bene solo sulla riga
+   sotto il mouse o col fuoco: dieci cestini accesi sarebbero rumore. */
+.git-picker-row { display: flex; align-items: center; gap: 4px; }
+.git-picker-row > .git-picker-item { flex: 1 1 auto; min-width: 0; }
+.git-picker-delete {
+  flex: 0 0 auto; display: grid; place-items: center; width: 28px; height: 28px;
+  background: none; border: 0; border-radius: var(--radius); cursor: pointer;
+  color: var(--text-dim); opacity: .35; transition: opacity .12s ease, color .12s ease, background-color .12s ease;
+}
+.git-picker-delete svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.git-picker-row:hover .git-picker-delete, .git-picker-delete:focus-visible { opacity: 1; }
+.git-picker-delete:hover, .git-picker-delete:focus-visible { color: var(--state-error); background: color-mix(in srgb, var(--state-error) 14%, transparent); }
+.git-picker-confirm {
+  padding: 6px 8px; border-radius: var(--radius); font-size: 12px; gap: 8px;
+  background: color-mix(in srgb, var(--state-error) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--state-error) 35%, transparent);
+}
+.git-picker-confirm--danger { background: color-mix(in srgb, var(--state-error) 16%, transparent); border-color: var(--state-error); }
+.git-picker-confirm-text { flex: 1 1 auto; min-width: 0; color: var(--text); }
+.git-picker-confirm-no, .git-picker-confirm-yes {
+  flex: 0 0 auto; border-radius: var(--radius); padding: 4px 10px; font-size: 12px; cursor: pointer;
+  background: none; border: 1px solid var(--border-strong); color: var(--text);
+}
+.git-picker-confirm-yes { background: var(--state-error); border-color: var(--state-error); color: #fff; font-weight: 600; }
+.git-picker-confirm-no:hover { background: var(--surface-3, var(--surface-2)); }
+.git-picker-confirm-yes:hover { filter: brightness(1.1); }
+@media (prefers-reduced-motion: reduce) { .git-picker-delete { transition: none; } }
 .git-picker-item--current { cursor: default; color: var(--type-git); }
 .git-picker-item--current:hover { background: none; }
 .git-picker-item--create { color: var(--action-text); }

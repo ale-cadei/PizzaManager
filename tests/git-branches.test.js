@@ -3,7 +3,7 @@ const { test: ok } = require('node:test');
 
 /* Sessione git: cambiare branch (anche partendo da un remoto) o crearne uno.
    lib/git-branches.js con un finto `git`: si verifica cosa gli si chiede. */
-const { parseBranches, validateBranchName, listBranches, switchBranch, createBranch, FIELD_SEP } = require('../lib/git-branches');
+const { parseBranches, validateBranchName, listBranches, switchBranch, createBranch, deleteBranch, FIELD_SEP } = require('../lib/git-branches');
 
 const line = (ref, head = ' ', upstream = '') => [ref, head, upstream].join(FIELD_SEP);
 
@@ -146,6 +146,53 @@ ok('branch: senza cwd rifiuta subito', async () => {
   assert.strictEqual((await listBranches({ cwd: '', run })).ok, false);
   assert.strictEqual((await switchBranch({ cwd: '', name: 'main', kind: 'local', run })).ok, false);
   assert.strictEqual((await createBranch({ cwd: '', name: 'x', run })).ok, false);
+  assert.deepStrictEqual(calls, []);
+});
+
+ok('branch: deleteBranch fa git branch -d, che rifiuta i branch non uniti', async () => {
+  const { run, calls } = fakeGit(() => '');
+  const r = await deleteBranch({ cwd: '/repo', name: 'feat/x', run });
+  assert.deepStrictEqual(r, { ok: true, branch: 'feat/x' });
+  assert.deepStrictEqual(calls, [['branch', '-d', 'feat/x']]);
+});
+
+ok('branch: un branch non unito si segnala, non si elimina', async () => {
+  const { run } = fakeGit(() => {
+    throw gitError("error: the branch 'feat/x' is not fully merged.\nIf you are sure you want to delete it, run 'git branch -D feat/x'.\n");
+  });
+  const r = await deleteBranch({ cwd: '/repo', name: 'feat/x', run });
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.notMerged, true);
+  assert.match(r.error, /not fully merged/);
+});
+
+ok('branch: con force si elimina anche non unito (git branch -D)', async () => {
+  const { run, calls } = fakeGit(() => '');
+  const r = await deleteBranch({ cwd: '/repo', name: 'feat/x', force: true, run });
+  assert.strictEqual(r.ok, true);
+  assert.deepStrictEqual(calls, [['branch', '-D', 'feat/x']]);
+});
+
+ok('branch: force vale solo se è proprio true', async () => {
+  const { run, calls } = fakeGit(() => '');
+  await deleteBranch({ cwd: '/repo', name: 'feat/x', force: 'yes', run });
+  assert.deepStrictEqual(calls, [['branch', '-d', 'feat/x']]);
+});
+
+ok('branch: il branch corrente e gli altri errori di git arrivano all\'utente', async () => {
+  const { run } = fakeGit(() => { throw gitError("error: cannot delete branch 'main' used by worktree at '/repo'\n"); });
+  const r = await deleteBranch({ cwd: '/repo', name: 'main', run });
+  assert.strictEqual(r.ok, false);
+  assert.ok(!r.notMerged);
+  assert.match(r.error, /cannot delete branch/);
+});
+
+ok('branch: deleteBranch rifiuta nomi che git leggerebbe come opzioni, senza lanciarlo', async () => {
+  const { run, calls } = fakeGit(() => '');
+  for (const name of ['-D', '--all', '', 'a b', undefined]) {
+    assert.strictEqual((await deleteBranch({ cwd: '/repo', name, run })).ok, false, String(name));
+  }
+  assert.strictEqual((await deleteBranch({ cwd: '', name: 'x', run })).ok, false);
   assert.deepStrictEqual(calls, []);
 });
 

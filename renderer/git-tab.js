@@ -1,7 +1,8 @@
 /* Scheda di tipo git: niente pty né xterm, un pannello con la timeline dei
    branch locali (renderer/git-graph-view.js) letta dal main (lib/git-graph.js).
    Si aggiorna quando torna in primo piano e dal pulsante del pannello; dal
-   nome del branch si cambia branch o se ne crea uno (git-branch-picker.js).
+   nome del branch si cambia branch, se ne crea uno o si elimina un locale
+   (git-branch-picker.js).
    Le schede aperte si salvano (lib/git-sessions.js) e tornano al riavvio. */
 
 const GitView = window.AisessGitView;
@@ -94,6 +95,7 @@ async function createGitTab({ name, cwd, startedAt = Date.now(), restoring = fal
     load: () => window.aisess.gitBranches(tab.cwd),
     onSwitch: (name, kind) => afterBranchChange(tab, window.aisess.gitSwitch(tab.cwd, name, kind)),
     onCreate: (name) => afterBranchChange(tab, window.aisess.gitCreateBranch(tab.cwd, name)),
+    onDelete: (name, force) => afterBranchChange(tab, window.aisess.gitDeleteBranch(tab.cwd, name, force)),
   });
   tab.git = { view, picker, pending: null };
   tabs.set(id, tab);

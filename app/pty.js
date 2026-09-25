@@ -352,12 +352,17 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
    * I file di sessioni che non esistono piu': l'app uccisa prima di poterli
    * cancellare li lascia indietro, e contengono cio' che si e' visto a
    * schermo. Senza questa passata la cartella cresce per sempre.
+   *
+   * Valide sono le sessioni vive E quelle del registro: dopo un riavvio tmux
+   * non ne ha nessuna, e i file da ripristinare sono proprio di quelle che
+   * vivono ormai solo nel registro. Questa passata gira prima del modal.
    */
   async function sweepScrollback() {
     if (!viaTmux || !scrollbackStore) return;
     try {
       const live = await tmux.control.list();
-      scrollbackStore().sweep(live.map((s) => s.name));
+      const registered = liveStore ? liveStore().read() : [];
+      scrollbackStore().sweep([...live, ...registered].map((s) => s.name));
     } catch { /* niente lista, niente pulizia: si riprova al prossimo avvio */ }
   }
 

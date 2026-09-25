@@ -80,3 +80,29 @@ ok('il separatore dice che quel pezzo e passato', () => {
   assert.match(SEPARATOR, /\n$/, 'il prompt della shell deve partire dalla riga dopo');
   assert.strictEqual(MAX_LINES, 2000);
 });
+
+/* Un riavvio (o `kill-server`) lascia tmux senza sessioni: i file da
+   ripristinare appartengono proprio a quelle, che vivono ormai solo nel
+   registro. La pulizia all'avvio gira PRIMA del modal «Ripristina»: se
+   guardasse solo tmux, cancellerebbe tutto un attimo prima che serva. */
+ok('pulizia all avvio: tiene i file delle sessioni nel registro, anche se tmux non ne ha piu', async () => {
+  const { createPtyManager } = require('../app/pty');
+  const { createLiveSessionsStore } = require('../lib/live-sessions');
+  const dir = tmp();
+  const store = createScrollbackStore({ dir });
+  const live = createLiveSessionsStore({ dir });
+  for (const k of ['ais-shell-prima', 'ais-shell-viva', 'ais-shell-orfana']) store.save(k, `testo di ${k}`);
+  live.write([{ name: 'ais-shell-prima', type: 'shell' }]);
+  const tmux = { bin: 'tmux', control: { list: async () => [{ name: 'ais-shell-viva' }] } };
+  const mgr = createPtyManager({
+    accounts: () => null, history: () => null, profiles: { load: () => ({}) }, sendToRenderer: () => {},
+    tmux, liveStore: () => live, scrollbackStore: () => store,
+  });
+
+  await mgr.sweepScrollback();
+
+  assert.strictEqual(store.read('ais-shell-prima'), 'testo di ais-shell-prima', 'e il testo da ripristinare dopo il riavvio');
+  assert.strictEqual(store.read('ais-shell-viva'), 'testo di ais-shell-viva');
+  assert.strictEqual(store.read('ais-shell-orfana'), null, 'ne viva ne nel registro: orfana');
+  fs.rmSync(dir, { recursive: true, force: true });
+});

@@ -53,7 +53,7 @@ già installata, e con l'app aperta si rifiuta prima di costruire.
 Suite su Windows: 537 passano, 11 saltati (permessi POSIX, `/bin/sh`,
 integrazioni coi tool non installati). Smoke test dell'app da sorgente dopo
 un `npm install` pulito e del setup `dist:win` installato: checklist del
-piano 12 tutta verde. Da fare dopo il merge: vedere verde la CI Windows e
+piano 12 tutta verde. CI verde su Ubuntu e Windows (PR #33). Da fare dopo il merge:
 fare una release (la v1.0.2 scaricabile oggi è indietro di 41 commit).
 
 ## Fuori scope (annotati, non fatti qui)

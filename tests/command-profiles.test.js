@@ -22,7 +22,7 @@ ok('comandi: tokenizer rispetta virgolette ed escape', () => {
   assert.deepStrictEqual(profiles.tokenizeCommand('claude --model opus'), ['claude', '--model', 'opus']);
   assert.deepStrictEqual(profiles.tokenizeCommand('"/opt/my dir/claude" --flag'), ['/opt/my dir/claude', '--flag']);
   assert.deepStrictEqual(profiles.tokenizeCommand("claude --msg 'ciao mondo'"), ['claude', '--msg', 'ciao mondo']);
-  assert.deepStrictEqual(profiles.tokenizeCommand('claude\\ code --x'), ['claude code', '--x']);
+  assert.deepStrictEqual(profiles.tokenizeCommand('claude\\ code --x', { platform: 'linux' }), ['claude code', '--x']);
   assert.deepStrictEqual(profiles.tokenizeCommand('   '), []);
   assert.deepStrictEqual(profiles.tokenizeCommand(null), []);
 });
@@ -196,8 +196,8 @@ ok('comandi: dentro le virgolette doppie il backslash scappa solo $ ` " \\, come
   assert.deepStrictEqual(profiles.tokenizeCommand('"a\\"b"'), ['a"b'], 'la virgoletta scappata resta letterale');
   assert.deepStrictEqual(profiles.tokenizeCommand('"x\\$y"'), ['x$y'], 'il dollaro scappato resta letterale');
   assert.deepStrictEqual(profiles.tokenizeCommand('"p\\\\q"'), ['p\\q'], 'doppio backslash = un backslash');
-  // fuori dalle virgolette il backslash scappa qualunque cosa, come prima
-  assert.deepStrictEqual(profiles.tokenizeCommand('a\\ b'), ['a b']);
+  // fuori dalle virgolette il backslash scappa qualunque cosa, come prima (su Unix)
+  assert.deepStrictEqual(profiles.tokenizeCommand('a\\ b', { platform: 'linux' }), ['a b']);
 });
 
 ok('comandi: $VAR e ${VAR} si espandono anche negli argomenti, le ignote restano letterali', () => {

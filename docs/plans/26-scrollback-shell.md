@@ -1,4 +1,4 @@
-# 25 — Lo scrollback delle shell sopravvive al riavvio
+# 26 — Lo scrollback delle shell sopravvive al riavvio
 
 Branch: `feat/scrollback-shell` (con tmux) e `feat/scrollback-senza-tmux`
 Dipende da: 6 (backend tmux), 8 (ripristino dopo riavvio) · Taglia: ~½ g + ~1 g

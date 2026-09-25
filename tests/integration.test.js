@@ -270,7 +270,7 @@ ok('tmux: lo scorrimento muove la copy-mode e scrivere la chiude', async (t) => 
   }
 });
 
-/* Il giro completo dello scrollback (piano 25) su un tmux vero: si cattura il
+/* Il giro completo dello scrollback (piano 26) su un tmux vero: si cattura il
    testo di una sessione, la si uccide come farebbe un riavvio, e la sessione
    ricreata deve ritrovarsi quel testo nella history — coi colori, e con la
    shell vera come processo, non il guscio che l'ha stampato. */

@@ -246,6 +246,11 @@ Sullo schermo di una shell finiscono token, chiavi, `export` sbagliati. Quindi:
    giusto dove cancellare il file, e non esiste più una ✕ «stacca» da cui
    guardarsi.
 5. **`-S -5000` non gonfia**: su una history corta restituisce quello che c'è.
+6. **La pulizia all'avvio deve tenere anche il registro** (trovata allo smoke
+   test): dopo un `kill-server` tmux non ha sessioni, e una pulizia che
+   guardasse solo quelle cancellava tutti i file prima del modal. E non va
+   agganciata a `discardRestorable`: «Ripristina» la chiama *prima* di
+   ricreare le schede.
 
 ## Verifica sull'app (la fa l'utente)
 

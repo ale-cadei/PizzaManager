@@ -19,7 +19,7 @@ const DEFAULT_COLS = 80;
 const DEFAULT_ROWS = 24;
 /* Ogni mezzo minuto, e solo sulle sessioni che hanno scritto qualcosa: dieci
    shell ferme non fanno nulla. Al massimo si perde mezzo minuto di output in
-   uno spegnimento brusco (docs/plans/25-scrollback-shell.md). */
+   uno spegnimento brusco (docs/plans/26-scrollback-shell.md). */
 const CAPTURE_EVERY_MS = 30000;
 
 /**

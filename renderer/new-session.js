@@ -8,12 +8,33 @@
 async function openNewModal(type, { cwd } = {}) {
   if (type) pendingNewType = type;
   if (cwd) $('#new-cwd').value = cwd;
+  showNewError('');
   $$('.type-card').forEach(x => x.classList.toggle('selected', x.dataset.type === pendingNewType));
   // Il modal si apre DOPO che la riga account e' pronta: prima compariva un
   // istante senza, e con piu' account Claude la riga arrivava a modal gia' aperto.
   await updateClaudeAccountRow();
   $('#modal-new').hidden = false;
   renderRecentDirs();
+}
+
+/* Errore mostrato nel modal (vuoto = nascosto) */
+function showNewError(text) {
+  const el = $('#new-error');
+  if (!el) return;
+  el.textContent = text || '';
+  el.hidden = !text;
+}
+
+/** Perché nella directory non si può aprire una sessione git; null se si può. */
+async function gitRepoProblem(cwd) {
+  if (!cwd) return 'Scegli la directory di un repository git.';
+  try {
+    const r = await window.aisess.gitGraph(cwd, 1);
+    return r && r.ok ? null : (r && r.error) || 'Impossibile leggere il repository.';
+  } catch (e) {
+    console.warn('git-graph non raggiungibile', e);
+    return 'Impossibile leggere il repository: ' + String((e && e.message) || e);
+  }
 }
 
 /* ---------- Directory di lavoro recenti ---------- */

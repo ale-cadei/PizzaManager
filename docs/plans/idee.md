@@ -100,6 +100,29 @@ bassa e a scomparsa).
 - [ ] fatto
 - [ ] provato
 
+### Scrollback delle shell dopo un riavvio del Mac
+Chiudere e riaprire l'app non perde niente (tmux tiene vive le sessioni). Dopo
+un **riavvio della macchina** invece il ripristino (branch 8) ricrea la shell
+nella stessa cartella, ma vuota. Come fa VS Code con «History restored»: si
+salva il testo del terminale e lo si rimette sopra la shell nuova. Il processo
+non torna (un server che girava va rilanciato), torna quello che c'era scritto.
+- **salvare**: `tmux -L aisession capture-pane -p -e -S -5000` (ultime 5000
+  righe, con i colori), periodico sulle sessioni che hanno scritto e alla
+  chiusura dell'app: a uno spegnimento brusco la chiusura non arriva;
+- **ripristinare dentro tmux**, non in xterm (tmux ci ridisegnerebbe sopra):
+  la sessione nuova stampa il file salvato e una riga `── cronologia
+  ripristinata ──`, poi avvia la shell. Così il testo vecchio si scorre con la
+  rotella come il resto;
+- il file può contenere segreti comparsi a schermo: `0600` + `chmodSync`, e si
+  cancella quando la sessione si chiude con la ✕;
+- serve alle **shell**: Claude e Codex con `--resume` ricaricano già la
+  conversazione da sé;
+- Windows (senza tmux): addon `serialize` di xterm, lo stesso di VS Code.
+
+- [ ] piano
+- [ ] fatto
+- [ ] provato
+
 ---
 
 ## Fuori dalla scrivania

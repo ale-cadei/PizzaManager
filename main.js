@@ -197,7 +197,7 @@ ipcMain.handle('list-claude-sessions', async (event, { limit } = {}) => {
 ipcMain.handle('list-antigravity-sessions', async (event, { limit } = {}) => {
   try { return listAntigravitySessions(limit); } catch (e) { return { ...fail('', e), sessions: [] }; }
 });
-ipcMain.handle('list-extensions', async () => listExtensions());
+ipcMain.handle('list-extensions', async (event, { cwd } = {}) => listExtensions({ cwd: typeof cwd === 'string' ? cwd : null }));
 ipcMain.handle('search-conversations', async (event, { query, scope, allSnippets } = {}) => conversationSearch().search(query, scope, allSnippets));
 // Una conversazione in Markdown: il percorso lo sceglie il dialog, non il renderer
 registerExportHandlers(ipcMain, { getWindow: () => mainWindow });

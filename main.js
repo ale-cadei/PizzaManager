@@ -20,6 +20,7 @@ const { createSearchWorker } = require('./lib/search-worker');
 const { collectUsage } = require('./lib/usage');
 const { computeRecentDirs } = require('./lib/recent-dirs');
 const { findProjectRoot } = require('./lib/project-root');
+const { listExtensions } = require('./lib/extensions');
 const { createWindow } = require('./app/window');
 const { runMenuAction } = require('./app/menu');
 const { createPtyManager } = require('./app/pty');
@@ -196,6 +197,7 @@ ipcMain.handle('list-claude-sessions', async (event, { limit } = {}) => {
 ipcMain.handle('list-antigravity-sessions', async (event, { limit } = {}) => {
   try { return listAntigravitySessions(limit); } catch (e) { return { ...fail('', e), sessions: [] }; }
 });
+ipcMain.handle('list-extensions', async () => listExtensions());
 ipcMain.handle('search-conversations', async (event, { query, scope, allSnippets } = {}) => conversationSearch().search(query, scope, allSnippets));
 // Una conversazione in Markdown: il percorso lo sceglie il dialog, non il renderer
 registerExportHandlers(ipcMain, { getWindow: () => mainWindow });

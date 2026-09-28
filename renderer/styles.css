@@ -1072,6 +1072,35 @@ a, .link { color: var(--action-text); }
     to   { opacity: 1; transform: none; }
   }
 }
+/* Plugin e skill (docs/plans/29): schede per CLI, filtro, elenco scorrevole */
+#modal-extensions .tab { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.ext-tab-count { font-size: 10px; color: var(--text-muted); }
+#ext-body { max-height: min(58vh, 620px); overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.ext-section { display: flex; flex-direction: column; gap: 6px; }
+.ext-section-title {
+  display: flex; align-items: baseline; gap: 8px; margin: 0;
+  font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted);
+}
+.ext-plugin { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); padding: 8px 10px; }
+.ext-plugin > summary { cursor: pointer; list-style: none; }
+.ext-plugin > summary::-webkit-details-marker { display: none; }
+.ext-plugin > summary .ext-plugin-name::before { content: '▸ '; color: var(--text-muted); }
+.ext-plugin[open] > summary .ext-plugin-name::before { content: '▾ '; }
+.ext-plugin-head, .ext-item-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; }
+.ext-plugin-name { font-size: 13px; font-weight: 600; }
+.ext-item-name { font-size: 12px; font-weight: 600; font-family: var(--font-mono, monospace); }
+.ext-count { margin-left: auto; font-size: 11px; color: var(--text-muted); }
+.ext-muted { font-size: 11px; font-weight: 400; color: var(--text-muted); text-transform: none; letter-spacing: 0; }
+.ext-chip { font-size: 10px; padding: 1px 6px; border: 1px solid var(--border); border-radius: 999px; color: var(--text-muted); }
+.ext-chip--off { opacity: .7; }
+.ext-chip--warn { border-color: var(--action); color: var(--action-text, var(--text)); }
+.ext-desc { font-size: 12px; color: var(--text-muted); margin-top: 3px; overflow-wrap: anywhere; }
+.ext-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ext-plugin .ext-items { margin-top: 8px; padding-left: 14px; border-left: 1px solid var(--border); }
+.ext-section > .ext-items > .ext-item { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); padding: 6px 10px; }
+.ext-empty { color: var(--text-muted); font-size: 12px; }
+.ext-error { color: var(--action-text, var(--text)); }
+
 /* Ripristino dopo riavvio: le stesse card della sidebar, con una spunta a sinistra */
 #restore-list { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
 .restore-row { user-select: none; }
@@ -1094,6 +1123,18 @@ a, .link { color: var(--action-text); }
   font-size: 11px; line-height: 1;
   overflow: hidden; white-space: nowrap;
 }
+/* Barra dell'uso più il pulsante "Plugin e skill" a destra: il pulsante è
+   fratello di #usagebar perché usage-bar.js ne riscrive tutto il contenuto. */
+.bottombar { display: flex; flex: 0 0 auto; min-width: 0; }
+.bottombar #usagebar { flex: 1 1 auto; min-width: 0; }
+.bottombar-btn {
+  flex: 0 0 auto; height: var(--usagebar-h); padding: 0 12px;
+  background: var(--panel, #14161a); color: var(--muted, #8b909a);
+  border: 0; border-top: 1px solid var(--border, #23262d); border-left: 1px solid var(--border, #23262d);
+  font: inherit; font-size: 10px; letter-spacing: .06em; line-height: 1;
+  white-space: nowrap; cursor: pointer;
+}
+.bottombar-btn:hover, .bottombar-btn:focus-visible { color: var(--text, #e6e8ec); background: var(--action-soft, #23262d); }
 /* "Dove sono": cartella del progetto e nome della chat in primo piano. Prende
    lo spazio che avanza e si tronca per primo: le quote a destra hanno
    larghezza fissa e non devono mai sparire per un nome lungo. */

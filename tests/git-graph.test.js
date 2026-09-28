@@ -116,6 +116,9 @@ ok('git: gitLogArgs chiede solo i branch locali, con limite e senza colori', () 
   assert.ok(!args.includes('--all'));
   assert.ok(args.includes('--max-count=50'));
   assert.ok(args.includes('--no-color'));
+  assert.ok(!args.includes('--remotes'), 'la timeline apre corsie solo per i locali');
+  // la mappa dei branch unisce locali e remoti
+  assert.ok(gitLogArgs({ limit: 50, remotes: true }).includes('--remotes'));
 });
 
 /* readGitGraph con un finto `git`: si verifica cosa chiede e cosa restituisce */
@@ -146,7 +149,23 @@ ok('git: readGitGraph restituisce radice, branch corrente e righe', async () => 
   assert.strictEqual(r.head, 'main');
   assert.strictEqual(r.rows.length, 2);
   assert.strictEqual(r.rows[0].commit.subject, 'secondo');
+  // la mappa dei branch (lib/git-branch-map.js) viaggia con le righe
+  assert.deepStrictEqual(r.map.open.lines.map((l) => l.name), ['main']);
   assert.ok(calls.every((c) => c.opts.cwd === '/repo/src'), 'git non gira nella directory della sessione');
+});
+
+ok('git: la mappa legge anche i branch remoti, la timeline no', async () => {
+  const local = rec('b', ['a'], 'secondo', { refs: 'HEAD -> main' }) + rec('a', [], 'primo');
+  // args di git log: la lettura con --remotes trova '--remotes' prima di 'HEAD'
+  const { run } = fakeGit({
+    '--show-toplevel': '/repo\n', remote: 'origin\n',
+    HEAD: local, '--remotes': rec('r', ['a'], 'del collega', { refs: 'origin/feat/r' }) + local,
+  });
+  const r = await readGitGraph({ cwd: '/repo', run, ...unix });
+  assert.strictEqual(r.rows.length, 2, 'la timeline resta sui soli locali');
+  const remote = r.map.all.lines.find((l) => l.name === 'feat/r');
+  assert.ok(remote, 'il branch remoto non è nella mappa');
+  assert.strictEqual(remote.where, 'remote');
 });
 
 ok('git: readGitGraph fuori da un repository lo dice senza eccezioni', async () => {

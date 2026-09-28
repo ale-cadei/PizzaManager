@@ -376,6 +376,53 @@ ok('git: readGitGraph legge branch, merge e repository vuoti con il git installa
   }
 });
 
+// ---------- git: la mappa dei branch su un repository vero ----------
+ok('git: la mappa ricostruisce chi nasce da chi e chi è unito, con il git installato', async (t) => {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const path = require('path');
+  const { resolveBinary } = require('../lib/binaries');
+  const { readGitGraph } = require('../lib/git-graph');
+  const bin = resolveBinary('git');
+  if (!bin.path) return t.skip('git non installato su questa macchina');
+  const dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-gitmap-')));
+  const env = { ...process.env, GIT_AUTHOR_NAME: 'Prova', GIT_AUTHOR_EMAIL: 'p@x', GIT_COMMITTER_NAME: 'Prova', GIT_COMMITTER_EMAIL: 'p@x' };
+  const git = (...args) => String(execFileSync(bin.path, args, { cwd: dir, env })).trim();
+  const commit = (msg) => git('commit', '-q', '--allow-empty', '-m', msg);
+  try {
+    // main: primo · uno: u1-u2-u3 da primo · due: d1 da u1 · unito: x1 da m1, unito con un merge e cancellato
+    git('init', '-q', '-b', 'main');
+    commit('primo');
+    const primo = git('rev-parse', 'HEAD');
+    git('checkout', '-q', '-b', 'uno');
+    commit('u1');
+    const u1 = git('rev-parse', 'HEAD');
+    commit('u2');
+    commit('u3');
+    git('checkout', '-q', '-b', 'due', u1);
+    commit('d1');
+    git('checkout', '-q', 'main');
+    commit('m1');
+    git('checkout', '-q', '-b', 'unito');
+    commit('x1');
+    git('checkout', '-q', 'main');
+    git('merge', '-q', '--no-ff', '--no-edit', 'unito');
+    const merge = git('rev-parse', 'HEAD');
+    // come dopo una PR: il branch si cancella, la mappa lo ritrova dal messaggio del merge
+    git('branch', '-q', '-d', 'unito');
+    const r = await readGitGraph({ cwd: dir });
+    assert.strictEqual(r.ok, true, r.error || '');
+    const all = Object.fromEntries(r.map.all.lines.map((l) => [l.name, l]));
+    assert.deepStrictEqual([all.uno.parent, all.uno.fork], ['main', primo]);
+    assert.deepStrictEqual([all.due.parent, all.due.fork], ['uno', u1]);
+    assert.deepStrictEqual([all.unito.merged, all.unito.merge, all.unito.where], [true, merge, null]);
+    assert.deepStrictEqual(r.map.open.lines.map((l) => l.name).sort(), ['due', 'main', 'uno']);
+    assert.strictEqual(r.map.hiddenCount, 1);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 // ---------- git: cambiare e creare branch su un repository vero ----------
 ok('git: switchBranch, createBranch e deleteBranch con il git installato, remoti compresi', async (t) => {
   const { execFileSync } = require('child_process');

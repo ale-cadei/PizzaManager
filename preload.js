@@ -48,6 +48,7 @@ contextBridge.exposeInMainWorld('aisess', {
   pickCwd: () => ipcRenderer.invoke('dialog-cwd'),
   menuAction: (action) => ipcRenderer.invoke('menu-action', { action }),
   usage: (active) => ipcRenderer.invoke('usage-snapshot', { active }),
+  listExtensions: () => ipcRenderer.invoke('list-extensions'),
   clipboardWrite: (text) => ipcRenderer.invoke('clipboard-write', { text }),
   clipboardRead: () => ipcRenderer.invoke('clipboard-read'),
   onMenuEdit: (cb) => ipcRenderer.on('menu-edit', (_e, action) => cb(action)),

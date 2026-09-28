@@ -21,6 +21,7 @@ const RENDERER_APP_FILES = [
   'restore.js',
   'menu-actions.js',
   'panels.js',
+  'extensions-panel.js',
   'renderer.js',
 ];
 

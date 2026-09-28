@@ -149,7 +149,12 @@
          Sta dentro <main>, non in fondo alla pagina: riguarda la sessione in
          primo piano, quindi si allinea al terminale e non passa sotto la
          sidebar delle sessioni. -->
-    <footer id="usagebar" aria-label="Consumo di token: sessione, finestra 5 ore, settimana"></footer>
+    <!-- Il pulsante sta accanto alla barra, non dentro: usage-bar.js la
+         svuota e la ridisegna da capo (docs/plans/29-plugin-skill.md). -->
+    <div class="bottombar">
+      <footer id="usagebar" aria-label="Consumo di token: sessione, finestra 5 ore, settimana"></footer>
+      <button type="button" class="bottombar-btn" id="extensions-open" title="Plugin e skill installati in Claude Code, Codex e opencode">🧩 PLUGIN E SKILL</button>
+    </div>
   </main>
 </div>
 
@@ -254,6 +259,20 @@
   </div>
 </div>
 
+<!-- Modal plugin e skill installati, sola lettura (docs/plans/29-plugin-skill.md).
+     Schede e contenuto li disegnano extensions-panel.js ed extensions-view.js -->
+<div class="modal-backdrop" id="modal-extensions" hidden>
+  <div class="modal wide">
+    <h2>🧩 Plugin e skill</h2>
+    <div class="tabs" role="tablist" id="ext-tabs"></div>
+    <input class="input" id="ext-search" placeholder="Filtra per nome o descrizione…" />
+    <div id="ext-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn--ghost" id="ext-close">Chiudi</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal rinomina sessione: window.prompt() non è supportato in Electron -->
 <div class="modal-backdrop" id="modal-rename" hidden>
   <div class="modal">
@@ -342,6 +361,7 @@
 <script src="shell-search.js"></script>
 <script src="git-graph-view.js"></script>
 <script src="git-branch-picker.js"></script>
+<script src="extensions-view.js"></script>
 <!-- Il renderer vero e proprio, diviso per area (docs/plans/21-split-renderer.md):
      app-state.js per primo, renderer.js per ultimo. -->
 <script src="app-state.js"></script>
@@ -356,6 +376,7 @@
 <script src="restore.js"></script>
 <script src="menu-actions.js"></script>
 <script src="panels.js"></script>
+<script src="extensions-panel.js"></script>
 <script src="renderer.js"></script>
 </body>
 </html>

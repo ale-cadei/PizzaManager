@@ -1,25 +1,46 @@
 /* Modal «Resume»: conversazioni dei CLI e cronologia dell'app. */
 
-async function openResumeModal() {
+let resumeRenderSeq = 0;
+
+function updateResumeProjectScope() {
+  const scope = $('#resume-project-scope');
+  scope.hidden = !resumeProjectFilterRoot;
+  $('#resume-project-label').textContent = resumeProjectFilterRoot ? `Solo ${resumeProjectFilterRoot}` : '';
+  $('#resume-project-label').title = resumeProjectFilterRoot || '';
+}
+
+async function openResumeModal({ projectRoot = null } = {}) {
+  resumeProjectFilterRoot = typeof projectRoot === 'string' && projectRoot ? projectRoot : null;
+  $('#resume-group-projects').checked = Boolean(resumeProjectFilterRoot);
+  $('#resume-search').value = '';
+  if (resumeProjectFilterRoot && resumeTab === 'search') {
+    resumeTab = 'opencode';
+    $$('.tab').forEach((tab) => {
+      tab.classList.toggle('active', tab.dataset.tab === resumeTab);
+      tab.setAttribute('aria-selected', String(tab.dataset.tab === resumeTab));
+    });
+  }
+  updateResumeProjectScope();
   $('#modal-resume').hidden = false;
   await updateResumeAccountRow();
   await renderResumeList();
 }
 
 async function ensureResumeData(tab) {
-  if (resumeCache[tab]) return resumeCache[tab];
+  const limit = resumeProjectFilterRoot ? 500 : 100;
+  if (resumeCache[tab] && (tab === 'history' || resumeCache[tab].requestedLimit >= limit)) return resumeCache[tab];
   if (tab === 'opencode') {
-    const r = await window.aisess.listOpencode(100);
-    resumeCache.opencode = r;
+    const r = await window.aisess.listOpencode(limit);
+    resumeCache.opencode = { ...r, requestedLimit: limit };
   } else if (tab === 'claude') {
-    const r = await window.aisess.listClaude(100);
-    resumeCache.claude = r;
+    const r = await window.aisess.listClaude(limit);
+    resumeCache.claude = { ...r, requestedLimit: limit };
   } else if (tab === 'codex') {
-    const r = await window.aisess.listCodex(100);
-    resumeCache.codex = r;
+    const r = await window.aisess.listCodex(limit);
+    resumeCache.codex = { ...r, requestedLimit: limit };
   } else if (tab === 'antigravity') {
-    const r = await window.aisess.listAntigravity(100);
-    resumeCache.antigravity = r;
+    const r = await window.aisess.listAntigravity(limit);
+    resumeCache.antigravity = { ...r, requestedLimit: limit };
   } else {
     const h = await window.aisess.getHistory();
     resumeCache.history = { ok: true, sessions: h };
@@ -33,6 +54,7 @@ const SEARCH_PLACEHOLDER = {
 };
 
 async function renderResumeList(keepCache = false) {
+  const seq = ++resumeRenderSeq;
   const box = $('#resume-list');
   $('#resume-search').placeholder = resumeTab === 'search' ? SEARCH_PLACEHOLDER.search : SEARCH_PLACEHOLDER.list;
   if (resumeTab === 'search') return conversationSearch.run($('#resume-search').value);
@@ -40,6 +62,7 @@ async function renderResumeList(keepCache = false) {
   const q = ($('#resume-search').value || '').toLowerCase();
   box.innerHTML = '<p class="muted">Caricamento…</p>';
   const data = await ensureResumeData(resumeTab);
+  if (seq !== resumeRenderSeq) return;
   if (!data.ok) {
     box.innerHTML = `<p class="muted">⚠ ${escapeHtml(data.error || 'Nessun dato')}</p>`;
     return;
@@ -48,12 +71,20 @@ async function renderResumeList(keepCache = false) {
   if (q) {
     items = items.filter(s => JSON.stringify(s).toLowerCase().includes(q));
   }
-  if (!items.length) {
+  const grouped = $('#resume-group-projects').checked;
+  const groups = await window.AisessResumeProjects.arrange(items, {
+    source: resumeTab, resolve: resolveProjectRoot,
+    filterRoot: resumeProjectFilterRoot, grouped, Groups,
+  });
+  if (seq !== resumeRenderSeq) return;
+  if (!groups.some((group) => group.items.length)) {
     box.innerHTML = '<p class="muted">Nessuna sessione trovata.</p>';
+    appendResumeLimitNote(box, data, grouped);
     return;
   }
   box.innerHTML = '';
-  for (const s of items.slice(0, 80)) box.appendChild(createResumeItem(resumeTab, s));
+  appendResumeGroups(box, groups, (s) => createResumeItem(resumeTab, s));
+  appendResumeLimitNote(box, data, grouped);
   // Il lister puo' aver scartato file illeggibili o in un formato inatteso:
   // meglio dirlo che lasciar credere che la lista sia completa.
   if (data.skipped > 0) {
@@ -61,6 +92,32 @@ async function renderResumeList(keepCache = false) {
     note.className = 'muted small';
     note.textContent = data.skipped === 1 ? '1 sessione non leggibile, esclusa dall\'elenco.' : `${data.skipped} sessioni non leggibili, escluse dall'elenco.`;
     box.appendChild(note);
+  }
+}
+
+function appendResumeLimitNote(box, data, grouped) {
+  if (!(grouped || resumeProjectFilterRoot) || !data.requestedLimit || (data.sessions || []).length < data.requestedLimit) return;
+  box.appendChild(mutedNote(`Elenco limitato alle ${data.requestedLimit} conversazioni più recenti.`, 'small'));
+}
+
+function appendResumeGroups(box, groups, createItem) {
+  // La lista normale resta corta come prima; con un progetto scelto o con il
+  // raggruppamento attivo non nascondere interi gruppi per il limite visivo.
+  const limit = $('#resume-group-projects').checked || resumeProjectFilterRoot ? Infinity : 80;
+  let shown = 0;
+  for (const group of groups) {
+    const visible = group.items.slice(0, limit - shown);
+    if (!visible.length) continue;
+    if ($('#resume-group-projects').checked) {
+      const heading = document.createElement('h3');
+      heading.className = 'resume-project-heading';
+      heading.textContent = `${group.label} (${group.items.length})`;
+      heading.title = group.title;
+      box.appendChild(heading);
+    }
+    for (const item of visible) box.appendChild(createItem(item));
+    shown += visible.length;
+    if (shown >= limit) break;
   }
 }
 
@@ -84,15 +141,22 @@ function mutedNote(text, extraClass) {
   return p;
 }
 
-function renderSearchState(state) {
+async function renderSearchState(state) {
   if (resumeTab !== 'search') return;
+  const seq = ++resumeRenderSeq;
   const box = $('#resume-list');
   box.innerHTML = '';
   if (state.phase !== 'results') {
     box.appendChild(mutedNote(ConvSearch.statusText(state)));
     return;
   }
-  for (const r of state.results) box.appendChild(createSearchItem(r, state.query));
+  const groups = await window.AisessResumeProjects.arrange(state.results, {
+    resolve: resolveProjectRoot, filterRoot: resumeProjectFilterRoot,
+    grouped: $('#resume-group-projects').checked, Groups,
+  });
+  if (seq !== resumeRenderSeq || resumeTab !== 'search' || $('#modal-resume').hidden) return;
+  if (!groups.some((group) => group.items.length)) box.appendChild(mutedNote('Nessuna conversazione trovata in questo progetto.'));
+  else appendResumeGroups(box, groups, (r) => createSearchItem(r, state.query));
   if (state.truncated) box.appendChild(mutedNote(`Solo le ${state.results.length} conversazioni più recenti: aggiungi una parola per restringere.`, 'small'));
   if (state.skipped > 0) box.appendChild(mutedNote(`${state.skipped} conversazioni non leggibili, escluse dalla ricerca.`, 'small'));
 }

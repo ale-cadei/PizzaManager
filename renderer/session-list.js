@@ -18,6 +18,7 @@ const sidebar = Sidebar.createSidebar({
   // Il «+» di un gruppo progetto: stesso dialog, directory già impostata sulla
   // radice; il tipo lo si sceglie lì come sempre.
   onNewInProject: (root) => { openNewModal(undefined, { cwd: root }).catch(() => {}); },
+  onResumeInProject: (root) => { openResumeModal({ projectRoot: root }).catch(() => {}); },
   onReorder: (movedId, targetId, opts) => {
     const next = Order.moveAdjacent(sessionOrder, movedId, targetId, opts);
     if (next === sessionOrder) return;

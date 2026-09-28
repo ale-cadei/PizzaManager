@@ -312,6 +312,13 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     return state;
   }
 
+  /** Cronologia della sola shell aperta, per la ricerca nella sidebar. */
+  async function captureShell(id) {
+    const c = clients.get(id);
+    if (!viaTmux || !c || c.type !== 'shell' || !c.session) return null;
+    return tmux.control.capture(c.session).catch(() => null);
+  }
+
   /**
    * Il comando iniziale per una sessione che riparte con il testo di prima,
    * oppure null se non c'e' niente da ripristinare. Solo le shell: gli agenti
@@ -458,7 +465,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
   }
 
   return {
-    spawn, attach, listLive, setLabel, setMeta, restorable, discardRestorable, write, scroll, resize, close, terminate, terminateSession, closeAll,
+    spawn, attach, listLive, setLabel, setMeta, restorable, discardRestorable, write, scroll, captureShell, resize, close, terminate, terminateSession, closeAll,
     startCapture, stopCapture, captureDirty, sweepScrollback,
     get viaTmux() { return viaTmux; },
     get size() { return clients.size; },

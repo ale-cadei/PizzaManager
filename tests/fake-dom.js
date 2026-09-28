@@ -35,6 +35,11 @@ function createElement(tag) {
       if (child.parent) child.parent.removeChild(child);
       child.parent = e; e.children.push(child); return child;
     },
+    replaceChildren(...children) {
+      for (const child of e.children) child.parent = null;
+      e.children = [];
+      for (const child of children) e.appendChild(child);
+    },
     // Spostamento dei nodi: serve al riordino "vivo" delle card durante il
     // trascinamento, che muove davvero la card nel DOM invece di segnare il bersaglio.
     removeChild(child) {

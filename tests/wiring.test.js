@@ -279,7 +279,7 @@ ok('ricerca: handler, preload e worker collegati; il main non cerca da sé', () 
   assert.ok(main.includes("'search-conversations'"), 'manca handler search-conversations');
   assert.ok(main.includes("require('./lib/search-worker')"), 'la ricerca deve passare dal worker');
   assert.ok(!main.includes("require('./lib/conversation-search')"), 'searchConversations nel main bloccherebbe i terminali');
-  assert.ok(read('preload.js').includes("searchConversations: (query) => ipcRenderer.invoke('search-conversations'"), 'manca searchConversations nel preload');
+  assert.ok(read('preload.js').includes("searchConversations: (query, scope, allSnippets = false) => ipcRenderer.invoke('search-conversations'"), 'manca searchConversations nel preload');
 });
 
 ok('ricerca: la linguetta Cerca sta in testa al Resume e usa la ricerca del main', () => {

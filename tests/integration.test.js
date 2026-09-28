@@ -76,6 +76,8 @@ ok('tmux: la sessione sopravvive allo stacco del client e si riattacca con i met
     assert.strictEqual(r.ok, true, r.error);
     assert.ok(r.session && r.session.startsWith('ais-shell-'), r.session);
     await wait(300);
+    assert.strictEqual(typeof await app1.captureShell('tab1'), 'string', 'la ricerca deve poter leggere il pane della shell');
+    assert.strictEqual(await app1.captureShell('scheda-inesistente'), null);
     let live = await app1.listLive();
     assert.strictEqual(live.length, 1);
     assert.strictEqual(live[0].name, r.session);

@@ -113,6 +113,9 @@
       <button class="btn btn--outline" id="btn-new" title="Crea una nuova sessione (il tipo si sceglie nel dialog)"><span class="btn-glyph" aria-hidden="true">+</span>Nuova</button>
       <button class="btn btn--ghost" id="btn-resume" title="Riprendi una vecchia sessione"><span class="btn-glyph" aria-hidden="true">⟲</span>Resume</button>
     </div>
+    <div class="side-search">
+      <input id="open-search" type="search" aria-label="Cerca nei messaggi delle chat aperte" placeholder="Cerca nelle chat aperte…" autocomplete="off" />
+    </div>
     <div class="side-section">SESSIONI APERTE <span id="count"></span>
       <div class="seg" role="group" aria-label="Raggruppa le sessioni">
         <button type="button" class="seg-btn" id="group-mode-type" aria-pressed="true" title="Raggruppa per tipo di sessione">Tipo</button>
@@ -120,6 +123,7 @@
       </div>
     </div>
     <div id="session-list"></div>
+    <div id="open-search-results" role="status" aria-live="polite" hidden></div>
     <div class="side-footer">
       <span class="legend"><i class="dot shell"></i>shell</span>
       <span class="legend"><i class="dot git"></i>git</span>
@@ -335,6 +339,7 @@
 <script src="welcome.js"></script>
 <script src="hints.js"></script>
 <script src="search-results.js"></script>
+<script src="shell-search.js"></script>
 <script src="git-graph-view.js"></script>
 <script src="git-branch-picker.js"></script>
 <!-- Il renderer vero e proprio, diviso per area (docs/plans/21-split-renderer.md):

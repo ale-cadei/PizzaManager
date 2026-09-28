@@ -61,6 +61,7 @@ const renderSidebar = () => {
   sessionOrder = Order.syncOrder(sessionOrder, [...tabs.keys()], { rankOf: savedRanks() });
   saveOrder();
   sidebar.render(Order.applyOrder([...tabs.values()], sessionOrder), activeId);
+  refreshOpenSearchScope();
   // La barra in basso dice in che chat si è: cambia con la scheda attiva, un
   // rinomina, il titolo automatico — tutte strade che passano da qui.
   if (usageBar) usageBar.setCurrent(activeId ? tabs.get(activeId) : null);
@@ -70,6 +71,130 @@ const renderSidebar = () => {
   closeConfirm.retarget(findAnchor);
   scheduleHint();
 };
+
+/* Cerca nelle chat aperte e nella cronologia delle shell. Il risultato
+   seleziona la scheda viva, senza creare un nuovo Resume. */
+let openSearchScopeKey = '';
+const openSearch = ConvSearch.createSearchRunner({
+  search: searchOpenChats,
+  render: renderOpenSearchState,
+});
+
+function openSearchTabs() {
+  return [...tabs.values()].filter((t) => t.type === 'shell' || (['claude', 'codex'].includes(t.type) && t.resumeId));
+}
+
+function openSearchKey(t) {
+  return t.type === 'shell' ? `shell:${t.id}` : `${t.type}:${t.resumeId}`;
+}
+
+function xtermShellText(tab) {
+  const buffer = tab.term && tab.term.buffer && tab.term.buffer.active;
+  if (!buffer) return '';
+  const lines = [];
+  for (let i = 0; i < buffer.length; i++) {
+    const line = buffer.getLine(i);
+    if (line) lines.push(line.translateToString(true));
+  }
+  return lines.join('\n');
+}
+
+async function searchShellTab(tab, query, allSnippets = false) {
+  let text = tab.session ? await window.aisess.captureShell(tab.id) : null;
+  if (text == null) text = xtermShellText(tab);
+  const found = ShellSearch.search(text, query, { allSnippets });
+  return found.hits ? { source: 'shell', id: tab.id, title: tab.name, mtime: tab.startedAt, ...found } : null;
+}
+
+async function searchOpenChats(query) {
+  const open = openSearchTabs();
+  const scope = open.filter((t) => t.type !== 'shell').map((t) => ({ source: t.type, id: t.resumeId }));
+  const agents = scope.length ? window.aisess.searchConversations(query, scope) : Promise.resolve({ ok: true, results: [] });
+  const shells = Promise.all(open.filter((t) => t.type === 'shell').map((t) => searchShellTab(t, query).catch(() => null)));
+  const [agentResults, shellResults] = await Promise.all([agents, shells]);
+  if (!agentResults.ok) return agentResults;
+  return { ...agentResults, results: [...agentResults.results, ...shellResults.filter(Boolean)].sort((a, b) => b.mtime - a.mtime) };
+}
+
+function onOpenSearchInput() {
+  const query = $('#open-search').value;
+  const searching = Boolean(query.trim());
+  $('#sidebar').classList.toggle('searching', searching);
+  $('#open-search-results').hidden = !searching;
+  if (!searching) {
+    openSearch.cancel();
+    openSearchScopeKey = '';
+    return;
+  }
+  openSearchScopeKey = openSearchTabs().map(openSearchKey).sort().join('\n');
+  if (!openSearchTabs().length) {
+    openSearch.cancel();
+    renderOpenSearchState({ phase: 'unavailable' });
+  } else openSearch.schedule(query);
+}
+
+function refreshOpenSearchScope() {
+  if (!$('#open-search').value.trim()) return;
+  const key = openSearchTabs().map(openSearchKey).sort().join('\n');
+  if (key !== openSearchScopeKey) onOpenSearchInput();
+}
+
+function renderOpenSearchState(state) {
+  if (!$('#open-search').value.trim()) return;
+  const box = $('#open-search-results');
+  box.replaceChildren();
+  if (state.phase !== 'results') {
+    const message = state.phase === 'unavailable'
+      ? 'Nessuna shell o chat Claude Code o Codex ricercabile è aperta.'
+      : state.phase === 'short' ? 'Scrivi almeno 2 caratteri.'
+      : ConvSearch.statusText(state);
+    box.appendChild(mutedNote(message));
+    return;
+  }
+  const byConversation = new Map(openSearchTabs().map((t) => [openSearchKey(t), t]));
+  let count = 0;
+  for (const r of state.results) {
+    const tab = byConversation.get(`${r.source}:${r.id}`);
+    if (!tab) continue;
+    count++;
+    const item = document.createElement('div');
+    item.className = 'open-search-item';
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'open-search-open';
+    const type = document.createElement('span');
+    type.className = 'open-search-type';
+    const icon = document.createElement('span');
+    icon.className = 'icon';
+    icon.innerHTML = Icons.markup(tab.type); // markup statico del modulo icone
+    type.appendChild(icon);
+    const label = document.createElement('span');
+    label.textContent = tab.type === 'shell' ? 'Shell' : Groups.TYPE_LABELS[tab.type] || tab.type;
+    type.appendChild(label);
+    open.appendChild(type);
+    const title = document.createElement('span');
+    title.className = 'open-search-title';
+    title.textContent = tab.name;
+    open.appendChild(title);
+    open.addEventListener('click', () => {
+      $('#open-search').value = '';
+      onOpenSearchInput();
+      setActive(tab.id);
+    });
+    item.appendChild(open);
+    ConvSearch.appendExpandableSnippets(document, item, r, {
+      query: state.query,
+      loadAll: async (q, scope, all) => {
+        if (tab.type !== 'shell') return window.aisess.searchConversations(q, scope, all);
+        const full = await searchShellTab(tab, q, all);
+        return { ok: true, results: full ? [full] : [] };
+      },
+      isCurrent: () => $('#open-search').value === state.query && tabs.get(tab.id) === tab,
+    });
+    box.appendChild(item);
+  }
+  if (!count) box.appendChild(mutedNote(`Nessun messaggio contiene «${state.query}» nelle chat aperte.`));
+}
 
 /* ---------- Suggerimenti una volta sola (onboarding) ----------
    Quale mostrare lo decide renderer/hints.js; qui si sceglie QUANDO: poco

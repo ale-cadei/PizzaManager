@@ -95,6 +95,7 @@ ipcMain.handle('pty-attach', async (event, opts) => ptys.attach(opts));
 ipcMain.on('pty-write', (event, { id, data }) => ptys.write(id, data));
 ipcMain.on('pty-resize', (event, { id, cols, rows }) => ptys.resize(id, cols, rows));
 ipcMain.handle('pty-scroll', (event, { id, ...req }) => ptys.scroll(id, req));
+ipcMain.handle('pty-capture-shell', (event, { id } = {}) => ptys.captureShell(id));
 // 'pty-kill' chiude il pty della scheda: con tmux e' uno stacco, il processo resta.
 ipcMain.handle('pty-kill', async (event, { id }) => ptys.close(id));
 ipcMain.handle('pty-terminate', async (event, { id }) => ptys.terminate(id));
@@ -195,7 +196,7 @@ ipcMain.handle('list-claude-sessions', async (event, { limit } = {}) => {
 ipcMain.handle('list-antigravity-sessions', async (event, { limit } = {}) => {
   try { return listAntigravitySessions(limit); } catch (e) { return { ...fail('', e), sessions: [] }; }
 });
-ipcMain.handle('search-conversations', async (event, { query } = {}) => conversationSearch().search(query));
+ipcMain.handle('search-conversations', async (event, { query, scope, allSnippets } = {}) => conversationSearch().search(query, scope, allSnippets));
 // Una conversazione in Markdown: il percorso lo sceglie il dialog, non il renderer
 registerExportHandlers(ipcMain, { getWindow: () => mainWindow });
 

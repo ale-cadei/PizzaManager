@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('aisess', {
   scroll: (id, lines) => ipcRenderer.invoke('pty-scroll', { id, lines }),
   scrollTo: (id, fromBottom) => ipcRenderer.invoke('pty-scroll', { id, fromBottom }),
   scrollState: (id) => ipcRenderer.invoke('pty-scroll', { id }),
+  captureShell: (id) => ipcRenderer.invoke('pty-capture-shell', { id }),
   kill: (id) => ipcRenderer.invoke('pty-kill', { id }),
   // Sessioni dentro tmux: riattacco e terminazione esplicita
   attach: (opts) => ipcRenderer.invoke('pty-attach', opts),
@@ -36,7 +37,7 @@ contextBridge.exposeInMainWorld('aisess', {
   listClaude: (limit) => ipcRenderer.invoke('list-claude-sessions', { limit }),
   listCodex: (limit) => ipcRenderer.invoke('list-codex-sessions', { limit }),
   listAntigravity: (limit) => ipcRenderer.invoke('list-antigravity-sessions', { limit }),
-  searchConversations: (query) => ipcRenderer.invoke('search-conversations', { query }),
+  searchConversations: (query, scope, allSnippets = false) => ipcRenderer.invoke('search-conversations', { query, scope, allSnippets }),
   exportConversation: (source, id) => ipcRenderer.invoke('export-conversation', { source, id }),
   listClaudeAccounts: () => ipcRenderer.invoke('list-claude-accounts'),
   addClaudeAccount: ({ name, apiKey }) => ipcRenderer.invoke('add-claude-account', { name, apiKey }),

@@ -15,6 +15,7 @@ async function init() {
 
   $('#btn-new').addEventListener('click', () => openNewModal());
   $('#btn-resume').addEventListener('click', openResumeModal);
+  $('#open-search').addEventListener('input', onOpenSearchInput);
 
   // Voci del menu File (native e della menubar in-app)
   try {

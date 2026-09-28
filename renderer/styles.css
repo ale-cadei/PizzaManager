@@ -154,6 +154,37 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .side-actions .btn:focus-visible {
   outline: none; border-color: var(--action); box-shadow: 0 0 0 3px var(--action-ring);
 }
+.side-search { padding: 0 20px 16px; }
+.side-search input {
+  width: 100%; box-sizing: border-box; padding: 10px 12px;
+  border-radius: var(--radius); background: var(--bg);
+  border: 1px solid var(--border-strong); color: var(--text);
+  font-family: var(--font-mono); font-size: 12px; outline: none;
+}
+.side-search input::placeholder { color: var(--text-faint); }
+.side-search input:focus { border-color: var(--action); }
+#sidebar.searching #session-list, #sidebar.searching .side-section .seg { display: none; }
+#open-search-results:not([hidden]) {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 8px; padding: 0 16px 24px;
+}
+.open-search-item {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px; color: var(--text);
+}
+.open-search-open {
+  display: block; width: 100%; padding: 0; text-align: left; cursor: pointer;
+  background: transparent; border: 0; color: inherit;
+}
+.open-search-open:hover .open-search-title, .open-search-open:focus-visible .open-search-title { color: var(--action-text); }
+.open-search-open:focus-visible, .search-expand:focus-visible { outline: 2px solid var(--action); outline-offset: 2px; }
+.open-search-type {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 5px;
+  font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);
+}
+.open-search-type .icon { display: inline-flex; width: 13px; height: 13px; }
+.open-search-title { display: block; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+#open-search-results .muted { margin: 4px; font-size: 12px; line-height: 1.5; }
 
 /* ---------- Icone ufficiali degli agenti (renderer/agent-icons.js) ---------- */
 .agent-icon {
@@ -463,7 +494,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
    una fascia sola a vedersi, quindi il separatore lo porta il primo e il
    padding inferiore il secondo. */
 .side-footer { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 12px; color: var(--text-muted); padding: 0 20px; }
-#session-list + .side-footer { border-top: 1px solid var(--divider); margin-top: 8px; padding-top: 16px; }
+#open-search-results + .side-footer { border-top: 1px solid var(--divider); margin-top: 8px; padding-top: 16px; }
 .side-footer.muted { color: var(--text-dim); }
 
 /* ---------- Gruppi sessioni: la pila (collassabile) ----------
@@ -949,6 +980,13 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   border-radius: 3px; padding: 0 2px;
 }
 .search-hits { margin: 4px 0 0; }
+.search-expand {
+  margin-top: 8px; padding: 0; border: 0; background: transparent;
+  color: var(--action-text); font: inherit; font-size: 11px; cursor: pointer;
+}
+.search-expand:hover { text-decoration: underline; }
+.search-expand:disabled { color: var(--text-dim); cursor: wait; }
+.search-expand-error:empty { display: none; }
 /* ---------- Comandi di avvio: configurazione e scelta ---------- */
 #config-list {
   max-height: min(48vh, 520px); overflow-y: auto;

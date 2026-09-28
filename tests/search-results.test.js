@@ -1,7 +1,7 @@
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
 const { createElement, descendants } = require('./fake-dom');
-const { createSearchRunner, snippetElement, statusText, hitsText, MIN_QUERY, DELAY_MS } = require('../renderer/search-results');
+const { createSearchRunner, snippetElement, appendExpandableSnippets, statusText, hitsText, MIN_QUERY, DELAY_MS } = require('../renderer/search-results');
 
 /* ---------- Linguetta «Cerca» del Resume (renderer/search-results.js) ---------- */
 
@@ -30,10 +30,44 @@ ok('cerca: sotto i 2 caratteri non interroga il main', async () => {
   const { search, calls } = deferredSearch();
   const states = [];
   const runner = createSearchRunner({ search, render: (s) => states.push(s), timers: fakeTimers() });
-  await runner.run(' a ');
+  await runner.run('a');
   assert.strictEqual(MIN_QUERY, 2);
   assert.deepStrictEqual(states, [{ phase: 'short' }]);
   assert.strictEqual(calls.length, 0);
+});
+
+ok('cerca: inoltra lo spazio finale senza eliminarlo', async () => {
+  const queries = [];
+  const runner = createSearchRunner({ search: async (q) => { queries.push(q); return { ok: true, results: [] }; }, render: () => {} });
+  await runner.run('git ');
+  await runner.run('a ');
+  assert.deepStrictEqual(queries, ['git ', 'a ']);
+});
+
+ok('cerca: tutte le occorrenze si caricano al click e si possono richiudere', async () => {
+  const doc = { createElement };
+  const host = createElement('div');
+  const short = [{ role: 'user', before: '', match: 'git', after: '' }];
+  const all = Array.from({ length: 4 }, () => short[0]);
+  const calls = [];
+  appendExpandableSnippets(doc, host, { source: 'claude', id: 'chat-1', hits: 4, snippets: short }, {
+    query: 'git ',
+    loadAll: async (...args) => {
+      calls.push(args);
+      return { ok: true, results: [{ source: 'claude', id: 'chat-1', snippets: all }] };
+    },
+  });
+  const [list, button] = host.children;
+  assert.strictEqual(list.children.length, 1);
+  assert.strictEqual(button.textContent, 'Mostra tutte le 4 occorrenze');
+  await button.listeners.get('click')[0]();
+  assert.deepStrictEqual(calls, [['git ', [{ source: 'claude', id: 'chat-1' }], true]]);
+  assert.strictEqual(list.children.length, 4);
+  assert.strictEqual(button.textContent, 'Mostra meno');
+  await button.listeners.get('click')[0]();
+  assert.strictEqual(list.children.length, 1);
+  await button.listeners.get('click')[0]();
+  assert.strictEqual(calls.length, 1, 'la seconda apertura usa i frammenti già caricati');
 });
 
 ok('cerca: prima «Cerco…», poi i risultati', async () => {

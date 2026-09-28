@@ -35,6 +35,7 @@ const Running = window.AisessRunning;
 const Titles = window.AisessTitles;
 // Linguetta «Cerca» del Resume: frammenti, stati, debounce (renderer/search-results.js)
 const ConvSearch = window.AisessSearch;
+const ShellSearch = window.AisessShellSearch;
 const PromptCapture = window.AisessPromptCapture;
 /* I nomi rinominati a mano sopravvivono alla chiusura dell'app: stanno in
    localStorage, non nello stato in memoria delle schede. */

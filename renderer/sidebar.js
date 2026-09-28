@@ -80,6 +80,7 @@
    *   onRename: (session: object) => void,
    *   onExport?: (session: object, card: Element) => void,
    *   onNewInProject?: (projectRoot: string) => void,
+   *   onResumeInProject?: (projectRoot: string) => void,
    *   onReorder?: (movedId: string, targetId: string, opts: {before: boolean}) => void,
    *   Order?: {moveAdjacent: Function}}} deps
    * Senza `Order` le linguette dei progetti non si trascinano.
@@ -92,6 +93,7 @@
     /* Creare una sessione è affare del renderer (dialog, tipo, account): la
        sidebar segnala solo in quale radice l'utente la vuole. */
     const onNewInProject = typeof deps.onNewInProject === 'function' ? deps.onNewInProject : null;
+    const onResumeInProject = typeof deps.onResumeInProject === 'function' ? deps.onResumeInProject : null;
     /* Anche esportare è affare del renderer (dialog, esito): la sidebar passa la
        sessione e la card, su cui appoggiare un eventuale errore. */
     const onExport = typeof deps.onExport === 'function' ? deps.onExport : null;
@@ -453,14 +455,26 @@
 
     /** Il «+» accanto alla linguetta di un progetto: nuova sessione in quella radice. */
     function createAddButton(g) {
-      const add = document.createElement('span');
+      const add = document.createElement('button');
       add.className = 'group-add';
+      add.type = 'button';
       add.textContent = '+';
-      add.setAttribute('role', 'button');
       add.title = `Nuova sessione in ${g.title}`;
+      add.setAttribute('aria-label', add.title);
       // Come la ✕ delle card: il click non deve arrivare all'header e collassare il gruppo
       add.onclick = (e) => { e.stopPropagation(); onNewInProject(g.key); };
       return add;
+    }
+
+    function createResumeButton(g) {
+      const resume = document.createElement('button');
+      resume.className = 'group-resume';
+      resume.type = 'button';
+      resume.textContent = '⟲';
+      resume.title = `Resume delle conversazioni di ${g.title}`;
+      resume.setAttribute('aria-label', resume.title);
+      resume.onclick = (e) => { e.stopPropagation(); onResumeInProject(g.key); };
+      return resume;
     }
 
     /* Le card disegnate, per id. Serve a `signal()` per ritrovare una card senza
@@ -568,6 +582,7 @@
         // «+» solo dove c'è una radice in cui creare: il gruppo «Senza
         // directory» (chiave vuota) non ce l'ha, e per tipo la directory non è nota.
         if (onNewInProject && g.kind === 'project' && g.key) cap.appendChild(createAddButton(g));
+        if (onResumeInProject && g.kind === 'project' && g.key) cap.appendChild(createResumeButton(g));
         group.appendChild(cap);
         const body = document.createElement('div');
         body.className = 'group-body';

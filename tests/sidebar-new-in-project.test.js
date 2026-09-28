@@ -10,7 +10,7 @@ const { installDocument, createElement, descendants, createStorage } = require('
 const Groups = require('../renderer/session-groups');
 const { createSidebar } = require('../renderer/sidebar');
 
-function render(sessions, { mode, onNewInProject }) {
+function render(sessions, { mode, onNewInProject, onResumeInProject }) {
   const list = createElement('div');
   const sidebar = createSidebar({
     list, count: createElement('span'), storage: createStorage(),
@@ -18,6 +18,7 @@ function render(sessions, { mode, onNewInProject }) {
     Groups, escapeHtml: (s) => String(s),
     onSelect: () => {}, onClose: () => {}, onRename: () => {},
     onNewInProject,
+    onResumeInProject,
   });
   sidebar.setMode(mode);
   sidebar.render(sessions, null);
@@ -29,6 +30,7 @@ function render(sessions, { mode, onNewInProject }) {
 /* Il «+» è fratello della linguetta, non figlio: sta all'estremità destra della
    riga, dove non collide con la ✕ della prima sessione. */
 const addOf = (cap) => cap.children.find((c) => c.classes.has('group-add'));
+const resumeOf = (cap) => cap.children.find((c) => c.classes.has('group-resume'));
 const inRepo = { id: 'a', type: 'claude', name: 'a', cwd: '/repo/src', projectRoot: '/repo', alive: true };
 const noDir = { id: 'b', type: 'shell', name: 'b', cwd: '', projectRoot: null, alive: true };
 
@@ -73,5 +75,41 @@ ok('progetto: senza il callback il «+» non compare', () => {
   try {
     const { caps } = render([inRepo], { mode: 'project' });
     assert.strictEqual(addOf(caps[0]), undefined);
+  } finally { restore(); }
+});
+
+ok('progetto: ⟲ apre Resume filtrato sulla radice senza collassare il gruppo', () => {
+  const restore = installDocument();
+  try {
+    const asked = [];
+    const { caps, headers } = render([inRepo], {
+      mode: 'project', onNewInProject: () => {}, onResumeInProject: (root) => asked.push(root),
+    });
+    const resume = resumeOf(caps[0]);
+    assert.ok(resume);
+    assert.strictEqual(resume.tag, 'button');
+    assert.match(resume.title, /repo/);
+    let toggled = false;
+    headers[0].onclick = () => { toggled = true; };
+    const ev = { propagationStopped: false, stopPropagation() { ev.propagationStopped = true; } };
+    resume.onclick(ev);
+    assert.deepStrictEqual(asked, ['/repo']);
+    assert.ok(ev.propagationStopped);
+    assert.strictEqual(toggled, false);
+    assert.strictEqual(caps[0].children.indexOf(resume), caps[0].children.indexOf(addOf(caps[0])) + 1);
+  } finally { restore(); }
+});
+
+ok('⟲ compare solo nei gruppi con una radice e un callback', () => {
+  const restore = installDocument();
+  try {
+    const callbacks = { onResumeInProject: () => {} };
+    const project = render([inRepo, noDir], { mode: 'project', ...callbacks });
+    assert.ok(resumeOf(project.caps[0]));
+    assert.strictEqual(resumeOf(project.caps[1]), undefined);
+    const byType = render([inRepo], { mode: 'type', ...callbacks });
+    assert.strictEqual(resumeOf(byType.caps[0]), undefined);
+    const withoutCallback = render([inRepo], { mode: 'project' });
+    assert.strictEqual(resumeOf(withoutCallback.caps[0]), undefined);
   } finally { restore(); }
 });

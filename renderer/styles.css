@@ -365,7 +365,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   box-shadow: none;
 }
 #session-list .session-group.group-dragging > .group-cap > .group-header > *,
-#session-list .session-group.group-dragging > .group-cap > .group-add { opacity: .3; }
+#session-list .session-group.group-dragging > .group-cap > .group-add,
+#session-list .session-group.group-dragging > .group-cap > .group-resume { opacity: .3; }
 /* Gli altri gruppi scorrono per fare spazio (FLIP, come le card); chi ha
    ridotto le animazioni li vede solo cambiare posto. */
 @media (prefers-reduced-motion: no-preference) {
@@ -592,12 +593,16 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 /* «+» all'estremità destra della testata: nuova sessione in quella radice.
    Stesso trattamento della ✕ delle card (discreto, si accende al passaggio),
    ma con l'arancione dell'azione invece del rosso: non distrugge, crea. */
-.group-add {
-  flex: 0 0 auto; margin: 0 4px 0 auto; padding: 2px 6px; border-radius: 6px;
-  color: var(--text-dim); font-size: 15px; font-weight: 500; line-height: 1; cursor: pointer;
+.group-add, .group-resume {
+  flex: 0 0 auto; padding: 2px 6px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--text-dim); font-family: var(--font-ui);
+  font-size: 15px; font-weight: 500; line-height: 1; cursor: pointer;
 }
-.group-cap:hover .group-add { color: var(--text-muted); }
-.group-add:hover { color: var(--action); background: var(--action-soft); }
+.group-add { margin: 0 1px 0 auto; }
+.group-resume { margin: 0 4px 0 0; }
+.group-cap:hover .group-add, .group-cap:hover .group-resume { color: var(--text-muted); }
+.group-add:hover, .group-resume:hover { color: var(--action); background: var(--action-soft); }
+.group-add:focus-visible, .group-resume:focus-visible { outline: 2px solid var(--action); }
 
 /* Il corpo: metà inferiore del pannello, attaccata alla testata. */
 .group-body {
@@ -773,6 +778,14 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .modal input::placeholder { color: var(--text-faint); }
 .modal input:focus, .modal select:focus, #resume-search:focus { border-color: var(--action); }
+.resume-options { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.modal .resume-project-toggle { display: inline-flex; flex-direction: row; align-items: center; gap: 7px; cursor: pointer; white-space: nowrap; }
+.modal .resume-project-toggle input { width: auto; margin: 0; padding: 0; accent-color: var(--action); }
+.resume-project-scope { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: 12px; color: var(--text-2); }
+.resume-project-scope[hidden] { display: none; }
+#resume-project-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: min(52vw, 420px); font-family: var(--font-mono); }
+#resume-project-clear { border: 0; background: transparent; color: var(--action-text); cursor: pointer; font: inherit; white-space: nowrap; }
+#resume-project-clear:hover { text-decoration: underline; }
 
 #claude-account-row { display: flex; flex-direction: column; gap: 8px; }
 #claude-account-row[hidden], #resume-account-row[hidden], #account-manager[hidden] { display: none; }
@@ -822,6 +835,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .git-branch:hover { border-color: color-mix(in srgb, var(--type-git) 55%, transparent); background: var(--surface-2); }
 .git-count { margin-right: auto; white-space: nowrap; }
+.git-refresh { padding: 5px 9px; font-size: 11px; line-height: 1.2; white-space: nowrap; }
 .git-view.loading .git-refresh { opacity: .5; }
 .git-scroll { flex: 1; min-height: 0; overflow: auto; }
 .git-status { padding: 16px; margin: 0; }
@@ -1029,6 +1043,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 /* La lista cresce con la finestra ma resta dentro il modale (max-height: 90vh) */
 #resume-list { max-height: min(58vh, 620px); overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.resume-project-heading { margin: 12px 0 2px; font-size: 12px; font-weight: 600; color: var(--text-2); overflow-wrap: anywhere; }
+.resume-project-heading:first-child { margin-top: 0; }
 .resume-item {
   background: var(--surface-2); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 10px;

@@ -14,7 +14,7 @@ async function init() {
   await refreshDeps();
 
   $('#btn-new').addEventListener('click', () => openNewModal());
-  $('#btn-resume').addEventListener('click', openResumeModal);
+  $('#btn-resume').addEventListener('click', () => openResumeModal());
   $('#open-search').addEventListener('input', onOpenSearchInput);
 
   // Voci del menu File (native e della menubar in-app)
@@ -111,6 +111,12 @@ async function init() {
     await renderResumeList();
   });
   $('#resume-search').addEventListener('input', onResumeSearchInput);
+  $('#resume-group-projects').addEventListener('change', () => { renderResumeList(); });
+  $('#resume-project-clear').addEventListener('click', () => {
+    resumeProjectFilterRoot = null;
+    updateResumeProjectScope();
+    renderResumeList();
+  });
 
   window.aisess.onData(({ id, data }) => {
     const t = tabs.get(id);

@@ -5,7 +5,7 @@ const os = require('os');
 const path = require('path');
 
 /* Schede git da riaprire al riavvio: lib/git-sessions.js su una tmpdir */
-const { createGitSessionsStore, sanitizeGitSessions, GIT_SESSIONS_FILE, MAX_SESSIONS } = require('../lib/git-sessions');
+const { createGitSessionsStore, sanitizeGitSessions, savedBeforeBoot, GIT_SESSIONS_FILE, MAX_SESSIONS } = require('../lib/git-sessions');
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'ais-gitsess-'));
 
@@ -63,4 +63,29 @@ ok('git-sessions: al massimo MAX_SESSIONS schede', () => {
 
 ok('git-sessions: senza directory rifiuta', () => {
   assert.throws(() => createGitSessionsStore({}), /directory/);
+});
+
+ok('git-sessions: il file ricorda quando è stato scritto', () => {
+  const dir = tmp();
+  createGitSessionsStore({ dir, now: () => 5000 }).write([{ cwd: '/repo', startedAt: 1 }]);
+  assert.deepStrictEqual(createGitSessionsStore({ dir }).readState(), {
+    sessions: [{ cwd: '/repo', name: null, startedAt: 1 }], savedAt: 5000,
+  });
+});
+
+ok('git-sessions: il formato vecchio (solo la lista) si legge ancora, senza data', () => {
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, GIT_SESSIONS_FILE), JSON.stringify([{ cwd: '/vecchio', startedAt: 3 }]));
+  const store = createGitSessionsStore({ dir });
+  assert.deepStrictEqual(store.readState(), { sessions: [{ cwd: '/vecchio', name: null, startedAt: 3 }], savedAt: null });
+  assert.deepStrictEqual(store.read(), [{ cwd: '/vecchio', name: null, startedAt: 3 }]);
+});
+
+ok('git-sessions: savedBeforeBoot dice se la macchina si è riavviata dopo il salvataggio', () => {
+  // acceso da 100 s: il boot è a now - 100 000 ms
+  const clock = { now: 1_000_000, uptime: 100 };
+  assert.strictEqual(savedBeforeBoot(850_000, clock), true, 'salvato prima del boot = riavvio');
+  assert.strictEqual(savedBeforeBoot(950_000, clock), false, 'salvato dopo il boot = app solo chiusa');
+  assert.strictEqual(savedBeforeBoot(null, clock), true, 'senza data si chiede, non si decide da soli');
+  assert.strictEqual(savedBeforeBoot('x', clock), true);
 });

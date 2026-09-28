@@ -3,7 +3,8 @@
    Si aggiorna quando torna in primo piano e dal pulsante del pannello; dal
    nome del branch si cambia branch, se ne crea uno o si elimina un locale
    (git-branch-picker.js).
-   Le schede aperte si salvano (lib/git-sessions.js) e tornano al riavvio. */
+   Le schede aperte si salvano (lib/git-sessions.js) e tornano al riavvio:
+   da sole, o dalla finestra del ripristino se la macchina si è riavviata. */
 
 const GitView = window.AisessGitView;
 const GitBranchPicker = window.AisessGitBranchPicker;
@@ -64,16 +65,20 @@ function saveGitSessions() {
     .catch((e) => console.warn('git-sessions-save non raggiungibile', e));
 }
 
-/* All'avvio: le schede git aperte alla chiusura tornano da sole, senza
-   chiedere, perché non fanno partire nessun processo. Una directory che non è
-   più un repository si apre lo stesso e lo dice nel pannello. */
+/* All'avvio. Se la macchina non si è riavviata le schede git tornano da
+   sole, come le sessioni tmux vive che si riattaccano. Dopo un riavvio
+   (`ask`) non si aprono: si restituiscono a offerRestore, che le propone
+   insieme alle sessioni perse. Una directory che non è più un repository si
+   apre lo stesso e lo dice nel pannello. */
 async function restoreGitSessions() {
   let r = null;
-  try { r = await window.aisess.gitSessions(); } catch (e) { console.warn('git-sessions non raggiungibile', e); return; }
-  if (!r || !r.ok) { if (r) console.warn('git-sessions fallito:', r.error); return; }
+  try { r = await window.aisess.gitSessions(); } catch (e) { console.warn('git-sessions non raggiungibile', e); return []; }
+  if (!r || !r.ok) { if (r) console.warn('git-sessions fallito:', r.error); return []; }
+  if (r.ask) return r.sessions;
   for (const s of r.sessions) {
     await createGitTab({ name: s.name, cwd: s.cwd, startedAt: s.startedAt, restoring: true });
   }
+  return [];
 }
 
 async function createGitTab({ name, cwd, startedAt = Date.now(), restoring = false } = {}) {

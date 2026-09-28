@@ -5,6 +5,9 @@
  * è un solo <svg> a sinistra delle righe, alto quanto tutte le righe; ogni
  * riga riporta ref, messaggio, autore, data e ora, hash.
  *
+ * Dall'intestazione si passa alla mappa dei branch (renderer/git-map-view.js,
+ * docs/plans/31): stessi dati, un'altra forma.
+ *
  * Tutto ciò che arriva dal repository (messaggi, nomi, branch) entra nella
  * pagina con textContent: niente innerHTML con dati.
  *
@@ -88,6 +91,8 @@
       return e;
     };
 
+    // Caricata prima di questo file (index.html); senza, resta solo la timeline
+    const MapView = typeof window !== 'undefined' ? window.AisessGitMapView : null;
     const view = el('div', 'git-view');
     // focusabile: Esc torna a tutte le linee
     view.tabIndex = -1;
@@ -101,7 +106,26 @@
     const refresh = el('button', 'btn btn--ghost git-refresh', '⟳ Aggiorna');
     refresh.type = 'button';
     refresh.addEventListener('click', () => onRefresh && onRefresh());
-    head.append(repo, branch, count, refresh);
+    // Timeline | Mappa, e nella mappa la scelta di vedere anche i branch già uniti
+    const modes = el('div', 'git-modes');
+    modes.setAttribute('role', 'group');
+    modes.setAttribute('aria-label', 'Vista');
+    modes.hidden = !MapView;
+    const modeButtons = { timeline: el('button', 'git-mode', 'Timeline'), map: el('button', 'git-mode', 'Mappa') };
+    for (const [key, b] of Object.entries(modeButtons)) {
+      b.type = 'button';
+      b.addEventListener('click', () => setMode(key));
+      modes.appendChild(b);
+    }
+    const merged = el('label', 'git-merged small');
+    const mergedBox = el('input');
+    mergedBox.type = 'checkbox';
+    mergedBox.checked = true;
+    const mergedText = el('span');
+    merged.append(mergedBox, mergedText);
+    merged.hidden = true;
+    mergedBox.addEventListener('change', () => { showMerged = mergedBox.checked; render({ keepScroll: false }); });
+    head.append(repo, branch, count, merged, modes, refresh);
     const scroll = el('div', 'git-scroll');
     const status = el('p', 'git-status muted');
     view.append(head, scroll);
@@ -172,10 +196,52 @@
     let lit = null; // corsia illuminata dal passaggio del mouse, o null
     let focus = null; // indice di colore della linea isolata, o null = tutte
     let focusTip = ''; // hash del commit più recente della linea: la ritrova dopo un aggiornamento
+    let mode = 'timeline'; // o 'map'
+    let showMerged = true; // nella mappa, anche i branch già uniti
+
+    function setMode(next) {
+      mode = next === 'map' && MapView ? 'map' : 'timeline';
+      for (const [key, b] of Object.entries(modeButtons)) b.setAttribute('aria-pressed', String(key === mode));
+      if (data && data.ok) render({ keepScroll: false });
+    }
+    setMode(mode);
+
+    /** Dalla mappa: la timeline con la sola linea del branch scelto. */
+    function openInTimeline(tip) {
+      const row = (data.rows || []).find((r) => r.commit.hash === tip);
+      focus = row ? row.color : null;
+      focusTip = row ? tip : '';
+      setMode('timeline');
+      view.focus({ preventScroll: true });
+    }
+
+    function renderMap({ keepScroll }) {
+      view.classList.remove('git-view--focus');
+      const maps = data.map;
+      merged.hidden = !(maps && maps.hiddenCount);
+      mergedText.textContent = `già uniti (${maps ? maps.hiddenCount : 0})`;
+      const layout = maps && (showMerged ? maps.all : maps.open);
+      if (!layout || !layout.lines.length) { count.textContent = ''; showStatus('Nessun branch locale da mostrare.'); return; }
+      count.textContent = `${layout.lines.length} branch` + (data.truncated ? ' · dai commit più recenti' : '');
+      // Un branch ha nella mappa il colore della sua linea nella timeline
+      const laneOf = new Map((data.rows || []).map((r) => [r.commit.hash, r.color]));
+      const { element, trunkY } = MapView.createBranchMap({
+        document, layout, formatDate, onPick: openInTimeline, colorOf: (line) => colorOf(laneOf.get(line.tip) ?? 0),
+      });
+      const [top, left] = [scroll.scrollTop, scroll.scrollLeft];
+      scroll.replaceChildren(element);
+      if (keepScroll) { scroll.scrollTop = top; scroll.scrollLeft = left; return; }
+      // I commit più recenti stanno a destra: si parte da lì, col tronco a metà altezza
+      scroll.scrollLeft = scroll.scrollWidth;
+      scroll.scrollTop = Math.max(0, trunkY - scroll.clientHeight / 2);
+    }
 
     function render({ keepScroll }) {
       lit = null; // gli elementi illuminati stanno per essere ridisegnati
       view.classList.remove('git-view--lit');
+      view.classList.toggle('git-view--map', mode === 'map');
+      if (mode === 'map') { renderMap({ keepScroll }); return; }
+      merged.hidden = true;
       const all = data.rows || [];
       const rows = focus === null ? all : focusRows(all, focus);
       const label = focus === null ? '' : laneLabel(all, focus);
@@ -233,6 +299,7 @@
     // (l'hash copia, Aggiorna aggiorna) né la scelta del branch.
     const KEEP_FOCUS = '.git-hash, .git-head button, .git-picker';
     view.addEventListener('click', (e) => {
+      if (mode !== 'timeline') return;
       const target = e.target.closest ? e.target : e.target.parentElement;
       const hit = target && target.closest('[data-lane]');
       if (hit) { setFocus(Number(hit.getAttribute('data-lane'))); return; }
@@ -248,13 +315,14 @@
       for (const e of scroll.querySelectorAll('[data-lane]')) e.classList.toggle('is-lit', lane !== null && e.getAttribute('data-lane') === key);
     }
     view.addEventListener('mouseover', (e) => {
+      if (mode !== 'timeline') return;
       const target = e.target.closest ? e.target : e.target.parentElement;
       const hit = target && target.closest('[data-lane]');
       light(hit ? Number(hit.getAttribute('data-lane')) : null);
     });
     view.addEventListener('mouseleave', () => light(null));
     view.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && focus !== null) { e.preventDefault(); setFocus(null); }
+      if (e.key === 'Escape' && mode === 'timeline' && focus !== null) { e.preventDefault(); setFocus(null); }
     });
 
     function setLoading(on) {
@@ -262,7 +330,7 @@
       view.classList.toggle('loading', Boolean(on));
     }
 
-    return { update, setLoading, showStatus, setFocus, element: view };
+    return { update, setLoading, showStatus, setFocus, setMode, element: view };
   }
 
   return { createGitView, edgePath, formatDate, visibleRefs, colorOf, graphWidth, focusRows, laneLabel, ROW_H, LANE_W, PALETTE };

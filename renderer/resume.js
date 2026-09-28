@@ -51,8 +51,8 @@ async function ensureResumeData(tab) {
 }
 
 const SEARCH_PLACEHOLDER = {
-  search: 'Cerca nei messaggi delle conversazioni…',
-  list: 'Cerca per titolo, directory o id…',
+  search: 'Cerca nei messaggi o per nome del progetto…',
+  list: 'Cerca per titolo, progetto, directory o id…',
 };
 
 async function renderResumeList(keepCache = false) {
@@ -61,7 +61,7 @@ async function renderResumeList(keepCache = false) {
   $('#resume-search').placeholder = resumeTab === 'search' ? SEARCH_PLACEHOLDER.search : SEARCH_PLACEHOLDER.list;
   if (resumeTab === 'search') return conversationSearch.run($('#resume-search').value);
   conversationSearch.cancel(); // una risposta in ritardo non deve coprire questa lista
-  const q = ($('#resume-search').value || '').toLowerCase();
+  const q = $('#resume-search').value || '';
   box.innerHTML = '<p class="muted">Caricamento…</p>';
   const data = await ensureResumeData(resumeTab);
   if (seq !== resumeRenderSeq) return;
@@ -69,14 +69,11 @@ async function renderResumeList(keepCache = false) {
     box.innerHTML = `<p class="muted">⚠ ${escapeHtml(data.error || 'Nessun dato')}</p>`;
     return;
   }
-  let items = data.sessions || [];
-  if (q) {
-    items = items.filter(s => JSON.stringify(s).toLowerCase().includes(q));
-  }
+  const items = data.sessions || [];
   const grouped = $('#resume-group-projects').checked;
   const groups = await window.AisessResumeProjects.arrange(items, {
     source: resumeTab, resolve: resolveProjectRoot,
-    filterRoot: resumeProjectFilterRoot, grouped, Groups,
+    filterRoot: resumeProjectFilterRoot, grouped, query: q, Groups,
   });
   if (seq !== resumeRenderSeq) return;
   if (!groups.some((group) => group.items.length)) {
@@ -155,7 +152,7 @@ function appendResumeGroups(box, groups, createItem) {
   }
 }
 
-/* ---------- Linguetta «Cerca»: nei messaggi, non nei titoli ---------- */
+/* ---------- Linguetta «Cerca»: messaggi e nomi dei progetti ---------- */
 
 const conversationSearch = ConvSearch.createSearchRunner({
   search: (q) => window.aisess.searchConversations(q),
@@ -201,6 +198,7 @@ function createSearchItem(r, query) {
   const el = createResumeItem(r.source, { id: r.id, title: r.title, cwd: r.cwd, mtime: r.mtime });
   el.classList.add('search-result');
   const meta = el.querySelector('.meta');
+  if (r.projectName && !r.hits) meta.appendChild(mutedNote(`Trovata per nome del progetto: ${r.projectName}`, 'small'));
   ConvSearch.appendExpandableSnippets(document, meta, r, {
     query,
     loadAll: (q, scope, all) => window.aisess.searchConversations(q, scope, all),

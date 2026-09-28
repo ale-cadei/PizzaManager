@@ -32,9 +32,9 @@ function claudeSession(home, id, records, mtime) {
   return write(path.join(home, '.claude', 'projects', '-srv-app', id + '.jsonl'), records, mtime);
 }
 
-function codexSession(home, id, records, mtime) {
+function codexSession(home, id, records, mtime, cwd = '/srv/codex') {
   const file = path.join(home, '.codex', 'sessions', '2026', '09', '20', `rollout-2026-09-20T10-00-00-${id}.jsonl`);
-  return write(file, [{ type: 'session_meta', payload: { id, cwd: '/srv/codex' } }, ...records], mtime);
+  return write(file, [{ type: 'session_meta', payload: { id, cwd } }, ...records], mtime);
 }
 
 const CODEX_ID = '019fd68e-ab19-7000-8a15-b70db8234c0f';
@@ -52,6 +52,33 @@ ok('ricerca: trova la parola nei messaggi, non negli output dei tool', () => wit
   assert.strictEqual(r.results[0].title, 'crea un worktree per la feature', 'il titolo arriva dal lettore del Resume');
   assert.strictEqual(r.results[0].cwd, '/srv/app');
   assert.strictEqual(r.results[0].source, 'claude');
+}));
+
+ok('ricerca: il nome del progetto trova la conversazione anche senza occorrenze nei messaggi', () => withHome((home) => {
+  claudeSession(home, 'nel-progetto', [user('sistema il login')]);
+  const r = searchConversations('app', { home });
+  assert.deepStrictEqual(r.results.map((x) => x.id), ['nel-progetto']);
+  assert.strictEqual(r.results[0].hits, 0);
+  assert.deepStrictEqual(r.results[0].snippets, []);
+  assert.match(r.results[0].projectName, /app$/);
+
+  claudeSession(home, 'anche-messaggio', [user('sistema app')]);
+  const both = searchConversations('app', { home }).results.find((x) => x.id === 'anche-messaggio');
+  assert.strictEqual(both.hits, 1, 'una corrispondenza nei messaggi mantiene i frammenti');
+  assert.strictEqual(both.snippets[0].match, 'app');
+}));
+
+ok('ricerca: una chat avviata in una sottocartella risponde al nome della radice git', () => withHome((home) => {
+  const root = path.join(home, 'ProgettoCaffè');
+  fs.mkdirSync(path.join(root, '.git'), { recursive: true });
+  const cwd = path.join(root, 'src');
+  fs.mkdirSync(cwd);
+  codexSession(home, CODEX_ID, [{ type: 'event_msg', payload: { type: 'user_message', message: 'sistema il login' } }],
+    undefined, cwd);
+  const r = searchConversations('caffe', { home });
+  assert.deepStrictEqual(r.results.map((x) => x.id), [CODEX_ID]);
+  assert.strictEqual(r.results[0].hits, 0);
+  assert.match(r.results[0].projectName, /ProgettoCaffè$/);
 }));
 
 ok('ricerca: ignora maiuscole e accenti, in entrambe le direzioni', () => withHome((home) => {

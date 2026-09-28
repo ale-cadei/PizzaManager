@@ -52,3 +52,18 @@ test('Resume senza filtro lascia la lista invariata e non risolve directory', as
   const groups = await arrange(items, { source: 'codex', Groups, resolve: () => { throw Error('inatteso'); } });
   assert.deepEqual(groups[0].items, items);
 });
+
+test('la casella del Resume trova il nome del progetto anche se non compare nei dati della chat', async () => {
+  const items = [
+    { id: 'a', title: 'Prima chat', cwd: '/collegamento/a' },
+    { id: 'b', title: 'Seconda chat', cwd: '/collegamento/b' },
+  ];
+  const roots = { '/collegamento/a': '/lavoro/Caffè', '/collegamento/b': '/lavoro/Altro' };
+  for (const grouped of [false, true]) {
+    const result = await arrange(items, {
+      source: 'codex', query: 'caffe', grouped, Groups,
+      resolve: async (cwd) => roots[cwd],
+    });
+    assert.deepEqual(result.flatMap((g) => g.items).map((s) => s.id), ['a']);
+  }
+});

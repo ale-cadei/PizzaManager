@@ -171,7 +171,7 @@ ok('cerca: il frammento evidenzia con <mark> e non interpreta l HTML del testo',
 ok('cerca: i testi di stato dicono cosa succede', () => {
   assert.ok(/almeno 2 caratteri/.test(statusText({ phase: 'short' })));
   assert.strictEqual(statusText({ phase: 'loading' }), 'Cerco…');
-  assert.strictEqual(statusText({ phase: 'empty', query: 'zz' }), 'Nessun messaggio contiene «zz».');
+  assert.strictEqual(statusText({ phase: 'empty', query: 'zz' }), 'Nessun messaggio o progetto corrisponde a «zz».');
   assert.ok(statusText({ phase: 'error', error: 'boom' }).includes('boom'));
   assert.strictEqual(hitsText(1), '1 occorrenza');
   assert.strictEqual(hitsText(7), '7 occorrenze');

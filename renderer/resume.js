@@ -92,19 +92,22 @@ function renderSearchState(state) {
     box.appendChild(mutedNote(ConvSearch.statusText(state)));
     return;
   }
-  for (const r of state.results) box.appendChild(createSearchItem(r));
+  for (const r of state.results) box.appendChild(createSearchItem(r, state.query));
   if (state.truncated) box.appendChild(mutedNote(`Solo le ${state.results.length} conversazioni più recenti: aggiungi una parola per restringere.`, 'small'));
   if (state.skipped > 0) box.appendChild(mutedNote(`${state.skipped} conversazioni non leggibili, escluse dalla ricerca.`, 'small'));
 }
 
 /* Un risultato è una voce del Resume (stesse viste, stessa scelta dell'account
    Claude) con sotto i frammenti trovati. */
-function createSearchItem(r) {
+function createSearchItem(r, query) {
   const el = createResumeItem(r.source, { id: r.id, title: r.title, cwd: r.cwd, mtime: r.mtime });
   el.classList.add('search-result');
   const meta = el.querySelector('.meta');
-  for (const snip of r.snippets) meta.appendChild(ConvSearch.snippetElement(document, snip));
-  if (r.hits > r.snippets.length) meta.appendChild(mutedNote(ConvSearch.hitsText(r.hits), 'small search-hits'));
+  ConvSearch.appendExpandableSnippets(document, meta, r, {
+    query,
+    loadAll: (q, scope, all) => window.aisess.searchConversations(q, scope, all),
+    isCurrent: () => resumeTab === 'search' && !$('#modal-resume').hidden && $('#resume-search').value === query,
+  });
   return el;
 }
 

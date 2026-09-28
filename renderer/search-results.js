@@ -18,7 +18,7 @@
   const MIN_QUERY = 2;
   /** Dall'ultimo tasto alla ricerca: una ricerca costa un secondo, non si fa a ogni lettera. */
   const DELAY_MS = 300;
-  const ROLE_LABEL = { user: 'tu', assistant: 'agente' };
+  const ROLE_LABEL = { user: 'tu', assistant: 'agente', terminal: 'terminale' };
 
   /* Chiamati come metodi di un altro oggetto, setTimeout e clearTimeout del
      browser lanciano «Illegal invocation»: si avvolgono, non si copiano. */
@@ -56,8 +56,8 @@
     function run(raw) {
       stopTimer();
       const mine = ++seq;
-      const query = String(raw == null ? '' : raw).trim();
-      if (query.length < MIN_QUERY) {
+      const query = String(raw == null ? '' : raw);
+      if (query.length < MIN_QUERY || !query.trim()) {
         render({ phase: 'short' });
         return Promise.resolve();
       }
@@ -121,5 +121,60 @@
     return el;
   }
 
-  return { createSearchRunner, snippetElement, statusText, hitsText, MIN_QUERY, DELAY_MS };
+  /** Anteprima immediata e caricamento dei frammenti rimanenti al click. */
+  function appendExpandableSnippets(doc, host, result, { query, loadAll, isCurrent = () => true }) {
+    const list = doc.createElement('div');
+    host.appendChild(list);
+    const render = (snippets) => {
+      list.replaceChildren();
+      for (const snip of snippets) list.appendChild(snippetElement(doc, snip));
+    };
+    render(result.snippets);
+    if (result.hits <= result.snippets.length) return;
+
+    const button = doc.createElement('button');
+    button.type = 'button';
+    button.className = 'search-expand';
+    button.textContent = `Mostra tutte le ${hitsText(result.hits)}`;
+    host.appendChild(button);
+    const error = doc.createElement('p');
+    error.className = 'muted small search-expand-error';
+    host.appendChild(error);
+    let full = null;
+    let expanded = false;
+    button.addEventListener('click', async () => {
+      if (expanded) {
+        expanded = false;
+        render(result.snippets);
+        button.textContent = `Mostra tutte le ${hitsText(result.hits)}`;
+        return;
+      }
+      if (!full) {
+        button.disabled = true;
+        button.textContent = 'Caricamento…';
+        error.textContent = '';
+        try {
+          const response = await loadAll(query, [{ source: result.source, id: result.id }], true);
+          if (!isCurrent()) return;
+          if (!response.ok) throw new Error(response.error || 'ricerca non riuscita');
+          full = (response.results || []).find((r) => r.source === result.source && r.id === result.id);
+          if (!full) throw new Error('la conversazione non è più disponibile');
+        } catch (e) {
+          if (!isCurrent()) return;
+          error.textContent = `⚠ ${String((e && e.message) || e)}`;
+        } finally {
+          button.disabled = false;
+        }
+      }
+      if (!full || !isCurrent()) {
+        button.textContent = `Mostra tutte le ${hitsText(result.hits)}`;
+        return;
+      }
+      expanded = true;
+      render(full.snippets);
+      button.textContent = 'Mostra meno';
+    });
+  }
+
+  return { createSearchRunner, snippetElement, appendExpandableSnippets, statusText, hitsText, MIN_QUERY, DELAY_MS };
 });

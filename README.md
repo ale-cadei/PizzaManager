@@ -118,6 +118,8 @@ Puoi anche attaccarti da un terminale qualsiasi: `tmux -L aisession ls`.
 
 Due modi di raggruppare, con un interruttore: **per tipo** (Claude, Codex, …) o **per progetto**, cioè per radice del repository. I gruppi si aprono e chiudono; le schede si riordinano trascinandole. In modalità progetto ogni gruppo ha un `+` che apre il dialog con la directory già impostata.
 
+La casella sotto **Nuova** e **Resume** cerca nei messaggi delle chat Claude Code e Codex aperte e nella cronologia visibile delle shell; un clic sul risultato porta alla scheda. Ogni risultato mostra il tipo e il suo logo, e puoi aprire tutte le occorrenze trovate. La ricerca in **Resume** continua a cercare anche nelle conversazioni chiuse e permette di espandere le occorrenze. Gli spazi nella query contano: `git ` trova `git `, ma non `github`.
+
 Una scheda in secondo piano **lampeggia** quando l'agente ha smesso di scrivere da un secondo e mezzo (o ha suonato il campanello): non serve andare a controllare.
 
 ### Resume

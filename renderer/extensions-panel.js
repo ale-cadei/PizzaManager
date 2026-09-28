@@ -1,6 +1,7 @@
 /* Finestra "Plugin e skill" (docs/plans/29), dal pulsante in fondo a destra.
    Si rilegge il disco a ogni apertura: installare un plugin da un terminale
-   dell'app e riaprire la finestra basta per vederlo. */
+   dell'app e riaprire la finestra basta per vederlo. Il progetto è quello
+   della sessione in primo piano (docs/plans/30). */
 
 const extensions = { view: null, clis: null, active: 'claude', query: '' };
 
@@ -38,6 +39,12 @@ function showExtensionsMessage(text, isError) {
   body.appendChild(p);
 }
 
+/* La cartella della sessione in primo piano; il main ne cerca la radice */
+function activeProjectDir() {
+  const tab = activeId ? tabs.get(activeId) : null;
+  return tab ? (tab.projectRoot || tab.cwd || null) : null;
+}
+
 async function openExtensions() {
   const backdrop = $('#modal-extensions');
   if (!backdrop || !window.AisessExtensions) return;
@@ -45,13 +52,15 @@ async function openExtensions() {
   extensions.query = '';
   $('#ext-search').value = '';
   $('#ext-tabs').replaceChildren();
+  $('#ext-project').textContent = '';
   showExtensionsMessage('Lettura in corso…');
   backdrop.hidden = false;
   $('#ext-search').focus();
   try {
-    const r = await window.aisess.listExtensions();
+    const r = await window.aisess.listExtensions(activeProjectDir());
     if (!r || !r.ok) throw new Error((r && r.error) || 'risposta vuota');
     extensions.clis = r.clis;
+    $('#ext-project').textContent = window.AisessExtensions.projectLine(r.project);
   } catch (e) {
     console.warn('list-extensions fallito', e);
     showExtensionsMessage('Impossibile leggere plugin e skill: ' + String((e && e.message) || e), true);

@@ -59,6 +59,19 @@
     return flags;
   }
 
+  /** "Skill", "Comandi", "Skill del progetto"… */
+  function dirTitle(d) {
+    const what = d.items.some((i) => i.kind === 'command') ? 'Comandi' : 'Skill';
+    return d.project ? `${what} del progetto` : what;
+  }
+
+  /** La riga sotto il titolo: di quale progetto si vedono anche le skill. */
+  function projectLine(project) {
+    return project
+      ? `Globali e del progetto ${project}.`
+      : 'Solo globali: apri una sessione in un progetto per vedere anche le sue.';
+  }
+
   function createExtensionsView({ root, document: doc = (typeof document !== 'undefined' ? document : null) }) {
     if (!root || !doc) throw new Error('createExtensionsView: servono root e document');
 
@@ -143,7 +156,8 @@
         root.appendChild(box);
       }
       for (const d of shown.skillDirs) {
-        const box = section(d.items.some((i) => i.kind === 'command') ? 'Comandi' : 'Skill', `${d.dir} · ${d.items.length}`);
+        const box = section(dirTitle(d), `${d.dir} · ${d.items.length}`);
+        if (d.project) box.classList.add('ext-section--project');
         box.appendChild(itemList(d.items));
         root.appendChild(box);
       }
@@ -152,5 +166,5 @@
     return { render };
   }
 
-  return { filterCli, countOf, itemsSummary, pluginFlags, createExtensionsView };
+  return { filterCli, countOf, itemsSummary, pluginFlags, dirTitle, projectLine, createExtensionsView };
 });

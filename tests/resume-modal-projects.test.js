@@ -47,6 +47,8 @@ function createPage() {
   return { ctx, ids, calls };
 }
 
+const toggleOf = (group) => group.children[0].children[0];
+
 test('Resume aperto dal gruppo preseleziona progetto e raggruppamento; quello generale li azzera', async () => {
   const { ctx, ids, calls } = createPage();
   await vm.runInContext("openResumeModal({ projectRoot: '/repo' })", ctx);
@@ -55,8 +57,10 @@ test('Resume aperto dal gruppo preseleziona progetto e raggruppamento; quello ge
   assert.equal(ids.get('resume-project-label').textContent, 'Solo /repo');
   assert.deepEqual(calls, [500]);
   assert.deepEqual(ids.get('resume-list').children.map((node) => node.className),
-    ['resume-project-heading', 'resume-item']);
-  assert.match(ids.get('resume-list').children[0].textContent, /repo/);
+    ['resume-project-group']);
+  const group = ids.get('resume-list').children[0];
+  assert.match(toggleOf(group).children[1].textContent, /repo/);
+  assert.equal(group.children[1].children.length, 1);
 
   await vm.runInContext('openResumeModal()', ctx);
   assert.equal(ids.get('resume-group-projects').checked, false);
@@ -64,4 +68,30 @@ test('Resume aperto dal gruppo preseleziona progetto e raggruppamento; quello ge
   assert.deepEqual(ids.get('resume-list').children.map((node) => node.className),
     ['resume-item', 'resume-item']);
   assert.deepEqual(calls, [500], 'la lista lunga già letta si può riusare');
+});
+
+test('i gruppi del Resume si comprimono singolarmente e restano compressi dopo un aggiornamento', async () => {
+  const { ctx, ids } = createPage();
+  await vm.runInContext('openResumeModal()', ctx);
+  ids.get('resume-group-projects').checked = true;
+  await vm.runInContext('renderResumeList()', ctx);
+  const list = ids.get('resume-list');
+  assert.equal(list.children.length, 2);
+  const first = list.children[0];
+  const second = list.children[1];
+  assert.equal(first.children[0].tag, 'h3');
+  assert.equal(toggleOf(first).tag, 'button');
+  assert.equal(toggleOf(first).getAttribute('aria-expanded'), 'true');
+  assert.equal(toggleOf(first).getAttribute('aria-controls'), first.children[1].id);
+  assert.equal(first.children[1].hidden, false);
+  toggleOf(first).onclick();
+  assert.equal(toggleOf(first).getAttribute('aria-expanded'), 'false');
+  assert.equal(first.children[1].hidden, true);
+  assert.equal(second.children[1].hidden, false, 'gli altri progetti restano aperti');
+
+  await vm.runInContext('renderResumeList()', ctx);
+  assert.equal(list.children[0].children[1].hidden, true, 'la scelta sopravvive al ridisegno');
+  toggleOf(list.children[0]).onclick();
+  assert.equal(list.children[0].children[1].hidden, false);
+  assert.equal(toggleOf(list.children[0]).getAttribute('aria-expanded'), 'true');
 });

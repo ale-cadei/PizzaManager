@@ -1,6 +1,7 @@
 /* Modal «Resume»: conversazioni dei CLI e cronologia dell'app. */
 
 let resumeRenderSeq = 0;
+const resumeCollapsedProjects = new Set();
 
 function updateResumeProjectScope() {
   const scope = $('#resume-project-scope');
@@ -10,6 +11,7 @@ function updateResumeProjectScope() {
 }
 
 async function openResumeModal({ projectRoot = null } = {}) {
+  resumeCollapsedProjects.clear();
   resumeProjectFilterRoot = typeof projectRoot === 'string' && projectRoot ? projectRoot : null;
   $('#resume-group-projects').checked = Boolean(resumeProjectFilterRoot);
   $('#resume-search').value = '';
@@ -108,14 +110,46 @@ function appendResumeGroups(box, groups, createItem) {
   for (const group of groups) {
     const visible = group.items.slice(0, limit - shown);
     if (!visible.length) continue;
+    let target = box;
     if ($('#resume-group-projects').checked) {
+      const section = document.createElement('section');
+      section.className = 'resume-project-group';
       const heading = document.createElement('h3');
       heading.className = 'resume-project-heading';
-      heading.textContent = `${group.label} (${group.items.length})`;
       heading.title = group.title;
-      box.appendChild(heading);
+      const toggle = document.createElement('button');
+      toggle.className = 'resume-project-toggle';
+      toggle.type = 'button';
+      const arrow = document.createElement('span');
+      arrow.className = 'resume-project-arrow';
+      arrow.setAttribute('aria-hidden', 'true');
+      arrow.textContent = '▾';
+      const label = document.createElement('span');
+      label.className = 'resume-project-name';
+      label.textContent = `${group.label} (${group.items.length})`;
+      toggle.appendChild(arrow);
+      toggle.appendChild(label);
+      heading.appendChild(toggle);
+      const body = document.createElement('div');
+      body.className = 'resume-project-items';
+      body.id = `resume-project-items-${shown}`;
+      const expanded = !resumeCollapsedProjects.has(group.key);
+      toggle.setAttribute('aria-controls', body.id);
+      toggle.setAttribute('aria-expanded', String(expanded));
+      body.hidden = !expanded;
+      toggle.onclick = () => {
+        const open = body.hidden;
+        body.hidden = !open;
+        toggle.setAttribute('aria-expanded', String(open));
+        if (open) resumeCollapsedProjects.delete(group.key);
+        else resumeCollapsedProjects.add(group.key);
+      };
+      section.appendChild(heading);
+      section.appendChild(body);
+      box.appendChild(section);
+      target = body;
     }
-    for (const item of visible) box.appendChild(createItem(item));
+    for (const item of visible) target.appendChild(createItem(item));
     shown += visible.length;
     if (shown >= limit) break;
   }

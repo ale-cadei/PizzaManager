@@ -1043,8 +1043,25 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 /* La lista cresce con la finestra ma resta dentro il modale (max-height: 90vh) */
 #resume-list { max-height: min(58vh, 620px); overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
-.resume-project-heading { margin: 12px 0 2px; font-size: 12px; font-weight: 600; color: var(--text-2); overflow-wrap: anywhere; }
-.resume-project-heading:first-child { margin-top: 0; }
+.resume-project-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.resume-project-group + .resume-project-group { margin-top: 6px; }
+.resume-project-heading {
+  position: sticky; top: 0; z-index: 2;
+  margin: 0; background: var(--surface);
+}
+.resume-project-toggle {
+  width: 100%; display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: var(--radius);
+  background: transparent; color: var(--text-2);
+  font: 600 12px var(--font-ui); text-align: left; cursor: pointer;
+}
+.resume-project-toggle:hover { background: var(--surface-2); color: var(--text); }
+.resume-project-toggle:focus-visible { outline: 2px solid var(--action); outline-offset: -2px; }
+.resume-project-arrow { flex: 0 0 auto; transition: transform 120ms ease; }
+.resume-project-toggle[aria-expanded="false"] .resume-project-arrow { transform: rotate(-90deg); }
+.resume-project-name { min-width: 0; overflow-wrap: anywhere; }
+.resume-project-items { display: flex; flex-direction: column; gap: 6px; }
+.resume-project-items[hidden] { display: none; }
 .resume-item {
   background: var(--surface-2); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 10px;

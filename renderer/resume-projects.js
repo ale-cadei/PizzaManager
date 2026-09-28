@@ -7,6 +7,7 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : null, function () {
   const pathOf = (source, item) => source === 'opencode' ? item.directory : item.cwd;
+  const fold = (value) => String(value || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
   function pathKey(value) {
     const raw = String(value || '').replace(/\\/g, '/');
@@ -16,9 +17,10 @@
   }
 
   /** @returns {Promise<Array<{key: string, label: string, title: string, items: object[]}>>} */
-  async function arrange(items, { source, resolve, filterRoot = null, grouped = false, Groups } = {}) {
+  async function arrange(items, { source, resolve, filterRoot = null, grouped = false, query = '', Groups } = {}) {
     const sessions = Array.isArray(items) ? items : [];
-    if (!grouped && !filterRoot) return [{ key: '', label: '', title: '', items: sessions }];
+    const searched = fold(query).trim();
+    if (!grouped && !filterRoot && !searched) return [{ key: '', label: '', title: '', items: sessions }];
     const directories = new Map();
     for (const item of sessions) {
       const cwd = pathOf(item.source || source, item);
@@ -29,8 +31,11 @@
       return { item, projectRoot: cwd ? await directories.get(cwd) : null };
     }));
     const matching = filterRoot ? entries.filter((entry) => pathKey(entry.projectRoot) === pathKey(filterRoot)) : entries;
-    if (!grouped) return [{ key: '', label: '', title: '', items: matching.map((entry) => entry.item) }];
-    return Groups.groupSessions(matching, { mode: 'project' })
+    const labels = searched ? new Map(Groups.groupSessions(matching, { mode: 'project' }).map((group) => [group.key, group.label])) : null;
+    const visible = searched ? matching.filter((entry) =>
+      fold(JSON.stringify(entry.item)).includes(searched) || fold(labels.get(entry.projectRoot)).includes(searched)) : matching;
+    if (!grouped) return [{ key: '', label: '', title: '', items: visible.map((entry) => entry.item) }];
+    return Groups.groupSessions(visible, { mode: 'project' })
       .map((group) => ({ ...group, items: group.items.map((entry) => entry.item) }));
   }
 

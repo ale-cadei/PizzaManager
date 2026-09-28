@@ -50,9 +50,15 @@ Dalla sessione git:
 - Ripristino: `lib/git-sessions.js` (`git-sessions.json` nella cartella dei
   dati, IPC `git-sessions` / `git-sessions-save`). Una scheda git non ha una
   sessione tmux che la ricordi, quindi è l'unico registro: il renderer lo
-  riscrive a ogni apertura, chiusura (✕) o rinomina. All'avvio le schede
-  tornano da sole, senza chiedere: non fanno partire processi. Vale anche
-  senza tmux (Windows). Test: `tests/git-sessions.test.js`.
+  riscrive a ogni apertura, chiusura (✕) o rinomina. Vale anche senza tmux
+  (Windows). Test: `tests/git-sessions.test.js`.
+- Ripristino come le altre sessioni: il file ricorda quando è stato scritto
+  (`savedAt`) e `savedBeforeBoot` lo confronta con l'accensione della
+  macchina (`os.uptime()`). App solo chiusa → le schede git tornano da sole,
+  come le sessioni tmux vive che si riattaccano. Dopo un riavvio → entrano
+  nella finestra "Ripristinare le sessioni di prima?" con le sessioni perse,
+  e si sceglie. Un file senza data (formato vecchio, solo la lista) si
+  propone: meglio chiedere che riaprire da soli.
 - Eliminazione: `deleteBranch` (`notMerged` quando `-d` rifiuta), IPC
   `git-delete-branch`, cestino e conferma in `git-branch-picker.js`. Esc o
   Annulla chiudono la conferma, non il selettore. Test unitari e, nel

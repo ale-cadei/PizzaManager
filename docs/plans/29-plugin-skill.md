@@ -56,5 +56,4 @@ installa, attiva o disattiva.
 ## Da fare / idee emerse
 
 - Antigravity non è incluso: da capire dove tiene le sue estensioni.
-- Skill di progetto (`<cwd>/.claude/skills`, `.agents/skills`) per la scheda
-  in primo piano.
+- ~~Skill di progetto~~ → piano 30.

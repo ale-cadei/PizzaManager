@@ -1077,6 +1077,9 @@ a, .link { color: var(--action-text); }
 .ext-tab-count { font-size: 10px; color: var(--text-muted); }
 #ext-body { max-height: min(58vh, 620px); overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
 .ext-section { display: flex; flex-direction: column; gap: 6px; }
+.ext-section--project > .ext-section-title { color: var(--action-text, var(--text)); }
+#ext-project { margin: -4px 0 0; }
+#ext-project:empty { display: none; }
 .ext-section-title {
   display: flex; align-items: baseline; gap: 8px; margin: 0;
   font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted);

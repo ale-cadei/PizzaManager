@@ -230,3 +230,67 @@ ok('vista: CLI vuoto o illeggibile', () => {
   view.render(null, '');
   assert.deepStrictEqual(root.children, []);
 });
+
+/* ---------- Skill del progetto aperto (docs/plans/30) ---------- */
+const { projectOf } = require('../lib/extensions');
+
+ok('progetto: radice del repository della cartella, mai la home', () => {
+  const { home, put } = fakeHome();
+  put('repo/.git/HEAD', 'ref');
+  fs.mkdirSync(path.join(home, 'repo/src/deep'), { recursive: true });
+  assert.strictEqual(projectOf(path.join(home, 'repo/src/deep'), home), path.join(home, 'repo'));
+  assert.strictEqual(projectOf(home, home), null, 'la home è già globale');
+  assert.strictEqual(projectOf(home + '/', home), null);
+  assert.strictEqual(projectOf(null, home), null);
+  assert.strictEqual(projectOf('relativo/x', home), null);
+});
+
+ok('listExtensions: col progetto aperto le sue skill vengono prima, segnate', async () => {
+  const { home, put } = fakeHome();
+  put('repo/.git/HEAD', 'ref');
+  put('repo/.claude/skills/locale/SKILL.md', skill('locale', 'del progetto'));
+  put('repo/.claude/commands/rilascia.md', '---\ndescription: Rilascio\n---\n');
+  put('repo/.agents/skills/agente/SKILL.md', skill('agente', 'per codex e opencode'));
+  put('repo/.opencode/skills/oc/SKILL.md', skill('oc', 'solo opencode'));
+  put('repo/.opencode/plugins/guardia.js', '// Blocca i comandi pericolosi\nexport default {}');
+  put('repo/opencode.json', { plugin: ['oc-prj@1'] });
+  put('.claude/skills/mia/SKILL.md', skill('mia', 'globale'));
+  put('.claude/settings.json', { enabledPlugins: { 'a@m': true, 'b@m': true } });
+  put('repo/.claude/settings.json', { enabledPlugins: { 'a@m': false } });
+  put('repo/.claude/settings.local.json', { enabledPlugins: { 'b@m': false } });
+  put('.claude/plugins/installed_plugins.json', { version: 2, plugins: { 'a@m': [{ scope: 'user' }], 'b@m': [{ scope: 'user' }] } });
+
+  const res = await listExtensions({ home, env: {}, cwd: path.join(home, 'repo') });
+  assert.strictEqual(res.project, '~/repo');
+  const dirs = (id) => cli(res, id).skillDirs.map((d) => [d.dir, d.project]);
+  assert.deepStrictEqual(dirs('claude'), [['~/repo/.claude/skills', true], ['~/repo/.claude/commands', true], ['~/.claude/skills', false]]);
+  assert.deepStrictEqual(dirs('codex'), [['~/repo/.agents/skills', true]]);
+  assert.deepStrictEqual(dirs('opencode'), [
+    ['~/repo/.opencode/skills', true], ['~/repo/.claude/skills', true], ['~/repo/.agents/skills', true], ['~/.claude/skills', false],
+  ]);
+  assert.deepStrictEqual(cli(res, 'claude').plugins.map((p) => [p.id, p.enabled]), [['a@m', false], ['b@m', false]],
+    'le impostazioni del progetto vincono su quelle dell\'utente');
+  assert.deepStrictEqual(cli(res, 'opencode').plugins.map((p) => [p.name, p.description, p.scope]), [
+    ['guardia', 'Blocca i comandi pericolosi', 'progetto'],
+    ['oc-prj@1', '', 'pacchetto npm del progetto'],
+  ]);
+
+  const senza = await listExtensions({ home, env: {} });
+  assert.strictEqual(senza.project, null);
+  assert.deepStrictEqual(senza.clis.map((c) => c.skillDirs.filter((d) => d.project).length), [0, 0, 0]);
+});
+
+ok('vista: le cartelle del progetto hanno un titolo loro, e la riga dice quale', () => {
+  const { dirTitle, projectLine } = require('../renderer/extensions-view');
+  assert.strictEqual(dirTitle({ project: true, items: [{ kind: 'skill' }] }), 'Skill del progetto');
+  assert.strictEqual(dirTitle({ project: true, items: [{ kind: 'command' }] }), 'Comandi del progetto');
+  assert.strictEqual(dirTitle({ project: false, items: [] }), 'Skill');
+  assert.match(projectLine('~/repo'), /~\/repo/);
+  assert.match(projectLine(null), /Solo globali/);
+  const root = createElement('div');
+  createExtensionsView({ root, document: fakeDoc }).render({ id: 'c', label: 'C', ok: true, plugins: [],
+    skillDirs: [{ dir: '~/repo/.claude/skills', project: true, items: [{ name: 'x', description: '', kind: 'skill' }] }] }, '');
+  const [box] = root.children;
+  assert.ok(box.classes.has('ext-section--project'));
+  assert.strictEqual(box.children[0].textContent, 'Skill del progetto');
+});

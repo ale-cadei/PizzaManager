@@ -58,6 +58,7 @@ async function refreshAutoTitles() {
   const byType = new Map();
   for (const t of targets) if (!byType.has(t.type)) byType.set(t.type, listSessionsFor(t.type));
   let changed = false;
+  let discoveredId = false;
   for (const [type, promise] of byType) {
     let data = null;
     try { data = await promise; } catch { continue; }
@@ -72,6 +73,7 @@ async function refreshAutoTitles() {
       if (!s) continue;
       if (!t.resumeId) {
         t.resumeId = s.id;
+        discoveredId = true;
         // Appena l'id e' noto lo si salva sulla sessione tmux: e' cio' che rende
         // ripristinabile dopo un riavvio una scheda nata "nuova".
         if (t.session && t.alive) window.aisess.setMeta(t.id, { resumeId: s.id });
@@ -91,7 +93,7 @@ async function refreshAutoTitles() {
       changed = applyTitle(t, s.title) || changed;
     }
   }
-  if (changed) renderSidebar();
+  if (changed || discoveredId) renderSidebar();
 }
 
 /** Id delle conversazioni già assegnate ad altre schede dello stesso tipo. */

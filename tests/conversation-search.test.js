@@ -107,8 +107,19 @@ ok('ricerca: al massimo tre frammenti per conversazione, ma tutte le occorrenze 
   assert.strictEqual(r.snippets.length, MAX_SNIPPETS);
 }));
 
+ok('ricerca: su richiesta restituisce un frammento per ogni occorrenza', () => withHome((home) => {
+  claudeSession(home, 'tante', [user('git e git ancora'), user('git alla fine')]);
+  const preview = searchConversations('git', { home, scope: [{ source: 'claude', id: 'tante' }] }).results[0];
+  const full = searchConversations('git', { home, scope: [{ source: 'claude', id: 'tante' }], allSnippets: true }).results[0];
+  assert.strictEqual(preview.hits, 3);
+  assert.strictEqual(preview.snippets.length, 2);
+  assert.strictEqual(full.hits, 3);
+  assert.strictEqual(full.snippets.length, 3);
+  assert.deepStrictEqual(full.snippets.map((s) => s.match), ['git', 'git', 'git']);
+}));
+
 ok('ricerca: query troppo corta, vuota o non stringa è un errore leggibile', () => withHome((home) => {
-  for (const q of ['a', '  b  ', '', null]) {
+  for (const q of ['a', '   ', '', null]) {
     const r = searchConversations(q, { home });
     assert.strictEqual(r.ok, false, `query ${JSON.stringify(q)}`);
     assert.ok(r.error, 'serve un messaggio');
@@ -133,10 +144,30 @@ ok('ricerca: righe troncate e non JSON non fanno perdere il resto del file', () 
   assert.strictEqual(r.hits, 1);
 }));
 
-ok('ricerca: normalizeQuery toglie accenti e spazi in più', () => {
-  assert.strictEqual(normalizeQuery('  Perché\tÈ  COSÌ '), 'perche e cosi');
+ok('ricerca: normalizeQuery conserva gli spazi ai bordi e compatta quelli interni', () => {
+  assert.strictEqual(normalizeQuery('  Perché\tÈ  COSÌ '), ' perche e cosi ');
   assert.strictEqual(normalizeQuery('perché'), 'perche', 'accento scomposto');
 });
+
+ok('ricerca: lo spazio finale distingue git da github', () => withHome((home) => {
+  claudeSession(home, 'parola', [user('usa git per il commit')]);
+  claudeSession(home, 'prefisso', [user('usa github per il commit')]);
+  assert.deepStrictEqual(searchConversations('git', { home }).results.map((r) => r.id).sort(), ['parola', 'prefisso']);
+  assert.deepStrictEqual(searchConversations('git ', { home }).results.map((r) => r.id), ['parola']);
+  assert.strictEqual(searchConversations('git ', { home }).results[0].snippets[0].match, 'git ');
+}));
+
+ok('ricerca: una lettera e uno spazio valgono due caratteri', () => withHome((home) => {
+  claudeSession(home, 'parola', [user('a bordo')]);
+  assert.deepStrictEqual(searchConversations('a ', { home }).results.map((r) => r.id), ['parola']);
+}));
+
+ok('ricerca: lo scope include solo le conversazioni aperte richieste', () => withHome((home) => {
+  claudeSession(home, 'aperta', [user('cerca questa frase')]);
+  claudeSession(home, 'chiusa', [user('cerca questa frase')]);
+  assert.deepStrictEqual(searchConversations('cerca', { home, scope: [{ source: 'claude', id: 'aperta' }] }).results.map((r) => r.id), ['aperta']);
+  assert.deepStrictEqual(searchConversations('cerca', { home, scope: [] }).results, []);
+}));
 
 ok('ricerca: snippet taglia intorno al punto trovato, con i puntini solo dove taglia', () => {
   const text = 'inizio ' + 'x'.repeat(200) + ' prima TROVATO dopo ' + 'y'.repeat(200) + ' fine';
@@ -170,6 +201,26 @@ ok('worker: una ricerca vera attraverso il thread', () => withHome(async (home) 
   } finally {
     await w.close();
   }
+}));
+
+ok('worker: il filtro delle conversazioni aperte arriva al thread', () => withHome(async (home) => {
+  claudeSession(home, 'aperta', [user('frase ricercabile')]);
+  claudeSession(home, 'chiusa', [user('frase ricercabile')]);
+  const w = createSearchWorker({ home });
+  try {
+    const r = await w.search('ricercabile', [{ source: 'claude', id: 'aperta' }]);
+    assert.deepStrictEqual(r.results.map((x) => x.id), ['aperta']);
+  } finally { await w.close(); }
+}));
+
+ok('worker: la richiesta di tutte le occorrenze arriva al thread', () => withHome(async (home) => {
+  claudeSession(home, 'tante', [user('git git git git')]);
+  const w = createSearchWorker({ home });
+  try {
+    const r = await w.search('git', [{ source: 'claude', id: 'tante' }], true);
+    assert.strictEqual(r.results[0].hits, 4);
+    assert.strictEqual(r.results[0].snippets.length, 4);
+  } finally { await w.close(); }
 }));
 
 ok('worker: una ricerca nuova annulla quella ancora in coda', () => withHome(async (home) => {

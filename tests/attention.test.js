@@ -178,3 +178,35 @@ test('se l\'utente scrive durante l\'avvio, la risposta si segnala', () => {
   att.typed('a');
   assert.equal(raffica(att, 'a', c, { bytes: 200, durata: 100 }), true);
 });
+
+test('una pausa a metà turno: se riprende a lavorare la card si spegne', () => {
+  const c = clock();
+  const att = createAttention({ now: c.now });
+  assert.equal(raffica(att, 'a', c), true);   // silenzio lungo: sembra finito
+  assert.equal(att.resumed('a'), true);       // e invece riparte
+  assert.equal(att.isFlagged('a'), false);
+  c.avanza(5000);
+  assert.equal(raffica(att, 'a', c), true);   // la fine vera si segnala
+});
+
+test('ripresa su una card spenta: niente da ritirare', () => {
+  const att = createAttention();
+  assert.equal(att.resumed('a'), false);
+});
+
+test('dopo la ripresa, la risposta chiesta dall\'utente si segnala anche se breve', () => {
+  const c = clock();
+  const att = createAttention({ now: c.now });
+  att.typed('a');
+  raffica(att, 'a', c);
+  att.resumed('a');
+  assert.equal(raffica(att, 'a', c, { bytes: 200, durata: 100 }), true);
+});
+
+test('dopo la ripresa, anche una coda breve del lavoro chiude il turno', () => {
+  const c = clock();
+  const att = createAttention({ now: c.now });
+  raffica(att, 'a', c);
+  att.resumed('a');
+  assert.equal(raffica(att, 'a', c, { bytes: 500, durata: 400 }), true);
+});

@@ -16,7 +16,8 @@
   if (root) root.AisessPetsSprites = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : null, function () {
-  /** Righe di riferimento: un pixel vale size / GRID, così i piccoli restano piccoli. */
+  /** Righe di riferimento: un pixel vale size / GRID, così i piccoli restano
+   *  piccoli; un disegno più alto si rimpicciolisce per stare in size (pixel). */
   const GRID = 16;
 
   const REQUIRED_POSES = ['walk', 'sleep', 'call'];
@@ -226,7 +227,8 @@
   });
 
   /** speed: misure del personaggio al secondo, a velocità «normale».
-   *  motion: come si muove (pets.js MOTIONS): cammina, salta, vola, nuota. */
+   *  motion: come si muove (pets.js MOTIONS): cammina, salta, vola, nuota.
+   *  height: altezza come frazione della taglia, per chi non segue la regola di GRID. */
   const SPRITES = {
     spongebob: {
       speed: 1.3,
@@ -354,6 +356,14 @@
     return { cols: frame[0].length, rows: frame.length };
   }
 
+  /** Lato di un pixel del disegno, in pixel dello schermo, all'altezza size.
+   *  Un disegno con height (frazione di size) è alto esattamente quello. */
+  function pixel(kind, size) {
+    const { rows } = dims(kind);
+    const { height } = SPRITES[kind];
+    return height ? (size * height) / rows : size / Math.max(GRID, rows);
+  }
+
   /**
    * Una riga di pixel uguali contigui diventa un rettangolo solo: un frame di
    * 16×16 scende da 256 elementi a qualche decina.
@@ -374,5 +384,5 @@
     return rects;
   }
 
-  return { SPRITES, CAST, CAST_LABELS, REQUIRED_POSES, EXTRA_POSES, MOTIONS, GRID, dims, toRects };
+  return { SPRITES, CAST, CAST_LABELS, REQUIRED_POSES, EXTRA_POSES, MOTIONS, GRID, dims, pixel, toRects };
 });

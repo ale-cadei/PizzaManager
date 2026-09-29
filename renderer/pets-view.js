@@ -25,7 +25,7 @@
   function buildSprite(doc, kind, size) {
     const sprite = Sprites.SPRITES[kind];
     const { cols, rows } = Sprites.dims(kind);
-    const px = size / Sprites.GRID;
+    const px = Sprites.pixel(kind, size);
     const svg = doc.createElementNS(SVG_NS, 'svg');
     svg.setAttribute('viewBox', `0 0 ${cols} ${rows}`);
     svg.setAttribute('width', String(cols * px));

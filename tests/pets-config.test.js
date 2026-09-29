@@ -1,7 +1,7 @@
 // renderer/pets-config.js: impostazioni degli animaletti, validate e ricordate
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
-const { DEFAULTS, MAX_PETS, castCount, sanitizeConfig, createPetsStore, STORAGE_KEY } = require('../renderer/pets-config');
+const { DEFAULTS, MAX_CAST, sanitizeConfig, createPetsStore, STORAGE_KEY } = require('../renderer/pets-config');
 const { createStorage } = require('./fake-dom');
 
 ok('pets-config: spenti di default, con SpongeBob e la medusa', () => {
@@ -21,14 +21,11 @@ ok('pets-config: tiene i campi validi e rimette gli altri al default', () => {
     { enabled: true, cast: ['inseguimento'], size: 'l', speed: 'normale' });
 });
 
-ok('pets-config: la coppia conta due e oltre MAX_PETS si tronca dalla fine', () => {
-  assert.strictEqual(castCount(['inseguimento', 'gary']), 3);
-  const cfg = sanitizeConfig({ cast: ['gatto', 'inseguimento', 'gary', 'inseguimento', 'pizza'] });
-  assert.deepStrictEqual(cfg.cast, ['gatto', 'inseguimento', 'gary', 'pizza']);
-  assert.ok(castCount(cfg.cast) <= MAX_PETS);
-  // Una coppia che non ci sta non entra, ma chi viene dopo e ci sta sì
-  assert.deepStrictEqual(sanitizeConfig({ cast: ['gatto', 'gary', 'pizza', 'patrick', 'inseguimento', 'gatto'] }).cast,
-    ['gatto', 'gary', 'pizza', 'patrick', 'gatto']);
+ok('pets-config: il limite conta le voci del dialogo, la coppia vale una', () => {
+  assert.strictEqual(MAX_CAST, 5);
+  const oneEach = ['inseguimento', 'patrick', 'gary', 'gatto', 'pizza'];
+  assert.deepStrictEqual(sanitizeConfig({ cast: oneEach }).cast, oneEach, 'uno di ognuno ci deve stare');
+  assert.deepStrictEqual(sanitizeConfig({ cast: [...oneEach, 'gatto', 'inseguimento'] }).cast, oneEach, 'oltre MAX_CAST si tronca dalla fine');
 });
 
 ok('pets-config: un cast vuoto resta vuoto (nessun animale, striscia vuota)', () => {

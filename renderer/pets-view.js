@@ -53,25 +53,27 @@
   }
 
   /** Un <g> di rettangoli per frame; tutti spenti, draw() accende quello giusto. */
-  function buildSprite(doc, kind, size) {
+  function buildSprite(doc, kind, size, variant) {
     const sprite = Sprites.SPRITES[kind];
+    const palette = Sprites.paletteOf(kind, variant);
     const { cols, rows } = Sprites.dims(kind);
     const svg = buildSvg(doc, cols, rows, Sprites.pixel(kind, size));
     const frames = {};
     for (const [pose, list] of Object.entries(sprite.frames)) {
-      frames[pose] = list.map((grid) => svg.appendChild(buildFrame(doc, grid, sprite.palette)));
+      frames[pose] = list.map((grid) => svg.appendChild(buildFrame(doc, grid, palette)));
     }
     return { svg, frames };
   }
 
   /** L'ombra a terra: un frame per frame di volo, larga quanto il suo disegno e centrata sotto il personaggio. */
-  function buildShadow(doc, kind, size) {
+  function buildShadow(doc, kind, size, variant) {
     const sprite = Sprites.SPRITES[kind];
     if (!sprite.shadow) return null;
     const px = Sprites.pixel(kind, size);
+    const palette = Sprites.paletteOf(kind, variant);
     const cols = sprite.shadow[0][0].length;
     const svg = buildSvg(doc, cols, sprite.shadow[0].length, px);
-    const frames = sprite.shadow.map((grid) => svg.appendChild(buildFrame(doc, grid, sprite.palette)));
+    const frames = sprite.shadow.map((grid) => svg.appendChild(buildFrame(doc, grid, palette)));
     const el = doc.createElement('div');
     el.setAttribute('class', 'pet-shadow');
     el.appendChild(svg);
@@ -80,9 +82,9 @@
 
   function buildPet(doc, pet, size) {
     const el = doc.createElement('div');
-    const { svg, frames } = buildSprite(doc, pet.kind, size);
+    const { svg, frames } = buildSprite(doc, pet.kind, size, pet.variant);
     el.appendChild(svg);
-    return { el, frames, shown: null, shadow: buildShadow(doc, pet.kind, size) };
+    return { el, frames, shown: null, shadow: buildShadow(doc, pet.kind, size, pet.variant) };
   }
 
   function show(view, frame) {

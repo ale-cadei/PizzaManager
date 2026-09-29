@@ -104,3 +104,24 @@ ok('sprites: nessuno supera l\'altezza scelta; chi sta nelle GRID righe tiene il
 ok('sprites: la medusa è più bassa di SpongeBob', () => {
   assert.ok(dims('medusa').rows * pixel('medusa', 48) <= dims('spongebob').rows * pixel('spongebob', 48) * 0.6);
 });
+
+ok('sprites: le varianti ritoccano solo colori che la palette di base conosce; paletteOf le fonde', () => {
+  const { looks, paletteOf } = require('../renderer/pets-sprites');
+  const withVariants = Object.entries(SPRITES).filter(([, s]) => s.variants);
+  assert.deepStrictEqual(withVariants.map(([k]) => k).sort(), ['pesce', 'uccellino']);
+  for (const [kind, sprite] of withVariants) {
+    assert.ok(sprite.variants.length >= 1, `${kind}: variants vuoto`);
+    assert.strictEqual(looks(kind), sprite.variants.length + 1);
+    sprite.variants.forEach((v, i) => {
+      for (const ch of Object.keys(v)) assert.ok(sprite.palette[ch], `${kind} variante ${i}: «${ch}» non è nella palette`);
+      const merged = paletteOf(kind, i + 1);
+      assert.deepStrictEqual(Object.keys(merged).sort(), Object.keys(sprite.palette).sort());
+      assert.notDeepStrictEqual(merged, sprite.palette, `${kind} variante ${i}: uguale alla base`);
+    });
+  }
+  assert.strictEqual(paletteOf('pesce', 0), SPRITES.pesce.palette);
+  assert.strictEqual(paletteOf('pesce'), SPRITES.pesce.palette);
+  assert.strictEqual(paletteOf('pesce', 99), SPRITES.pesce.palette, 'un indice fuori misura torna alla base');
+  assert.strictEqual(looks('gatto'), 1);
+  assert.strictEqual(paletteOf('gatto', 1), SPRITES.gatto.palette);
+});

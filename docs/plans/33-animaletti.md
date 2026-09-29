@@ -50,6 +50,12 @@ Spento di default. Si accende e si regola da `Vista › Personaggi…`.
   piccoli restano piccoli; chi ha più righe si rimpicciolisce per stare in
   `size`. Un disegno può fissare `height` (frazione di `size`) per le
   proporzioni: medusa 0.5 e rana 0.4 (`Sprites.pixel`).
+- **Aspetti a sorte (`variants`)**: un disegno può elencare palette
+  alternative, solo con i colori che cambiano; `Sprites.paletteOf(kind, i)`
+  le fonde con quella di base. Il motore tira `pet.variant` alla nascita
+  (`newPet`), la vista costruisce i rettangoli con quella palette: stesso
+  disegno, colori diversi, e due pesci in scena non sono per forza uguali.
+  Per ora uccellino e pesce.
 - **Pausa sempre, non opzione**: con la finestra nascosta o senza fuoco il
   ciclo si ferma (`visibilitychange`, `blur`/`focus`). Con
   `prefers-reduced-motion: reduce` i personaggi stanno fermi al loro posto.
@@ -65,8 +71,8 @@ Spento di default. Si accende e si regola da `Vista › Personaggi…`.
 | `gatto` | Gatto | Cammina |
 | `pizza` | Peppo, la pizza | Fetta con gambine, dal pacchetto «Sprite pixel-art originale» dell'utente |
 | `rana` | Rana | Salta (`motion: 'hop'`): avanza solo in aria, posa `jump` |
-| `uccellino` | Uccellino | Vola sopra la striscia (`fly`); per dormire o chiamare si posa |
-| `pesce` | Pesce | Nuota ondeggiando appena sopra il fondo (`swim`) |
+| `uccellino` | Uccellino | Vola sopra la striscia (`fly`); per dormire o chiamare si posa. Azzurro, pettirosso, canarino o cardinale, a sorte |
+| `pesce` | Pesce | Nuota ondeggiando appena sopra il fondo (`swim`). Pagliaccio, blu, verde o rosa, a sorte |
 | `fizzo` | Fizzo, la bibita | Bicchiere con cannuccia, dal pacchetto |
 | `rotolacampo` | Rotolacampo | Rotola (12 frame); quando chiama rimbalza |
 | `babbo` | Babbo Natale | Slitta con le renne, vola (`fly`); dal pacchetto |

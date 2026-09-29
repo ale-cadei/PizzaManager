@@ -2,6 +2,9 @@
  *
  * Ogni personaggio è pixel art scritta a mano: una griglia di caratteri per
  * frame e una palette che dà il colore a ogni carattere ('.' è trasparente).
+ * Un disegno può avere `variants`: palette alternative (solo i colori che
+ * cambiano) fra cui il motore sceglie a caso alla nascita, così due pesci
+ * non sono per forza uguali.
  * Così un disegno si legge e si ritocca qui, senza file esterni, e la pagina
  * lo costruisce con createElementNS (niente innerHTML, CSP invariata).
  * Guardano tutti a destra: chi va a sinistra lo specchia la vista.
@@ -457,6 +460,12 @@
       speed: 1.1,
       motion: 'fly',
       palette: { b: '#4FA3E0', w: '#2F77B8', t: '#2F77B8', l: '#F3E9C8', k: '#1A1A1A', o: '#F29B30' },
+      // Azzurro di base; poi pettirosso, canarino, cardinale
+      variants: [
+        { b: '#8B5A2B', w: '#6B4220', t: '#6B4220', l: '#E8603C', o: '#5A3A1A' },
+        { b: '#F2D23C', w: '#D4B12A', t: '#D4B12A', l: '#FBF0A0' },
+        { b: '#D8322B', w: '#A9241F', t: '#A9241F', l: '#E5514A' },
+      ],
       frames: {
         walk: [BIRD_UP, BIRD_DOWN],
         sleep: [patch(BIRD_PERCHED, { 2: '.....bbbbo' })],
@@ -467,6 +476,12 @@
       speed: 0.7,
       motion: 'swim',
       palette: { o: '#F2833A', w: '#FFFFFF', k: '#1A1A1A', e: '#BFE6F5' },
+      // Pesce pagliaccio di base; poi blu a righe gialle, verde, rosa
+      variants: [
+        { o: '#3C7BE0', w: '#F2D23C' },
+        { o: '#5DBB4A', w: '#C8E88A' },
+        { o: '#C86BC8', w: '#F4D0F4' },
+      ],
       frames: {
         walk: [FISH, FISH_STEP],
         sleep: [patch(FISH, { 2: 'oo.oooowoooo' })],
@@ -511,6 +526,15 @@
     fantasmino: 'Fantasmino',
   };
 
+  /** Quanti aspetti ha un personaggio: la palette di base più le variants. */
+  const looks = (kind) => 1 + (SPRITES[kind].variants || []).length;
+
+  /** La palette dell'aspetto scelto: 0 è quella di base, le altre la ritoccano. */
+  function paletteOf(kind, variant = 0) {
+    const { palette, variants = [] } = SPRITES[kind];
+    return variant > 0 && variants[variant - 1] ? { ...palette, ...variants[variant - 1] } : palette;
+  }
+
   /** Colonne e righe di un personaggio (tutti i suoi frame hanno la stessa misura). */
   function dims(kind) {
     const [frame] = SPRITES[kind].frames.walk;
@@ -545,5 +569,5 @@
     return rects;
   }
 
-  return { SPRITES, CAST, CAST_LABELS, REQUIRED_POSES, EXTRA_POSES, OPTIONAL_POSES, MOTIONS, GRID, dims, pixel, toRects };
+  return { SPRITES, CAST, CAST_LABELS, REQUIRED_POSES, EXTRA_POSES, OPTIONAL_POSES, MOTIONS, GRID, dims, pixel, looks, paletteOf, toRects };
 });

@@ -60,6 +60,7 @@ function buildAppMenu({ sendToRenderer, platform = process.platform } = {}) {
         { label: 'Testo del terminale più grande', accelerator: 'CmdOrCtrl+=', visible: false, click: () => sendToRenderer('menu-term-font-bigger') },
         { type: 'separator' },
         { label: 'Colori…', click: () => sendToRenderer('menu-type-colors') },
+        { label: 'Animaletti…', click: () => sendToRenderer('menu-pets') },
         { type: 'separator' },
         { role: 'togglefullscreen', label: 'Schermo intero' },
       ],
@@ -94,6 +95,7 @@ async function runMenuAction(action, win) {
       case 'new-session': wc.send('menu-new-session'); break;
       case 'open-config': wc.send('menu-open-config'); break;
       case 'type-colors': wc.send('menu-type-colors'); break;
+      case 'pets': wc.send('menu-pets'); break;
       case 'quit': app.quit(); break;
       // Stessa strada del menu nativo: il renderer sa se il fuoco e' su un
       // terminale e usa la selezione di xterm (renderer/term-clipboard.js).

@@ -60,7 +60,7 @@ function buildAppMenu({ sendToRenderer, platform = process.platform } = {}) {
         { label: 'Testo del terminale più grande', accelerator: 'CmdOrCtrl+=', visible: false, click: () => sendToRenderer('menu-term-font-bigger') },
         { type: 'separator' },
         { label: 'Colori…', click: () => sendToRenderer('menu-type-colors') },
-        { label: 'Animaletti…', click: () => sendToRenderer('menu-pets') },
+        { label: 'Personaggi…', click: () => sendToRenderer('menu-pets') },
         { type: 'separator' },
         { role: 'togglefullscreen', label: 'Schermo intero' },
       ],

@@ -82,7 +82,7 @@
       const rows = CAST_IDS.map(castRow);
       const total = el('p', { className: 'muted small pets-total' });
       body.replaceChildren(
-        el('label', { className: 'pets-toggle' }, [enabled, el('span', { textContent: 'Mostra gli animaletti in fondo alla finestra' })]),
+        el('label', { className: 'pets-toggle' }, [enabled, el('span', { textContent: 'Mostra i personaggi in fondo alla finestra' })]),
         ...rows.map((r) => r.row),
         total,
         el('label', { textContent: 'Dimensione' }, [select('size', SIZE_LABELS)]),

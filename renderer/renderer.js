@@ -25,6 +25,7 @@ async function init() {
     window.aisess.onMenu('menu-term-font-smaller', () => runTermFontAction('term-font-smaller'));
     window.aisess.onMenu('menu-term-font-reset', () => runTermFontAction('term-font-reset'));
     window.aisess.onMenu('menu-type-colors', () => typeColorsDialog().open());
+    window.aisess.onMenu('menu-pets', () => petsDialog().open());
     window.aisess.onMenuEdit((action) => runEditAction(action));
   } catch {}
 
@@ -36,6 +37,7 @@ async function init() {
   initSidebarResize();
   initUsageBar();
   initExtensions();
+  initPets();
   $('#group-mode-type').addEventListener('click', () => { if (sidebar.setMode('type')) renderSidebar(); });
   $('#group-mode-project').addEventListener('click', () => { if (sidebar.setMode('project')) renderSidebar(); });
   initMenubar(d.platform);

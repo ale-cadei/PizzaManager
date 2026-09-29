@@ -48,19 +48,20 @@ Spento di default. Si accende e si regola da `Vista › Animaletti…`.
 |----|------|---------|
 | `pescatore` | il pescatore | Rincorre la medusa col retino alzato; quando è vicino dà un colpo di retino (frame `swing`) e la manca sempre |
 | `medusa` | Medusa | Galleggia ondeggiando (seno sulla y); quando il pescatore è vicino scatta via |
-| `stella` | Stella | Cammina piano, si ferma spesso; è la prima che si addormenta |
-| `lumaca` | Lumaca | Lumaca: lentissimo, lascia una scia che sbiadisce |
-| `gatto` | Gatto | Cammina, ogni tanto si siede |
+| `stella` | Stella | Cammina piano |
+| `lumaca` | Lumaca | Lumaca: lentissimo |
+| `gatto` | Gatto | Cammina |
 | `pizza` | Fetta di pizza | Fetta con gambine (riusa la palette di `pizza-slice.js`) |
 
 **La coppia pescatore + medusa** si sceglie come una voce sola, «il pescatore
 e la medusa» (`inseguimento`): sono due personaggi legati. Il pescatore non ha
 una direzione sua: punta la medusa e tiene una distanza minima. La medusa
-fugge verso il lato con più spazio e rimbalza ai bordi, e il retino non la
-prende mai.
+fugge verso il lato con più spazio; messa all'angolo si alza e gli passa
+sopra. Il retino non la prende mai.
 
-Frame per personaggio: `walk` (2-4 frame), `sleep` (1 + «z»), `call` (2
-frame: salta o sbraccia). Il pescatore ha anche `swing`, la medusa `flee`.
+Frame per personaggio: `walk` (2 frame), `sleep`, `call`. Il pescatore ha
+anche `swing`, la medusa `flee`. Le «z» di chi dorme e il saltello di chi
+chiama sono CSS sulla classe della posa, non frame in più.
 
 ## Stati
 

@@ -1,7 +1,7 @@
 /* La Morte: fluttua, e dà una falciata quando chiama.
- * Disegno del pacchetto «Halloween Pack pixel-art»: griglie ricavate dallo
- * sheet 1x nel formato di pets-sprites.js, che lo fonde nel suo catalogo
- * (AisessPetsPack). Pose dalle animazioni del pacchetto.
+ * Disegno del pacchetto «Halloween Pack pixel-art»: griglie ricavate dai PNG 1x nel
+ * formato di pets-sprites.js, che lo fonde nel suo catalogo (AisessPetsPack).
+ * Pose dalle animazioni del pacchetto.
  *
  * File generato: si ritocca il pacchetto, non queste righe.
  *
@@ -479,6 +479,7 @@
         walk: [MORTE_FLUTTUA_1, MORTE_FLUTTUA_2, MORTE_FLUTTUA_3, MORTE_FLUTTUA_4],
         sleep: [MORTE_OCCHI_SPENTI],
         call: [MORTE_FLUTTUA_1, MORTE_FALCIATA_1, MORTE_FALCIATA_2, MORTE_FALCIATA_3, MORTE_FALCIATA_4, MORTE_FALCIATA_5, MORTE_FALCIATA_6, MORTE_FALCIATA_7, MORTE_FALCIATA_8],
+        idle: [MORTE_FLUTTUA_1, MORTE_FLUTTUA_1, MORTE_FLUTTUA_1, MORTE_OCCHI_SPENTI, MORTE_FLUTTUA_1, MORTE_OCCHI_SPENTI, MORTE_FLUTTUA_1, MORTE_FLUTTUA_1],
       },
     },
   };

@@ -15,6 +15,11 @@
  * vola sopra la striscia e si posa per dormire o chiamare, il pesce nuota
  * ondeggiando appena sopra il fondo.
  *
+ * Le azioni (act): una posa temporanea durante la quale il personaggio sta
+ * fermo, solo per chi ha quel frame (pets-sprites.js OPTIONAL_POSES). Le
+ * sequenze girano una volta (turn, startle, laugh, appear, vanish), idle
+ * per la durata della pausa. Chi finisce di svanire esce dallo stato.
+ *
  * Stato immutabile: step() restituisce oggetti nuovi.
  *
  * Wrapper UMD come gli altri moduli del renderer. */
@@ -30,6 +35,11 @@
   const SLEEP_AFTER_MS = 5 * 60 * 1000;
   /** Probabilità al secondo che un personaggio libero cambi direzione. */
   const TURN_PER_S = 0.08;
+  /** Pausa a passeggio, per chi ha la posa idle: probabilità al secondo e durata. */
+  const PAUSE_PER_S = 0.06;
+  const PAUSE_MS = { min: 1500, max: 3500 };
+  /** Oltre questa attesa chi chiama, se ha la posa, si fa triste. */
+  const SAD_AFTER_MS = 60 * 1000;
   // Distanze fra i centri, in misure
   const SWING_DIST = 1.2;
   const FLEE_DIST = 2.2;
@@ -51,6 +61,9 @@
   const FLY = { base: 1, ampl: 0.3, hz: 0.5 };
   const SWIM = { base: 0.22, ampl: 0.15, hz: 0.6 };
 
+  const spriteOf = (kind) => Sprites.SPRITES[kind];
+  const has = (kind, pose) => Boolean(spriteOf(kind).frames[pose]);
+
   /** Larghezza in pixel: le colonne del disegno per il lato del pixel (Sprites.pixel). */
   function petWidth(kind, size) {
     return Sprites.dims(kind).cols * Sprites.pixel(kind, size);
@@ -61,8 +74,25 @@
   const centerOf = (p, size) => p.x + petWidth(p.kind, size) / 2;
 
   function newPet(key, kind, x, dir, random) {
-    return { key, kind, x, y: 0, dir, pose: 'walk', anim: 0, lift: 0, passing: false, phase: random() * Math.PI * 2, mate: null };
+    return { key, kind, x, y: 0, dir, pose: 'walk', anim: 0, lift: 0, passing: false, phase: random() * Math.PI * 2, mate: null, act: null };
   }
+
+  /** Comincia un'azione: fermo con quella posa. Senza durata dura quanto la sequenza. */
+  function act(pet, pose, ms) {
+    if (!has(pet.kind, pose)) return pet;
+    const left = ms === undefined ? spriteOf(pet.kind).frames[pose].length * FRAME_MS : ms;
+    return { ...pet, anim: 0, pose, act: { pose, left } };
+  }
+
+  /** Un passo di un'azione in corso; finita, si torna a camminare o si esce (vanish). */
+  function tickAct(pet, ctx) {
+    const left = pet.act.left - ctx.s * 1000 * ctx.mult;
+    if (left > 0) return { ...pet, act: { ...pet.act, left } };
+    return pet.act.pose === 'vanish' ? { ...pet, act: null, gone: true } : { ...pet, act: null, pose: 'walk' };
+  }
+
+  const isVanishing = (p) => Boolean(p.act && p.act.pose === 'vanish');
+  const enter = (p) => act(p, 'appear');
 
   /** La medusa nasce a qualche misura da il pescatore, dalla parte con più spazio. */
   function placePair(sponge, jellyKey, width, size, random) {
@@ -72,20 +102,48 @@
     return { ...newPet(jellyKey, 'medusa', x, side, random), mate: sponge.key };
   }
 
+  /** I personaggi di una voce del cast; group li tiene insieme quando il cast cambia. */
+  function spawn(id, group, width, size, random) {
+    const kinds = Sprites.CAST[id] || [];
+    const tag = (p) => ({ ...p, cast: id, group });
+    if (kinds.length === 2) {
+      const [sKey, jKey] = [`${group}a`, `${group}b`];
+      const sponge = { ...newPet(sKey, kinds[0], random() * maxX(kinds[0], size, width), 1, random), mate: jKey };
+      return [sponge, placePair(sponge, jKey, width, size, random)].map(tag);
+    }
+    return kinds.map((kind) => tag(newPet(`${group}`, kind, random() * maxX(kind, size, width), random() < 0.5 ? -1 : 1, random)));
+  }
+
   /**
    * @param {{cast: string[], width: number, size: number, random?: () => number}} opts
    */
   function createPets({ cast, width, size, random = Math.random }) {
-    const pets = cast.flatMap((id, i) => {
-      const kinds = Sprites.CAST[id] || [];
-      if (kinds.length === 2) {
-        const [sKey, jKey] = [`${i}a`, `${i}b`];
-        const sponge = { ...newPet(sKey, kinds[0], random() * maxX(kinds[0], size, width), 1, random), mate: jKey };
-        return [sponge, placePair(sponge, jKey, width, size, random)];
-      }
-      return kinds.map((kind) => newPet(`${i}`, kind, random() * maxX(kind, size, width), random() < 0.5 ? -1 : 1, random));
-    });
-    return { size, pets };
+    const pets = cast.flatMap((id, i) => spawn(id, i, width, size, random).map(enter));
+    return { size, seq: cast.length, pets };
+  }
+
+  /**
+   * Il cast cambia a striscia accesa: chi resta continua da dov'è, chi esce
+   * svanisce (se ha la posa, altrimenti sparisce subito) e chi entra appare.
+   */
+  function recast(state, { cast, width, random = Math.random }) {
+    const wanted = cast.reduce((m, id) => ({ ...m, [id]: (m[id] || 0) + 1 }), {});
+    const groups = [...new Set(state.pets.filter((p) => !isVanishing(p)).map((p) => p.group))];
+    const { kept, leaving, taken } = groups.reduce((acc, g) => {
+      const members = state.pets.filter((p) => p.group === g);
+      const id = members[0].cast;
+      const n = (acc.taken[id] || 0) + 1;
+      const stays = n <= (wanted[id] || 0);
+      return {
+        kept: stays ? [...acc.kept, ...members] : acc.kept,
+        leaving: stays ? acc.leaving : [...acc.leaving, ...members],
+        taken: { ...acc.taken, [id]: n },
+      };
+    }, { kept: [], leaving: [], taken: {} });
+    const adding = Object.entries(wanted).flatMap(([id, n]) => Array(Math.max(0, n - (taken[id] || 0))).fill(id));
+    const entering = adding.flatMap((id, k) => spawn(id, state.seq + k, width, state.size, random).map(enter));
+    const vanishing = [...state.pets.filter(isVanishing), ...leaving.map((p) => act(p, 'vanish')).filter(isVanishing)];
+    return { ...state, seq: state.seq + adding.length, pets: [...kept, ...vanishing, ...entering] };
   }
 
   /** Quale stato mostrare: chi aspetta vince su chi lavora, il sonno viene per ultimo. */
@@ -127,15 +185,19 @@
   };
 
   /** Chi salta o vola, per dormire o chiamare, scende a terra. */
-  const landed = (pet) => (['hop', 'fly'].includes(Sprites.SPRITES[pet.kind].motion) ? { ...pet, y: 0 } : pet);
+  const landed = (pet) => (['hop', 'fly'].includes(spriteOf(pet.kind).motion) ? { ...pet, y: 0 } : pet);
 
   function wander(pet, ctx) {
-    const sprite = Sprites.SPRITES[pet.kind];
+    const sprite = spriteOf(pet.kind);
+    if (has(pet.kind, 'idle') && ctx.random() < PAUSE_PER_S * ctx.s) {
+      return act(pet, 'idle', PAUSE_MS.min + ctx.random() * (PAUSE_MS.max - PAUSE_MS.min));
+    }
     const turned = ctx.random() < TURN_PER_S * ctx.s ? { ...pet, dir: -pet.dir } : pet;
     const moved = MOVES[sprite.motion]({ ...turned, pose: 'walk' }, ctx);
     // La rana seduta non avanza
     const v = sprite.motion === 'hop' && moved.pose !== 'jump' ? 0 : sprite.speed;
-    return walk(moved, v, ctx);
+    const walked = walk(moved, v, ctx);
+    return walked.dir !== pet.dir ? act(walked, 'turn') : walked;
   }
 
   function chase(sponge, jelly, ctx) {
@@ -177,7 +239,7 @@
   function callerOf(pets, ctx) {
     const mid = ctx.width / 2;
     return pets
-      .filter((p) => p.kind !== 'medusa')
+      .filter((p) => p.kind !== 'medusa' && !isVanishing(p))
       .reduce((best, p) => (!best || Math.abs(centerOf(p, ctx.size) - mid) < Math.abs(centerOf(best, ctx.size) - mid) ? p : best), null);
   }
 
@@ -186,6 +248,17 @@
 
   /** Solo il rientro nei bordi, per quando la striscia cambia misura a ciclo fermo. */
   const fit = (state, width) => ({ ...state, pets: state.pets.map((p) => inside(p, { size: state.size, width })) });
+
+  /** Le azioni che partono al cambio di umore: spavento quando si comincia a
+   *  lavorare, risata di chi chiamava quando l'attesa finisce. Non
+   *  interrompono un'azione in corso. */
+  function startActs(pet, state, mood) {
+    if (pet.act) return pet;
+    const prev = state.mood || 'idle';
+    if (mood === 'busy' && prev !== 'busy') return act(pet, 'startle');
+    if (prev === 'attention' && mood !== 'attention' && pet.key === state.caller) return act(pet, 'laugh');
+    return pet;
+  }
 
   /**
    * Un passo di simulazione.
@@ -196,22 +269,26 @@
   function step(state, { dt, width, mood = 'idle', speed = 1, random = Math.random }) {
     const s = Math.min(Math.max(dt, 0), MAX_DT) / 1000;
     const ctx = { size: state.size, width, s, random, mult: speed * (mood === 'busy' ? BUSY_FACTOR : 1) };
-    const pets = state.pets.map((p) => inside(p, ctx));
-    if (mood === 'sleep') return { ...state, pets: pets.map((p) => ({ ...landed(p), pose: 'sleep' })) };
-
+    const attentionMs = mood === 'attention' ? (state.attentionMs || 0) + s * 1000 : 0;
+    const pets = state.pets.map((p) => ({ ...inside(p, ctx), anim: p.anim + s * 1000 * ctx.mult }));
     const caller = mood === 'attention' ? callerOf(pets, ctx) : null;
     const byKey = new Map(pets.map((p) => [p.key, p]));
     const mateOf = (p) => (p.mate ? byKey.get(p.mate) : null);
-    const moved = pets.map((p) => {
-      const anim = p.anim + s * 1000 * ctx.mult;
-      if (caller && p.key === caller.key) return { ...landed(p), anim, pose: 'call' };
+    const moved = pets.map((p0) => {
+      const p = startActs(p0, state, mood);
+      if (isVanishing(p)) return tickAct(p, ctx);
+      if (mood === 'sleep') return { ...landed(p), pose: 'sleep', anim: p0.anim - s * 1000 * ctx.mult, act: null };
+      if (caller && p.key === caller.key) {
+        return { ...landed(p), act: null, pose: attentionMs >= SAD_AFTER_MS && has(p.kind, 'sad') ? 'sad' : 'call' };
+      }
+      if (p.act) return tickAct(p, ctx);
       const mate = mateOf(p);
-      if (p.kind === 'pescatore' && mate) return { ...chase(p, mate, ctx), anim };
-      if (p.kind === 'medusa' && mate) return { ...flee(p, mate, ctx), anim };
-      return { ...wander(p, ctx), anim };
+      if (p.kind === 'pescatore' && mate) return chase(p, mate, ctx);
+      if (p.kind === 'medusa' && mate) return flee(p, mate, ctx);
+      return wander(p, ctx);
     });
-    return { ...state, pets: moved };
+    return { ...state, mood, attentionMs, caller: caller ? caller.key : state.caller || null, pets: moved.filter((p) => !p.gone) };
   }
 
-  return { createPets, step, fit, moodOf, frameIndex, petWidth, FRAME_MS, MAX_DT, SLEEP_AFTER_MS };
+  return { createPets, recast, step, fit, moodOf, frameIndex, petWidth, FRAME_MS, MAX_DT, SLEEP_AFTER_MS, SAD_AFTER_MS, PAUSE_MS };
 });

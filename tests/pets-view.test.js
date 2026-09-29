@@ -141,6 +141,74 @@ ok('pets-view: una sessione che aspetta fa chiamare qualcuno', () => {
   assert.strictEqual(strip.children.filter((el) => classOf(el).includes('pet--call')).length, 1);
 });
 
+ok('pets-view: cambiare cast a striscia accesa tiene in scena chi resta e aggiunge chi entra', () => {
+  const { view, strip, tick } = setup();
+  view.apply({ ...ON, cast: ['gatto', 'pizza'] });
+  for (let i = 0; i < 20; i += 1) tick(50);
+  const [cat, pizza] = strip.children;
+  view.apply({ ...ON, cast: ['gatto', 'zucca'] });
+  assert.strictEqual(strip.children.length, 2);
+  assert.strictEqual(strip.children[0], cat, 'il gatto è stato ricostruito');
+  assert.strictEqual(strip.children[0].style.transform, cat.style.transform, 'il gatto è stato spostato');
+  assert.ok(!strip.children.includes(pizza), 'la pizza, che non sa svanire, è ancora lì');
+  assert.ok(classOf(strip.children[1]).includes('pet--zucca'));
+  assert.strictEqual(view.isRunning(), true);
+});
+
+ok('pets-view: chi esce dal cast svanisce e il suo elemento sparisce alla fine', () => {
+  const { view, strip, tick } = setup();
+  view.apply({ ...ON, cast: ['fantasmino', 'gatto'] });
+  for (let i = 0; i < 40; i += 1) tick(50);
+  const ghost = strip.children.find((el) => classOf(el).includes('pet--fantasmino'));
+  view.apply({ ...ON, cast: ['gatto'] });
+  assert.ok(strip.children.includes(ghost), 'sparito senza svanire');
+  assert.ok(classOf(ghost).includes('pet--vanish'));
+  for (let i = 0; i < 30; i += 1) tick(50);
+  assert.ok(!strip.children.includes(ghost), 'svanito ma ancora nel DOM');
+  assert.strictEqual(strip.children.filter((el) => classOf(el).startsWith('pet ')).length, 1);
+  assert.strictEqual(strip.children.filter((el) => classOf(el) === 'pet-shadow').length, 0, 'l\'ombra è rimasta');
+});
+
+ok('pets-view: con meno movimento chi esce dal cast sparisce subito, senza restare a metà svanimento', () => {
+  const { view, strip } = setup({ reduced: true });
+  view.apply({ ...ON, cast: ['fantasmino', 'gatto'] });
+  assert.strictEqual(strip.children.length, 3);
+  view.apply({ ...ON, cast: ['gatto'] });
+  assert.strictEqual(strip.children.length, 1);
+  assert.ok(classOf(strip.children[0]).includes('pet--gatto'));
+  assert.strictEqual(view.isRunning(), false);
+});
+
+ok('pets-view: un altra misura ricostruisce tutto da capo', () => {
+  const { view, strip } = setup();
+  view.apply({ ...ON, cast: ['gatto'] });
+  const [cat] = strip.children;
+  view.apply({ ...ON, cast: ['gatto'], size: 'l' });
+  assert.notStrictEqual(strip.children[0], cat);
+  assert.strictEqual(strip.style.height, '48px');
+});
+
+ok('pets-view: il fantasmino ha un ombra a terra, sotto di lui, che sparisce quando si posa', () => {
+  const { view, strip, tick, current } = setup();
+  view.apply({ ...ON, cast: ['fantasmino'] });
+  assert.strictEqual(strip.children.length, 2);
+  const [shadow, ghost] = strip.children;
+  assert.strictEqual(classOf(shadow), 'pet-shadow');
+  assert.ok(classOf(ghost).includes('pet--fantasmino'));
+  assert.strictEqual(shadow.hidden, true, 'ombra a terra prima di alzarsi in volo');
+  for (let i = 0; i < 40; i += 1) tick(50);
+  assert.strictEqual(shadow.hidden, false);
+  assert.strictEqual(visibleFrames(shadow).length, 1);
+  const ghostX = Number(/translate\(([-\d.]+)px/.exec(ghost.style.transform)[1]);
+  const shadowX = Number(/translate\(([-\d.]+)px/.exec(shadow.style.transform)[1]);
+  const half = (w) => Number(w.children[0].getAttribute('width')) / 2;
+  assert.ok(Math.abs((shadowX + half(shadow)) - (ghostX + half(ghost))) < 0.2, 'ombra non centrata');
+  assert.ok(/, 0px\)$/.test(shadow.style.transform), 'l\'ombra si è alzata da terra');
+  current.attention = true;
+  tick(50);
+  assert.strictEqual(shadow.hidden, true, 'posato a chiamare, l\'ombra resta');
+});
+
 ok('pets-view: chi va a sinistra ha la classe che lo specchia', () => {
   const { view, strip, tick } = setup();
   view.apply({ ...ON, cast: ['gatto'] });

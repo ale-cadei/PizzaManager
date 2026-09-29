@@ -1,7 +1,7 @@
 // renderer/pets-sprites.js: i disegni dei personaggi come griglie di caratteri
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
-const { SPRITES, CAST, CAST_LABELS, REQUIRED_POSES, EXTRA_POSES, MOTIONS, GRID, dims, pixel, toRects } = require('../renderer/pets-sprites');
+const { SPRITES, CAST, CAST_LABELS, REQUIRED_POSES, EXTRA_POSES, OPTIONAL_POSES, MOTIONS, GRID, dims, pixel, toRects } = require('../renderer/pets-sprites');
 
 const allFrames = (sprite) => Object.values(sprite.frames).flat();
 
@@ -36,6 +36,34 @@ ok('sprites: ogni personaggio ha le pose che il motore usa, walk con almeno due 
   assert.deepStrictEqual(EXTRA_POSES.pescatore, ['swing']);
   assert.deepStrictEqual(EXTRA_POSES.medusa, ['flee']);
   assert.deepStrictEqual(EXTRA_POSES.rana, ['jump']);
+});
+
+ok('sprites: nessuna posa che il motore non conosca; le opzionali ci sono dove i pacchetti le danno', () => {
+  for (const [kind, sprite] of Object.entries(SPRITES)) {
+    const known = [...REQUIRED_POSES, ...(EXTRA_POSES[kind] || []), ...OPTIONAL_POSES];
+    for (const pose of Object.keys(sprite.frames)) assert.ok(known.includes(pose), `${kind}: posa «${pose}» sconosciuta`);
+  }
+  assert.deepStrictEqual(Object.keys(SPRITES.fantasmino.frames).filter((p) => OPTIONAL_POSES.includes(p)).sort(), [...OPTIONAL_POSES].sort());
+  for (const kind of ['pizza', 'fizzo', 'zucca']) {
+    assert.ok(SPRITES[kind].frames.idle && SPRITES[kind].frames.startle, `${kind}: senza pausa o spavento`);
+  }
+  assert.ok(SPRITES.morte.frames.idle, 'la Morte non si ferma mai');
+});
+
+ok('sprites: l ombra ha frame tutti della stessa misura, coi colori in palette', () => {
+  const withShadow = Object.entries(SPRITES).filter(([, s]) => s.shadow);
+  assert.deepStrictEqual(withShadow.map(([k]) => k), ['fantasmino']);
+  for (const [kind, sprite] of withShadow) {
+    const [first] = sprite.shadow;
+    assert.ok(sprite.shadow.length >= 2, `${kind}: ombra senza animazione`);
+    for (const frame of sprite.shadow) {
+      assert.strictEqual(frame.length, first.length, `${kind}: ombra con righe diverse`);
+      for (const row of frame) {
+        assert.strictEqual(row.length, first[0].length, `${kind}: riga d'ombra «${row}» fuori misura`);
+        for (const ch of row) if (ch !== '.') assert.ok(sprite.palette[ch], `${kind}: ombra «${ch}» senza colore`);
+      }
+    }
+  }
 });
 
 ok('sprites: ogni personaggio si muove in un modo che il motore conosce', () => {

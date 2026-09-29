@@ -1,7 +1,7 @@
 /* Zucco, la zucca.
- * Disegno del pacchetto «Halloween Pack pixel-art»: griglie ricavate dallo
- * sheet 1x nel formato di pets-sprites.js, che lo fonde nel suo catalogo
- * (AisessPetsPack). Pose dalle animazioni del pacchetto.
+ * Disegno del pacchetto «Halloween Pack pixel-art»: griglie ricavate dai PNG 1x nel
+ * formato di pets-sprites.js, che lo fonde nel suo catalogo (AisessPetsPack).
+ * Pose dalle animazioni del pacchetto.
  *
  * File generato: si ritocca il pacchetto, non queste righe.
  *
@@ -12,8 +12,60 @@
   if (root) root.AisessPetsPack = Object.assign({}, root.AisessPetsPack, api);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : null, function () {
-  // ---- Zucco, la zucca (22×18) ----
+  // ---- Zucco, la zucca (22×22) ----
+  const ZUCCA_IDLE = [
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+    '..........aa..........',
+    '.........aefa.........',
+    '.....aaaaaefaaaaa.....',
+    '....abbdbbabbbdbba....',
+    '...abdbbcbbbbcbbdba...',
+    '...abdbgcbbbbcgbdba...',
+    '...abdgggbbbbgggdba...',
+    '..aabdbbcbbbbcbbdbaa..',
+    '.a.abdhbbcbbcbbhdba.a.',
+    '.a.abdhhhhhhhhhhdba.a.',
+    '...abdbhhbhhbhhbdba...',
+    '....abdbcbbbbcbbda....',
+    '.....aabbbcbbcbaa.....',
+    '.......aaaaaaaa.......',
+    '........a....a........',
+    '........a....a........',
+    '.......aa....aa.......',
+  ];
+  const ZUCCA_IDLE_BOB = [
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+    '..........aa..........',
+    '.........aefa.........',
+    '.....aaaaaefaaaaa.....',
+    '....abbdbbabbbdbba....',
+    '...abdbbcbbbbcbbdba...',
+    '...abdbgcbbbbcgbdba...',
+    '...abdgggbbbbgggdba...',
+    '..aabdbbcbbbbcbbdbaa..',
+    '.a.abdhbbcbbcbbhdba.a.',
+    '.a.abdhhhhhhhhhhdba.a.',
+    '...abdbhhbhhbhhbdba...',
+    '....abdbcbbbbcbbda....',
+    '.....aabbbcbbcbaa.....',
+    '.......aaaaaaaa.......',
+    '........a....a........',
+    '........a....a........',
+    '.......aa....aa.......',
+    '......................',
+  ];
   const ZUCCA_BLINK = [
+    '......................',
+    '......................',
+    '......................',
+    '......................',
     '......................',
     '..........aa..........',
     '.........aefa.........',
@@ -33,7 +85,83 @@
     '........a....a........',
     '.......aa....aa.......',
   ];
+  const ZUCCA_CARICA = [
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+    '..........aa..........',
+    '.........aefa.........',
+    '.....aaaaaefaaaaa.....',
+    '....abbdbbabbbdbba....',
+    '...abdbgcbbbbcgbdba...',
+    '...abdgggbbbbgggdba...',
+    '..aabdbbcbbbbcbbdbaa..',
+    '.a.abdhbbcbbcbbhdba.a.',
+    '.a.abdhhhhhhhhhhdba.a.',
+    '...abdbhhbhhbhhbdba...',
+    '.....aabbbcbbcbaa.....',
+    '.......aaaaaaaa.......',
+    '........a....a........',
+    '........a....a........',
+    '.......aa....aa.......',
+  ];
+  const ZUCCA_SALTO = [
+    '..........aa..........',
+    '.........aefa.........',
+    '.....aaaaaefaaaaa.....',
+    '....abbdbbabbbdbba....',
+    '...abdbbcbbbbcbbdba...',
+    '.a.abdbbcbbbbcbbdba.a.',
+    '.a.abdbgcbbbbcgbdba.a.',
+    '.a.abdgggbbbbgggdba.a.',
+    '..aabdbbcbbbbcbbdbaa..',
+    '...abdhbbcbbcbbhdba...',
+    '...abdhhhhhhhhhhdba...',
+    '...abdbhhbhhbhhbdba...',
+    '....abdbcbbbbcbbda....',
+    '....abdbcbbbbcbbda....',
+    '.....aabbbcbbcbaa.....',
+    '.......aaaaaaaa.......',
+    '........a....a........',
+    '.......aa....aa.......',
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+  ];
+  const ZUCCA_ATTERRAGGIO = [
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+    '......................',
+    '..........aa..........',
+    '.........aefa.........',
+    '.....aaaaaefaaaaa.....',
+    '....abbdbbabbbdbba....',
+    '...abdbbcbbbbcbbdba...',
+    '...abdaaabbbbaaadba...',
+    '..aabdbbcbbbbcbbdbaa..',
+    '.a.abdhbbcbbcbbhdba.a.',
+    '.a.abdhhhhhhhhhhdba.a.',
+    '...abdbhhbhhbhhbdba...',
+    '.....aabbbcbbcbaa.....',
+    '.......aaaaaaaa.......',
+    '........a....a........',
+    '........a....a........',
+    '.......aa....aa.......',
+  ];
   const ZUCCA_FELICE = [
+    '......................',
+    '......................',
+    '......................',
+    '......................',
     '..........aa..........',
     '.........aefa.........',
     '.....aaaaaefaaaaa.....',
@@ -54,6 +182,10 @@
     '......................',
   ];
   const ZUCCA_PASSO_1 = [
+    '......................',
+    '......................',
+    '......................',
+    '......................',
     '..........aa..........',
     '.........aefa.........',
     '.....aaaaaefaaaaa.....',
@@ -75,6 +207,10 @@
   ];
   const ZUCCA_PASSO_2 = [
     '......................',
+    '......................',
+    '......................',
+    '......................',
+    '......................',
     '..........aa..........',
     '.........aefa.........',
     '.....aaaaaefaaaaa.....',
@@ -94,6 +230,10 @@
     '.......aa....aa.......',
   ];
   const ZUCCA_PASSO_3 = [
+    '......................',
+    '......................',
+    '......................',
+    '......................',
     '..........aa..........',
     '.........aefa.........',
     '.....aaaaaefaaaaa.....',
@@ -114,6 +254,10 @@
     '......................',
   ];
   const ZUCCA_PASSO_4 = [
+    '......................',
+    '......................',
+    '......................',
+    '......................',
     '......................',
     '..........aa..........',
     '.........aefa.........',
@@ -142,7 +286,9 @@
       frames: {
         walk: [ZUCCA_PASSO_1, ZUCCA_PASSO_2, ZUCCA_PASSO_3, ZUCCA_PASSO_4],
         sleep: [ZUCCA_BLINK],
-        call: [ZUCCA_FELICE],
+        call: [ZUCCA_FELICE, ZUCCA_IDLE, ZUCCA_FELICE, ZUCCA_IDLE],
+        idle: [ZUCCA_IDLE, ZUCCA_IDLE, ZUCCA_IDLE_BOB, ZUCCA_IDLE_BOB, ZUCCA_IDLE, ZUCCA_IDLE, ZUCCA_IDLE_BOB, ZUCCA_IDLE_BOB, ZUCCA_BLINK, ZUCCA_IDLE],
+        startle: [ZUCCA_CARICA, ZUCCA_SALTO, ZUCCA_SALTO, ZUCCA_SALTO, ZUCCA_ATTERRAGGIO, ZUCCA_IDLE],
       },
     },
   };

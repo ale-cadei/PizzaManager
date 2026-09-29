@@ -637,6 +637,11 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 #pets-strip[hidden] { display: none; }
 .pet { position: absolute; left: 0; bottom: 0; will-change: transform; }
 .pet svg { display: block; }
+/* Ombra a terra di chi vola: sta nel DOM prima del suo personaggio, quindi
+   sotto. La trasparenza è nei colori del disegno. */
+.pet-shadow { position: absolute; left: 0; bottom: 0; will-change: transform; }
+.pet-shadow[hidden] { display: none; }
+.pet-shadow svg { display: block; }
 /* Proprietà separate da transform, che la vista riscrive a ogni frame */
 .pet--left svg { scale: -1 1; }
 .pet--call svg { animation: pet-hop 0.5s ease-in-out infinite; }

@@ -1,7 +1,7 @@
 /* Babbo Natale con la slitta, vola.
- * Disegno del pacchetto «Sprite pixel-art originale»: griglie ricavate dai
- * PNG 1x nel formato di pets-sprites.js, che lo fonde nel suo catalogo
- * (AisessPetsPack). Pose dalle animazioni del pacchetto.
+ * Disegno del pacchetto «Sprite pixel-art originale»: griglie ricavate dai PNG 1x nel
+ * formato di pets-sprites.js, che lo fonde nel suo catalogo (AisessPetsPack).
+ * Pose dalle animazioni del pacchetto.
  *
  * File generato: si ritocca il pacchetto, non queste righe.
  *

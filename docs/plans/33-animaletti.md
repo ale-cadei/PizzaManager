@@ -137,6 +137,19 @@ nessuno deve restare fuori dalla striscia.
   sessione che chiede conferma → uno chiama, finestra senza fuoco → fermi
   (0% CPU da DevTools › Performance).
 
+## Fatto
+
+- `renderer/pets-sprites.js` (disegni), `pets-config.js` (impostazioni in
+  localStorage), `pets.js` (motore, inseguimento, umori), `pets-view.js`
+  (striscia e ciclo rAF), `pets-ui.js` (dialogo), stili in `styles.css`.
+- Voce «Animaletti…» nel menu View, nativo e in-app (`menu-pets`).
+- Test: `tests/pets-*.test.js`, compreso il retino che in 20 000 passi non
+  prende mai la medusa.
+- Provato in Electron (xvfb, dati e socket tmux in una tmpdir): la striscia
+  compare sotto il terminale, i personaggi camminano, il dialogo si apre e
+  ridisegna mentre si sceglie. Da provare a mano: corsa con un agente al
+  lavoro, chiamata con una sessione in attesa, fermi senza fuoco.
+
 ## Fuori da questo branch
 
 - Personaggi cliccabili, uno per sessione, pacchetti di sprite caricati da

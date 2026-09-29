@@ -5,7 +5,7 @@
  * Così un disegno si legge e si ritocca qui, senza file esterni, e la pagina
  * lo costruisce con createElementNS (niente innerHTML, CSP invariata).
  * Guardano tutti a destra: chi va a sinistra lo specchia la vista.
- * I personaggi del pacchetto «Sprite pixel-art originale» stanno nei file
+ * I personaggi dei pacchetti di sprite dell'utente stanno nei file
  * pets-sprite-*.js (generati) e si fondono qui nel catalogo.
  *
  * I personaggi di SpongeBob sono di Nickelodeon/Paramount; tenerli qui è una
@@ -16,7 +16,7 @@
 (function (root, factory) {
   const api = root
     ? factory(root.AisessPetsPack)
-    : factory(Object.assign({}, ...['pizza', 'fizzo', 'rotolacampo', 'babbo'].map((k) => require(`./pets-sprite-${k}`))));
+    : factory(Object.assign({}, ...['pizza', 'fizzo', 'rotolacampo', 'babbo', 'morte', 'zucca'].map((k) => require(`./pets-sprite-${k}`))));
   if (root) root.AisessPetsSprites = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : null, function (pack) {
@@ -484,6 +484,8 @@
     fizzo: ['fizzo'],
     rotolacampo: ['rotolacampo'],
     babbo: ['babbo'],
+    morte: ['morte'],
+    zucca: ['zucca'],
   };
   const CAST_LABELS = {
     inseguimento: 'SpongeBob e la medusa',
@@ -497,6 +499,8 @@
     fizzo: 'Fizzo, la bibita',
     rotolacampo: 'Rotolacampo',
     babbo: 'Babbo Natale',
+    morte: 'La Morte',
+    zucca: 'Zucco, la zucca',
   };
 
   /** Colonne e righe di un personaggio (tutti i suoi frame hanno la stessa misura). */

@@ -70,13 +70,17 @@ Spento di default. Si accende e si regola da `Vista › Animaletti…`.
 | `fizzo` | Fizzo, la bibita | Bicchiere con cannuccia, dal pacchetto |
 | `rotolacampo` | Rotolacampo | Rotola (12 frame); quando chiama rimbalza |
 | `babbo` | Babbo Natale | Slitta con le renne, vola (`fly`); dal pacchetto |
+| `morte` | La Morte | Fluttua appena sopra il fondo (`swim`); quando chiama dà una falciata (8 frame) |
+| `zucca` | Zucco, la zucca | Cammina; dal pacchetto di Halloween |
 
 Rana, uccellino e pesce aggiunti su richiesta dell'utente dopo il primo
 giro. Pizza, Fizzo, Rotolacampo e Babbo Natale vengono dal pacchetto
-«Sprite pixel-art originale» dell'utente (PNG 1x + `data.json` con le
-animazioni): un file generato per personaggio, `renderer/pets-sprite-*.js`,
-caricato prima di `pets-sprites.js` che li fonde nel catalogo. Le pose:
-`cammina` → walk, `blink` → sleep, `felice` → call. Il modo di muoversi è un campo del disegno (`motion`), e il motore
+«Sprite pixel-art originale» dell'utente, La Morte e Zucco dall'«Halloween
+Pack» (il fantasmino è rimasto fuori per scelta dell'utente). Ogni pacchetto
+porta PNG 1x e un `data.json` con le animazioni: un file generato per
+personaggio, `renderer/pets-sprite-*.js`, caricato prima di
+`pets-sprites.js` che li fonde nel catalogo. Le pose: `cammina`/`fluttua`
+→ walk, `blink`/`occhi spenti` → sleep, `felice`/`falciata` → call. Il modo di muoversi è un campo del disegno (`motion`), e il motore
 ha una funzione per ognuno (`MOVES` in `pets.js`).
 
 **La coppia SpongeBob + medusa** si sceglie come una voce sola, «SpongeBob
@@ -115,7 +119,7 @@ Precedenza: `attention` > `busy` > `sleep` > `idle`.
 }
 ```
 
-- `MAX_CAST = 11` voci del dialogo, una per ognuna; la coppia SpongeBob e medusa è una voce
+- `MAX_CAST = 13` voci del dialogo, una per ognuna; la coppia SpongeBob e medusa è una voce
   (contarla due impediva di sceglierne una di ognuna).
 - Voci sconosciute scartate, valori fuori elenco → default, JSON rotto →
   default intero.

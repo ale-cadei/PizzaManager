@@ -4,7 +4,7 @@ const { test: ok } = require('node:test');
 const { createPetsView } = require('../renderer/pets-view');
 const { createElement, descendants } = require('./fake-dom');
 
-function setup({ reduced = false, reducedMotion = () => reduced, signals = { running: false, attention: false } } = {}) {
+function setup({ reduced = false, reducedMotion = () => reduced, signals = { running: false, attention: false }, random = () => 0.3 } = {}) {
   const docListeners = {};
   const winListeners = {};
   const doc = {
@@ -32,7 +32,7 @@ function setup({ reduced = false, reducedMotion = () => reduced, signals = { run
     raf: (fn) => { frames.push(fn); return frames.length; },
     caf: (id) => cancelled.push(id),
     reducedMotion,
-    random: () => 0.3,
+    random,
   });
   /** Fa girare il prossimo frame dopo `ms` millisecondi. */
   const tick = (ms = 16) => { t += ms; const fn = frames.shift(); if (fn) fn(); };
@@ -216,4 +216,16 @@ ok('pets-view: chi va a sinistra ha la classe che lo specchia', () => {
   const seen = new Set();
   for (let i = 0; i < 400; i += 1) { tick(50); seen.add(classOf(strip.children[0]).includes('pet--left')); }
   assert.deepStrictEqual([...seen].sort(), [false, true], 'il gatto non ha mai cambiato verso');
+});
+
+ok('pets-view: due pesci con aspetto diverso hanno colori diversi nel disegno', () => {
+  const fills = (el) => new Set(descendants(el).filter((n) => n.tag === 'rect').map((n) => n.getAttribute('fill')));
+  const draw = (random) => {
+    const { view, strip } = setup({ random });
+    view.apply({ ...ON, cast: ['pesce'] });
+    return strip.children[0];
+  };
+  const a = draw(() => 0.3);
+  const b = draw(() => 0.9);
+  assert.notDeepStrictEqual([...fills(a)].sort(), [...fills(b)].sort());
 });

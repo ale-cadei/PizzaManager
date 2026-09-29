@@ -73,8 +73,11 @@
   const maxX = (kind, size, width) => Math.max(0, width - petWidth(kind, size));
   const centerOf = (p, size) => p.x + petWidth(p.kind, size) / 2;
 
+  /** L'aspetto (pets-sprites.js variants) si tira a sorte solo per chi ne ha più d'uno. */
+  const pickVariant = (kind, random) => Math.min(Sprites.looks(kind) - 1, Math.floor(random() * Sprites.looks(kind)));
+
   function newPet(key, kind, x, dir, random) {
-    return { key, kind, x, y: 0, dir, pose: 'walk', anim: 0, lift: 0, passing: false, phase: random() * Math.PI * 2, mate: null, act: null };
+    return { key, kind, variant: pickVariant(kind, random), x, y: 0, dir, pose: 'walk', anim: 0, lift: 0, passing: false, phase: random() * Math.PI * 2, mate: null, act: null };
   }
 
   /** Comincia un'azione: fermo con quella posa. Senza durata dura quanto la sequenza. */

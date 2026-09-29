@@ -377,3 +377,35 @@ ok('pets: frameIndex avanza col tempo animato e gira sui frame', () => {
   assert.strictEqual(frameIndex({ anim: Pets.FRAME_MS * 2 }, 2), 0);
   assert.strictEqual(frameIndex({ anim: 999 }, 1), 0);
 });
+
+ok('pets: chi ha più aspetti ne riceve uno a sorte alla nascita, gli altri sempre il primo', () => {
+  const { looks } = require('../renderer/pets-sprites');
+  assert.ok(looks('pesce') > 1 && looks('uccellino') > 1, 'pesce e uccellino senza varianti');
+  const seen = new Set();
+  for (let seed = 1; seed <= 40; seed += 1) {
+    const state = createPets({ cast: ['pesce', 'uccellino', 'gatto'], width: WIDTH, size: SIZE, random: seeded(seed) });
+    for (const pet of state.pets) {
+      assert.ok(Number.isInteger(pet.variant) && pet.variant >= 0 && pet.variant < looks(pet.kind), `${pet.kind}: aspetto ${pet.variant}`);
+      if (pet.kind === 'pesce') seen.add(pet.variant);
+    }
+    assert.strictEqual(byKind(state, 'gatto').variant, 0);
+  }
+  assert.strictEqual(seen.size, looks('pesce'), 'in 40 nascite non sono usciti tutti i pesci');
+});
+
+ok('pets: l aspetto non cambia camminando, e chi entra col recast ne riceve uno suo', () => {
+  let state = createPets({ cast: ['pesce'], width: WIDTH, size: SIZE, random: () => 0.9 });
+  const { variant } = state.pets[0];
+  state = run(state, 200, { random: seeded(2) });
+  assert.strictEqual(state.pets[0].variant, variant);
+  state = recast(state, { cast: ['pesce', 'uccellino'], width: WIDTH, random: () => 0.1 });
+  assert.strictEqual(byKind(state, 'uccellino').variant, 0);
+  assert.strictEqual(byKind(state, 'pesce').variant, variant);
+});
+
+ok('pets: un random che tocca 1 non produce un aspetto fuori misura', () => {
+  const { looks } = require('../renderer/pets-sprites');
+  const state = createPets({ cast: ['pesce', 'gatto'], width: WIDTH, size: SIZE, random: () => 1 });
+  assert.strictEqual(byKind(state, 'pesce').variant, looks('pesce') - 1);
+  assert.strictEqual(byKind(state, 'gatto').variant, 0);
+});

@@ -16,7 +16,11 @@
  *     vista, per lampeggiare non basta un frammento: l'output deve durare
  *     (un lavoro vero scrive per secondi, un ridisegno per un attimo);
  *   - se invece l'utente ha scritto qualcosa, ha chiesto lui: anche una
- *     risposta breve va segnalata, e la finestra di silenzio non vale più.
+ *     risposta breve va segnalata, e la finestra di silenzio non vale più;
+ *   - la prima raffica di una scheda appena nata o riattaccata è l'avvio
+ *     (tmux che ridisegna lo schermo, `--resume` che riscrive la
+ *     conversazione): dura secondi, ma non è un lavoro. All'apertura dell'app
+ *     accendeva tutte le sessioni ripristinate.
  *
  * Il modulo non sa niente di schede, tipi o DOM: riceve gli eventi e risponde
  * se la card va accesa. I tempi li decide chi lo chiama (il renderer tiene il
@@ -41,12 +45,12 @@
     const workMs = opts.workMs === undefined ? WORK_MS : opts.workMs;
     const now = opts.now || (() => Date.now());
 
-    /** @type {Map<string, {bytes: number, start: number, end: number, muteUntil: number, typed: boolean, flagged: boolean}>} */
+    /** @type {Map<string, {bytes: number, start: number, end: number, muteUntil: number, typed: boolean, flagged: boolean, booting: boolean}>} */
     const state = new Map();
 
     function get(id) {
       if (!state.has(id)) {
-        state.set(id, { bytes: 0, start: 0, end: 0, muteUntil: 0, typed: false, flagged: false });
+        state.set(id, { bytes: 0, start: 0, end: 0, muteUntil: 0, typed: false, flagged: false, booting: false });
       }
       return state.get(id);
     }
@@ -71,6 +75,7 @@
       const { bytes, start, end } = s;
       resetBurst(s);
       if (s.flagged || bytes < minBytes) return false;
+      if (s.booting && !s.typed) { s.booting = false; return false; }
       if (!s.typed) {
         // Coda del ridisegno provocato dalla visita appena finita
         if (end <= s.muteUntil) return false;
@@ -90,7 +95,7 @@
       const s = get(id);
       resetBurst(s);
       if (s.flagged) return false;
-      if (!s.typed && now() <= s.muteUntil) return false;
+      if (!s.typed && (s.booting || now() <= s.muteUntil)) return false;
       s.flagged = true;
       return true;
     }
@@ -100,6 +105,12 @@
       const s = get(id);
       s.typed = true;
       s.muteUntil = 0;
+      s.booting = false;
+    }
+
+    /** Scheda appena nata o riattaccata: la prima raffica è l'avvio. */
+    function born(id) {
+      get(id).booting = true;
     }
 
     /** L'utente sta guardando la scheda: quello che c'era l'ha visto. */
@@ -121,7 +132,7 @@
     function isFlagged(id) { return Boolean(state.has(id) && state.get(id).flagged); }
     function forget(id) { state.delete(id); }
 
-    return { data, idle, bell, typed, seen, left, isFlagged, forget };
+    return { data, idle, bell, typed, born, seen, left, isFlagged, forget };
   }
 
   /*

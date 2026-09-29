@@ -1,0 +1,173 @@
+/* Peppo, la fetta di pizza.
+ * Disegno del pacchetto «Sprite pixel-art originale»: griglie ricavate dai
+ * PNG 1x nel formato di pets-sprites.js, che lo fonde nel suo catalogo
+ * (AisessPetsPack). Pose dalle animazioni del pacchetto.
+ *
+ * File generato: si ritocca il pacchetto, non queste righe.
+ *
+ * Wrapper UMD come gli altri moduli del renderer: in pagina i personaggi
+ * del pacchetto si sommano nello stesso oggetto. */
+(function (root, factory) {
+  const api = factory();
+  if (root) root.AisessPetsPack = Object.assign({}, root.AisessPetsPack, api);
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(typeof window !== 'undefined' ? window : null, function () {
+  // ---- Peppo, la fetta di pizza (18×22) ----
+  const PIZZA_BLINK = [
+    '..................',
+    '...aaaaaaaaaaaa...',
+    '..abbbbbbbbbbbba..',
+    '.abbcbbbbbbbcbbba.',
+    '.acccccccccccccca.',
+    '.addddddfgdddddda.',
+    '..adddddffddddda..',
+    '..adddddddddddda..',
+    '..adaaddddddaada..',
+    '...adddddddddda...',
+    '..aadeiiiiiiedaa..',
+    '.a..adeijjieda..a.',
+    '.a..adffdddeda..a.',
+    '.....adffddea.....',
+    '.....aeddfgda.....',
+    '......addeda......',
+    '......aeddea......',
+    '.......adda.......',
+    '........aa........',
+    '.......a..a.......',
+    '.......a..a.......',
+    '......aa..aa......',
+  ];
+  const PIZZA_FELICE = [
+    '...aaaaaaaaaaaa...',
+    '..abbbbbbbbbbbba..',
+    '.abbcbbbbbbbcbbba.',
+    '.acccccccccccccca.',
+    '.addddddfgdddddda.',
+    '..adddddffddddda..',
+    '.aadaaddddddaadaa.',
+    '.aaaddaddddaddaaa.',
+    '.a.adddddddddda.a.',
+    '..aadeiiiiiiedaa..',
+    '....adeijjieda....',
+    '....adffdddeda....',
+    '.....adffddea.....',
+    '.....aeddfgda.....',
+    '......addeda......',
+    '......aeddea......',
+    '.......adda.......',
+    '........aa........',
+    '.......a..a.......',
+    '.......a..a.......',
+    '......aa..aa......',
+    '..................',
+  ];
+  const PIZZA_PASSO_1 = [
+    '...aaaaaaaaaaaa...',
+    '..abbbbbbbbbbbba..',
+    '.abbcbbbbbbbcbbba.',
+    '.acccccccccccccca.',
+    '.addddddfgdddddda.',
+    '..adddddffddddda..',
+    '..adhhddddddhhda..',
+    '..adhaddddddhada..',
+    'a..adddddddddda...',
+    '.aaadeiiiiiiedaa..',
+    '....adeijjieda..a.',
+    '....adffdddeda..a.',
+    '.....adffddea.....',
+    '.....aeddfgda.....',
+    '......addeda......',
+    '......aeddea......',
+    '.......adda.......',
+    '........aa........',
+    '.......a..a.......',
+    '......aa..a.......',
+    '..........aa......',
+    '..................',
+  ];
+  const PIZZA_PASSO_2 = [
+    '..................',
+    '...aaaaaaaaaaaa...',
+    '..abbbbbbbbbbbba..',
+    '.abbcbbbbbbbcbbba.',
+    '.acccccccccccccca.',
+    '.addddddfgdddddda.',
+    '..adddddffddddda..',
+    '..adhhddddddhhda..',
+    '..adhaddddddhada..',
+    '...adddddddddda...',
+    '..aadeiiiiiiedaa..',
+    '.a..adeijjieda..a.',
+    '.a..adffdddeda..a.',
+    '.....adffddea.....',
+    '.....aeddfgda.....',
+    '......addeda......',
+    '......aeddea......',
+    '.......adda.......',
+    '........aa........',
+    '.......a..a.......',
+    '.......a..a.......',
+    '......aa..aa......',
+  ];
+  const PIZZA_PASSO_3 = [
+    '...aaaaaaaaaaaa...',
+    '..abbbbbbbbbbbba..',
+    '.abbcbbbbbbbcbbba.',
+    '.acccccccccccccca.',
+    '.addddddfgdddddda.',
+    '..adddddffddddda..',
+    '..adhhddddddhhda..',
+    '..adhaddddddhada..',
+    '...adddddddddda..a',
+    '..aadeiiiiiiedaaa.',
+    '.a..adeijjieda....',
+    '.a..adffdddeda....',
+    '.....adffddea.....',
+    '.....aeddfgda.....',
+    '......addeda......',
+    '......aeddea......',
+    '.......adda.......',
+    '........aa........',
+    '.......a..a.......',
+    '.......a..aa......',
+    '......aa..........',
+    '..................',
+  ];
+  const PIZZA_PASSO_4 = [
+    '..................',
+    '...aaaaaaaaaaaa...',
+    '..abbbbbbbbbbbba..',
+    '.abbcbbbbbbbcbbba.',
+    '.acccccccccccccca.',
+    '.addddddfgdddddda.',
+    '..adddddffddddda..',
+    '..adhhddddddhhda..',
+    '..adhaddddddhada..',
+    '...adddddddddda...',
+    '..aadeiiiiiiedaa..',
+    '.a..adeijjieda..a.',
+    '.a..adffdddeda..a.',
+    '.....adffddea.....',
+    '.....aeddfgda.....',
+    '......addeda......',
+    '......aeddea......',
+    '.......adda.......',
+    '........aa........',
+    '.......a..a.......',
+    '.......a..a.......',
+    '......aa..aa......',
+  ];
+
+  return {
+    pizza: {
+      speed: 0.8,
+      motion: 'walk',
+      palette: { a: '#3A1F14', b: '#D98A3A', c: '#A85A24', d: '#FFD24A', e: '#EDA232', f: '#C8342C', g: '#EF6A50', h: '#FFFFFF', i: '#6B1E1E', j: '#FF8C9A' },
+      frames: {
+        walk: [PIZZA_PASSO_1, PIZZA_PASSO_2, PIZZA_PASSO_3, PIZZA_PASSO_4],
+        sleep: [PIZZA_BLINK],
+        call: [PIZZA_FELICE],
+      },
+    },
+  };
+});

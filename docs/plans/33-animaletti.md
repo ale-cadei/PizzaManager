@@ -55,13 +55,20 @@ Spento di default. Si accende e si regola da `Vista › Animaletti…`.
 | `stella` | Stella | Cammina piano |
 | `lumaca` | Lumaca | Lumaca: lentissimo |
 | `gatto` | Gatto | Cammina |
-| `pizza` | Fetta di pizza | Fetta con gambine (riusa la palette di `pizza-slice.js`) |
+| `pizza` | Peppo, la pizza | Fetta con gambine, dal pacchetto «Sprite pixel-art originale» dell'utente |
 | `rana` | Rana | Salta (`motion: 'hop'`): avanza solo in aria, posa `jump` |
 | `uccellino` | Uccellino | Vola sopra la striscia (`fly`); per dormire o chiamare si posa |
 | `pesce` | Pesce | Nuota ondeggiando appena sopra il fondo (`swim`) |
+| `fizzo` | Fizzo, la bibita | Bicchiere con cannuccia, dal pacchetto |
+| `rotolacampo` | Rotolacampo | Rotola (12 frame); quando chiama rimbalza |
+| `babbo` | Babbo Natale | Slitta con le renne, vola (`fly`); dal pacchetto |
 
 Rana, uccellino e pesce aggiunti su richiesta dell'utente dopo il primo
-giro. Il modo di muoversi è un campo del disegno (`motion`), e il motore
+giro. Pizza, Fizzo, Rotolacampo e Babbo Natale vengono dal pacchetto
+«Sprite pixel-art originale» dell'utente (PNG 1x + `data.json` con le
+animazioni): un file generato per personaggio, `renderer/pets-sprite-*.js`,
+caricato prima di `pets-sprites.js` che li fonde nel catalogo. Le pose:
+`cammina` → walk, `blink` → sleep, `felice` → call. Il modo di muoversi è un campo del disegno (`motion`), e il motore
 ha una funzione per ognuno (`MOVES` in `pets.js`).
 
 **La coppia pescatore + medusa** si sceglie come una voce sola, «il pescatore
@@ -100,7 +107,7 @@ Precedenza: `attention` > `busy` > `sleep` > `idle`.
 }
 ```
 
-- `MAX_CAST = 8` voci del dialogo, una per ognuna; la coppia pescatore e medusa è una voce
+- `MAX_CAST = 11` voci del dialogo, una per ognuna; la coppia pescatore e medusa è una voce
   (contarla due impediva di sceglierne una di ognuna).
 - Voci sconosciute scartate, valori fuori elenco → default, JSON rotto →
   default intero.

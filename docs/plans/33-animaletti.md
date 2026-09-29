@@ -64,15 +64,17 @@ Spento di default. Si accende e si regola da `Vista › Animaletti…`.
 | `babbo` | Babbo Natale | Slitta con le renne, vola (`fly`); dal pacchetto |
 | `morte` | La Morte | Fluttua appena sopra il fondo (`swim`); quando chiama dà una falciata (8 frame) |
 | `zucca` | Zucco, la zucca | Cammina; dal pacchetto di Halloween |
+| `fantasmino` | Fantasmino | Vola (`fly`) col lenzuolo; dorme abbassandosi, fa «buu» quando chiama |
 
 Rana, uccellino e pesce aggiunti su richiesta dell'utente dopo il primo
 giro. Pizza, Fizzo, Rotolacampo e Babbo Natale vengono dal pacchetto
 «Sprite pixel-art originale» dell'utente, La Morte e Zucco dall'«Halloween
-Pack» (il fantasmino è rimasto fuori per scelta dell'utente). Ogni pacchetto
+Pack», il Fantasmino dal pacchetto «Fantasmino Lenzuolo» (rifatto col
+lenzuolo al posto di quello dell'Halloween Pack). Ogni pacchetto
 porta PNG 1x e un `data.json` con le animazioni: un file generato per
 personaggio, `renderer/pets-sprite-*.js`, caricato prima di
-`pets-sprites.js` che li fonde nel catalogo. Le pose: `cammina`/`fluttua`
-→ walk, `blink`/`occhi spenti` → sleep, `felice`/`falciata` → call. Il modo di muoversi è un campo del disegno (`motion`), e il motore
+`pets-sprites.js` che li fonde nel catalogo. Le pose: `cammina`/`fluttua`/`insegui-dx`
+→ walk, `blink`/`occhi spenti`/`dorme` → sleep, `felice`/`falciata`/`buu` → call. Il modo di muoversi è un campo del disegno (`motion`), e il motore
 ha una funzione per ognuno (`MOVES` in `pets.js`).
 
 **La coppia pescatore + medusa** si sceglie come una voce sola, «il pescatore
@@ -111,7 +113,7 @@ Precedenza: `attention` > `busy` > `sleep` > `idle`.
 }
 ```
 
-- `MAX_CAST = 13` voci del dialogo, una per ognuna; la coppia pescatore e medusa è una voce
+- `MAX_CAST = 14` voci del dialogo, una per ognuna; la coppia pescatore e medusa è una voce
   (contarla due impediva di sceglierne una di ognuna).
 - Voci sconosciute scartate, valori fuori elenco → default, JSON rotto →
   default intero.

@@ -198,21 +198,56 @@
     18: '.dowwwhhodyqdykkkkkkyoqyswod.g.......',
   });
 
-  // ---- Medusa ----
+  // ---- Medusa: campana con riflesso e macchie, quattro tentacoli; le colonne vuote a sinistra servono ai tentacoli in fuga ----
   const JELLY = [
-    '...pppp...',
-    '..pllllp..',
-    '.plpllplp.',
-    '.pllllllp.',
-    'pppppppppp',
-    '.d.d..d.d.',
-    '.d..d.d..d',
-    'd...d..d..',
+    '........pppppp....',
+    '......ppppppppwp..',
+    '.....pplppppppwwp.',
+    '.....plpppdppppwp.',
+    '....pppppddpppppwp',
+    '....ppddppppppddpp',
+    '....pppddppdppddpp',
+    '....ppppppppppppp.',
+    '.....p..pp..p..pp.',
+    '.....p..p...p..p..',
+    '......p.p..p...p..',
+    '......p..p.p...p..',
+    '.....p...p..p.p...',
+    '.....p..p...p.p...',
   ];
-  const JELLY_STEP = patch(JELLY, { 6: 'd..d.d..d.', 7: '.d..d..d.d' });
+  const JELLY_STEP = patch(JELLY, {
+    8: '......p.pp..p..pp.',
+    9: '......p..p..p..p..',
+    10: '.....p...p.p...p..',
+    11: '.....p..p..p...p..',
+    12: '......p.p...p.p...',
+    13: '......p.p...p..p..',
+  });
   // In fuga i tentacoli restano indietro
-  const JELLY_FLEE = patch(JELLY, { 5: 'dd.dd.dd..', 6: '.dd.dd.dd.', 7: '..........' });
-  const JELLY_FLEE_STEP = patch(JELLY, { 5: '.dd.dd.dd.', 6: 'dd.dd.dd..', 7: '..........' });
+  const JELLY_FLEE = patch(JELLY, {
+    8: '....p..pp..p..pp..',
+    9: '...p..p...p..p....',
+    10: '....p.p..p...p....',
+    11: '...p..p.p...p.....',
+    12: '..p...p..p.p......',
+    13: '.p..p...p.p.......',
+  });
+  const JELLY_FLEE_STEP = patch(JELLY, {
+    8: '.....p.pp..p..pp..',
+    9: '....p..p..p..p....',
+    10: '...p...p.p...p....',
+    11: '..p..p..p...p.....',
+    12: '...p.p...p.p......',
+    13: '..p.p...p..p......',
+  });
+  // Tentacoli a penzoloni
+  const JELLY_SLEEP = patch(JELLY, {
+    8: '.....p..p...p..p..',
+    10: '.....p..p...p..p..',
+    11: '.....p..p...p..p..',
+    12: '.....p..p...p..p..',
+    13: '.....p..p...p.....',
+  });
 
   // ---- Patrick: due occhi strabici, sorriso largo, pantaloncini a fiori ----
   const STAR = [
@@ -374,11 +409,12 @@
     medusa: {
       speed: 0.9,
       motion: 'walk',
-      palette: { p: '#F28DB2', l: '#FBC6DA', d: '#C2557F' },
+      height: 0.5,
+      palette: { p: '#F06A9B', l: '#F9B4CC', d: '#C8367A', w: '#FFFFFF' },
       frames: {
         walk: [JELLY, JELLY_STEP],
         flee: [JELLY_FLEE, JELLY_FLEE_STEP],
-        sleep: [JELLY],
+        sleep: [JELLY_SLEEP],
         call: [JELLY],
       },
     },
@@ -427,6 +463,7 @@
     rana: {
       speed: 1.6,
       motion: 'hop',
+      height: 0.4,
       palette: { g: '#5DBB4A', l: '#C8E88A', w: '#FFFFFF', k: '#1A1A1A', m: '#2E6B2A' },
       frames: {
         walk: [FROG, FROG],

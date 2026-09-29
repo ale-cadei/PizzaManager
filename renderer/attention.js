@@ -20,7 +20,10 @@
  *   - la prima raffica di una scheda appena nata o riattaccata è l'avvio
  *     (tmux che ridisegna lo schermo, `--resume` che riscrive la
  *     conversazione): dura secondi, ma non è un lavoro. All'apertura dell'app
- *     accendeva tutte le sessioni ripristinate.
+ *     accendeva tutte le sessioni ripristinate;
+ *   - una card accesa che riprende a lavorare si spegne: il silenzio era una
+ *     pausa a metà turno (un tool che gira, l'attesa del modello), e la card
+ *     mostrava insieme «sta lavorando» e «ha finito». Si riaccende alla fine.
  *
  * Il modulo non sa niente di schede, tipi o DOM: riceve gli eventi e risponde
  * se la card va accesa. I tempi li decide chi lo chiama (il renderer tiene il
@@ -45,12 +48,12 @@
     const workMs = opts.workMs === undefined ? WORK_MS : opts.workMs;
     const now = opts.now || (() => Date.now());
 
-    /** @type {Map<string, {bytes: number, start: number, end: number, muteUntil: number, typed: boolean, flagged: boolean, booting: boolean}>} */
+    /** @type {Map<string, {bytes: number, start: number, end: number, muteUntil: number, typed: boolean, flagged: boolean, booting: boolean, working: boolean}>} */
     const state = new Map();
 
     function get(id) {
       if (!state.has(id)) {
-        state.set(id, { bytes: 0, start: 0, end: 0, muteUntil: 0, typed: false, flagged: false, booting: false });
+        state.set(id, { bytes: 0, start: 0, end: 0, muteUntil: 0, typed: false, flagged: false, booting: false, working: false });
       }
       return state.get(id);
     }
@@ -76,13 +79,15 @@
       resetBurst(s);
       if (s.flagged || bytes < minBytes) return false;
       if (s.booting && !s.typed) { s.booting = false; return false; }
-      if (!s.typed) {
+      // Già vista lavorare (resumed): la coda del turno può essere breve
+      if (!s.typed && !s.working) {
         // Coda del ridisegno provocato dalla visita appena finita
         if (end <= s.muteUntil) return false;
         // Un frammento isolato non è un lavoro: la TUI si sistema da sola
         if (end - start < workMs) return false;
       }
       s.flagged = true;
+      s.working = false;
       return true;
     }
 
@@ -97,6 +102,7 @@
       if (s.flagged) return false;
       if (!s.typed && (s.booting || now() <= s.muteUntil)) return false;
       s.flagged = true;
+      s.working = false;
       return true;
     }
 
@@ -106,6 +112,19 @@
       s.typed = true;
       s.muteUntil = 0;
       s.booting = false;
+    }
+
+    /**
+     * La sessione ha ripreso a lavorare (renderer/running.js).
+     * `typed` resta: la risposta che l'utente aspetta non è ancora arrivata.
+     * @returns {boolean} true se la card era accesa e va spenta
+     */
+    function resumed(id) {
+      const s = get(id);
+      if (!s.flagged) return false;
+      s.flagged = false;
+      s.working = true;
+      return true;
     }
 
     /** Scheda appena nata o riattaccata: la prima raffica è l'avvio. */
@@ -119,6 +138,7 @@
       resetBurst(s);
       s.flagged = false;
       s.typed = false;
+      s.working = false;
       s.muteUntil = 0;
     }
 
@@ -132,7 +152,7 @@
     function isFlagged(id) { return Boolean(state.has(id) && state.get(id).flagged); }
     function forget(id) { state.delete(id); }
 
-    return { data, idle, bell, typed, born, seen, left, isFlagged, forget };
+    return { data, idle, bell, typed, born, resumed, seen, left, isFlagged, forget };
   }
 
   /*

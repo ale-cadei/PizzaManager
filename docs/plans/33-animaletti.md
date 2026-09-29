@@ -54,19 +54,20 @@ Spento di default. Si accende e si regola da `Vista › Animaletti…`.
 |----|------|---------|
 | `spongebob` | SpongeBob | Rincorre la medusa col retino alzato; quando è vicino dà un colpo di retino (frame `swing`) e la manca sempre |
 | `medusa` | Medusa | Galleggia ondeggiando (seno sulla y); quando SpongeBob è vicino scatta via |
-| `patrick` | Patrick | Cammina piano, si ferma spesso; è il primo che si addormenta |
-| `gary` | Gary | Lumaca: lentissimo, lascia una scia che sbiadisce |
-| `gatto` | Gatto | Cammina, ogni tanto si siede |
+| `patrick` | Patrick | Cammina piano |
+| `gary` | Gary | Lumaca: lentissimo |
+| `gatto` | Gatto | Cammina |
 | `pizza` | Fetta di pizza | Fetta con gambine (riusa la palette di `pizza-slice.js`) |
 
 **La coppia SpongeBob + medusa** si sceglie come una voce sola, «SpongeBob
 e la medusa» (`inseguimento`): sono due personaggi legati. SpongeBob non ha
 una direzione sua: punta la medusa e tiene una distanza minima. La medusa
-fugge verso il lato con più spazio e rimbalza ai bordi, e il retino non la
-prende mai.
+fugge verso il lato con più spazio; messa all'angolo si alza e gli passa
+sopra. Il retino non la prende mai.
 
-Frame per personaggio: `walk` (2-4 frame), `sleep` (1 + «z»), `call` (2
-frame: salta o sbraccia). SpongeBob ha anche `swing`, la medusa `flee`.
+Frame per personaggio: `walk` (2 frame), `sleep`, `call`. SpongeBob ha
+anche `swing`, la medusa `flee`. Le «z» di chi dorme e il saltello di chi
+chiama sono CSS sulla classe della posa, non frame in più.
 
 ## Stati
 

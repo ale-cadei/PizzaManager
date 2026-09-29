@@ -131,7 +131,9 @@ ok('pets: SpongeBob va sempre verso la medusa', () => {
 
 ok('pets: da vicino SpongeBob dà il colpo di retino e la medusa scappa', () => {
   const base = createPets({ cast: ['inseguimento'], width: WIDTH, size: SIZE, random: seeded() });
-  const state = { ...base, pets: base.pets.map((p) => ({ ...p, x: p.kind === 'spongebob' ? 300 : 300 + SIZE * 1.2 })) };
+  // Centri a una misura di distanza: sotto la soglia del colpo, qualunque larghezza abbiano i disegni
+  const jellyX = 300 + petWidth('spongebob', SIZE) / 2 - petWidth('medusa', SIZE) / 2 + SIZE;
+  const state = { ...base, pets: base.pets.map((p) => ({ ...p, x: p.kind === 'spongebob' ? 300 : jellyX })) };
   const next = step(state, { dt: 16, width: WIDTH, mood: 'idle', random: never });
   assert.strictEqual(byKind(next, 'spongebob').pose, 'swing');
   const jelly = byKind(next, 'medusa');

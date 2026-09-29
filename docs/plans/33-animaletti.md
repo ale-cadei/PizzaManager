@@ -38,12 +38,18 @@ Spento di default. Si accende e si regola da `Vista › Animaletti…`.
 - **Personaggi di SpongeBob riconoscibili, con i loro nomi.** Decisione
   dell'utente (2026-09-29), sapendo che sono personaggi e marchi di
   Nickelodeon/Paramount e che il repo è pubblico con release: il rischio di
-  una segnalazione DMCA è accettato. I disegni sono pixel art originale fatta
-  qui, non artwork ufficiale copiato. Se arriva una segnalazione, si tolgono
-  le voci da `pets-sprites.js`: il motore non dipende da nessun personaggio.
+  una segnalazione DMCA è accettato. SpongeBob è ricopiato da uno sprite GBA
+  ritoccato da un fan (gianlucarugergr, DeviantArt), scelta dell'utente; gli
+  altri sono pixel art originale fatta qui. Se arriva una segnalazione, si
+  tolgono le voci da `pets-sprites.js`: il motore non dipende da nessun
+  personaggio.
 - **Impostazioni in `localStorage`**, come `term-font.js` e `type-colors.js`:
   sono preferenze di UI, non dati da far sopravvivere fuori dall'app. Il
   valore letto è input esterno: si valida e, se non torna, si usa il default.
+- **Altezza: un pixel del disegno vale `size / GRID` (16 righe)**, così i
+  piccoli restano piccoli; chi ha più righe si rimpicciolisce per stare in
+  `size`. Un disegno può fissare `height` (frazione di `size`) per le
+  proporzioni: medusa 0.5 e rana 0.4 (`Sprites.pixel`).
 - **Pausa sempre, non opzione**: con la finestra nascosta o senza fuoco il
   ciclo si ferma (`visibilitychange`, `blur`/`focus`). Con
   `prefers-reduced-motion: reduce` i personaggi stanno fermi al loro posto.
@@ -72,8 +78,9 @@ una direzione sua: punta la medusa e tiene una distanza minima. La medusa
 fugge verso il lato con più spazio; messa all'angolo si alza e gli passa
 sopra. Il retino non la prende mai.
 
-Frame per personaggio: `walk` (2 frame), `sleep`, `call`. SpongeBob ha
-anche `swing`, la medusa `flee`. Le «z» di chi dorme e il saltello di chi
+Frame per personaggio: `walk` (2 frame; SpongeBob 4, con il corpo che sale
+fra un passo e l'altro), `sleep`, `call`. SpongeBob ha anche `swing`, la
+medusa `flee`. Le «z» di chi dorme e il saltello di chi
 chiama sono CSS sulla classe della posa, non frame in più.
 
 ## Stati

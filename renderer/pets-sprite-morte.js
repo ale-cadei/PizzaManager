@@ -473,7 +473,8 @@
     morte: {
       speed: 0.7,
       motion: 'swim',
-      palette: { a: '#050307', b: '#141018', c: '#2A2430', d: '#000000', e: '#EFE8D6', f: '#B5AB96', g: '#8CFF9E', h: '#2F6B3C', i: '#7A5230', j: '#D3DAE4', k: '#8A94A3' },
+      // Veste (b, c) schiarita rispetto al pacchetto: sul terminale scuro spariva
+      palette: { a: '#050307', b: '#262030', c: '#403850', d: '#000000', e: '#EFE8D6', f: '#B5AB96', g: '#8CFF9E', h: '#2F6B3C', i: '#7A5230', j: '#D3DAE4', k: '#8A94A3' },
       frames: {
         walk: [MORTE_FLUTTUA_1, MORTE_FLUTTUA_2, MORTE_FLUTTUA_3, MORTE_FLUTTUA_4],
         sleep: [MORTE_OCCHI_SPENTI],

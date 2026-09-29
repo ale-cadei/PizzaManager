@@ -144,3 +144,37 @@ test('isTyping: tasti, frecce e incolla sono input', () => {
     assert.strictEqual(isTyping(d), true, JSON.stringify(d));
   }
 });
+
+test('il ripristino all\'avvio: il ridisegno della sessione riattaccata non la accende', () => {
+  const c = clock();
+  const att = createAttention({ now: c.now });
+  att.born('a');                   // scheda appena nata o riattaccata a tmux
+  // tmux ridisegna lo schermo, claude --resume riscrive la conversazione:
+  // tanta roba e per secondi, ma nessun lavoro nuovo.
+  assert.equal(raffica(att, 'a', c, { bytes: 20000, durata: 4000 }), false);
+  assert.equal(att.isFlagged('a'), false);
+});
+
+test('il bell dell\'avvio non accende la scheda ripristinata', () => {
+  const c = clock();
+  const att = createAttention({ now: c.now });
+  att.born('a');
+  assert.equal(att.bell('a'), false);
+});
+
+test('dopo l\'avvio, un lavoro vero si segnala come sempre', () => {
+  const c = clock();
+  const att = createAttention({ now: c.now });
+  att.born('a');
+  raffica(att, 'a', c, { bytes: 20000, durata: 4000 });  // l'avvio
+  c.avanza(10000);
+  assert.equal(raffica(att, 'a', c), true);
+});
+
+test('se l\'utente scrive durante l\'avvio, la risposta si segnala', () => {
+  const c = clock();
+  const att = createAttention({ now: c.now });
+  att.born('a');
+  att.typed('a');
+  assert.equal(raffica(att, 'a', c, { bytes: 200, durata: 100 }), true);
+});

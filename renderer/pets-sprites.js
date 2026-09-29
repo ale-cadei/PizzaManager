@@ -84,26 +84,26 @@
   const JELLY_FLEE = patch(JELLY, { 5: 'dd.dd.dd..', 6: '.dd.dd.dd.', 7: '..........' });
   const JELLY_FLEE_STEP = patch(JELLY, { 5: '.dd.dd.dd.', 6: 'dd.dd.dd..', 7: '..........' });
 
-  // ---- Patrick ----
+  // ---- Patrick: due occhi strabici, sorriso largo, pantaloncini a fiori ----
   const STAR = [
-    '......pp......',
-    '.....pppp.....',
-    '.....pppp.....',
-    '....pwwwwp....',
-    '....pwkkwp....',
-    '...pppppppp...',
-    '...ppmmmmpp...',
-    'pppppppppppppp',
-    'pp..pppppp..pp',
-    '....pppppp....',
-    '...gggggggg...',
-    '...gvggggvg...',
-    '...ggggvggg...',
-    '...pp....pp...',
-    '..pp......pp..',
-    '..............',
+    '.......pp.......',
+    '......pppp......',
+    '......pppp......',
+    '.....pppppp.....',
+    '.....pppppp.....',
+    '....pwwppwwp....',
+    '....pwkppkwp....',
+    '....pppppppp....',
+    '...ppmppppmpp...',
+    'ppppppmmmmpppppp',
+    'pp.pppppppppp.pp',
+    '....pppdpppp....',
+    '....gggggggg....',
+    '...gvggggggvg...',
+    '...gggg..gggg...',
+    '...ppp....ppp...',
   ];
-  const STAR_STEP = patch(STAR, { 13: '....pp..pp....', 14: '....pp..pp....' });
+  const STAR_STEP = patch(STAR, { 10: '.pppppppppppppp.', 15: '....ppp..ppp....' });
 
   // ---- Gary ----
   const SNAIL = [
@@ -253,11 +253,12 @@
     patrick: {
       speed: 0.6,
       motion: 'walk',
-      palette: { p: '#F4A3B5', w: '#FFFFFF', k: '#1A1A1A', m: '#7A1F1F', g: '#7BC25A', v: '#9B59B6' },
+      palette: { p: '#F4A3B5', d: '#D9748C', w: '#FFFFFF', k: '#1A1A1A', m: '#7A1F1F', g: '#7BC25A', v: '#9B59B6' },
       frames: {
         walk: [STAR, STAR_STEP],
-        sleep: [patch(STAR, { 3: '....pppppp....', 4: '....pkkkkp....' })],
-        call: [patch(STAR, { 5: 'p..pppppppp..p', 6: 'pp.ppmmmmpp.pp', 7: '...pppppppp...', 8: '....pppppp....' })],
+        sleep: [patch(STAR, { 5: '....pppppppp....', 6: '....pkkppkkp....', 8: '...pppppppppp...', 9: 'pppppppmmppppppp' })],
+        // Braccia alzate e bocca aperta
+        call: [patch(STAR, { 7: 'pp..pppppppp..pp', 8: '.ppppmppppmpppp.', 9: '....ppmmmmpp....', 10: '....pppmmppp....' })],
       },
     },
     gary: {

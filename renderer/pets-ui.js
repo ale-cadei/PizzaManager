@@ -70,7 +70,7 @@
         const n = countOf(draft.cast, id);
         count.textContent = String(n);
         minus.disabled = n === 0;
-        plus.disabled = Config.castCount(draft.cast) + Sprites.CAST[id].length > Config.MAX_PETS;
+        plus.disabled = draft.cast.length >= Config.MAX_CAST;
       };
       return { row, paint };
     }
@@ -90,7 +90,7 @@
       );
       refresh = () => {
         rows.forEach((r) => r.paint());
-        total.textContent = `${Config.castCount(draft.cast)} su ${Config.MAX_PETS} personaggi`;
+        total.textContent = `Scelti: ${draft.cast.length} su ${Config.MAX_CAST}`;
       };
       refresh();
     }

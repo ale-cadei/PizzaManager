@@ -2,7 +2,7 @@
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
 const { createPetsDialog } = require('../renderer/pets-ui');
-const { createPetsStore, DEFAULTS, MAX_PETS } = require('../renderer/pets-config');
+const { createPetsStore, DEFAULTS, MAX_CAST } = require('../renderer/pets-config');
 const { createElement, createStorage, descendants, fire } = require('./fake-dom');
 
 function setup(initial) {
@@ -52,16 +52,17 @@ ok('pets-ui: ogni ritocco si vede subito nella striscia', () => {
 });
 
 ok('pets-ui: il + si spegne quando non c è più posto', () => {
-  const s = setup({ cast: ['inseguimento', 'lumaca', 'lumaca'] });
+  const s = setup({ cast: ['inseguimento', 'stella', 'lumaca', 'gatto'] });
   s.dialog.open();
-  assert.strictEqual(s.stepBtn('inseguimento', 1).disabled, true, 'la coppia non ci sta in 1 posto');
-  assert.strictEqual(s.stepBtn('gatto', 1).disabled, false);
+  assert.strictEqual(s.stepBtn('pizza', 1).disabled, false, 'la quinta voce ci sta');
+  fire(s.stepBtn('pizza', 1), 'click', {});
+  assert.deepStrictEqual(s.last().cast, ['inseguimento', 'stella', 'lumaca', 'gatto', 'pizza']);
+  assert.ok(['inseguimento', 'stella', 'lumaca', 'gatto', 'pizza'].every((id) => s.stepBtn(id, 1).disabled), 'pieno: tutti i + spenti');
   fire(s.stepBtn('gatto', 1), 'click', {});
-  assert.strictEqual(s.stepBtn('gatto', 1).disabled, true);
-  fire(s.stepBtn('gatto', 1), 'click', {});
-  assert.strictEqual(s.last().cast.length, 4, 'oltre MAX_PETS non si va');
-  assert.ok(MAX_PETS === 5);
-  assert.strictEqual(s.stepBtn('stella', -1).disabled, true, 'sotto zero non si scende');
+  assert.strictEqual(s.last().cast.length, MAX_CAST, 'oltre MAX_CAST non si va');
+  fire(s.stepBtn('lumaca', -1), 'click', {});
+  assert.strictEqual(s.stepBtn('inseguimento', 1).disabled, false, 'tolta una voce, anche la coppia rientra');
+  assert.ok(descendants(s.els.body).some((n) => n.textContent === 'Scelti: 4 su 5'));
 });
 
 ok('pets-ui: Salva ricorda, Annulla ed Esc rimettono quello salvato', () => {

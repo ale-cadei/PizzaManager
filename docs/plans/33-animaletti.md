@@ -82,13 +82,14 @@ Precedenza: `attention` > `busy` > `sleep` > `idle`.
 ```js
 {
   enabled: false,
-  cast: ['inseguimento'],  // id dal catalogo, ripetibili; massimo MAX_PETS
+  cast: ['inseguimento'],  // id dal catalogo, ripetibili; massimo MAX_CAST
   size: 'm',               // 's' | 'm' | 'l'  → 24 / 32 / 48 px
   speed: 'normale',        // 'lenta' | 'normale' | 'veloce'
 }
 ```
 
-- `MAX_PETS = 5`, contando la coppia per due.
+- `MAX_CAST = 5` voci del dialogo; la coppia pescatore e medusa è una voce
+  (contarla due impediva di sceglierne una di ognuna).
 - Voci sconosciute scartate, valori fuori elenco → default, JSON rotto →
   default intero.
 
@@ -120,7 +121,7 @@ nessuno deve restare fuori dalla striscia.
     distanza minima fa `swing` e la medusa passa a `flee`; dopo N passi
     simulati la distanza non va mai a zero.
   - `moodOf`: tabella di precedenza.
-  - `sanitizeConfig`: JSON rotto, voci sconosciute, più di `MAX_PETS`,
+  - `sanitizeConfig`: JSON rotto, voci sconosciute, più di `MAX_CAST`,
     `size`/`speed` fuori elenco.
 - `tests/pets-sprites.test.js`: ogni sprite ha righe della stessa
   larghezza, ogni carattere ha un colore in palette, ogni personaggio ha i

@@ -15,23 +15,15 @@
   /** Altezza di riferimento in pixel (un personaggio alto GRID righe). */
   const SIZES = { s: 24, m: 32, l: 48 };
   const SPEEDS = { lenta: 0.5, normale: 1, veloce: 1.8 };
-  const MAX_PETS = 5;
+  /** Voci del dialogo, non personaggi: Il pescatore e la medusa sono una voce. */
+  const MAX_CAST = 5;
   const DEFAULTS = Object.freeze({ enabled: false, cast: Object.freeze(['inseguimento']), size: 'm', speed: 'normale' });
 
   const has = (obj, key) => typeof key === 'string' && Object.prototype.hasOwnProperty.call(obj, key);
-  const weight = (id) => Sprites.CAST[id].length;
-
-  /** Quanti personaggi fa un cast: la coppia pescatore e medusa conta due. */
-  function castCount(cast) {
-    return cast.reduce((n, id) => n + weight(id), 0);
-  }
-
-  /** Voci note, nell'ordine dato, finché ci stanno in MAX_PETS. */
+  /** Voci note, nell'ordine dato, fino a MAX_CAST. */
   function sanitizeCast(raw) {
     if (!Array.isArray(raw)) return [...DEFAULTS.cast];
-    return raw
-      .filter((id) => has(Sprites.CAST, id))
-      .reduce((acc, id) => (castCount(acc) + weight(id) <= MAX_PETS ? [...acc, id] : acc), []);
+    return raw.filter((id) => has(Sprites.CAST, id)).slice(0, MAX_CAST);
   }
 
   function parse(raw) {
@@ -65,5 +57,5 @@
     return { get: () => config, save };
   }
 
-  return { STORAGE_KEY, SIZES, SPEEDS, MAX_PETS, DEFAULTS, castCount, sanitizeConfig, createPetsStore };
+  return { STORAGE_KEY, SIZES, SPEEDS, MAX_CAST, DEFAULTS, sanitizeConfig, createPetsStore };
 });

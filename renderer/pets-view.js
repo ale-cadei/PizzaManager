@@ -144,12 +144,23 @@
       sync();
     }
 
+    /* La striscia cambia larghezza anche senza resize della finestra (la
+       sidebar si trascina): a ciclo fermo nessun tick li rimetterebbe dentro. */
+    function refit() {
+      if (!active()) return;
+      state = Pets.fit(state, width());
+      draw();
+    }
+
     win.addEventListener('blur', () => { focused = false; sync(); });
     win.addEventListener('focus', () => { focused = true; sync(); });
     doc.addEventListener('visibilitychange', sync);
+    if (win.ResizeObserver) new win.ResizeObserver(refit).observe(strip);
 
     return {
       apply,
+      /** Da richiamare quando cambia qualcosa che sync legge (es. meno movimento). */
+      refresh: sync,
       pause: () => { focused = false; sync(); },
       resume: () => { focused = true; sync(); },
       isRunning: () => handle !== null,

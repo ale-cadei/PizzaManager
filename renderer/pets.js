@@ -147,6 +147,9 @@
   /** Nessuno resta fuori se la striscia si è stretta. */
   const inside = (pet, ctx) => ({ ...pet, x: clamp(pet.x, 0, maxX(pet.kind, ctx.size, ctx.width)) });
 
+  /** Solo il rientro nei bordi, per quando la striscia cambia misura a ciclo fermo. */
+  const fit = (state, width) => ({ ...state, pets: state.pets.map((p) => inside(p, { size: state.size, width })) });
+
   /**
    * Un passo di simulazione.
    * @param {{size: number, pets: object[]}} state
@@ -173,5 +176,5 @@
     return { ...state, pets: moved };
   }
 
-  return { createPets, step, moodOf, frameIndex, petWidth, FRAME_MS, MAX_DT, SLEEP_AFTER_MS };
+  return { createPets, step, fit, moodOf, frameIndex, petWidth, FRAME_MS, MAX_DT, SLEEP_AFTER_MS };
 });

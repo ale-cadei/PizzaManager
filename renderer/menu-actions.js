@@ -56,6 +56,7 @@ function initPets() {
     caf: (id) => window.cancelAnimationFrame(id),
     reducedMotion: () => motion.matches,
   });
+  motion.addEventListener('change', () => petsView.refresh());
   applyPets(petsStore.get());
 }
 

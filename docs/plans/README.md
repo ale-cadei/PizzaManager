@@ -40,6 +40,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 29 | [`feat/plugin-skill`](29-plugin-skill.md) | — | ~½ g | fatto, da provare nell'app |
 | 30 | [`feat/plugin-skill-progetto`](30-plugin-skill-progetto.md) | 29 | ~½ h | fatto, da provare nell'app |
 | 31 | [`feat/git-branch-map-claude`](31-mappa-branch.md) | 25, 27 | ~1 g | fatto, da provare nell'app |
+| 33 | [`feat/animaletti`](33-animaletti.md) | — | ~1 g | pianificato |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

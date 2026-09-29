@@ -51,9 +51,9 @@
   const FLY = { base: 1, ampl: 0.3, hz: 0.5 };
   const SWIM = { base: 0.22, ampl: 0.15, hz: 0.6 };
 
-  /** Larghezza in pixel: le colonne del disegno, a pixel di size / GRID. */
+  /** Larghezza in pixel: le colonne del disegno per il lato del pixel (Sprites.pixel). */
   function petWidth(kind, size) {
-    return (Sprites.dims(kind).cols * size) / Sprites.GRID;
+    return Sprites.dims(kind).cols * Sprites.pixel(kind, size);
   }
 
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));

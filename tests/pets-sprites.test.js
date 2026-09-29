@@ -1,7 +1,7 @@
 // renderer/pets-sprites.js: i disegni dei personaggi come griglie di caratteri
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
-const { SPRITES, CAST, CAST_LABELS, REQUIRED_POSES, EXTRA_POSES, MOTIONS, toRects } = require('../renderer/pets-sprites');
+const { SPRITES, CAST, CAST_LABELS, REQUIRED_POSES, EXTRA_POSES, MOTIONS, GRID, dims, pixel, toRects } = require('../renderer/pets-sprites');
 
 const allFrames = (sprite) => Object.values(sprite.frames).flat();
 
@@ -60,4 +60,19 @@ ok('sprites: toRects fonde i pixel uguali contigui e salta i trasparenti', () =>
     { x: 2, y: 0, w: 1, fill: '#222' },
     { x: 1, y: 1, w: 2, fill: '#222' },
   ]);
+});
+
+ok('sprites: nessuno supera l\'altezza scelta; chi sta nelle GRID righe tiene il pixel di riferimento', () => {
+  const size = 48;
+  for (const kind of Object.keys(SPRITES)) {
+    const { rows } = dims(kind);
+    assert.ok(rows * pixel(kind, size) <= size + 1e-9, `${kind}: alto ${rows * pixel(kind, size)} su ${size}`);
+    const { height } = SPRITES[kind];
+    if (height) assert.ok(Math.abs(rows * pixel(kind, size) - size * height) < 1e-9, `${kind}: alto ${rows * pixel(kind, size)} invece di ${size * height}`);
+    else if (rows <= GRID) assert.strictEqual(pixel(kind, size), size / GRID, `${kind}: pixel cambiato`);
+  }
+});
+
+ok('sprites: la medusa è più bassa del pescatore', () => {
+  assert.ok(dims('medusa').rows * pixel('medusa', 48) <= dims('pescatore').rows * pixel('pescatore', 48) * 0.6);
 });

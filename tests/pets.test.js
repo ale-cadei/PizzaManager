@@ -55,6 +55,18 @@ ok('pets: nessuno esce dalla striscia, nemmeno quando la finestra si stringe', (
   }
 });
 
+ok('pets: fit rimette dentro chi è rimasto fuori, senza muovere né cambiare posa agli altri', () => {
+  const state = deepFreeze(run(createPets({ cast: ['inseguimento', 'gatto'], width: WIDTH, size: SIZE, random: seeded(5) }), 100, { mood: 'sleep' }));
+  const narrow = 200;
+  const next = Pets.fit(state, narrow);
+  next.pets.forEach((p, i) => {
+    const was = state.pets[i];
+    assert.strictEqual(p.x, Math.min(was.x, narrow - petWidth(p.kind, SIZE)), `${p.kind} spostato male`);
+    assert.strictEqual(p.pose, 'sleep');
+    assert.strictEqual(p.anim, was.anim);
+  });
+});
+
 ok('pets: un dt enorme (scheda tornata in primo piano) non teletrasporta', () => {
   const state = createPets({ cast: ['gatto'], width: WIDTH, size: SIZE, random: () => 0.5 });
   const next = step(state, { dt: 60000, width: WIDTH, mood: 'idle', random: never });

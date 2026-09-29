@@ -38,6 +38,10 @@ Spento di default. Si accende e si regola da `Vista › Animaletti…`.
 - **Impostazioni in `localStorage`**, come `term-font.js` e `type-colors.js`:
   sono preferenze di UI, non dati da far sopravvivere fuori dall'app. Il
   valore letto è input esterno: si valida e, se non torna, si usa il default.
+- **Altezza: un pixel del disegno vale `size / GRID` (16 righe)**, così i
+  piccoli restano piccoli; chi ha più righe si rimpicciolisce per stare in
+  `size`. Un disegno può fissare `height` (frazione di `size`) per le
+  proporzioni: medusa 0.5 e rana 0.4 (`Sprites.pixel`).
 - **Pausa sempre, non opzione**: con la finestra nascosta o senza fuoco il
   ciclo si ferma (`visibilitychange`, `blur`/`focus`). Con
   `prefers-reduced-motion: reduce` i personaggi stanno fermi al loro posto.
@@ -66,8 +70,9 @@ una direzione sua: punta la medusa e tiene una distanza minima. La medusa
 fugge verso il lato con più spazio; messa all'angolo si alza e gli passa
 sopra. Il retino non la prende mai.
 
-Frame per personaggio: `walk` (2 frame), `sleep`, `call`. Il pescatore ha
-anche `swing`, la medusa `flee`. Le «z» di chi dorme e il saltello di chi
+Frame per personaggio: `walk` (2 frame; il pescatore 4, con il corpo che sale
+fra un passo e l'altro), `sleep`, `call`. Il pescatore ha anche `swing`, la
+medusa `flee`. Le «z» di chi dorme e il saltello di chi
 chiama sono CSS sulla classe della posa, non frame in più.
 
 ## Stati

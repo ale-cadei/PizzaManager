@@ -3,6 +3,7 @@ const assert = require('node:assert');
 const { test: ok } = require('node:test');
 const { DEFAULTS, MAX_CAST, sanitizeConfig, createPetsStore, STORAGE_KEY } = require('../renderer/pets-config');
 const { createStorage } = require('./fake-dom');
+const { CAST } = require('../renderer/pets-sprites');
 
 ok('pets-config: spenti di default, con il pescatore e la medusa', () => {
   assert.deepStrictEqual(DEFAULTS, { enabled: false, cast: ['inseguimento'], size: 'm', speed: 'normale' });
@@ -22,8 +23,8 @@ ok('pets-config: tiene i campi validi e rimette gli altri al default', () => {
 });
 
 ok('pets-config: il limite conta le voci del dialogo, la coppia vale una', () => {
-  assert.strictEqual(MAX_CAST, 5);
-  const oneEach = ['inseguimento', 'stella', 'lumaca', 'gatto', 'pizza'];
+  const oneEach = Object.keys(CAST);
+  assert.strictEqual(MAX_CAST, oneEach.length);
   assert.deepStrictEqual(sanitizeConfig({ cast: oneEach }).cast, oneEach, 'uno di ognuno ci deve stare');
   assert.deepStrictEqual(sanitizeConfig({ cast: [...oneEach, 'gatto', 'inseguimento'] }).cast, oneEach, 'oltre MAX_CAST si tronca dalla fine');
 });

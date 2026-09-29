@@ -52,6 +52,13 @@ Spento di default. Si accende e si regola da `Vista › Animaletti…`.
 | `lumaca` | Lumaca | Lumaca: lentissimo |
 | `gatto` | Gatto | Cammina |
 | `pizza` | Fetta di pizza | Fetta con gambine (riusa la palette di `pizza-slice.js`) |
+| `rana` | Rana | Salta (`motion: 'hop'`): avanza solo in aria, posa `jump` |
+| `uccellino` | Uccellino | Vola sopra la striscia (`fly`); per dormire o chiamare si posa |
+| `pesce` | Pesce | Nuota ondeggiando appena sopra il fondo (`swim`) |
+
+Rana, uccellino e pesce aggiunti su richiesta dell'utente dopo il primo
+giro. Il modo di muoversi è un campo del disegno (`motion`), e il motore
+ha una funzione per ognuno (`MOVES` in `pets.js`).
 
 **La coppia pescatore + medusa** si sceglie come una voce sola, «il pescatore
 e la medusa» (`inseguimento`): sono due personaggi legati. Il pescatore non ha
@@ -88,7 +95,7 @@ Precedenza: `attention` > `busy` > `sleep` > `idle`.
 }
 ```
 
-- `MAX_CAST = 5` voci del dialogo; la coppia pescatore e medusa è una voce
+- `MAX_CAST = 8` voci del dialogo, una per ognuna; la coppia pescatore e medusa è una voce
   (contarla due impediva di sceglierne una di ognuna).
 - Voci sconosciute scartate, valori fuori elenco → default, JSON rotto →
   default intero.
@@ -138,6 +145,7 @@ nessuno deve restare fuori dalla striscia.
   localStorage), `pets.js` (motore, inseguimento, umori), `pets-view.js`
   (striscia e ciclo rAF), `pets-ui.js` (dialogo), stili in `styles.css`.
 - Voce «Animaletti…» nel menu View, nativo e in-app (`menu-pets`).
+- Rana, uccellino e pesce, con `motion` per disegno.
 - Test: `tests/pets-*.test.js`, compreso il retino che in 20 000 passi non
   prende mai la medusa.
 - Provato in Electron (xvfb, dati e socket tmux in una tmpdir): la striscia

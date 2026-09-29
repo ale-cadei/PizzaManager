@@ -16,7 +16,7 @@
 (function (root, factory) {
   const api = root
     ? factory(root.AisessPetsPack)
-    : factory(Object.assign({}, ...['pizza', 'fizzo', 'rotolacampo', 'babbo', 'morte', 'zucca'].map((k) => require(`./pets-sprite-${k}`))));
+    : factory(Object.assign({}, ...['pizza', 'fizzo', 'rotolacampo', 'babbo', 'morte', 'zucca', 'fantasmino'].map((k) => require(`./pets-sprite-${k}`))));
   if (root) root.AisessPetsSprites = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : null, function (pack) {
@@ -486,6 +486,7 @@
     babbo: ['babbo'],
     morte: ['morte'],
     zucca: ['zucca'],
+    fantasmino: ['fantasmino'],
   };
   const CAST_LABELS = {
     inseguimento: 'SpongeBob e la medusa',
@@ -501,6 +502,7 @@
     babbo: 'Babbo Natale',
     morte: 'La Morte',
     zucca: 'Zucco, la zucca',
+    fantasmino: 'Fantasmino',
   };
 
   /** Colonne e righe di un personaggio (tutti i suoi frame hanno la stessa misura). */

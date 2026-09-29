@@ -5,6 +5,8 @@
  * Così un disegno si legge e si ritocca qui, senza file esterni, e la pagina
  * lo costruisce con createElementNS (niente innerHTML, CSP invariata).
  * Guardano tutti a destra: chi va a sinistra lo specchia la vista.
+ * I personaggi del pacchetto «Sprite pixel-art originale» stanno nei file
+ * pets-sprite-*.js (generati) e si fondono qui nel catalogo.
  *
  * I personaggi di SpongeBob sono di Nickelodeon/Paramount; tenerli qui è una
  * scelta presa sapendolo (piano 33). Per toglierli basta togliere le voci:
@@ -12,10 +14,12 @@
  *
  * Wrapper UMD come gli altri moduli del renderer. */
 (function (root, factory) {
-  const api = factory();
+  const api = root
+    ? factory(root.AisessPetsPack)
+    : factory(Object.assign({}, ...['pizza', 'fizzo', 'rotolacampo', 'babbo'].map((k) => require(`./pets-sprite-${k}`))));
   if (root) root.AisessPetsSprites = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-})(typeof window !== 'undefined' ? window : null, function () {
+})(typeof window !== 'undefined' ? window : null, function (pack) {
   /** Righe di riferimento: un pixel vale size / GRID, così i piccoli restano
    *  piccoli; un disegno più alto si rimpicciolisce per stare in size (pixel). */
   const GRID = 16;
@@ -300,25 +304,6 @@
   ];
   const CAT_STEP = patch(CAT, { 8: '...o.o..o.o...', 9: '...o.o..o.o...' });
 
-  // ---- Fetta di pizza, colori di pizza-slice.js ----
-  const SLICE = [
-    '.....yy.....',
-    '.....yy.....',
-    '....yyyy....',
-    '....yryy....',
-    '...yyyyyy...',
-    '...ykyyky...',
-    '..yyyyyyyy..',
-    '..yyykkyyy..',
-    '.yryyyyyyry.',
-    '.yyyyyyyyyy.',
-    'cccccccccccc',
-    '.cccccccccc.',
-    '...d....d...',
-    '..dd...dd...',
-  ];
-  const SLICE_STEP = patch(SLICE, { 12: '..d......d..', 13: '.dd.....dd..' });
-
   // ---- Rana: seduta, e in salto con le zampe distese dietro ----
   const FROG = [
     '..............',
@@ -449,17 +434,7 @@
         call: [CAT],
       },
     },
-    pizza: {
-      speed: 0.8,
-      motion: 'walk',
-      palette: { y: '#F5C45A', r: '#E2412A', c: '#E7A33C', k: '#1A1A1A', d: '#6B3E1E' },
-      frames: {
-        walk: [SLICE, SLICE_STEP],
-        sleep: [patch(SLICE, { 5: '...ydyydy...' })],
-        call: [patch(SLICE, { 7: '..yykkkkyy..' })],
-      },
-    },
-    // In aria va più svelta della fetta, ma metà del tempo sta seduta
+    // In aria va più svelta della pizza, ma metà del tempo sta seduta
     rana: {
       speed: 1.6,
       motion: 'hop',
@@ -492,6 +467,7 @@
         call: [patch(FISH, { 0: '.....ooo...e', 1: 'o..oooowooe.' })],
       },
     },
+    ...pack,
   };
   const MOTIONS = ['walk', 'hop', 'fly', 'swim'];
 
@@ -505,16 +481,22 @@
     rana: ['rana'],
     uccellino: ['uccellino'],
     pesce: ['pesce'],
+    fizzo: ['fizzo'],
+    rotolacampo: ['rotolacampo'],
+    babbo: ['babbo'],
   };
   const CAST_LABELS = {
     inseguimento: 'SpongeBob e la medusa',
     patrick: 'Patrick',
     gary: 'Gary',
     gatto: 'Gatto',
-    pizza: 'Fetta di pizza',
+    pizza: 'Peppo, la pizza',
     rana: 'Rana',
     uccellino: 'Uccellino',
     pesce: 'Pesce',
+    fizzo: 'Fizzo, la bibita',
+    rotolacampo: 'Rotolacampo',
+    babbo: 'Babbo Natale',
   };
 
   /** Colonne e righe di un personaggio (tutti i suoi frame hanno la stessa misura). */

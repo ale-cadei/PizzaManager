@@ -167,6 +167,52 @@ ok('pets: il retino non la prende mai (3000 passi, a ogni velocità e larghezza)
   }
 });
 
+ok('pets: la rana salta, e avanza solo mentre è in aria', () => {
+  let state = createPets({ cast: ['rana'], width: WIDTH, size: SIZE, random: () => 0.5 });
+  let jumps = 0;
+  let top = 0;
+  for (let i = 0; i < 500; i += 1) {
+    const next = step(state, { dt: 16, width: WIDTH, random: never });
+    const [before, frog] = [state.pets[0], next.pets[0]];
+    assert.ok(frog.y >= 0, `sotto terra: ${frog.y}`);
+    if (frog.pose === 'jump') { jumps += 1; top = Math.max(top, frog.y); }
+    else assert.strictEqual(frog.x, before.x, 'seduta non si sposta');
+    state = next;
+  }
+  assert.ok(jumps > 50 && jumps < 450, `salti: ${jumps} su 500`);
+  assert.ok(top > SIZE / 3, `salti troppo bassi: ${top}`);
+});
+
+ok('pets: l uccellino vola sopra la striscia, e per dormire o chiamare si posa', () => {
+  let state = createPets({ cast: ['uccellino'], width: WIDTH, size: SIZE, random: () => 0.5 });
+  const heights = new Set();
+  for (let i = 0; i < 300; i += 1) {
+    state = step(state, { dt: 16, width: WIDTH, random: never });
+    const bird = state.pets[0];
+    assert.ok(bird.y >= SIZE / 2 && bird.y <= SIZE * 1.5, `quota fuori: ${bird.y}`);
+    heights.add(Math.round(bird.y));
+  }
+  assert.ok(heights.size > 5, 'vola sempre alla stessa quota');
+  const asleep = step(state, { dt: 16, width: WIDTH, mood: 'sleep', random: never }).pets[0];
+  assert.deepStrictEqual([asleep.y, asleep.pose], [0, 'sleep']);
+  const calling = step(state, { dt: 16, width: WIDTH, mood: 'attention', random: never }).pets[0];
+  assert.deepStrictEqual([calling.y, calling.pose], [0, 'call']);
+});
+
+ok('pets: il pesce nuota ondeggiando appena sopra il fondo', () => {
+  let state = createPets({ cast: ['pesce'], width: WIDTH, size: SIZE, random: () => 0.5 });
+  const heights = new Set();
+  for (let i = 0; i < 300; i += 1) {
+    const next = step(state, { dt: 16, width: WIDTH, random: never });
+    const fish = next.pets[0];
+    assert.ok(fish.y >= 0 && fish.y <= SIZE / 2, `quota fuori: ${fish.y}`);
+    assert.notStrictEqual(fish.x, state.pets[0].x, 'fermo');
+    heights.add(Math.round(fish.y));
+    state = next;
+  }
+  assert.ok(heights.size > 3, 'nuota piatto');
+});
+
 ok('pets: moodOf, chi aspetta vince su chi lavora, e il sonno arriva dopo SLEEP_AFTER_MS', () => {
   assert.strictEqual(moodOf({ running: true, attention: true, idleMs: 0 }), 'attention');
   assert.strictEqual(moodOf({ running: true, attention: false, idleMs: SLEEP_AFTER_MS * 2 }), 'busy');

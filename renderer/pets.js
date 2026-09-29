@@ -11,6 +11,10 @@
  * se se lo trova addosso, si alza (lift) e gli passa sopra: il retino non la
  * prende mai, ed è una regola verificata nei test.
  *
+ * Chi non cammina (MOVES): la rana salta e avanza solo in aria, l'uccellino
+ * vola sopra la striscia e si posa per dormire o chiamare, il pesce nuota
+ * ondeggiando appena sopra il fondo.
+ *
  * Stato immutabile: step() restituisce oggetti nuovi.
  *
  * Wrapper UMD come gli altri moduli del renderer. */
@@ -40,6 +44,12 @@
   const BOB_HZ = 0.8;
   /** Quanto in fretta la medusa ridiscende dopo il salto, misure al secondo. */
   const LIFT_FALL = 2;
+  /** Rana: salti al secondo e altezza in misure. Sta in aria metà del tempo. */
+  const HOP_HZ = 1.2;
+  const HOP_HEIGHT = 0.6;
+  /** Uccellino e pesce: quota media, ampiezza dell'ondeggio (misure), giri al secondo. */
+  const FLY = { base: 1, ampl: 0.3, hz: 0.5 };
+  const SWIM = { base: 0.22, ampl: 0.15, hz: 0.6 };
 
   /** Larghezza in pixel: le colonne del disegno, a pixel di size / GRID. */
   function petWidth(kind, size) {
@@ -96,9 +106,36 @@
     return { ...pet, x };
   }
 
+  const advance = (pet, hz, ctx) => (pet.phase + ctx.s * ctx.mult * hz * Math.PI * 2) % (Math.PI * 2);
+  const wave = ({ base, ampl, hz }) => (pet, ctx) => {
+    const phase = advance(pet, hz, ctx);
+    return { ...pet, phase, y: (base + Math.sin(phase) * ampl) * ctx.size };
+  };
+
+  /** Quota e posa secondo il modo di muoversi (pets-sprites.js MOTIONS). */
+  const MOVES = {
+    walk: (pet) => pet,
+    hop(pet, ctx) {
+      const phase = advance(pet, HOP_HZ, ctx);
+      const up = Math.sin(phase);
+      return up > 0
+        ? { ...pet, phase, y: up * HOP_HEIGHT * ctx.size, pose: 'jump' }
+        : { ...pet, phase, y: 0 };
+    },
+    fly: wave(FLY),
+    swim: wave(SWIM),
+  };
+
+  /** Chi salta o vola, per dormire o chiamare, scende a terra. */
+  const landed = (pet) => (['hop', 'fly'].includes(Sprites.SPRITES[pet.kind].motion) ? { ...pet, y: 0 } : pet);
+
   function wander(pet, ctx) {
+    const sprite = Sprites.SPRITES[pet.kind];
     const turned = ctx.random() < TURN_PER_S * ctx.s ? { ...pet, dir: -pet.dir } : pet;
-    return walk({ ...turned, pose: 'walk' }, Sprites.SPRITES[pet.kind].speed, ctx);
+    const moved = MOVES[sprite.motion]({ ...turned, pose: 'walk' }, ctx);
+    // La rana seduta non avanza
+    const v = sprite.motion === 'hop' && moved.pose !== 'jump' ? 0 : sprite.speed;
+    return walk(moved, v, ctx);
   }
 
   function chase(sponge, jelly, ctx) {
@@ -160,14 +197,14 @@
     const s = Math.min(Math.max(dt, 0), MAX_DT) / 1000;
     const ctx = { size: state.size, width, s, random, mult: speed * (mood === 'busy' ? BUSY_FACTOR : 1) };
     const pets = state.pets.map((p) => inside(p, ctx));
-    if (mood === 'sleep') return { ...state, pets: pets.map((p) => ({ ...p, pose: 'sleep' })) };
+    if (mood === 'sleep') return { ...state, pets: pets.map((p) => ({ ...landed(p), pose: 'sleep' })) };
 
     const caller = mood === 'attention' ? callerOf(pets, ctx) : null;
     const byKey = new Map(pets.map((p) => [p.key, p]));
     const mateOf = (p) => (p.mate ? byKey.get(p.mate) : null);
     const moved = pets.map((p) => {
       const anim = p.anim + s * 1000 * ctx.mult;
-      if (caller && p.key === caller.key) return { ...p, anim, pose: 'call' };
+      if (caller && p.key === caller.key) return { ...landed(p), anim, pose: 'call' };
       const mate = mateOf(p);
       if (p.kind === 'spongebob' && mate) return { ...chase(p, mate, ctx), anim };
       if (p.kind === 'medusa' && mate) return { ...flee(p, mate, ctx), anim };

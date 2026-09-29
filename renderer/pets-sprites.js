@@ -20,7 +20,7 @@
   const GRID = 16;
 
   const REQUIRED_POSES = ['walk', 'sleep', 'call'];
-  const EXTRA_POSES = { spongebob: ['swing'], medusa: ['flee'] };
+  const EXTRA_POSES = { spongebob: ['swing'], medusa: ['flee'], rana: ['jump'] };
 
   /** Copia di un frame con alcune righe sostituite: i frame differiscono per poco. */
   const patch = (base, rows) => base.map((row, i) => (rows[i] === undefined ? row : rows[i]));
@@ -154,10 +154,83 @@
   ];
   const SLICE_STEP = patch(SLICE, { 12: '..d......d..', 13: '.dd.....dd..' });
 
-  /** speed: misure del personaggio al secondo, a velocità «normale». */
+  // ---- Rana: seduta, e in salto con le zampe distese dietro ----
+  const FROG = [
+    '..............',
+    '.........gg...',
+    '........gwkg..',
+    '....ggggggggg.',
+    '...ggggggggggg',
+    '..gggggggmmmm.',
+    '.ggllllllllgg.',
+    '.gggglllllgg..',
+    'gg..gg...gg...',
+    'ggg.ggg..ggg..',
+  ];
+  const FROG_JUMP = patch(FROG, {
+    0: '.........gg...',
+    1: '........gwkg..',
+    2: '....ggggggggg.',
+    3: '...ggggggggggg',
+    4: '..gggggggmmmm.',
+    5: 'gggllllllllgg.',
+    6: 'gg.gglllllg...',
+    7: 'g.........gg..',
+    8: '..............',
+    9: '..............',
+  });
+
+  // ---- Uccellino: ali su, ali giù; posato ha le zampe ----
+  const BIRD_UP = [
+    '..ww......',
+    '..www..bb.',
+    '...wwbbkbo',
+    'tbbbbbbbb.',
+    '.tbbbllll.',
+    '..bbllll..',
+    '..........',
+    '..........',
+  ];
+  const BIRD_DOWN = patch(BIRD_UP, {
+    0: '..........',
+    1: '.......bb.',
+    2: '.....bbkbo',
+    4: '.tbwwwlll.',
+    5: '..bwwwll..',
+    6: '...ww.....',
+  });
+  const BIRD_PERCHED = patch(BIRD_UP, {
+    0: '..........',
+    1: '.......bb.',
+    2: '.....bbkbo',
+    6: '....o.o...',
+    7: '...oo.oo..',
+  });
+
+  // ---- Pesce: la coda batte ----
+  const FISH = [
+    '.....ooo....',
+    'o..oooowooo.',
+    'oo.oooowooko',
+    'ooooooowoooo',
+    'oo.oooowooo.',
+    'o..oooowoo..',
+    '.....ooo....',
+    '............',
+  ];
+  const FISH_STEP = patch(FISH, {
+    1: '...oooowooo.',
+    2: 'o..oooowooko',
+    4: 'o..oooowooo.',
+    5: '...oooowoo..',
+  });
+
+  /** speed: misure del personaggio al secondo, a velocità «normale».
+   *  motion: come si muove (pets.js MOTIONS): cammina, salta, vola, nuota. */
   const SPRITES = {
     spongebob: {
       speed: 1.3,
+      motion: 'walk',
       palette: { y: '#F7E03C', o: '#C9B02A', w: '#FFFFFF', b: '#3B8FD9', k: '#1A1A1A', m: '#7A1F1F', r: '#E2412A', n: '#8B5A2B', g: '#B07A3C', e: '#D8ECF4' },
       frames: {
         walk: [SPONGE, SPONGE_STEP],
@@ -168,6 +241,7 @@
     },
     medusa: {
       speed: 0.9,
+      motion: 'walk',
       palette: { p: '#F28DB2', l: '#FBC6DA', d: '#C2557F' },
       frames: {
         walk: [JELLY, JELLY_STEP],
@@ -178,6 +252,7 @@
     },
     patrick: {
       speed: 0.6,
+      motion: 'walk',
       palette: { p: '#F4A3B5', w: '#FFFFFF', k: '#1A1A1A', m: '#7A1F1F', g: '#7BC25A', v: '#9B59B6' },
       frames: {
         walk: [STAR, STAR_STEP],
@@ -187,6 +262,7 @@
     },
     gary: {
       speed: 0.15,
+      motion: 'walk',
       palette: { s: '#E8759A', c: '#A8406A', b: '#8FD3E8', e: '#F3E36A' },
       frames: {
         walk: [SNAIL, SNAIL_STEP],
@@ -196,6 +272,7 @@
     },
     gatto: {
       speed: 1,
+      motion: 'walk',
       palette: { o: '#E8963C', d: '#A85E1E', g: '#7BC25A', p: '#F4A3B5' },
       frames: {
         walk: [CAT, CAT_STEP],
@@ -205,6 +282,7 @@
     },
     pizza: {
       speed: 0.8,
+      motion: 'walk',
       palette: { y: '#F5C45A', r: '#E2412A', c: '#E7A33C', k: '#1A1A1A', d: '#6B3E1E' },
       frames: {
         walk: [SLICE, SLICE_STEP],
@@ -212,7 +290,40 @@
         call: [patch(SLICE, { 7: '..yykkkkyy..' })],
       },
     },
+    // In aria va più svelta della fetta, ma metà del tempo sta seduta
+    rana: {
+      speed: 1.6,
+      motion: 'hop',
+      palette: { g: '#5DBB4A', l: '#C8E88A', w: '#FFFFFF', k: '#1A1A1A', m: '#2E6B2A' },
+      frames: {
+        walk: [FROG, FROG],
+        jump: [FROG_JUMP],
+        sleep: [patch(FROG, { 2: '........gkkg..' })],
+        call: [patch(FROG, { 5: '..gggggggg....', 6: '.gglllllllmmm.', 7: '.gggglllllmm..' })],
+      },
+    },
+    uccellino: {
+      speed: 1.1,
+      motion: 'fly',
+      palette: { b: '#4FA3E0', w: '#2F77B8', t: '#2F77B8', l: '#F3E9C8', k: '#1A1A1A', o: '#F29B30' },
+      frames: {
+        walk: [BIRD_UP, BIRD_DOWN],
+        sleep: [patch(BIRD_PERCHED, { 2: '.....bbbbo' })],
+        call: [patch(BIRD_PERCHED, { 1: '.......bbo', 2: '.....bbkb.', 3: 'tbbbbbbbbo' })],
+      },
+    },
+    pesce: {
+      speed: 0.7,
+      motion: 'swim',
+      palette: { o: '#F2833A', w: '#FFFFFF', k: '#1A1A1A', e: '#BFE6F5' },
+      frames: {
+        walk: [FISH, FISH_STEP],
+        sleep: [patch(FISH, { 2: 'oo.oooowoooo' })],
+        call: [patch(FISH, { 0: '.....ooo...e', 1: 'o..oooowooe.' })],
+      },
+    },
   };
+  const MOTIONS = ['walk', 'hop', 'fly', 'swim'];
 
   /** Voci che si scelgono nelle impostazioni: SpongeBob e la medusa vanno insieme. */
   const CAST = {
@@ -221,6 +332,9 @@
     gary: ['gary'],
     gatto: ['gatto'],
     pizza: ['pizza'],
+    rana: ['rana'],
+    uccellino: ['uccellino'],
+    pesce: ['pesce'],
   };
   const CAST_LABELS = {
     inseguimento: 'SpongeBob e la medusa',
@@ -228,6 +342,9 @@
     gary: 'Gary',
     gatto: 'Gatto',
     pizza: 'Fetta di pizza',
+    rana: 'Rana',
+    uccellino: 'Uccellino',
+    pesce: 'Pesce',
   };
 
   /** Colonne e righe di un personaggio (tutti i suoi frame hanno la stessa misura). */
@@ -256,5 +373,5 @@
     return rects;
   }
 
-  return { SPRITES, CAST, CAST_LABELS, REQUIRED_POSES, EXTRA_POSES, GRID, dims, toRects };
+  return { SPRITES, CAST, CAST_LABELS, REQUIRED_POSES, EXTRA_POSES, MOTIONS, GRID, dims, toRects };
 });

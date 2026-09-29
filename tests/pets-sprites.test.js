@@ -1,7 +1,7 @@
 // renderer/pets-sprites.js: i disegni dei personaggi come griglie di caratteri
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
-const { SPRITES, CAST, CAST_LABELS, REQUIRED_POSES, EXTRA_POSES, toRects } = require('../renderer/pets-sprites');
+const { SPRITES, CAST, CAST_LABELS, REQUIRED_POSES, EXTRA_POSES, MOTIONS, toRects } = require('../renderer/pets-sprites');
 
 const allFrames = (sprite) => Object.values(sprite.frames).flat();
 
@@ -35,6 +35,14 @@ ok('sprites: ogni personaggio ha le pose che il motore usa, walk con almeno due 
   }
   assert.deepStrictEqual(EXTRA_POSES.spongebob, ['swing']);
   assert.deepStrictEqual(EXTRA_POSES.medusa, ['flee']);
+  assert.deepStrictEqual(EXTRA_POSES.rana, ['jump']);
+});
+
+ok('sprites: ogni personaggio si muove in un modo che il motore conosce', () => {
+  for (const [kind, sprite] of Object.entries(SPRITES)) {
+    assert.ok(MOTIONS.includes(sprite.motion), `${kind}: motion «${sprite.motion}»`);
+  }
+  assert.deepStrictEqual(['rana', 'uccellino', 'pesce'].map((k) => SPRITES[k].motion), ['hop', 'fly', 'swim']);
 });
 
 ok('sprites: il cast usa solo personaggi disegnati e ha un nome per ogni voce', () => {

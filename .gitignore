@@ -12,7 +12,7 @@ dist/
 *.msi
 *.snap
 *.rpm
-*.zip
+#*.zip
 builder-debug.yml
 latest-*.yml
 

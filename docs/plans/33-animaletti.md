@@ -11,7 +11,7 @@ personaggi reagiscono allo stato delle sessioni, così la striscia dice anche
 qualcosa: corrono quando un agente lavora, dormono quando è tutto fermo, si
 fermano e chiamano quando una sessione aspetta te.
 
-Spento di default. Si accende e si regola da `Vista › Animaletti…`.
+Spento di default. Si accende e si regola da `Vista › Personaggi…`.
 
 ## Scelte
 
@@ -160,7 +160,7 @@ Precedenza: `attention` > `busy` > `sleep` > `idle`.
 - Voci sconosciute scartate, valori fuori elenco → default, JSON rotto →
   default intero.
 
-Pannello `Vista › Animaletti…` (voce di menu `menu-pets`, come `Colori…`):
+Pannello `Vista › Personaggi…` (voce di menu `menu-pets`, come `Colori…`):
 interruttore, per ogni personaggio un contatore `– n +` con anteprima,
 dimensione, velocità. Le modifiche si vedono subito nella striscia.
 
@@ -209,7 +209,7 @@ nessuno deve restare fuori dalla striscia.
 - `renderer/pets-sprites.js` (disegni), `pets-config.js` (impostazioni in
   localStorage), `pets.js` (motore, inseguimento, umori), `pets-view.js`
   (striscia e ciclo rAF), `pets-ui.js` (dialogo), stili in `styles.css`.
-- Voce «Animaletti…» nel menu View, nativo e in-app (`menu-pets`).
+- Voce «Personaggi…» nel menu View, nativo e in-app (`menu-pets`).
 - Rana, uccellino e pesce, con `motion` per disegno.
 - Test: `tests/pets-*.test.js`, compreso il retino che in 20 000 passi non
   prende mai la medusa.

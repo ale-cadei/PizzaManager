@@ -89,7 +89,7 @@ cambia la posa/posizione.
 
 - `pets-ui.js`: `createPetsDialog({ doc, backdrop, body, saveBtn, cancelBtn, store, onChange })`
   — anteprima dal vivo via `onChange(draft)`, Annulla/Esc rimette il salvato.
-- Menu: `View › Animaletti…` nativo (`menu-pets`) e in-app (`data-action="pets"`),
+- Menu: `View › Personaggi…` nativo (`menu-pets`) e in-app (`data-action="pets"`),
   `runMenuAction` case `pets`, allowlist del preload.
 - `#pets-strip` fra `#terminals` e `.bottombar`; modal `#modal-pets`.
 - Script in `index.html` prima di `app-state.js`, nell'ordine

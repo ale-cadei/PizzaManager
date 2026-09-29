@@ -41,7 +41,7 @@ const running = Running.createRunning();
 
 function noteRunning(t) {
   if (!t.alive) return;
-  if (running.data(t.id)) { t.running = true; showRunning(t); }
+  if (running.data(t.id)) { t.running = true; showRunning(t); retractAttention(t); }
   clearTimeout(t.runTimer);
   t.runTimer = setTimeout(() => stopRunning(t), RUNNING_IDLE_MS);
 }
@@ -52,6 +52,13 @@ function stopRunning(t) {
   if (!running.stop(t.id)) return;
   t.running = false;
   showRunning(t);
+}
+
+/* Ha ripreso a lavorare: il «ho finito» acceso nella pausa era sbagliato */
+function retractAttention(t) {
+  if (!t.needsAttention || !attention.resumed(t.id)) return;
+  t.needsAttention = false;
+  if (!sidebar.signal(t.id, { needsAttention: false })) renderSidebar();
 }
 
 /* Il segnale si accende e si spegne di continuo (ogni pausa di una sessione che

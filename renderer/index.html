@@ -79,6 +79,7 @@
       <button data-action="term-font-reset">Testo del terminale normale<span class="mb-acc">Ctrl+0</span></button>
       <div class="mb-sep"></div>
       <button data-action="type-colors">Colori…</button>
+      <button data-action="pets">Animaletti…</button>
       <div class="mb-sep"></div>
       <button data-action="fullscreen">Schermo intero<span class="mb-acc">F11</span></button>
     </div>
@@ -143,6 +144,9 @@
       <p class="muted">Nessuna sessione aperta — usa la sidebar a sinistra per avviarne una o fare resume.</p>
     </div>
     <div id="terminals"></div>
+    <!-- Animaletti in fondo ai terminali (renderer/pets-view.js, piano 33): la
+         riempie il JS, nascosta finché non si accendono dal menu View. -->
+    <div id="pets-strip" aria-hidden="true" hidden></div>
     <!-- Barra dell'uso: la riempie renderer/usage-bar.js, i numeri arrivano dal
          main process (lib/usage). Vuota nell'HTML perche' il suo contenuto e'
          testo che viene da fuori e va scritto con textContent.
@@ -301,6 +305,19 @@
   </div>
 </div>
 
+<!-- Modal animaletti (menu View, renderer/pets-ui.js): il corpo lo costruisce il JS -->
+<div class="modal-backdrop" id="modal-pets" hidden>
+  <div class="modal">
+    <h2>Animaletti</h2>
+    <p class="muted small">Camminano in fondo alla finestra: corrono quando un agente lavora, dormono dopo cinque minuti fermi, e uno chiama quando una sessione aspetta te.</p>
+    <div class="pets-settings" id="pets-settings"></div>
+    <div class="modal-actions">
+      <button class="btn btn--ghost" id="pets-cancel">Annulla</button>
+      <button class="btn btn--primary" id="pets-save">Salva</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal configurazione dei comandi di avvio, per tipo di sessione -->
 <div class="modal-backdrop" id="modal-config" hidden>
   <div class="modal wide">
@@ -364,6 +381,11 @@
 <script src="git-graph-view.js"></script>
 <script src="git-branch-picker.js"></script>
 <script src="extensions-view.js"></script>
+<script src="pets-sprites.js"></script>
+<script src="pets-config.js"></script>
+<script src="pets.js"></script>
+<script src="pets-view.js"></script>
+<script src="pets-ui.js"></script>
 <!-- Il renderer vero e proprio, diviso per area (docs/plans/21-split-renderer.md):
      app-state.js per primo, renderer.js per ultimo. -->
 <script src="app-state.js"></script>

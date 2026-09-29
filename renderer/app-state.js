@@ -48,6 +48,9 @@ const AI_TYPES = ['opencode', 'claude', 'codex', 'antigravity'];
 const termFont = window.AisessTermFont.createFontSizeStore(window.localStorage);
 const TERM_LINE_HEIGHT = 1.2;
 
+// Animaletti in fondo alla finestra, accesi e scelti dal menu View (renderer/pets-config.js)
+const petsStore = window.AisessPetsConfig.createPetsStore(window.localStorage);
+
 // Colore principale e colori dei tipi cambiati dal menu View (renderer/type-colors.js):
 // si applicano subito, prima che la sidebar disegni la prima card.
 const COLOR_KEYS = [window.AisessTypeColors.ACTION, ...Groups.TYPE_ORDER];

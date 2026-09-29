@@ -2,7 +2,7 @@
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
 const Pets = require('../renderer/pets');
-const { createPets, step, moodOf, frameIndex, petWidth, SLEEP_AFTER_MS } = Pets;
+const { createPets, recast, step, moodOf, frameIndex, petWidth, SLEEP_AFTER_MS, SAD_AFTER_MS, FRAME_MS } = Pets;
 
 const SIZE = 32;
 const WIDTH = 800;
@@ -21,6 +21,17 @@ function run(state, n, opts) {
   for (let i = 0; i < n; i += 1) s = step(s, { dt: 16, width: WIDTH, ...opts });
   return s;
 }
+/** Numeri "casuali" in fila, poi sempre l'ultimo. */
+function queue(values, then = 0.999) {
+  const left = [...values];
+  return () => (left.length ? left.shift() : then);
+}
+/** Un cast già in scena: senza l'entrata iniziale, per provare quello che viene dopo. */
+function onStage(cast, random = () => 0.5) {
+  const state = createPets({ cast, width: WIDTH, size: SIZE, random });
+  return { ...state, pets: state.pets.map((p) => ({ ...p, act: null, pose: 'walk' })) };
+}
+const stillFor = (state, ms, opts) => run(state, Math.ceil(ms / 16), { random: never, ...opts });
 
 ok('pets: createPets mette un pet per personaggio del cast, dentro la striscia', () => {
   const state = createPets({ cast: ['inseguimento', 'gary'], width: WIDTH, size: SIZE, random: seeded() });
@@ -220,6 +231,144 @@ ok('pets: moodOf, chi aspetta vince su chi lavora, e il sonno arriva dopo SLEEP_
   assert.strictEqual(moodOf({ running: true, attention: false, idleMs: SLEEP_AFTER_MS * 2 }), 'busy');
   assert.strictEqual(moodOf({ running: false, attention: false, idleMs: SLEEP_AFTER_MS }), 'sleep');
   assert.strictEqual(moodOf({ running: false, attention: false, idleMs: SLEEP_AFTER_MS - 1 }), 'idle');
+});
+
+ok('pets: chi ha la posa idle ogni tanto si ferma, per un po\', poi riparte', () => {
+  const state = onStage(['zucca']);
+  // Primo numero: sotto la soglia della pausa; secondo: la durata (a metà fra min e max)
+  const paused = step(state, { dt: 16, width: WIDTH, random: queue([0, 0.5]) });
+  assert.strictEqual(paused.pets[0].pose, 'idle');
+  assert.strictEqual(paused.pets[0].x, state.pets[0].x);
+  const middle = Pets.PAUSE_MS.min + (Pets.PAUSE_MS.max - Pets.PAUSE_MS.min) / 2;
+  const still = stillFor(paused, middle - 200);
+  assert.strictEqual(still.pets[0].pose, 'idle');
+  assert.strictEqual(still.pets[0].x, state.pets[0].x, 'in pausa si è mosso');
+  const again = stillFor(still, 400);
+  assert.strictEqual(again.pets[0].pose, 'walk');
+  assert.notStrictEqual(again.pets[0].x, state.pets[0].x, 'dopo la pausa non riparte');
+});
+
+ok('pets: chi non ha la posa idle non si ferma mai, anche col caso dalla sua', () => {
+  let state = onStage(['gatto']);
+  for (let i = 0; i < 200; i += 1) {
+    const next = step(state, { dt: 16, width: WIDTH, random: () => 0 });
+    assert.notStrictEqual(next.pets[0].pose, 'idle');
+    assert.notStrictEqual(next.pets[0].x, state.pets[0].x, 'fermo');
+    state = next;
+  }
+});
+
+ok('pets: al bordo il fantasmino si gira con la posa turn, il gatto solo di verso', () => {
+  for (const [kind, pose] of [['fantasmino', 'turn'], ['gatto', 'walk']]) {
+    const base = onStage([kind]);
+    const edge = { ...base, pets: base.pets.map((p) => ({ ...p, x: WIDTH - petWidth(kind, SIZE) - 1, dir: 1 })) };
+    const turned = step(edge, { dt: 50, width: WIDTH, random: never });
+    assert.strictEqual(turned.pets[0].dir, -1, `${kind} non si è girato`);
+    assert.strictEqual(turned.pets[0].pose, pose);
+    if (pose !== 'turn') continue;
+    const after = stillFor(turned, 2 * FRAME_MS + 50);
+    assert.strictEqual(after.pets[0].pose, 'walk');
+    assert.ok(after.pets[0].x < turned.pets[0].x, 'dopo essersi girato non torna indietro');
+  }
+});
+
+ok('pets: quando si comincia a lavorare chi ha la posa si spaventa, una volta sola', () => {
+  const state = onStage(['pizza', 'gatto']);
+  const scared = step(state, { dt: 16, width: WIDTH, mood: 'busy', random: never });
+  const [pizza, cat] = scared.pets;
+  assert.strictEqual(pizza.pose, 'startle');
+  assert.strictEqual(pizza.x, state.pets[0].x, 'spaventato si muove');
+  assert.strictEqual(cat.pose, 'walk');
+  assert.notStrictEqual(cat.x, state.pets[1].x);
+  const calm = stillFor(scared, 6 * FRAME_MS + 50, { mood: 'busy' });
+  assert.strictEqual(calm.pets[0].pose, 'walk');
+  assert.ok(Math.abs(calm.pets[0].x - pizza.x) > 0, 'passato lo spavento resta fermo');
+  const stillBusy = step(calm, { dt: 16, width: WIDTH, mood: 'busy', random: never });
+  assert.strictEqual(stillBusy.pets[0].pose, 'walk', 'si rispaventa senza che sia cambiato niente');
+});
+
+ok('pets: finita l attesa chi chiamava ride, se sa farlo', () => {
+  const state = onStage(['fantasmino']);
+  const calling = step(state, { dt: 16, width: WIDTH, mood: 'attention', random: never });
+  assert.strictEqual(calling.pets[0].pose, 'call');
+  const laughing = step(calling, { dt: 16, width: WIDTH, mood: 'idle', random: never });
+  assert.strictEqual(laughing.pets[0].pose, 'laugh');
+  assert.strictEqual(laughing.pets[0].x, calling.pets[0].x);
+  const done = stillFor(laughing, 6 * FRAME_MS + 50);
+  assert.strictEqual(done.pets[0].pose, 'walk');
+
+  const cat = step(onStage(['gatto']), { dt: 16, width: WIDTH, mood: 'attention', random: never });
+  assert.strictEqual(step(cat, { dt: 16, width: WIDTH, mood: 'idle', random: never }).pets[0].pose, 'walk');
+});
+
+ok('pets: un attesa lunga rende triste chi chiama, se ha la posa', () => {
+  const steps = Math.ceil(SAD_AFTER_MS / 100);
+  let ghost = onStage(['fantasmino']);
+  for (let i = 0; i < steps - 1; i += 1) {
+    ghost = step(ghost, { dt: 100, width: WIDTH, mood: 'attention', random: never });
+    assert.strictEqual(ghost.pets[0].pose, 'call', `triste già al passo ${i}`);
+  }
+  ghost = step(ghost, { dt: 100, width: WIDTH, mood: 'attention', random: never });
+  assert.strictEqual(ghost.pets[0].pose, 'sad');
+  const relieved = step(ghost, { dt: 100, width: WIDTH, mood: 'idle', random: never });
+  assert.strictEqual(relieved.pets[0].pose, 'laugh');
+  assert.strictEqual(relieved.attentionMs, 0);
+
+  let cat = onStage(['gatto']);
+  for (let i = 0; i < steps + 1; i += 1) cat = step(cat, { dt: 100, width: WIDTH, mood: 'attention', random: never });
+  assert.strictEqual(cat.pets[0].pose, 'call');
+});
+
+ok('pets: chi ha la posa appear entra in scena apparendo, fermo, poi va', () => {
+  const state = createPets({ cast: ['fantasmino', 'gatto'], width: WIDTH, size: SIZE, random: () => 0.5 });
+  const [ghost, cat] = state.pets;
+  assert.strictEqual(ghost.pose, 'appear');
+  assert.strictEqual(cat.pose, 'walk');
+  const during = stillFor(state, 2 * FRAME_MS);
+  assert.strictEqual(during.pets[0].pose, 'appear');
+  assert.strictEqual(during.pets[0].x, ghost.x);
+  const after = stillFor(during, 3 * FRAME_MS + 50);
+  assert.strictEqual(after.pets[0].pose, 'walk');
+});
+
+ok('pets: recast tiene chi resta dov\'è, fa svanire chi esce e fa apparire chi entra', () => {
+  const state = deepFreeze(stillFor(onStage(['fantasmino', 'gatto']), 500));
+  const [ghost, cat] = state.pets;
+  const next = recast(state, { cast: ['gatto', 'zucca'], width: WIDTH, random: never });
+  assert.deepStrictEqual(next.pets.map((p) => p.kind), ['gatto', 'fantasmino', 'zucca']);
+  assert.strictEqual(next.pets[0].key, cat.key);
+  assert.strictEqual(next.pets[0].x, cat.x);
+  assert.strictEqual(next.pets[1].pose, 'vanish');
+  assert.strictEqual(next.pets[1].key, ghost.key);
+  assert.notStrictEqual(next.pets[2].key, ghost.key, 'chiave riusata mentre l\'altro sta ancora svanendo');
+  const gone = stillFor(next, 5 * FRAME_MS + 50);
+  assert.deepStrictEqual(gone.pets.map((p) => p.kind), ['gatto', 'zucca']);
+  assert.strictEqual(gone.pets[1].pose, 'walk');
+});
+
+ok('pets: recast, chi non sa svanire sparisce subito; una coppia esce intera; le chiavi restano uniche', () => {
+  const state = onStage(['inseguimento', 'gatto', 'gatto']);
+  const next = recast(state, { cast: ['gatto'], width: WIDTH, random: never });
+  assert.deepStrictEqual(next.pets.map((p) => p.kind), ['gatto']);
+  assert.strictEqual(next.pets[0].key, state.pets[2].key, 'tiene il primo dei due gatti');
+  const more = recast(next, { cast: ['gatto', 'inseguimento', 'gatto'], width: WIDTH, random: never });
+  assert.deepStrictEqual(more.pets.map((p) => p.kind).sort(), ['gatto', 'gatto', 'medusa', 'spongebob']);
+  assert.strictEqual(more.pets[0].key, next.pets[0].key, 'il gatto di prima non è più il primo');
+  assert.strictEqual(new Set(more.pets.map((p) => p.key)).size, 4);
+  const sponge = byKind(more, 'spongebob');
+  assert.strictEqual(byKind(more, 'medusa').mate, sponge.key);
+  assert.strictEqual(recast(more, { cast: [], width: WIDTH, random: never }).pets.length, 0);
+});
+
+ok('pets: durante il sonno le azioni si interrompono, tranne lo svanire', () => {
+  const paused = step(onStage(['zucca']), { dt: 16, width: WIDTH, random: queue([0, 0.5]) });
+  assert.strictEqual(paused.pets[0].pose, 'idle');
+  const asleep = step(paused, { dt: 16, width: WIDTH, mood: 'sleep', random: never });
+  assert.strictEqual(asleep.pets[0].pose, 'sleep');
+  assert.strictEqual(asleep.pets[0].act, null);
+  const leaving = recast(onStage(['fantasmino']), { cast: [], width: WIDTH, random: never });
+  const gone = stillFor(leaving, 5 * FRAME_MS + 50, { mood: 'sleep' });
+  assert.strictEqual(gone.pets.length, 0);
 });
 
 ok('pets: frameIndex avanza col tempo animato e gira sui frame', () => {

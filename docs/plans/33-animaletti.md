@@ -96,6 +96,40 @@ fra un passo e l'altro), `sleep`, `call`. SpongeBob ha anche `swing`, la
 medusa `flee`. Le «z» di chi dorme e il saltello di chi
 chiama sono CSS sulla classe della posa, non frame in più.
 
+**Pose opzionali** (`OPTIONAL_POSES`): i pacchetti ne portano altre, e il
+motore le usa solo per chi le ha; chi non le ha fa come prima. Sono
+*azioni* (`pet.act`): il personaggio sta fermo con quella posa per la durata
+della sequenza (o della pausa), poi torna a camminare.
+
+| posa | quando | chi |
+|------|--------|-----|
+| `idle` | a passeggio, a caso (`PAUSE_PER_S`), per 1,5–3,5 s | Peppo, Fizzo, Zucco, la Morte, Fantasmino |
+| `turn` | cambio di verso (rimbalzo al bordo o a caso) | Fantasmino |
+| `startle` | l'umore passa a `busy` | Peppo, Fizzo, Zucco, Fantasmino |
+| `laugh` | finisce l'`attention` durante la quale chiamava | Fantasmino |
+| `sad` | chiama da più di `SAD_AFTER_MS` (1 min), al posto di `call` | Fantasmino |
+| `appear` | entra in scena (accensione o aggiunto al cast) | Fantasmino |
+| `vanish` | esce dal cast; finita la sequenza il motore lo toglie | Fantasmino |
+
+Il sonno interrompe ogni azione tranne lo svanire. Un'azione in corso non
+viene scavalcata da un'altra (niente spavento mentre ride).
+
+**Ombra a terra**: un disegno può avere `shadow`, una lista di griglie (una
+per frame di `walk`) fuori da `frames`, perché ha un'altra misura. La vista
+la disegna in un `<div class="pet-shadow">` a parte, a terra e centrato
+sotto il personaggio, nascosto quando lui si posa (`y === 0`). Solo il
+Fantasmino, per ora.
+
+**Cambio di cast a striscia accesa** (`recast`): chi resta continua da
+dov'è, chi esce svanisce (o sparisce subito, se non sa svanire), chi entra
+appare. Le chiavi vengono da un contatore (`state.seq`), non dall'indice nel
+cast, così chi svanisce e chi arriva non si confondono. Cambiare misura
+ricostruisce tutto.
+
+I file `pets-sprite-*.js` li genera `scripts/pets-pack.py` dai pacchetti
+(PIL): lì stanno le pose scelte per ogni personaggio, l'ombra e i colori
+ritoccati. Si ritocca quello, non i file generati.
+
 ## Stati
 
 Il motore riceve un `mood` calcolato da chi lo chiama con i segnali che ci
@@ -134,6 +168,7 @@ dimensione, velocità. Le modifiche si vedono subito nella striscia.
 
 ```js
 createPets({ cast, width, random })  // → stato iniziale, posizioni sparse
+recast(state, { cast, width, random }) // → stesso stato con chi entra ed esce
 step(state, { dt, width, mood, speed }) // → stato nuovo, non muta l'input
 sanitizeConfig(raw)                  // → config valida
 moodOf({ running, attention, idleMs }) // → 'busy' | 'idle' | 'sleep' | 'attention'
@@ -154,6 +189,10 @@ nessuno deve restare fuori dalla striscia.
     distanza minima fa `swing` e la medusa passa a `flee`; dopo N passi
     simulati la distanza non va mai a zero.
   - `moodOf`: tabella di precedenza.
+  - Pose opzionali: pausa solo per chi ha `idle`, `turn` al bordo, spavento
+    una volta sola al passaggio a `busy`, risata a fine attesa, tristezza
+    dopo `SAD_AFTER_MS`, entrata con `appear`, `recast` che fa svanire e
+    poi toglie.
   - `sanitizeConfig`: JSON rotto, voci sconosciute, più di `MAX_CAST`,
     `size`/`speed` fuori elenco.
 - `tests/pets-sprites.test.js`: ogni sprite ha righe della stessa

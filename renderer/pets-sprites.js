@@ -26,6 +26,11 @@
 
   const REQUIRED_POSES = ['walk', 'sleep', 'call'];
   const EXTRA_POSES = { spongebob: ['swing'], medusa: ['flee'], rana: ['jump'] };
+  /** Pose che un disegno può avere o no: il motore le usa solo se ci sono
+   *  (pets.js). idle: si ferma un attimo a passeggio. turn: cambia verso.
+   *  startle: un agente si mette al lavoro. laugh: un'attesa finisce.
+   *  sad: l'attesa dura da troppo. appear/vanish: entra ed esce dal cast. */
+  const OPTIONAL_POSES = ['idle', 'turn', 'startle', 'laugh', 'sad', 'appear', 'vanish'];
 
   /** Copia di un frame con alcune righe sostituite: i frame differiscono per poco. */
   const patch = (base, rows) => base.map((row, i) => (rows[i] === undefined ? row : rows[i]));
@@ -377,7 +382,8 @@
 
   /** speed: misure del personaggio al secondo, a velocità «normale».
    *  motion: come si muove (pets.js MOTIONS): cammina, salta, vola, nuota.
-   *  height: altezza come frazione della taglia, per chi non segue la regola di GRID. */
+   *  height: altezza come frazione della taglia, per chi non segue la regola di GRID.
+   *  shadow: ombra a terra per chi vola, un frame per frame di walk (facoltativa). */
   const SPRITES = {
     spongebob: {
       speed: 1.3,
@@ -539,5 +545,5 @@
     return rects;
   }
 
-  return { SPRITES, CAST, CAST_LABELS, REQUIRED_POSES, EXTRA_POSES, MOTIONS, GRID, dims, pixel, toRects };
+  return { SPRITES, CAST, CAST_LABELS, REQUIRED_POSES, EXTRA_POSES, OPTIONAL_POSES, MOTIONS, GRID, dims, pixel, toRects };
 });

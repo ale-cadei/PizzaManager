@@ -9,7 +9,13 @@
  *
  * Ogni personaggio è un <div class="pet"> (posizione) con dentro l'<svg>
  * (specchio e saltello, con le proprietà CSS scale e translate, che si
- * sommano al transform del div invece di sovrascriverlo).
+ * sommano al transform del div invece di sovrascriverlo). Chi ha un'ombra
+ * nel disegno ne ha una seconda, <div class="pet-shadow">, che resta a
+ * terra sotto di lui e sparisce quando si posa.
+ *
+ * Quando il cast cambia a striscia accesa non si ricomincia da capo: chi
+ * resta continua da dov'è, chi esce svanisce (pets.js recast) e il suo
+ * elemento si toglie quando il motore lo lascia andare.
  *
  * Wrapper UMD come gli altri moduli del renderer. */
 (function (root, factory) {
@@ -21,42 +27,69 @@
 })(typeof window !== 'undefined' ? window : null, function (Pets, Sprites, Config) {
   const SVG_NS = 'http://www.w3.org/2000/svg';
 
-  /** Un <g> di rettangoli per frame; tutti spenti, draw() accende quello giusto. */
-  function buildSprite(doc, kind, size) {
-    const sprite = Sprites.SPRITES[kind];
-    const { cols, rows } = Sprites.dims(kind);
-    const px = Sprites.pixel(kind, size);
+  function buildFrame(doc, grid, palette) {
+    const g = doc.createElementNS(SVG_NS, 'g');
+    g.setAttribute('display', 'none');
+    for (const r of Sprites.toRects(grid, palette)) {
+      const rect = doc.createElementNS(SVG_NS, 'rect');
+      rect.setAttribute('x', String(r.x));
+      rect.setAttribute('y', String(r.y));
+      rect.setAttribute('width', String(r.w));
+      rect.setAttribute('height', '1');
+      rect.setAttribute('fill', r.fill);
+      g.appendChild(rect);
+    }
+    return g;
+  }
+
+  /** Un <svg> di cols×rows pixel del disegno, ognuno lungo px. */
+  function buildSvg(doc, cols, rows, px) {
     const svg = doc.createElementNS(SVG_NS, 'svg');
     svg.setAttribute('viewBox', `0 0 ${cols} ${rows}`);
     svg.setAttribute('width', String(cols * px));
     svg.setAttribute('height', String(rows * px));
     svg.setAttribute('shape-rendering', 'crispEdges');
+    return svg;
+  }
+
+  /** Un <g> di rettangoli per frame; tutti spenti, draw() accende quello giusto. */
+  function buildSprite(doc, kind, size) {
+    const sprite = Sprites.SPRITES[kind];
+    const { cols, rows } = Sprites.dims(kind);
+    const svg = buildSvg(doc, cols, rows, Sprites.pixel(kind, size));
     const frames = {};
     for (const [pose, list] of Object.entries(sprite.frames)) {
-      frames[pose] = list.map((grid) => {
-        const g = doc.createElementNS(SVG_NS, 'g');
-        g.setAttribute('display', 'none');
-        for (const r of Sprites.toRects(grid, sprite.palette)) {
-          const rect = doc.createElementNS(SVG_NS, 'rect');
-          rect.setAttribute('x', String(r.x));
-          rect.setAttribute('y', String(r.y));
-          rect.setAttribute('width', String(r.w));
-          rect.setAttribute('height', '1');
-          rect.setAttribute('fill', r.fill);
-          g.appendChild(rect);
-        }
-        svg.appendChild(g);
-        return g;
-      });
+      frames[pose] = list.map((grid) => svg.appendChild(buildFrame(doc, grid, sprite.palette)));
     }
     return { svg, frames };
+  }
+
+  /** L'ombra a terra: un frame per frame di volo, larga quanto il suo disegno e centrata sotto il personaggio. */
+  function buildShadow(doc, kind, size) {
+    const sprite = Sprites.SPRITES[kind];
+    if (!sprite.shadow) return null;
+    const px = Sprites.pixel(kind, size);
+    const cols = sprite.shadow[0][0].length;
+    const svg = buildSvg(doc, cols, sprite.shadow[0].length, px);
+    const frames = sprite.shadow.map((grid) => svg.appendChild(buildFrame(doc, grid, sprite.palette)));
+    const el = doc.createElement('div');
+    el.setAttribute('class', 'pet-shadow');
+    el.appendChild(svg);
+    return { el, frames, shown: null, offset: ((Sprites.dims(kind).cols - cols) / 2) * px };
   }
 
   function buildPet(doc, pet, size) {
     const el = doc.createElement('div');
     const { svg, frames } = buildSprite(doc, pet.kind, size);
     el.appendChild(svg);
-    return { el, frames, shown: null };
+    return { el, frames, shown: null, shadow: buildShadow(doc, pet.kind, size) };
+  }
+
+  function show(view, frame) {
+    if (frame === view.shown) return;
+    if (view.shown) view.shown.setAttribute('display', 'none');
+    frame.setAttribute('display', 'inline');
+    view.shown = frame;
   }
 
   /**
@@ -78,20 +111,45 @@
     const width = () => strip.clientWidth || 0;
     const active = () => Boolean(state && state.pets.length);
 
+    function drawShadow(pet, shadow) {
+      shadow.el.hidden = pet.y === 0;
+      show(shadow, shadow.frames[Pets.frameIndex(pet, shadow.frames.length)]);
+      shadow.el.style.transform = `translate(${(pet.x + shadow.offset).toFixed(1)}px, 0px)`;
+    }
+
+    function drawPet(pet, view) {
+      const list = view.frames[pet.pose] || view.frames.walk;
+      show(view, list[Pets.frameIndex(pet, list.length)]);
+      const left = pet.dir < 0 ? ' pet--left' : '';
+      view.el.setAttribute('class', `pet pet--${pet.kind} pet--${pet.pose}${left}`);
+      view.el.style.transform = `translate(${pet.x.toFixed(1)}px, ${(-pet.y).toFixed(1)}px)`;
+      if (view.shadow) drawShadow(pet, view.shadow);
+    }
+
+    function mount(pet) {
+      const view = buildPet(doc, pet, size());
+      views.set(pet.key, view);
+      if (view.shadow) strip.appendChild(view.shadow.el);
+      strip.appendChild(view.el);
+    }
+
+    function unmount(key) {
+      const view = views.get(key);
+      if (view.shadow) view.shadow.el.remove();
+      view.el.remove();
+      views.delete(key);
+    }
+
+    /** Elementi allineati allo stato: via chi è svanito, dentro chi è appena arrivato. */
+    function reconcile() {
+      const keys = new Set(state.pets.map((p) => p.key));
+      for (const key of [...views.keys()]) if (!keys.has(key)) unmount(key);
+      for (const pet of state.pets) if (!views.has(pet.key)) mount(pet);
+    }
+
     function draw() {
-      for (const pet of state.pets) {
-        const view = views.get(pet.key);
-        const list = view.frames[pet.pose] || view.frames.walk;
-        const frame = list[Pets.frameIndex(pet, list.length)];
-        if (frame !== view.shown) {
-          if (view.shown) view.shown.setAttribute('display', 'none');
-          frame.setAttribute('display', 'inline');
-          view.shown = frame;
-        }
-        const left = pet.dir < 0 ? ' pet--left' : '';
-        view.el.setAttribute('class', `pet pet--${pet.kind} pet--${pet.pose}${left}`);
-        view.el.style.transform = `translate(${pet.x.toFixed(1)}px, ${(-pet.y).toFixed(1)}px)`;
-      }
+      reconcile();
+      for (const pet of state.pets) drawPet(pet, views.get(pet.key));
     }
 
     function tick() {
@@ -121,25 +179,34 @@
       handle = raf(tick);
     }
 
-    function apply(next) {
-      config = Config.sanitizeConfig(next);
+    function clear() {
       stop();
       strip.replaceChildren();
       views = new Map();
       state = null;
+    }
+
+    function apply(next) {
+      const previous = config;
+      config = Config.sanitizeConfig(next);
       if (!config.enabled || config.cast.length === 0) {
+        clear();
         strip.hidden = true;
         return;
       }
-      strip.hidden = false;
-      strip.style.height = `${size()}px`;
-      state = Pets.createPets({ cast: config.cast, width: width(), size: size(), random });
-      for (const pet of state.pets) {
-        const view = buildPet(doc, pet, size());
-        views.set(pet.key, view);
-        strip.appendChild(view.el);
+      // Stessa misura, in scena e col ciclo che gira: si cambia solo chi entra
+      // e chi esce. A ciclo fermo (meno movimento) nessuno finirebbe di
+      // svanire, e resterebbe lì: si ricostruisce.
+      const inPlace = active() && handle !== null && previous.size === config.size;
+      if (!inPlace) {
+        clear();
+        strip.hidden = false;
+        strip.style.height = `${size()}px`;
+        lastBusy = now();
       }
-      lastBusy = now();
+      state = inPlace
+        ? Pets.recast(state, { cast: config.cast, width: width(), random })
+        : Pets.createPets({ cast: config.cast, width: width(), size: size(), random });
       draw();
       sync();
     }

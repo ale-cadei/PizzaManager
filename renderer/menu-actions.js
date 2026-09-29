@@ -32,6 +32,49 @@ function typeColorsDialog() {
   return typeColorsDialogInstance;
 }
 
+/* Animaletti in fondo alla finestra (renderer/pets-view.js, piano 33).
+   Reagiscono a tutte le schede: una al lavoro li fa correre, una che
+   aspetta ne fa chiamare uno. */
+let petsView = null;
+function petsSignals() {
+  const all = [...tabs.values()];
+  return { running: all.some((t) => t.running), attention: all.some((t) => t.needsAttention) };
+}
+/** La striscia cambia altezza: il terminale attivo rifà righe e colonne. */
+function applyPets(config) {
+  petsView.apply(config);
+  fitActive();
+}
+function initPets() {
+  const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  petsView = window.AisessPetsView.createPetsView({
+    doc: document,
+    win: window,
+    strip: $('#pets-strip'),
+    signals: petsSignals,
+    raf: (fn) => window.requestAnimationFrame(fn),
+    caf: (id) => window.cancelAnimationFrame(id),
+    reducedMotion: () => motion.matches,
+  });
+  applyPets(petsStore.get());
+}
+
+let petsDialogInstance = null;
+function petsDialog() {
+  if (!petsDialogInstance) {
+    petsDialogInstance = window.AisessPetsUI.createPetsDialog({
+      doc: document,
+      backdrop: $('#modal-pets'),
+      body: $('#pets-settings'),
+      saveBtn: $('#pets-save'),
+      cancelBtn: $('#pets-cancel'),
+      store: petsStore,
+      onChange: applyPets,
+    });
+  }
+  return petsDialogInstance;
+}
+
 /**
  * Dimensione del testo dei terminali, da menu nativo o menubar in-app.
  * Cambia tutte le schede insieme: quella attiva si rifà il fit subito, le

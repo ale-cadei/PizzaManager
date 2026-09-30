@@ -78,6 +78,7 @@
    *   modeButtons?: {type: Element, project: Element},
    *   onSelect: (id: string) => void, onClose: (id: string) => void,
    *   onRename: (session: object) => void,
+   *   onIcon?: (session: object) => void,
    *   onExport?: (session: object, card: Element) => void,
    *   onNewInProject?: (projectRoot: string) => void,
    *   onResumeInProject?: (projectRoot: string) => void,
@@ -97,6 +98,7 @@
     /* Anche esportare è affare del renderer (dialog, esito): la sidebar passa la
        sessione e la card, su cui appoggiare un eventuale errore. */
     const onExport = typeof deps.onExport === 'function' ? deps.onExport : null;
+    const onIcon = typeof deps.onIcon === 'function' ? deps.onIcon : null;
     const Order = deps.Order && typeof deps.Order.moveAdjacent === 'function' ? deps.Order : null;
 
     /* Collassi in liste separate per modalità: collassare "Claude" e collassare
@@ -411,13 +413,18 @@
       const displaySub = displayParts.filter(Boolean).join(' · ');
       // Il marker resta nel DOM anche se invisibile: così tutte le card sono allineate
       b.innerHTML = `<span class="sel-mark" aria-hidden="true">◆</span>
-    <span class="icon">${Icons.markup(t.type)}</span>
+    <span class="icon${t.type === 'shell' && onIcon ? ' shell-icon-trigger' : ''}"${t.type === 'shell' && onIcon ? ' role="button" tabindex="0" aria-label="Scegli icona shell" title="Scegli icona shell"' : ''}>${Icons.markup(t.type === 'shell' && Icons.has && Icons.has(t.iconKey) ? t.iconKey : t.type)}</span>
     <span class="meta"><span class="name">${escapeHtml(t.name)}${t.alive ? '' : ' (terminata)'}</span>
     <span class="sub path" title="${escapeHtml(fullSub)}"><span>${escapeHtml(displaySub)}</span></span></span>`;
       // Il primo click rifà la sidebar (onSelect → render), quindi il secondo
       // click arriva su un bottone nuovo e l'evento dblclick del browser non
       // scatta mai: il doppio click va riconosciuto a mano, fuori dal DOM.
-      b.onclick = () => {
+      b.onclick = (e) => {
+        if (t.type === 'shell' && onIcon && e && e.target && e.target.closest && e.target.closest('.shell-icon-trigger')) {
+          e.stopPropagation();
+          onIcon(t);
+          return;
+        }
         const now = Date.now();
         // Il rilascio di un trascinamento non deve selezionare né rinominare
         if (now - dragEndedAt <= DRAG_CLICK_GUARD_MS) return;
@@ -425,6 +432,11 @@
         lastCardClick = { id: t.id, at: isDouble ? 0 : now };
         if (isDouble) { onRename(t); return; }
         onSelect(t.id);
+      };
+      if (t.type === 'shell' && onIcon) b.onkeydown = (e) => {
+        if (e.target.classList.contains('shell-icon-trigger') && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault(); e.stopPropagation(); onIcon(t);
+        }
       };
       b.title = b.title || RENAME_TITLE;
       // Una sola ✕, e chiude la sessione per davvero. Prima erano due (✕ che

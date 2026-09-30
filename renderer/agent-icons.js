@@ -1,9 +1,7 @@
 /* Icone ufficiali degli agenti.
  *
- * I tracciati sono i marchi ufficiali (OpenCode, OpenAI per Codex) e l'insetto
- * di Claude Code (ricalcato da assets/claude-code.png), normalizzati su viewBox
- * 24x24; per il terminale, che non ha un marchio, resta un glifo disegnato in
- * casa nello stesso stile.
+ * Gli agenti usano i rispettivi marchi. Il catalogo delle shell usa anche
+ * le immagini fornite dall'utente, conservate negli asset dell'app.
  *
  * Il markup è statico (nessun dato utente ci finisce dentro): può essere
  * assegnato via innerHTML senza rischio di injection.
@@ -33,6 +31,22 @@
         { d: 'M6 16.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5Z', stroke: true, width: 2 },
         { d: 'M18 4.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5Z', stroke: true, width: 2 },
       ],
+    },
+    docker: {
+      label: 'Docker',
+      image: '../assets/shell-icons/docker.webp',
+    },
+    github: {
+      label: 'GitHub',
+      image: '../assets/shell-icons/github.png',
+    },
+    node: {
+      label: 'Node.js',
+      image: '../assets/shell-icons/node.png',
+    },
+    python: {
+      label: 'Python',
+      image: '../assets/shell-icons/python.webp',
     },
     opencode: {
       label: 'OpenCode',
@@ -77,10 +91,13 @@
     return has(type) ? MARKS[type].label : '';
   }
 
-  /** Markup SVG del marchio; stringa statica, sicura da usare con innerHTML. */
+  /** Markup del marchio; stringa statica, sicura da usare con innerHTML. */
   function markup(type) {
     if (!has(type)) return '';
     const mark = MARKS[type];
+    if (mark.image) {
+      return `<img class="agent-icon agent-icon--${type}" src="${mark.image}" alt="${mark.label}" draggable="false"/>`;
+    }
     const paths = mark.paths
       .map((p) => {
         if (p.stroke) {

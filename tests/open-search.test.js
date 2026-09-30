@@ -6,6 +6,7 @@ const { test } = require('node:test');
 const { createElement, createStorage } = require('./fake-dom');
 const ConvSearch = require('../renderer/search-results');
 const ShellSearch = require('../renderer/shell-search');
+const ShellIcons = require('../renderer/shell-icons');
 
 test('sidebar: risultati shell e Claude mostrano tipo e logo, e aprono la scheda giusta', async () => {
   const nodes = new Map(['#session-list', '#count', '#group-mode-type', '#group-mode-project', '#open-search', '#sidebar', '#open-search-results']
@@ -24,7 +25,7 @@ test('sidebar: risultati shell e Claude mostrano tipo e logo, e aprono la scheda
     $: (s) => nodes.get(s),
     Sidebar: { createSidebar: () => ({ render() {} }) },
     Groups: { TYPE_LABELS: { claude: 'Claude' } },
-    Order: {}, ConvSearch, ShellSearch,
+    Order: {}, ConvSearch, ShellSearch, ShellIcons,
     Icons: { markup: (type) => `<svg data-type="${type}"></svg>` },
     escapeHtml: (s) => String(s),
     mutedNote: (message) => { const p = createElement('p'); p.textContent = message; return p; },

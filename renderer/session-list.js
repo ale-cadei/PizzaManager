@@ -13,6 +13,7 @@ const sidebar = Sidebar.createSidebar({
   onSelect: (id) => setActive(id),
   onClose: (id, anchor) => { requestClose(id, anchor).catch(() => {}); },
   onRename: (t) => { renameTab(t).catch(() => {}); },
+  onIcon: (t) => openShellIconPicker(t),
   // ⤓ sulla card: se l'export non riesce, il perché esce dalla card
   onExport: (t, anchor) => { exportFromCard(t, anchor).catch(() => {}); },
   // Il «+» di un gruppo progetto: stesso dialog, directory già impostata sulla
@@ -167,7 +168,7 @@ function renderOpenSearchState(state) {
     type.className = 'open-search-type';
     const icon = document.createElement('span');
     icon.className = 'icon';
-    icon.innerHTML = Icons.markup(tab.type); // markup statico del modulo icone
+    icon.innerHTML = Icons.markup(tab.type === 'shell' ? ShellIcons.normalize(tab.iconKey) : tab.type); // markup statico
     type.appendChild(icon);
     const label = document.createElement('span');
     label.textContent = tab.type === 'shell' ? 'Shell' : Groups.TYPE_LABELS[tab.type] || tab.type;

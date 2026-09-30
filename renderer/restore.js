@@ -22,6 +22,8 @@ async function reattachLiveSessions() {
       commandProfileId: s.profileId || null,
       commandProfileLabel: s.profileLabel || null,
       attachSession: s.name,
+      iconKey: s.iconKey || 'shell',
+      iconMode: s.iconMode || 'auto',
       // L'istante di avvio e' quello della sessione tmux, non del riattacco:
       // senza id, la conversazione va cercata da quando e' nata davvero.
       startedAt: s.createdAt || Date.now(),
@@ -86,7 +88,8 @@ function sessionRestoreItem(s) {
   const how = plan.mode === 'resume' ? 'riprende la conversazione' : (type === 'shell' ? 'nuova shell' : 'ripartirà pulita, senza id');
   return {
     type, name: s.label || type, cwd: s.cwd, how,
-    restore: () => createTab(plan.type, { name: plan.name, cwd: plan.cwd, resumeId: plan.resumeId, claudeAccountId: plan.claudeAccountId, commandProfileId: plan.commandProfileId, previousSession: plan.previousSession }),
+    iconKey: plan.iconKey,
+    restore: () => createTab(plan.type, { name: plan.name, cwd: plan.cwd, resumeId: plan.resumeId, claudeAccountId: plan.claudeAccountId, commandProfileId: plan.commandProfileId, previousSession: plan.previousSession, iconKey: plan.iconKey, iconMode: plan.iconMode }),
   };
 }
 
@@ -101,7 +104,7 @@ function gitRestoreItem(s) {
 /* Stessa card della sidebar (scatola, barra colorata del tipo, icona), con
    una spunta a sinistra. Un div e non un <label>: nei modal i label sono in
    colonna per i campi dei form e metterebbero la spunta sopra. */
-function restoreRow({ type, name, cwd, how }) {
+function restoreRow({ type, name, cwd, how, iconKey }) {
   const row = document.createElement('div');
   row.className = `session-item type-${type} restore-row`;
   row.setAttribute('role', 'checkbox');
@@ -109,7 +112,7 @@ function restoreRow({ type, name, cwd, how }) {
   cb.type = 'checkbox'; cb.checked = true; cb.className = 'restore-check';
   const icon = document.createElement('span');
   icon.className = 'icon';
-  icon.innerHTML = Icons.markup(type); // markup statico, nessun dato utente
+  icon.innerHTML = Icons.markup(type === 'shell' ? ShellIcons.normalize(iconKey) : type); // markup statico
   const meta = document.createElement('span');
   meta.className = 'meta';
   const nameEl = document.createElement('span');
@@ -132,6 +135,7 @@ function restoreRow({ type, name, cwd, how }) {
 function restorePlanFor(s) {
   const type = s.type || 'shell';
   const base = { type, cwd: s.cwd || undefined, commandProfileId: s.profileId || null, claudeAccountId: s.accountId || null, name: s.label || null, previousSession: s.name || null };
+  if (type === 'shell') { base.iconKey = s.iconKey || 'shell'; base.iconMode = s.iconMode || 'auto'; }
   if (type !== 'shell' && s.resumeId) return { ...base, resumeId: s.resumeId, mode: 'resume' };
   return { ...base, resumeId: null, mode: 'fresh' };
 }

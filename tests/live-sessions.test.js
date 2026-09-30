@@ -62,9 +62,11 @@ ok('piano di ripristino: senza id si riparte pulita nella stessa directory', () 
 });
 
 ok('piano di ripristino: una shell e sempre pulita, anche se per errore ha un id', () => {
-  const p = restorePlan({ name: 'ais-shell-1', type: 'shell', cwd: '/p', resumeId: 'boh' });
+  const p = restorePlan({ name: 'ais-shell-1', type: 'shell', cwd: '/p', resumeId: 'boh', iconKey: 'docker', iconMode: 'manual' });
   assert.strictEqual(p.mode, 'fresh');
   assert.strictEqual(p.resumeId, null);
+  assert.strictEqual(p.iconKey, 'docker');
+  assert.strictEqual(p.iconMode, 'manual');
 });
 
 ok('piano di ripristino: una voce senza tipo diventa una shell, non un crash', () => {

@@ -1,4 +1,4 @@
-/* Fantasmino col lenzuolo: vola, si ferma a guardare, fa buu.
+/* Fantasmino col lenzuolo: fluttua basso, si ferma a guardare, fa buu.
  * Disegno del pacchetto «Fantasmino Lenzuolo»: griglie ricavate dai PNG 1x nel
  * formato di pets-sprites.js, che lo fonde nel suo catalogo (AisessPetsPack).
  * Pose dalle animazioni del pacchetto.
@@ -12,7 +12,7 @@
   if (root) root.AisessPetsPack = Object.assign({}, root.AisessPetsPack, api);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : null, function () {
-  // ---- Fantasmino col lenzuolo: vola, si ferma a guardare, fa buu (24×27) ----
+  // ---- Fantasmino col lenzuolo: fluttua basso, si ferma a guardare, fa buu (24×27) ----
   const FANTASMINO_FLUTTUA_1 = [
     '........................',
     '........................',
@@ -643,7 +643,7 @@
   return {
     fantasmino: {
       speed: 1.0,
-      motion: 'fly',
+      motion: 'swim',
       // Ombra (i, j) chiara invece che scura: sul terminale scuro un'ombra scura sparisce
       palette: { a: '#222034', b: '#FAFAFF', c: '#D6DAEC', d: '#A8ACCC', e: '#FFFFFF', f: '#602C4C', g: '#FFB6C8', h: '#78BEFF', i: '#A8ACCC59', j: '#A8ACCC40' },
       shadow: [FANTASMINO_OMBRA_1, FANTASMINO_OMBRA_2, FANTASMINO_OMBRA_3, FANTASMINO_OMBRA_4],

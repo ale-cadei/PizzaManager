@@ -102,6 +102,18 @@ i contorni senza inventare colori. Perché non crescano anche in scena, un
 disegno più basso di 32 righe riceve `height` (righe/32): il pixel resta
 quello di un disegno a 32 righe, e la tazzina resta tazzina.
 
+**Senza contorno**: i pacchetti disegnano un bordo scuro di 1 px attorno a
+ogni sagoma (gli Spritelli tutti dello stesso `#2B2233`, Fizzo, la pizza,
+Zucco, Babbo, la Morte e il fantasmino ognuno del suo), che sul terminale
+scuro fa un alone; i disegni fatti a mano (Patrick, il gatto, la rana…) non
+ce l'hanno. L'utente li vuole tutti senza: il generatore lo toglie
+(`unoutlined`, colori in `OUTLINES` e `SPRITELLI_OUTLINE`) prima di
+ingrandire, lasciando lo scuro che sta dentro (occhi, bocche, la riga fra
+due colori), le gambe e le braccia fatte solo di quel colore e il pixel a
+cui si attaccano. SpongeBob e la tazzina, disegnati a mano con lo stesso
+bordo, sono stati ritoccati una volta con la stessa funzione. Il test misura
+quanto bordo scuro resta sulla sagoma.
+
 **Disegni a parte**: come l'ombra del fantasmino, stanno fuori dal div del
 personaggio (così non si specchiano né saltellano con lui) e li disegna la
 vista. `perch` è il posatoio: il fiore dell'ape, una griglia ferma a terra e

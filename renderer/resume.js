@@ -1,25 +1,48 @@
 /* Modal «Resume»: conversazioni dei CLI e cronologia dell'app. */
 
-async function openResumeModal() {
+let resumeRenderSeq = 0;
+const resumeCollapsedProjects = new Set();
+
+function updateResumeProjectScope() {
+  const scope = $('#resume-project-scope');
+  scope.hidden = !resumeProjectFilterRoot;
+  $('#resume-project-label').textContent = resumeProjectFilterRoot ? `Solo ${resumeProjectFilterRoot}` : '';
+  $('#resume-project-label').title = resumeProjectFilterRoot || '';
+}
+
+async function openResumeModal({ projectRoot = null } = {}) {
+  resumeCollapsedProjects.clear();
+  resumeProjectFilterRoot = typeof projectRoot === 'string' && projectRoot ? projectRoot : null;
+  $('#resume-group-projects').checked = Boolean(resumeProjectFilterRoot);
+  $('#resume-search').value = '';
+  if (resumeProjectFilterRoot && resumeTab === 'search') {
+    resumeTab = 'opencode';
+    $$('.tab').forEach((tab) => {
+      tab.classList.toggle('active', tab.dataset.tab === resumeTab);
+      tab.setAttribute('aria-selected', String(tab.dataset.tab === resumeTab));
+    });
+  }
+  updateResumeProjectScope();
   $('#modal-resume').hidden = false;
   await updateResumeAccountRow();
   await renderResumeList();
 }
 
 async function ensureResumeData(tab) {
-  if (resumeCache[tab]) return resumeCache[tab];
+  const limit = resumeProjectFilterRoot ? 500 : 100;
+  if (resumeCache[tab] && (tab === 'history' || resumeCache[tab].requestedLimit >= limit)) return resumeCache[tab];
   if (tab === 'opencode') {
-    const r = await window.aisess.listOpencode(100);
-    resumeCache.opencode = r;
+    const r = await window.aisess.listOpencode(limit);
+    resumeCache.opencode = { ...r, requestedLimit: limit };
   } else if (tab === 'claude') {
-    const r = await window.aisess.listClaude(100);
-    resumeCache.claude = r;
+    const r = await window.aisess.listClaude(limit);
+    resumeCache.claude = { ...r, requestedLimit: limit };
   } else if (tab === 'codex') {
-    const r = await window.aisess.listCodex(100);
-    resumeCache.codex = r;
+    const r = await window.aisess.listCodex(limit);
+    resumeCache.codex = { ...r, requestedLimit: limit };
   } else if (tab === 'antigravity') {
-    const r = await window.aisess.listAntigravity(100);
-    resumeCache.antigravity = r;
+    const r = await window.aisess.listAntigravity(limit);
+    resumeCache.antigravity = { ...r, requestedLimit: limit };
   } else {
     const h = await window.aisess.getHistory();
     resumeCache.history = { ok: true, sessions: h };
@@ -28,32 +51,39 @@ async function ensureResumeData(tab) {
 }
 
 const SEARCH_PLACEHOLDER = {
-  search: 'Cerca nei messaggi delle conversazioni…',
-  list: 'Cerca per titolo, directory o id…',
+  search: 'Cerca nei messaggi o per nome del progetto…',
+  list: 'Cerca per titolo, progetto, directory o id…',
 };
 
 async function renderResumeList(keepCache = false) {
+  const seq = ++resumeRenderSeq;
   const box = $('#resume-list');
   $('#resume-search').placeholder = resumeTab === 'search' ? SEARCH_PLACEHOLDER.search : SEARCH_PLACEHOLDER.list;
   if (resumeTab === 'search') return conversationSearch.run($('#resume-search').value);
   conversationSearch.cancel(); // una risposta in ritardo non deve coprire questa lista
-  const q = ($('#resume-search').value || '').toLowerCase();
+  const q = $('#resume-search').value || '';
   box.innerHTML = '<p class="muted">Caricamento…</p>';
   const data = await ensureResumeData(resumeTab);
+  if (seq !== resumeRenderSeq) return;
   if (!data.ok) {
     box.innerHTML = `<p class="muted">⚠ ${escapeHtml(data.error || 'Nessun dato')}</p>`;
     return;
   }
-  let items = data.sessions || [];
-  if (q) {
-    items = items.filter(s => JSON.stringify(s).toLowerCase().includes(q));
-  }
-  if (!items.length) {
+  const items = data.sessions || [];
+  const grouped = $('#resume-group-projects').checked;
+  const groups = await window.AisessResumeProjects.arrange(items, {
+    source: resumeTab, resolve: resolveProjectRoot,
+    filterRoot: resumeProjectFilterRoot, grouped, query: q, Groups,
+  });
+  if (seq !== resumeRenderSeq) return;
+  if (!groups.some((group) => group.items.length)) {
     box.innerHTML = '<p class="muted">Nessuna sessione trovata.</p>';
+    appendResumeLimitNote(box, data, grouped);
     return;
   }
   box.innerHTML = '';
-  for (const s of items.slice(0, 80)) box.appendChild(createResumeItem(resumeTab, s));
+  appendResumeGroups(box, groups, (s) => createResumeItem(resumeTab, s));
+  appendResumeLimitNote(box, data, grouped);
   // Il lister puo' aver scartato file illeggibili o in un formato inatteso:
   // meglio dirlo che lasciar credere che la lista sia completa.
   if (data.skipped > 0) {
@@ -64,7 +94,65 @@ async function renderResumeList(keepCache = false) {
   }
 }
 
-/* ---------- Linguetta «Cerca»: nei messaggi, non nei titoli ---------- */
+function appendResumeLimitNote(box, data, grouped) {
+  if (!(grouped || resumeProjectFilterRoot) || !data.requestedLimit || (data.sessions || []).length < data.requestedLimit) return;
+  box.appendChild(mutedNote(`Elenco limitato alle ${data.requestedLimit} conversazioni più recenti.`, 'small'));
+}
+
+function appendResumeGroups(box, groups, createItem) {
+  // La lista normale resta corta come prima; con un progetto scelto o con il
+  // raggruppamento attivo non nascondere interi gruppi per il limite visivo.
+  const limit = $('#resume-group-projects').checked || resumeProjectFilterRoot ? Infinity : 80;
+  let shown = 0;
+  for (const group of groups) {
+    const visible = group.items.slice(0, limit - shown);
+    if (!visible.length) continue;
+    let target = box;
+    if ($('#resume-group-projects').checked) {
+      const section = document.createElement('section');
+      section.className = 'resume-project-group';
+      const heading = document.createElement('h3');
+      heading.className = 'resume-project-heading';
+      heading.title = group.title;
+      const toggle = document.createElement('button');
+      toggle.className = 'resume-project-toggle';
+      toggle.type = 'button';
+      const arrow = document.createElement('span');
+      arrow.className = 'resume-project-arrow';
+      arrow.setAttribute('aria-hidden', 'true');
+      arrow.textContent = '▾';
+      const label = document.createElement('span');
+      label.className = 'resume-project-name';
+      label.textContent = `${group.label} (${group.items.length})`;
+      toggle.appendChild(arrow);
+      toggle.appendChild(label);
+      heading.appendChild(toggle);
+      const body = document.createElement('div');
+      body.className = 'resume-project-items';
+      body.id = `resume-project-items-${shown}`;
+      const expanded = !resumeCollapsedProjects.has(group.key);
+      toggle.setAttribute('aria-controls', body.id);
+      toggle.setAttribute('aria-expanded', String(expanded));
+      body.hidden = !expanded;
+      toggle.onclick = () => {
+        const open = body.hidden;
+        body.hidden = !open;
+        toggle.setAttribute('aria-expanded', String(open));
+        if (open) resumeCollapsedProjects.delete(group.key);
+        else resumeCollapsedProjects.add(group.key);
+      };
+      section.appendChild(heading);
+      section.appendChild(body);
+      box.appendChild(section);
+      target = body;
+    }
+    for (const item of visible) target.appendChild(createItem(item));
+    shown += visible.length;
+    if (shown >= limit) break;
+  }
+}
+
+/* ---------- Linguetta «Cerca»: messaggi e nomi dei progetti ---------- */
 
 const conversationSearch = ConvSearch.createSearchRunner({
   search: (q) => window.aisess.searchConversations(q),
@@ -84,15 +172,22 @@ function mutedNote(text, extraClass) {
   return p;
 }
 
-function renderSearchState(state) {
+async function renderSearchState(state) {
   if (resumeTab !== 'search') return;
+  const seq = ++resumeRenderSeq;
   const box = $('#resume-list');
   box.innerHTML = '';
   if (state.phase !== 'results') {
     box.appendChild(mutedNote(ConvSearch.statusText(state)));
     return;
   }
-  for (const r of state.results) box.appendChild(createSearchItem(r, state.query));
+  const groups = await window.AisessResumeProjects.arrange(state.results, {
+    resolve: resolveProjectRoot, filterRoot: resumeProjectFilterRoot,
+    grouped: $('#resume-group-projects').checked, Groups,
+  });
+  if (seq !== resumeRenderSeq || resumeTab !== 'search' || $('#modal-resume').hidden) return;
+  if (!groups.some((group) => group.items.length)) box.appendChild(mutedNote('Nessuna conversazione trovata in questo progetto.'));
+  else appendResumeGroups(box, groups, (r) => createSearchItem(r, state.query));
   if (state.truncated) box.appendChild(mutedNote(`Solo le ${state.results.length} conversazioni più recenti: aggiungi una parola per restringere.`, 'small'));
   if (state.skipped > 0) box.appendChild(mutedNote(`${state.skipped} conversazioni non leggibili, escluse dalla ricerca.`, 'small'));
 }
@@ -103,6 +198,7 @@ function createSearchItem(r, query) {
   const el = createResumeItem(r.source, { id: r.id, title: r.title, cwd: r.cwd, mtime: r.mtime });
   el.classList.add('search-result');
   const meta = el.querySelector('.meta');
+  if (r.projectName && !r.hits) meta.appendChild(mutedNote(`Trovata per nome del progetto: ${r.projectName}`, 'small'));
   ConvSearch.appendExpandableSnippets(document, meta, r, {
     query,
     loadAll: (q, scope, all) => window.aisess.searchConversations(q, scope, all),

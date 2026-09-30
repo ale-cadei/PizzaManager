@@ -222,7 +222,14 @@
       <button class="tab" role="tab" aria-selected="false" data-tab="antigravity"><span class="tab-glyph" data-icon="antigravity"></span> Antigravity</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="history">🕘 Cronologia app</button>
     </div>
-    <input class="input" id="resume-search" placeholder="Cerca per titolo, directory o id…" />
+    <input class="input" id="resume-search" placeholder="Cerca per titolo, progetto, directory o id…" />
+    <div class="resume-options">
+      <label class="resume-project-toggle"><input type="checkbox" id="resume-group-projects" /> Raggruppa per progetto</label>
+      <div class="resume-project-scope" id="resume-project-scope" hidden>
+        <span id="resume-project-label"></span>
+        <button type="button" id="resume-project-clear" title="Mostra le conversazioni di tutti i progetti">Mostra tutti</button>
+      </div>
+    </div>
     <div id="resume-account-row" hidden>
       <label>Account Claude
         <select class="input" id="resume-claude-account"></select>
@@ -377,6 +384,7 @@
 <script src="hints.js"></script>
 <script src="search-results.js"></script>
 <script src="shell-search.js"></script>
+<script src="resume-projects.js"></script>
 <script src="git-map-view.js"></script>
 <script src="git-graph-view.js"></script>
 <script src="git-branch-picker.js"></script>

@@ -13,6 +13,7 @@ let tmuxPath = null;
 let counter = 1;
 let pendingNewType = 'shell';
 let resumeTab = 'opencode';
+let resumeProjectFilterRoot = null;
 let resumeCache = { opencode: null, claude: null, codex: null, history: null };
 const emptyResumeCache = () => ({ opencode: null, claude: null, codex: null, history: null });
 

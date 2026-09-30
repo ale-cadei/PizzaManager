@@ -39,7 +39,7 @@ SPEC = [
       'idle': [0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 0], 'turn': [4, 4],
       'startle': [15, 16, 15, 16, 15, 16, 15, 16, 0], 'laugh': [17, 18, 17, 18, 17, 18],
       'sad': [19], 'appear': [25, 24, 23, 22, 4], 'vanish': [4, 22, 23, 24, 25]},
-     1.0, 'fly', None, 'Fantasmino col lenzuolo: vola, si ferma a guardare, fa buu'),
+     1.0, 'swim', None, 'Fantasmino col lenzuolo: fluttua basso, si ferma a guardare, fa buu'),
 ]
 PACKS = {
     'zip1': ('/tmp/sb/zip/assets', 'Sprite pixel-art originale', 'frames'),

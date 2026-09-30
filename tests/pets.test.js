@@ -442,3 +442,105 @@ ok('pets: la medusa chiama solo se non c è nessun altro che possa farlo, e per 
   assert.strictEqual(byKind(both, 'gatto').pose, 'call');
   assert.notStrictEqual(byKind(both, 'medusa').pose, 'call');
 });
+
+ok('pets: la papera arriva con due anatroccoli in fila, ognuno dietro a quello davanti', () => {
+  const { CAST } = require('../renderer/pets-sprites');
+  assert.deepStrictEqual(CAST.papera, ['papera', 'anatroccolo', 'anatroccolo']);
+  const state = createPets({ cast: ['papera'], width: WIDTH, size: SIZE, random: seeded(7) });
+  const [duck, first, second] = state.pets;
+  assert.deepStrictEqual(state.pets.map((p) => p.kind), ['papera', 'anatroccolo', 'anatroccolo']);
+  assert.strictEqual(new Set(state.pets.map((p) => p.key)).size, 3, 'chiavi doppie');
+  assert.strictEqual(duck.lead, undefined);
+  assert.strictEqual(first.lead, duck.key);
+  assert.strictEqual(second.lead, first.key);
+  for (const p of state.pets) assert.ok(p.x >= 0 && p.x <= WIDTH - petWidth(p.kind, SIZE), `${p.kind} fuori: ${p.x}`);
+});
+
+ok('pets: gli anatroccoli stanno dietro alla papera mentre gironzola', () => {
+  let state = onStage(['papera'], seeded(3));
+  const random = seeded(11);
+  let moved = 0;
+  for (let i = 0; i < 1500; i += 1) {
+    const next = step(state, { dt: 16, width: WIDTH, random });
+    moved += Math.abs(next.pets[1].x - state.pets[1].x);
+    state = next;
+    if (i > 300) {
+      const [duck, first, second] = state.pets;
+      assert.ok(Math.abs(center(first) - center(duck)) < 2 * SIZE, `il primo si è perso: ${center(first) - center(duck)}`);
+      assert.ok(Math.abs(center(second) - center(first)) < 2 * SIZE, `il secondo si è perso: ${center(second) - center(first)}`);
+    }
+  }
+  assert.ok(moved > SIZE, 'gli anatroccoli non camminano');
+});
+
+ok('pets: arrivato dietro a chi segue, l anatroccolo si ferma col suo verso e non zampetta sul posto', () => {
+  const base = onStage(['papera']);
+  const duck = { ...base.pets[0], x: 400, dir: 1 };
+  const gap = center(duck) - Pets.LINE_GAP * SIZE;
+  const first = { ...base.pets[1], x: gap - petWidth('anatroccolo', SIZE) / 2, dir: -1, anim: 500 };
+  const state = { ...base, pets: [duck, first] };
+  const next = step(state, { dt: 16, width: WIDTH, random: never });
+  const settled = next.pets[1];
+  assert.ok(Math.abs(settled.x - first.x) < 1, 'si è mosso');
+  assert.strictEqual(settled.dir, 1, 'non guarda dove va la papera');
+  assert.strictEqual(settled.anim, first.anim, 'zampetta fermo');
+});
+
+ok('pets: a chiamare è la papera, mai un anatroccolo', () => {
+  const base = onStage(['papera']);
+  const [duck, first, second] = base.pets;
+  const mid = WIDTH / 2 - petWidth('anatroccolo', SIZE) / 2;
+  const state = { ...base, pets: [{ ...duck, x: 20 }, { ...first, x: mid }, { ...second, x: mid - SIZE }] };
+  const next = step(state, { dt: 16, width: WIDTH, mood: 'attention', random: never });
+  assert.strictEqual(byKind(next, 'papera').pose, 'call');
+  assert.ok(next.pets.filter((p) => p.kind === 'anatroccolo').every((p) => p.pose !== 'call'));
+});
+
+ok('pets: la tazzina saltella e avanza solo in aria, come la rana', () => {
+  let state = onStage(['tazzina']);
+  const poses = new Set();
+  for (let i = 0; i < 200; i += 1) {
+    const next = step(state, { dt: 16, width: WIDTH, random: never });
+    const [was, cup] = [state.pets[0], next.pets[0]];
+    poses.add(cup.pose);
+    if (cup.pose !== 'jump') assert.strictEqual(cup.x, was.x, 'avanza da seduta');
+    state = next;
+  }
+  assert.ok(poses.has('jump') && poses.has('walk'));
+});
+
+ok('pets: quando la papera si gira, l anatroccolo che si trova davanti non le passa attraverso: la aspetta', () => {
+  const base = onStage(['papera']);
+  const duck = { ...base.pets[0], x: 400, dir: 1 };
+  const ahead = { ...base.pets[1], x: 400 + SIZE, dir: 1, anim: 500 };
+  const next = step({ ...base, pets: [duck, ahead] }, { dt: 16, width: WIDTH, random: never }).pets[1];
+  assert.strictEqual(next.x, ahead.x, 'le va incontro');
+  assert.strictEqual(next.dir, -1, 'non guarda la papera che arriva');
+  assert.strictEqual(next.anim, ahead.anim, 'zampetta fermo');
+
+  let state = onStage(['papera'], seeded(3));
+  const random = seeded(11);
+  for (let i = 0; i < 1500; i += 1) {
+    const next2 = step(state, { dt: 16, width: WIDTH, random });
+    next2.pets.slice(1).forEach((p, k) => {
+      const was = state.pets[k + 1];
+      const lead = state.pets[k];
+      const inFront = Math.sign(center(was) - center(lead)) === lead.dir;
+      if (inFront) assert.ok(Math.sign(p.x - was.x) !== -lead.dir, `passo ${i}: ${p.kind} va incontro a chi segue`);
+    });
+    state = next2;
+  }
+});
+
+ok('pets: la fila entra ed esce dal cast tutta insieme', () => {
+  const state = createPets({ cast: ['gatto', 'papera'], width: WIDTH, size: SIZE, random: seeded(2) });
+  const without = recast(state, { cast: ['gatto'], width: WIDTH, random: seeded(3) });
+  const settled = run(without, 200, { random: never });
+  assert.deepStrictEqual(settled.pets.map((p) => p.kind), ['gatto']);
+  const back = recast(settled, { cast: ['gatto', 'papera'], width: WIDTH, random: seeded(4) });
+  const line = back.pets.filter((p) => p.cast === 'papera');
+  assert.deepStrictEqual(line.map((p) => p.kind), ['papera', 'anatroccolo', 'anatroccolo']);
+  assert.strictEqual(line[1].lead, line[0].key);
+  assert.strictEqual(line[2].lead, line[1].key);
+  assert.strictEqual(new Set(back.pets.map((p) => p.key)).size, back.pets.length, 'chiavi doppie');
+});

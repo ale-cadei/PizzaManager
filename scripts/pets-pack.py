@@ -55,6 +55,64 @@ PALETTE_FIX = {
     'fantasmino': ({'#14122446': '#A8ACCC59', '#14122432': '#A8ACCC40'}, 'Ombra (i, j) chiara invece che scura: sul terminale scuro un\'ombra scura sparisce'),
 }
 
+# Pacchetto «Spritelli»: fotogrammi con un nome (<cartella>-sheet.json), a 1x.
+# Per personaggio: cartella, pose → nomi dei fotogrammi, speed, motion, commento,
+# e i fotogrammi derivati che il pacchetto non ha: base, righe ritoccate
+# (coordinate della cella) e altri fotogrammi sovrapposti in (x, y).
+SPRITELLI_DIR = '/tmp/spiritelli/spritelli'
+SPRITELLI = [
+    ('ape', 'ape-fiore',
+     {'walk': ['bee-fly-1', 'bee-fly-2'], 'sleep': ['bee-rest'], 'call': ['bee-fly-1', 'bee-rest']},
+     0.9, 'fly', "L'ape: vola, e si posa per dormire e per chiamare", {}),
+    ('chiocciola', 'chiocciola',
+     {'walk': ['snail-walk-1', 'snail-walk-2'], 'sleep': ['snail-sleep'],
+      'call': ['snail-walk-1', 'snail-walk-2']},
+     0.2, 'walk', 'La chiocciola: lenta, e per chiamare dondola le antenne', {
+         # Senza le «z» disegnate: quelle di chi dorme le mette la vista, per tutti
+         'snail-sleep': ('snail-sleep-1', {i: '.' * 16 for i in range(5)}, []),
+     }),
+    ('papera', 'papera-anatroccoli',
+     {'walk': ['duck-walk-1', 'duck-walk-2'], 'sleep': ['duck-sleep'], 'call': ['duck-walk-1', 'duck-quack']},
+     0.7, 'walk', 'La papera: cammina con gli anatroccoli dietro, e chiama facendo qua qua', {
+         'duck-sleep': ('duck-walk-1', {4: '......abbbdbcca.'}, []),
+         'duck-quack': ('duck-walk-1', {2: '.......abbbaaa..', 3: '......abbbbbcca.', 4: '......abbbaba...',
+                                        5: '......abbbbbcca.', 6: '.......abbbaaa..'}, []),
+     }),
+    ('anatroccolo', 'papera-anatroccoli',
+     {'walk': ['duckling-walk-1', 'duckling-walk-2'], 'sleep': ['duckling-sleep'], 'call': ['duckling-walk-1']},
+     0.7, 'walk', "L'anatroccolo: va dietro alla papera", {
+         'duckling-sleep': ('duckling-walk-1', {2: '...aeeefeca'}, []),
+     }),
+    ('robottino', 'robottino',
+     {'walk': ['robot-walk-1-on', 'robot-walk-2-on', 'robot-walk-1-off', 'robot-walk-2-off'],
+      'sleep': ['robot-sleep'], 'call': ['robot-call-1', 'robot-call-2']},
+     0.7, 'walk', "Il robottino: cammina con l'antenna che lampeggia, e chiama con lo schermo acceso", {
+         'robot-sleep': ('robot-walk-1-off', {5: '..adeeeeeeeeda..'}, []),
+     }),
+    ('tazzina', 'tazzina-caffe',
+     {'walk': ['coffee-land', 'coffee-land'], 'jump': ['coffee-hop-1', 'coffee-hop-2'],
+      'sleep': ['coffee-sleep'], 'call': ['coffee-hop-1', 'coffee-land']},
+     1.2, 'hop', 'La tazzina di caffè: saltella fumando, e da fredda dorme', {
+         'coffee-sleep': ('coffee-land', {4: '.' * 16, 5: '.' * 16, 6: '.' * 16, 11: '..bcbbcccbbcbcb.'}, []),
+     }),
+    ('pesce', '/tmp/spritelli-pesce/pesce',
+     {'walk': ['fish-swim-1', 'fish-swim-2'], 'sleep': ['fish-sleep'],
+      'call': ['fish-blow', 'fish-bubble-1', 'fish-bubble-2']},
+     0.7, 'swim', 'Il pesce: nuota ondeggiando, e chiama soffiando bolle', {
+         'fish-sleep': ('fish-swim-1', {6: '.abbbcccccccaaca.'}, []),
+         'fish-bubble-1': ('fish-blow', {}, [('bubble-small', 16, 4)]),
+         'fish-bubble-2': ('fish-blow', {}, [('bubble-big', 17, 0)]),
+     }),
+]
+# Colori a scelta (pets-sprites.js variants): colore del pacchetto → sostituto
+VARIANTS = {
+    'pesce': [
+        {'#3A86A8': '#C8561E', '#5FB7D6': '#F2833A', '#C4EBF5': '#FFFFFF'},
+        {'#3A86A8': '#3C8A34', '#5FB7D6': '#5DBB4A', '#C4EBF5': '#C8E88A'},
+        {'#3A86A8': '#9A4A9A', '#5FB7D6': '#C86BC8', '#C4EBF5': '#F4D0F4'},
+    ],
+}
+
 
 def load(pack, folder):
     base, _, mode = PACKS[pack]
@@ -175,6 +233,74 @@ def classic(kind, pack, folder, poses, speed, motion, height, comment):
     return module_js(kind, comment, pack_name, lines, speed, motion, height, palette_js(kind, pal), shadow_js, frames_js)
 
 
+def spritelli_frames(folder):
+    """I fotogrammi del pacchetto come griglie di caratteri, per nome, e la palette."""
+    path = folder if folder.startswith('/') else f'{SPRITELLI_DIR}/{folder}'
+    name = path.rstrip('/').rsplit('/', 1)[-1]
+    d = json.load(open(f'{path}/{name}-sheet.json'))
+    sheet = Image.open(f'{path}/{name}-sheet.png').convert('RGBA')
+    pal = {}
+    frames = {}
+    for f in d['frames']:
+        im = sheet.crop((f['x'], f['y'], f['x'] + f['w'], f['y'] + f['h']))
+        frames[f['name']] = grid(im, (0, 0, f['w'], f['h']), pal)
+    return frames, pal
+
+
+def derive(frames, base, rows, over):
+    """Un fotogramma nuovo: righe ritoccate, poi altri fotogrammi sopra (i '.' non coprono)."""
+    out = [rows.get(i, r) for i, r in enumerate(frames[base])]
+    for name, ox, oy in over:
+        width = max(len(out[0]), ox + len(frames[name][0]))
+        out = [r.ljust(width, '.') for r in out]
+        for y, r in enumerate(frames[name]):
+            line = list(out[oy + y])
+            for x, ch in enumerate(r):
+                if ch != '.':
+                    line[ox + x] = ch
+            out[oy + y] = ''.join(line)
+    widths = {len(r) for r in out}
+    assert len(widths) == 1 and len(out) == len(frames[base]), f'{base}: ritocco fuori misura'
+    return out
+
+
+def crop(grids):
+    """Stessa misura per tutti, allineati in basso e a sinistra, poi via il vuoto intorno."""
+    w = max(len(g[0]) for g in grids.values())
+    h = max(len(g) for g in grids.values())
+    full = {k: ['.' * w] * (h - len(g)) + [r.ljust(w, '.') for r in g] for k, g in grids.items()}
+    ink = [(x, y) for g in full.values() for y, r in enumerate(g) for x, ch in enumerate(r) if ch != '.']
+    x0, x1 = min(x for x, _ in ink), max(x for x, _ in ink) + 1
+    y0, y1 = min(y for _, y in ink), max(y for _, y in ink) + 1
+    return {k: [r[x0:x1] for r in g[y0:y1]] for k, g in full.items()}
+
+
+def spritelli(kind, folder, poses, speed, motion, comment, derived):
+    """Un personaggio del pacchetto Spritelli: il sorgente del file."""
+    frames, pal = spritelli_frames(folder)
+    frames = {**frames, **{n: derive(frames, *spec) for n, spec in derived.items()}}
+    used = list(dict.fromkeys(n for v in poses.values() for n in v))
+    grids = crop({n: frames[n] for n in used})
+    # Solo i colori usati, nell'ordine in cui compaiono
+    ink = dict.fromkeys(ch for n in used for r in grids[n] for ch in r if ch != '.')
+    letter = {ch: LETTERS[i] for i, ch in enumerate(ink)}
+    grids = {n: [''.join(letter.get(ch, ch) for ch in r) for r in g] for n, g in grids.items()}
+    hexes = {v: h for h, v in pal.items()}
+    used_pal = {hexes[ch]: letter[ch] for ch in ink}
+    cn = lambda n: f"{kind.upper()}_{n.upper().replace('-', '_')}"
+    first = grids[used[0]]
+    lines = [f'  // ---- {comment} ({len(first[0])}×{len(first)}) ----']
+    for n in used:
+        lines += const_block(cn(n), grids[n])
+    frames_js = ',\n'.join('        %s: [%s]' % (p, ', '.join(cn(n) for n in v)) for p, v in poses.items())
+    variants = VARIANTS.get(kind, [])
+    variants_js = ''
+    if variants:
+        rows = ',\n'.join('        { %s }' % ', '.join(f"{used_pal[h]}: '{c}'" for h, c in v.items()) for v in variants)
+        variants_js = f'\n      variants: [\n{rows},\n      ],'
+    return module_js(kind, comment, 'Spritelli', lines, speed, motion, None, palette_js(kind, used_pal), variants_js, frames_js)
+
+
 def write(kind, src):
     open(OUT % kind, 'w').write(src)
     print(kind, len(src.splitlines()), 'righe')
@@ -182,3 +308,5 @@ def write(kind, src):
 
 for entry in SPEC:
     write(entry[0], classic(*entry))
+for kind, *entry in SPRITELLI:
+    write(kind, spritelli(kind, *entry))

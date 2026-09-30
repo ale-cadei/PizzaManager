@@ -36,6 +36,23 @@ ok('sprites: ogni personaggio ha le pose che il motore usa, walk con almeno due 
   assert.deepStrictEqual(EXTRA_POSES.pescatore, ['swing']);
   assert.deepStrictEqual(EXTRA_POSES.medusa, ['flee']);
   assert.deepStrictEqual(EXTRA_POSES.rana, ['jump']);
+  assert.deepStrictEqual(EXTRA_POSES.tazzina, ['jump']);
+});
+
+ok('sprites: i personaggi del pacchetto Spritelli sono voci del cast', () => {
+  for (const id of ['ape', 'chiocciola', 'papera', 'robottino', 'tazzina']) {
+    assert.ok(CAST[id], `${id} non è nel cast`);
+    assert.strictEqual(CAST[id][0], id);
+  }
+  assert.strictEqual(SPRITES.ape.motion, 'fly');
+  assert.strictEqual(SPRITES.tazzina.motion, 'hop');
+});
+
+ok('sprites: il pesce è quello del pacchetto Spritelli, coi suoi colori a scelta', () => {
+  assert.deepStrictEqual(dims('pesce'), { cols: 23, rows: 12 });
+  assert.strictEqual(SPRITES.pesce.motion, 'swim');
+  assert.ok(SPRITES.pesce.variants.length >= 3);
+  assert.ok(SPRITES.pesce.frames.call.length >= 3, 'soffia le bolle');
 });
 
 ok('sprites: nessuna posa che il motore non conosca; le opzionali ci sono dove i pacchetti le danno', () => {

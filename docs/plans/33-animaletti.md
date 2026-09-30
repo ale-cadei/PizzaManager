@@ -64,19 +64,31 @@ Spento di default. Si accende e si regola da `Vista › Personaggi…`.
 | `pizza` | Peppo, la pizza | Fetta con gambine, dal pacchetto «Sprite pixel-art originale» dell'utente |
 | `rana` | Rana | Salta (`motion: 'hop'`): avanza solo in aria, posa `jump` |
 | `uccellino` | Uccellino | Vola sopra la striscia (`fly`); per dormire o chiamare si posa. Azzurro, pettirosso, canarino o cardinale, a sorte |
-| `pesce` | Pesce | Nuota ondeggiando appena sopra il fondo (`swim`). Pagliaccio, blu, verde o rosa, a sorte |
+| `pesce` | Pesce | Nuota ondeggiando appena sopra il fondo (`swim`), chiama soffiando bolle; dal pacchetto «Spritelli». Azzurro, arancio, verde o rosa, a sorte |
 | `fizzo` | Fizzo, la bibita | Bicchiere con cannuccia, dal pacchetto |
 | `rotolacampo` | Rotolacampo | Rotola (12 frame); quando chiama rimbalza |
 | `babbo` | Babbo Natale | Slitta con le renne, vola (`fly`); dal pacchetto |
 | `morte` | La Morte | Fluttua appena sopra il fondo (`swim`); quando chiama dà una falciata (8 frame) |
 | `zucca` | Zucco, la zucca | Cammina; dal pacchetto di Halloween |
 | `fantasmino` | Fantasmino | Vola (`fly`) col lenzuolo; dorme abbassandosi, fa «buu» quando chiama |
+| `ape` | Ape | Vola (`fly`); si posa per dormire e per chiamare |
+| `chiocciola` | Chiocciola | Lentissima; dorme chiusa nel guscio, chiama dondolando le antenne |
+| `papera` | Papera e anatroccoli | La papera gironzola, i due anatroccoli (`anatroccolo`) le vanno dietro in fila; chiama facendo qua qua |
+| `robottino` | Robottino | Cammina con l'antenna che lampeggia; chiama con lo schermo giallo |
+| `tazzina` | Tazzina di caffè | Saltella come la rana (`hop`, posa `jump`) fumando; da fredda dorme |
 
 Rana, uccellino e pesce aggiunti su richiesta dell'utente dopo il primo
 giro. Pizza, Fizzo, Rotolacampo e Babbo Natale vengono dal pacchetto
 «Sprite pixel-art originale» dell'utente, La Morte e Zucco dall'«Halloween
 Pack», il Fantasmino dal pacchetto «Fantasmino Lenzuolo» (rifatto col
-lenzuolo al posto di quello dell'Halloween Pack). Ogni pacchetto
+lenzuolo al posto di quello dell'Halloween Pack). Ape, chiocciola, papera
+con anatroccoli, robottino, tazzina e il pesce (al posto di quello
+disegnato a mano) dal pacchetto «Spritelli», che ha un formato suo:
+fotogrammi con un nome in `<cartella>-sheet.json`, senza animazioni. Le
+pose mancanti (sonno della papera, richiamo col becco aperto, bolle del
+pesce…) sono fotogrammi derivati nel generatore: righe ritoccate e altri
+fotogrammi sovrapposti. Il fiore dell'ape nel pacchetto non ha ancora un
+ruolo. Ogni pacchetto
 porta PNG 1x e un `data.json` con le animazioni: un file generato per
 personaggio, `renderer/pets-sprite-*.js`, caricato prima di
 `pets-sprites.js` che li fonde nel catalogo. Le pose: `cammina`/`fluttua`/`insegui-dx`
@@ -88,6 +100,15 @@ e la medusa» (`inseguimento`): sono due personaggi legati. Il pescatore non ha
 una direzione sua: punta la medusa e tiene una distanza minima. La medusa
 fugge verso il lato con più spazio; messa all'angolo si alza e gli passa
 sopra. Il retino non la prende mai.
+
+**In fila**: una voce con più personaggi che non sia l'inseguimento
+(`papera` = papera + due anatroccoli) nasce in fila. Ognuno ha un `lead`,
+quello davanti, e gli sta a `LINE_GAP` misure dietro rispetto al verso in
+cui va, recuperando più svelto (`CATCH_UP`); arrivato si ferma, guarda
+dove guarda lui e non zampetta sul posto. Quando la papera si gira e se
+li trova davanti, gli anatroccoli non le passano attraverso: la aspettano
+guardandola e, passata, le vanno dietro. Chi segue non chiama mai: tocca
+al primo.
 
 Frame per personaggio: `walk` (2 frame; il pescatore 4, con il corpo che sale
 fra un passo e l'altro), `sleep`, `call`. Il pescatore ha anche `swing`, la
@@ -153,7 +174,7 @@ Precedenza: `attention` > `busy` > `sleep` > `idle`.
 }
 ```
 
-- `MAX_CAST = 14` voci del dialogo, una per ognuna; la coppia pescatore e medusa è una voce
+- `MAX_CAST = 20` voci del dialogo, una per ognuna; la coppia pescatore e medusa è una voce, la papera con gli anatroccoli pure
   (contarla due impediva di sceglierne una di ognuna).
 - Voci sconosciute scartate, valori fuori elenco → default, JSON rotto →
   default intero.

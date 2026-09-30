@@ -223,9 +223,89 @@ ok('pets-view: due pesci con aspetto diverso hanno colori diversi nel disegno', 
   const draw = (random) => {
     const { view, strip } = setup({ random });
     view.apply({ ...ON, cast: ['pesce'] });
-    return strip.children[0];
+    return strip.children.find((el) => classOf(el).includes('pet--pesce'));
   };
   const a = draw(() => 0.3);
   const b = draw(() => 0.9);
   assert.notDeepStrictEqual([...fills(a)].sort(), [...fills(b)].sort());
+});
+
+const xOf = (el) => Number(/translate\(([-\d.]+)px/.exec(el.style.transform)[1]);
+const widthOf = (el) => Number(el.children[0].getAttribute('width'));
+
+ok('pets-view: il fiore dell ape sta a terra, sotto di lei, anche mentre vola', () => {
+  const { view, strip, tick } = setup();
+  view.apply({ ...ON, cast: ['ape'] });
+  const [flower, bee] = strip.children;
+  assert.strictEqual(classOf(flower), 'pet-perch');
+  assert.ok(classOf(bee).includes('pet--ape'));
+  for (let i = 0; i < 20; i += 1) tick(50);
+  assert.strictEqual(flower.hidden, false);
+  assert.strictEqual(visibleFrames(flower).length, 1);
+  assert.ok(/, 0px\)$/.test(flower.style.transform), 'il fiore si è alzato da terra');
+  view.apply({ ...ON, cast: ['gatto'] });
+  for (let i = 0; i < 30; i += 1) tick(50);
+  assert.strictEqual(strip.children.filter((el) => classOf(el) === 'pet-perch').length, 0, 'il fiore è rimasto');
+});
+
+ok('pets-view: le bolle del pesce escono davanti alla bocca solo quando chiama', () => {
+  const { view, strip, tick, current } = setup();
+  view.apply({ ...ON, cast: ['pesce'] });
+  const fish = strip.children.find((el) => classOf(el).includes('pet--pesce'));
+  const bubbles = strip.children.find((el) => classOf(el).startsWith('pet-bubbles'));
+  assert.ok(bubbles, 'niente bolle');
+  for (let i = 0; i < 20; i += 1) tick(50);
+  assert.strictEqual(bubbles.hidden, true, 'bolle mentre nuota');
+  current.attention = true;
+  tick(50);
+  assert.ok(classOf(fish).includes('pet--call'));
+  assert.strictEqual(bubbles.hidden, false);
+  assert.strictEqual(visibleFrames(bubbles).length, 1);
+  const left = classOf(fish).includes('pet--left');
+  assert.strictEqual(classOf(bubbles).includes('pet-bubbles--left'), left, 'bolle girate dall altra parte');
+  const expected = left ? xOf(fish) - widthOf(bubbles) : xOf(fish) + widthOf(fish);
+  assert.ok(Math.abs(xOf(bubbles) - expected) < 0.2, `bolle lontane dalla bocca: ${xOf(bubbles)} invece di ${expected}`);
+  assert.strictEqual(bubbles.style.transform.split(',')[1], fish.style.transform.split(',')[1], 'bolle a un altra quota');
+  const seen = new Set();
+  for (let i = 0; i < 20; i += 1) { tick(50); seen.add(visibleFrames(bubbles)[0]); }
+  assert.ok(seen.size > 1, 'bolle ferme');
+});
+
+ok('pets-view: il pesce al bordo si gira per chiamare, e le bolle restano nella striscia davanti alla bocca', () => {
+  for (const random of [() => 0, () => 0.99]) {
+    const { view, strip, tick, current } = setup({ random });
+    view.apply({ ...ON, cast: ['pesce'] });
+    const fish = strip.children.find((el) => classOf(el).includes('pet--pesce'));
+    const bubbles = strip.children.find((el) => classOf(el).startsWith('pet-bubbles'));
+    current.attention = true;
+    for (let i = 0; i < 5; i += 1) tick(16);
+    const x = xOf(bubbles);
+    assert.ok(x >= 0 && x + widthOf(bubbles) <= strip.clientWidth, `bolle fuori: ${x}`);
+    const left = classOf(fish).includes('pet--left');
+    const mouth = left ? xOf(fish) - widthOf(bubbles) : xOf(fish) + widthOf(fish);
+    assert.ok(Math.abs(x - mouth) < 0.2, 'bolle lontane dalla bocca');
+  }
+});
+
+ok('pets-view: la tazzina ha i suoi sbuffi di fumo, nascosti finché non fuma, poi disegnati dove il motore li mette', () => {
+  const { view, strip, tick } = setup();
+  view.apply({ ...ON, cast: ['tazzina'] });
+  const cup = strip.children.find((el) => classOf(el).includes('pet--tazzina'));
+  const puffs = strip.children.filter((el) => classOf(el) === 'pet-puff');
+  assert.ok(puffs.length >= 2, 'niente sbuffi');
+  assert.ok(puffs.every((el) => el.hidden), 'sbuffi già in vista');
+  for (let i = 0; i < 30; i += 1) tick(50);
+  const shown = puffs.filter((el) => !el.hidden);
+  assert.ok(shown.length >= 2, `${shown.length} sbuffi in vista dopo un secondo e mezzo`);
+  for (const el of shown) {
+    assert.strictEqual(visibleFrames(el).length, 1);
+    const left = classOf(cup).includes('pet--left');
+    assert.ok(left ? xOf(el) > xOf(cup) : xOf(el) < xOf(cup) + widthOf(cup), 'sbuffo davanti alla tazzina');
+    assert.ok(/, -[\d.]+px\)$/.test(el.style.transform), 'sbuffo a terra');
+  }
+  const ages = new Set(shown.map((el) => el.style.opacity));
+  assert.ok(ages.size > 1, 'sbuffi tutti uguali: non svaniscono');
+  view.apply({ ...ON, cast: ['gatto'] });
+  for (let i = 0; i < 30; i += 1) tick(50);
+  assert.strictEqual(strip.children.filter((el) => classOf(el) === 'pet-puff').length, 0, 'gli sbuffi sono rimasti');
 });

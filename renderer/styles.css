@@ -678,6 +678,17 @@ img.agent-icon--node { border-radius: 2px; }
 .pet-shadow { position: absolute; left: 0; bottom: 0; will-change: transform; }
 .pet-shadow[hidden] { display: none; }
 .pet-shadow svg { display: block; }
+/* Posatoio (il fiore dell'ape) e bolle: come l'ombra, fuori dal personaggio.
+   Le bolle guardano dove guarda chi le soffia. */
+.pet-perch, .pet-bubbles { position: absolute; left: 0; bottom: 0; }
+.pet-bubbles { will-change: transform; }
+.pet-bubbles[hidden] { display: none; }
+.pet-perch svg, .pet-bubbles svg { display: block; }
+.pet-bubbles--left svg { scale: -1 1; }
+/* Gli sbuffi di fumo della tazzina: fermi dove nascono, sbiadiscono con l'età */
+.pet-puff { position: absolute; left: 0; bottom: 0; will-change: transform, opacity; }
+.pet-puff[hidden] { display: none; }
+.pet-puff svg { display: block; }
 /* Proprietà separate da transform, che la vista riscrive a ogni frame */
 .pet--left svg { scale: -1 1; }
 .pet--call svg { animation: pet-hop 0.5s ease-in-out infinite; }

@@ -47,7 +47,7 @@ contextBridge.exposeInMainWorld('aisess', {
   resetCommandProfiles: () => ipcRenderer.invoke('reset-command-profiles'),
   pickCwd: () => ipcRenderer.invoke('dialog-cwd'),
   menuAction: (action) => ipcRenderer.invoke('menu-action', { action }),
-  usage: (active) => ipcRenderer.invoke('usage-snapshot', { active }),
+  usage: (active, tab) => ipcRenderer.invoke('usage-snapshot', { active, tab }),
   listExtensions: (cwd) => ipcRenderer.invoke('list-extensions', { cwd }),
   clipboardWrite: (text) => ipcRenderer.invoke('clipboard-write', { text }),
   clipboardRead: () => ipcRenderer.invoke('clipboard-read'),

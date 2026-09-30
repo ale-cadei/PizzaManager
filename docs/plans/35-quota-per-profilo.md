@@ -158,6 +158,16 @@ tests/claude-quota.test.js     cache separata per configDir
 Smoke nell'app: una scheda lavoro e una personale, passare dall'una all'altra
 e confrontare la FINESTRA 5h con `/usage` dentro ciascuna.
 
+## Stato (2026-09-30)
+
+Fatto: `claude-token.js`, cache per config dir, `claude-target.js`, cablaggio
+scheda → main → `collectUsage`, tilde sulla stima. Suite verde.
+
+Non ancora: il tooltip che, col token scaduto (`401`), dice di aprire una
+sessione di quel profilo. Oggi il `401` ricade sulla stima in silenzio, come
+qualunque altro errore. E lo smoke test nell'app (compreso il dialogo del
+Keychain).
+
 ## Fuori da questo branch
 
 - **Separare la stima per profilo.** Con `projects/` condiviso è impossibile

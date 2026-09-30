@@ -113,10 +113,18 @@ function activeUsageSession() {
   return { source: t.type, sessionId: t.resumeId };
 }
 
+/* Di quale account mostrare la quota di Claude: solo gli id, la config dir
+   la ricava il main dal profilo (docs/plans/35-quota-per-profilo.md). */
+function activeUsageTab() {
+  const t = activeId ? tabs.get(activeId) : null;
+  if (!t) return null;
+  return { type: t.type, commandProfileId: t.commandProfileId || null, claudeAccountId: t.claudeAccountId || null };
+}
+
 async function refreshUsage() {
   if (!usageBar) return;
   try {
-    const r = await window.aisess.usage(activeUsageSession());
+    const r = await window.aisess.usage(activeUsageSession(), activeUsageTab());
     if (r && r.ok && r.usage) usageBar.update(r.usage);
   } catch (e) {
     console.warn('usage-snapshot fallito', e);

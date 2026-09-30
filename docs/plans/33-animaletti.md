@@ -74,8 +74,8 @@ Spento di default. Si accende e si regola da `Vista › Personaggi…`.
 | `ape` | Ape | Vola (`fly`); ha un fiore suo in un punto della striscia, e ci vola sopra per dormire e per chiamare |
 | `chiocciola` | Chiocciola | Lentissima; dorme chiusa nel guscio, chiama dondolando le antenne |
 | `papera` | Papera e anatroccoli | La papera gironzola, i due anatroccoli (`anatroccolo`) le vanno dietro in fila; chiama facendo qua qua |
-| `robottino` | Robottino | Cammina con l'antenna che lampeggia; chiama con lo schermo giallo |
-| `tazzina` | Tazzina di caffè | Cammina come Fizzo (quattro passi) lasciando sbuffi di fumo dietro di sé (`trail`); da fredda dorme e non fuma. Disegnata a mano, al posto di quella del pacchetto Spritelli che saltellava |
+| `robottino` | Robbo, il robottino | Cammina con l'antenna che lampeggia; chiama con lo schermo giallo |
+| `tazzina` | Tazzi, la tazzina | Cammina come Fizzo (quattro passi) lasciando sbuffi di fumo dietro di sé (`trail`); da fredda dorme e non fuma. Disegnata a mano, al posto di quella del pacchetto Spritelli che saltellava |
 
 Rana, uccellino e pesce aggiunti su richiesta dell'utente dopo il primo
 giro. Pizza, Fizzo, Rotolacampo e Babbo Natale vengono dal pacchetto

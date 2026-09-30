@@ -155,6 +155,10 @@ ok('sprites: il cast usa solo personaggi disegnati e ha un nome per ogni voce', 
     assert.ok(CAST_LABELS[id], `${id} senza nome`);
     for (const k of kinds) assert.ok(SPRITES[k], `${id}: ${k} non disegnato`);
   }
+  // Chi ha un nome proprio lo porta nell'etichetta, come Peppo e Fizzo
+  for (const [id, label] of [['tazzina', 'Tazzi, la tazzina'], ['robottino', 'Robbo, il robottino']]) {
+    assert.strictEqual(CAST_LABELS[id], label);
+  }
 });
 
 ok('sprites: toRects fonde i pixel uguali contigui e salta i trasparenti', () => {

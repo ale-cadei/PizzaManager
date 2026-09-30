@@ -492,9 +492,11 @@
   };
   const MOTIONS = ['walk', 'hop', 'fly', 'swim'];
 
-  /** Voci che si scelgono nelle impostazioni: SpongeBob e la medusa vanno insieme. */
+  /** Voci che si scelgono nelle impostazioni: SpongeBob e la medusa vanno
+   *  insieme, ma la medusa si può avere anche da sola. */
   const CAST = {
     inseguimento: ['spongebob', 'medusa'],
+    medusa: ['medusa'],
     patrick: ['patrick'],
     gary: ['gary'],
     gatto: ['gatto'],
@@ -511,6 +513,7 @@
   };
   const CAST_LABELS = {
     inseguimento: 'SpongeBob e la medusa',
+    medusa: 'Medusa',
     patrick: 'Patrick',
     gary: 'Gary',
     gatto: 'Gatto',

@@ -4,7 +4,7 @@ const { test: ok } = require('node:test');
 /* Sessione git: la timeline dei branch locali. lib/git-graph.js legge
    `git log` e calcola le corsie (colonne) di ogni commit; il renderer si
    limita a disegnarle. Qui si provano parsing e layout senza git. */
-const { parseGitLog, parseRefs, layoutGraph, gitLogArgs, readGitGraph, FIELD_SEP, RECORD_SEP } = require('../lib/git-graph');
+const { parseGitLog, parseRefs, layoutGraph, pinnedBranches, gitLogArgs, readGitGraph, FIELD_SEP, RECORD_SEP } = require('../lib/git-graph');
 
 const rec = (hash, parents, subject, extra = {}) => [
   hash, parents.join(' '), extra.author || 'Ale', extra.date || '2026-09-25T10:12:00+02:00', extra.refs || '', subject,
@@ -256,4 +256,89 @@ ok('git: una linea prende il nome del primo branch che la tocca', () => {
   assert.strictEqual(View.laneLabel(rows, 0), 'main');
   assert.strictEqual(View.laneLabel(rows, 1), 'origin/feat/x', 'un tag non è il nome di una linea');
   assert.strictEqual(View.laneLabel(rows, 5), '');
+});
+
+/* Corsie fisse (docs/plans/34): main (o master) in colonna 0, develop in 1,
+   tutti gli altri a destra, anche quando il commit più recente è altrove. */
+const B = (hash, parents, ...branches) => ({ ...C(hash, parents), refs: branches.map((name) => ({ name, kind: 'branch', head: false })) });
+
+ok('git: main resta in colonna 0 anche se il commit più recente è su un feature branch', () => {
+  //   f2        feat/x, il più recente
+  //   | m2      main
+  //   f1 |
+  //   |/
+  //   a
+  const g = layoutGraph([B('f2', ['f1'], 'feat/x'), B('m2', ['a'], 'main'), C('f1', ['a']), C('a', [])]);
+  assert.deepStrictEqual(g.rows.map((r) => r.col), [1, 0, 1, 0]);
+  assert.strictEqual(g.rows[1].color, 0, 'main non ha il primo colore');
+  assert.notStrictEqual(g.rows[0].color, 0);
+});
+
+ok('git: develop sta subito a destra di main, gli altri dopo', () => {
+  const g = layoutGraph([
+    B('f1', ['d1'], 'feat/x'), B('d1', ['m1'], 'develop'), B('m1', ['a'], 'main'), C('a', []),
+  ]);
+  const col = Object.fromEntries(g.rows.map((r) => [r.commit.hash, r.col]));
+  assert.deepStrictEqual(col, { f1: 2, d1: 1, m1: 0, a: 0 });
+  assert.strictEqual(g.rows[1].color, 1, 'develop non ha il secondo colore');
+  assert.ok(g.width >= 3);
+});
+
+ok('git: la colonna di main è riservata anche prima che la sua linea compaia', () => {
+  const g = layoutGraph([B('f1', ['a'], 'feat/x'), B('a', [], 'main')]);
+  assert.deepStrictEqual(g.rows.map((r) => r.col), [1, 0]);
+  assert.ok(g.rows[0].edges.some((e) => e.from === 1 && e.to === 0), 'il feature branch non rientra in main');
+});
+
+ok('git: tutta la catena dei primi genitori di main sta in colonna 0', () => {
+  // main = m3 → m2 (merge di f1) → m1; f1 nasce da m1
+  const g = layoutGraph([
+    B('m3', ['m2'], 'main'), C('m2', ['m1', 'f1']), C('f1', ['m1']), C('m1', []),
+  ]);
+  const col = Object.fromEntries(g.rows.map((r) => [r.commit.hash, r.col]));
+  assert.deepStrictEqual(col, { m3: 0, m2: 0, f1: 1, m1: 0 });
+});
+
+ok('git: un merge di develop in main porta la linea nella colonna di develop', () => {
+  const g = layoutGraph([
+    B('m2', ['m1', 'd1'], 'main'), B('d1', ['m1'], 'develop'), C('m1', []),
+  ]);
+  assert.deepStrictEqual(g.rows.map((r) => r.col), [0, 1, 0]);
+  assert.ok(g.rows[0].edges.some((e) => e.from === 0 && e.to === 1));
+});
+
+ok('git: master vale come main quando main non c è', () => {
+  assert.deepStrictEqual(pinnedBranches([B('f', ['a'], 'feat/x'), B('a', [], 'master', 'develop')]), ['master', 'develop']);
+  assert.deepStrictEqual(pinnedBranches([B('a', [], 'main', 'master')]), ['main']);
+  assert.deepStrictEqual(pinnedBranches([C('a', [])]), []);
+  // un remoto non basta: la timeline apre corsie solo per i locali
+  assert.deepStrictEqual(pinnedBranches([{ ...C('a', []), refs: [{ name: 'origin/main', kind: 'remote' }] }]), []);
+});
+
+ok('git: senza main né develop il layout è quello di sempre', () => {
+  const g = layoutGraph([B('x2', ['x1'], 'feat/x'), C('y1', ['a']), C('x1', ['a']), C('a', [])]);
+  assert.deepStrictEqual(g.rows.map((r) => r.col), [0, 1, 0, 0]);
+});
+
+ok('git: headChange segnala solo un cambio del branch corrente', () => {
+  const at = (head, hash = 'h1') => ({ ok: true, root: '/r', head, rows: [{ commit: { hash, refs: [{ name: head || 'HEAD', kind: head ? 'branch' : 'head', head: true }] } }] });
+  assert.deepStrictEqual(View.headChange(at('main'), at('feat/x')), { from: 'main', to: 'feat/x' });
+  assert.strictEqual(View.headChange(at('main'), at('main', 'h2')), null, 'un commit nuovo non è un cambio di branch');
+  assert.strictEqual(View.headChange(null, at('main')), null, 'la prima lettura non è un cambio');
+  assert.strictEqual(View.headChange(at('main'), { ...at('feat/x'), root: '/altro' }), null);
+  assert.deepStrictEqual(View.headChange(at('main'), at(null, 'h9')), { from: 'main', to: 'HEAD staccata (h9)' });
+  assert.deepStrictEqual(View.headChange(at(null, 'h1'), at(null, 'h2')), { from: 'HEAD staccata (h1)', to: 'HEAD staccata (h2)' });
+});
+
+ok('git: con la storia troncata la colonna di main resta riservata', async () => {
+  // i commit letti sono tutti di feat/x: la punta di main sta più in basso
+  const { run } = fakeGit({
+    '--show-toplevel': '/repo\n',
+    remote: 'origin\n',
+    'refs/heads': 'feat/x\nmain\n',
+    log: rec('f2', ['f1'], 'due', { refs: 'HEAD -> feat/x' }) + rec('f1', ['m0'], 'uno'),
+  });
+  const r = await readGitGraph({ cwd: '/repo', run, ...unix });
+  assert.deepStrictEqual(r.rows.map((x) => x.col), [1, 1]);
+  assert.ok(r.width >= 2);
 });

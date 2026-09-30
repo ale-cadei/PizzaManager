@@ -19,7 +19,7 @@
 (function (root, factory) {
   const api = root
     ? factory(root.AisessPetsPack)
-    : factory(Object.assign({}, ...['pizza', 'fizzo', 'rotolacampo', 'babbo', 'morte', 'zucca', 'fantasmino'].map((k) => require(`./pets-sprite-${k}`))));
+    : factory(Object.assign({}, ...['pizza', 'fizzo', 'rotolacampo', 'babbo', 'morte', 'zucca', 'fantasmino', 'ape', 'chiocciola', 'papera', 'anatroccolo', 'robottino', 'tazzina', 'pesce'].map((k) => require(`./pets-sprite-${k}`))));
   if (root) root.AisessPetsSprites = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : null, function (pack) {
@@ -28,7 +28,7 @@
   const GRID = 16;
 
   const REQUIRED_POSES = ['walk', 'sleep', 'call'];
-  const EXTRA_POSES = { spongebob: ['swing'], medusa: ['flee'], rana: ['jump'] };
+  const EXTRA_POSES = { spongebob: ['swing'], medusa: ['flee'], rana: ['jump'], tazzina: ['jump'] };
   /** Pose che un disegno può avere o no: il motore le usa solo se ci sono
    *  (pets.js). idle: si ferma un attimo a passeggio. turn: cambia verso.
    *  startle: un agente si mette al lavoro. laugh: un'attesa finisce.
@@ -365,24 +365,6 @@
     7: '...oo.oo..',
   });
 
-  // ---- Pesce: la coda batte ----
-  const FISH = [
-    '.....ooo....',
-    'o..oooowooo.',
-    'oo.oooowooko',
-    'ooooooowoooo',
-    'oo.oooowooo.',
-    'o..oooowoo..',
-    '.....ooo....',
-    '............',
-  ];
-  const FISH_STEP = patch(FISH, {
-    1: '...oooowooo.',
-    2: 'o..oooowooko',
-    4: 'o..oooowooo.',
-    5: '...oooowoo..',
-  });
-
   /** speed: misure del personaggio al secondo, a velocità «normale».
    *  motion: come si muove (pets.js MOTIONS): cammina, salta, vola, nuota.
    *  height: altezza come frazione della taglia, per chi non segue la regola di GRID.
@@ -472,22 +454,6 @@
         call: [patch(BIRD_PERCHED, { 1: '.......bbo', 2: '.....bbkb.', 3: 'tbbbbbbbbo' })],
       },
     },
-    pesce: {
-      speed: 0.7,
-      motion: 'swim',
-      palette: { o: '#F2833A', w: '#FFFFFF', k: '#1A1A1A', e: '#BFE6F5' },
-      // Pesce pagliaccio di base; poi blu a righe gialle, verde, rosa
-      variants: [
-        { o: '#3C7BE0', w: '#F2D23C' },
-        { o: '#5DBB4A', w: '#C8E88A' },
-        { o: '#C86BC8', w: '#F4D0F4' },
-      ],
-      frames: {
-        walk: [FISH, FISH_STEP],
-        sleep: [patch(FISH, { 2: 'oo.oooowoooo' })],
-        call: [patch(FISH, { 0: '.....ooo...e', 1: 'o..oooowooe.' })],
-      },
-    },
     ...pack,
   };
   const MOTIONS = ['walk', 'hop', 'fly', 'swim'];
@@ -510,6 +476,11 @@
     morte: ['morte'],
     zucca: ['zucca'],
     fantasmino: ['fantasmino'],
+    ape: ['ape'],
+    chiocciola: ['chiocciola'],
+    papera: ['papera', 'anatroccolo', 'anatroccolo'],
+    robottino: ['robottino'],
+    tazzina: ['tazzina'],
   };
   const CAST_LABELS = {
     inseguimento: 'SpongeBob e la medusa',
@@ -527,6 +498,11 @@
     morte: 'La Morte',
     zucca: 'Zucco, la zucca',
     fantasmino: 'Fantasmino',
+    ape: 'Ape',
+    chiocciola: 'Chiocciola',
+    papera: 'Papera e anatroccoli',
+    robottino: 'Robottino',
+    tazzina: 'Tazzina di caffè',
   };
 
   /** Quanti aspetti ha un personaggio: la palette di base più le variants. */

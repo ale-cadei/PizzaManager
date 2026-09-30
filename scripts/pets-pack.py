@@ -106,37 +106,16 @@ def const_block(name, rows):
     return [f'  const {name} = ['] + [f"    '{r}'," for r in rows] + ['  ];']
 
 
-for kind, pack, folder, poses, speed, motion, height, comment in SPEC:
-    base, pack_name, _ = PACKS[pack]
-    d, ims = load(pack, folder)
-    used = sorted({i for v in poses.values() for i in v})
-    pal = {}
-    for hexv in d.get('palette', {}).values():
-        pal[hexv.upper()] = LETTERS[len(pal)]
-    box = union_bbox([ims[i] for i in used])
-    grids = {i: grid(ims[i], box, pal) for i in used}
-    names = d['frames']
-    cn = lambda i: f"{kind.upper()}_{names[i].upper().replace('-', '_')}"
-    lines = [f'  // ---- {comment} ({box[2] - box[0]}×{box[3] - box[1]}) ----']
-    for i in used:
-        lines += const_block(cn(i), grids[i])
-    shadow_js = ''
-    if kind in SHADOWS:
-        file, fw = SHADOWS[kind]
-        sh = slices(f'{base}/{folder}/{file}', fw)
-        sbox = union_bbox(sh)
-        lines.append(f'  // Ombra a terra, un frame per frame di volo ({sbox[2] - sbox[0]}×{sbox[3] - sbox[1]})')
-        snames = []
-        for j, im in enumerate(sh):
-            snames.append(f'{kind.upper()}_OMBRA_{j + 1}')
-            lines += const_block(snames[-1], grid(im, sbox, pal, SHADOW_MIN_ALPHA))
-        shadow_js = f"\n      shadow: [{', '.join(snames)}],"
-    frames_js = ',\n'.join('        %s: [%s]' % (p, ', '.join(cn(i) for i in idx)) for p, idx in poses.items())
+def palette_js(kind, pal):
     fix, why = PALETTE_FIX.get(kind, ({}, ''))
-    palette_js = ', '.join(f"{ch}: '{fix.get(h, h)}'" for h, ch in pal.items())
-    palette_js = (f'// {why}\n      ' if why else '') + f'palette: {{ {palette_js} }},'
+    js = ', '.join(f"{ch}: '{fix.get(h, h)}'" for h, ch in pal.items())
+    return (f'// {why}\n      ' if why else '') + f'palette: {{ {js} }},'
+
+
+def module_js(kind, comment, pack_name, lines, speed, motion, height, palette_js, shadow_js, frames_js):
+    """Il file UMD di un personaggio, uguale per tutti i pacchetti."""
     height_js = f'\n      height: {height},' if height else ''
-    src = f"""/* {comment}.
+    return f"""/* {comment}.
  * Disegno del pacchetto «{pack_name}»: griglie ricavate dai PNG 1x nel
  * formato di pets-sprites.js, che lo fonde nel suo catalogo (AisessPetsPack).
  * Pose dalle animazioni del pacchetto.
@@ -164,5 +143,42 @@ for kind, pack, folder, poses, speed, motion, height, comment in SPEC:
   }};
 }});
 """
+
+
+def classic(kind, pack, folder, poses, speed, motion, height, comment):
+    """Un personaggio dei pacchetti a frame numerati (zip1-3): il sorgente del file."""
+    base, pack_name, _ = PACKS[pack]
+    d, ims = load(pack, folder)
+    used = sorted({i for v in poses.values() for i in v})
+    pal = {}
+    for hexv in d.get('palette', {}).values():
+        pal[hexv.upper()] = LETTERS[len(pal)]
+    box = union_bbox([ims[i] for i in used])
+    grids = {i: grid(ims[i], box, pal) for i in used}
+    names = d['frames']
+    cn = lambda i: f"{kind.upper()}_{names[i].upper().replace('-', '_')}"
+    lines = [f'  // ---- {comment} ({box[2] - box[0]}×{box[3] - box[1]}) ----']
+    for i in used:
+        lines += const_block(cn(i), grids[i])
+    shadow_js = ''
+    if kind in SHADOWS:
+        file, fw = SHADOWS[kind]
+        sh = slices(f'{base}/{folder}/{file}', fw)
+        sbox = union_bbox(sh)
+        lines.append(f'  // Ombra a terra, un frame per frame di volo ({sbox[2] - sbox[0]}×{sbox[3] - sbox[1]})')
+        snames = []
+        for j, im in enumerate(sh):
+            snames.append(f'{kind.upper()}_OMBRA_{j + 1}')
+            lines += const_block(snames[-1], grid(im, sbox, pal, SHADOW_MIN_ALPHA))
+        shadow_js = f"\n      shadow: [{', '.join(snames)}],"
+    frames_js = ',\n'.join('        %s: [%s]' % (p, ', '.join(cn(i) for i in idx)) for p, idx in poses.items())
+    return module_js(kind, comment, pack_name, lines, speed, motion, height, palette_js(kind, pal), shadow_js, frames_js)
+
+
+def write(kind, src):
     open(OUT % kind, 'w').write(src)
     print(kind, len(src.splitlines()), 'righe')
+
+
+for entry in SPEC:
+    write(entry[0], classic(*entry))

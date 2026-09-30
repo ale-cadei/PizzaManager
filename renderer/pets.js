@@ -15,7 +15,9 @@
  * vola sopra la striscia e si posa per dormire o chiamare, il pesce nuota
  * ondeggiando appena sopra il fondo. Chi ha un posatoio (l'ape col fiore,
  * pets-sprites.js perch) ce l'ha in un punto fisso, home: per dormire o
- * chiamare ci vola sopra e si siede all'altezza del disegno.
+ * chiamare ci vola sopra e si siede all'altezza del disegno. Chi fuma (la
+ * tazzina, trail) lascia sbuffi che restano dove nascono e salgono: sono
+ * nello stato del personaggio (puffs), la vista li disegna a parte.
  *
  * In fila (una voce del cast con più personaggi, come la papera con gli
  * anatroccoli): ognuno ha un lead, quello davanti, e gli sta dietro
@@ -70,6 +72,11 @@
   /** Uccellino e pesce: quota media, ampiezza dell'ondeggio (misure), giri al secondo. */
   const FLY = { base: 1, ampl: 0.3, hz: 0.5 };
   const SWIM = { base: 0.22, ampl: 0.15, hz: 0.6 };
+  /** Fumo (la tazzina): uno sbuffo ogni tanto, quanto vive, quanto sale (misure al secondo), quanti al massimo. */
+  const PUFF_EVERY_MS = 450;
+  const PUFF_LIFE_MS = 2200;
+  const PUFF_RISE = 0.3;
+  const MAX_PUFFS = 6;
 
   const spriteOf = (kind) => Sprites.SPRITES[kind];
   const has = (kind, pose) => Boolean(spriteOf(kind).frames[pose]);
@@ -87,7 +94,8 @@
   const pickVariant = (kind, random) => Math.min(Sprites.looks(kind) - 1, Math.floor(random() * Sprites.looks(kind)));
 
   function newPet(key, kind, x, dir, random) {
-    return { key, kind, variant: pickVariant(kind, random), x, y: 0, dir, pose: 'walk', anim: 0, lift: 0, passing: false, phase: random() * Math.PI * 2, mate: null, act: null };
+    const smoke = spriteOf(kind).trail ? { puffs: [], steam: 0 } : {};
+    return { key, kind, variant: pickVariant(kind, random), x, y: 0, dir, pose: 'walk', anim: 0, lift: 0, passing: false, phase: random() * Math.PI * 2, mate: null, act: null, ...smoke };
   }
 
   /** Comincia un'azione: fermo con quella posa. Senza durata dura quanto la sequenza. */
@@ -319,11 +327,34 @@
       .reduce((best, p) => (!best || Math.abs(centerOf(p, ctx.size) - mid) < Math.abs(centerOf(best, ctx.size) - mid) ? p : best), null);
   }
 
+  /** Il fumo (pets-sprites.js trail): gli sbuffi invecchiano e salgono, i
+   *  vecchi svaniscono; ogni tanto ne nasce uno dal caffè, dietro rispetto a
+   *  dove va, e resta dove è nato: camminando se li lascia dietro. Da fredda
+   *  (dorme) non fuma; steam è il tempo dall'ultimo sbuffo. */
+  function smoke(pet, ctx) {
+    const { trail } = spriteOf(pet.kind);
+    if (!trail) return pet;
+    const ms = ctx.s * 1000;
+    const alive = pet.puffs
+      .map((p) => ({ ...p, age: p.age + ms, y: p.y + PUFF_RISE * ctx.size * ctx.s }))
+      .filter((p) => p.age < PUFF_LIFE_MS);
+    const cold = pet.pose === 'sleep' || isVanishing(pet);
+    // Di fretta ne nascono di più, ma invecchiano a tempo reale: la scia si infittisce
+    const steam = cold ? 0 : pet.steam + ms * ctx.mult;
+    if (steam < PUFF_EVERY_MS) return { ...pet, puffs: alive, steam };
+    const px = Sprites.pixel(pet.kind, ctx.size);
+    const { cols, rows } = Sprites.dims(pet.kind);
+    const col = pet.dir > 0 ? trail.at.col + 0.5 : cols - trail.at.col - 0.5;
+    const puff = { x: pet.x + col * px, y: pet.y + (rows - trail.at.row) * px, age: 0 };
+    return { ...pet, puffs: [...alive, puff].slice(-MAX_PUFFS), steam: 0 };
+  }
+
   /** Nessuno resta fuori se la striscia si è stretta. */
   function inside(pet, ctx) {
     const limit = maxX(pet.kind, ctx.size, ctx.width);
     const home = pet.home === undefined ? {} : { home: clamp(pet.home, 0, limit) };
-    return { ...pet, ...home, x: clamp(pet.x, 0, limit) };
+    const puffs = pet.puffs ? { puffs: pet.puffs.map((p) => ({ ...p, x: clamp(p.x, 0, ctx.width) })) } : {};
+    return { ...pet, ...home, ...puffs, x: clamp(pet.x, 0, limit) };
   }
 
   /** Solo il rientro nei bordi, per quando la striscia cambia misura a ciclo fermo. */
@@ -370,8 +401,8 @@
       if (p.kind === 'medusa') return mate ? flee(p, mate, ctx) : float(wander(p, ctx), ctx);
       return wander(p, ctx);
     });
-    return { ...state, mood, attentionMs, caller: caller ? caller.key : state.caller || null, pets: moved.filter((p) => !p.gone) };
+    return { ...state, mood, attentionMs, caller: caller ? caller.key : state.caller || null, pets: moved.filter((p) => !p.gone).map((p) => smoke(p, ctx)) };
   }
 
-  return { createPets, recast, step, fit, moodOf, frameIndex, petWidth, FRAME_MS, MAX_DT, SLEEP_AFTER_MS, SAD_AFTER_MS, PAUSE_MS, LINE_GAP };
+  return { createPets, recast, step, fit, moodOf, frameIndex, petWidth, FRAME_MS, MAX_DT, SLEEP_AFTER_MS, SAD_AFTER_MS, PAUSE_MS, LINE_GAP, PUFF_LIFE_MS, MAX_PUFFS };
 });

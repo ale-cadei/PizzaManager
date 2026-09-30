@@ -409,3 +409,36 @@ ok('pets: un random che tocca 1 non produce un aspetto fuori misura', () => {
   assert.strictEqual(byKind(state, 'pesce').variant, looks('pesce') - 1);
   assert.strictEqual(byKind(state, 'gatto').variant, 0);
 });
+
+ok('pets: la medusa da sola è una voce del cast: senza il pescatore gironzola ondeggiando, mai in fuga', () => {
+  const { CAST, CAST_LABELS } = require('../renderer/pets-sprites');
+  assert.deepStrictEqual(CAST.medusa, ['medusa']);
+  assert.strictEqual(CAST_LABELS.medusa, 'Medusa');
+  let state = onStage(['medusa']);
+  assert.strictEqual(state.pets.length, 1);
+  assert.strictEqual(state.pets[0].mate, null);
+  const ys = new Set();
+  const poses = new Set();
+  for (let i = 0; i < 120; i += 1) {
+    state = step(state, { dt: 16, width: WIDTH, random: seeded(i + 1) });
+    ys.add(Math.round(state.pets[0].y * 10));
+    poses.add(state.pets[0].pose);
+  }
+  assert.ok(ys.size > 3, 'la medusa da sola non ondeggia');
+  assert.ok(!poses.has('flee'), 'scappa da nessuno');
+  assert.ok(poses.has('walk'));
+});
+
+ok('pets: la medusa chiama solo se non c è nessun altro che possa farlo, e per farlo si posa', () => {
+  let floating = onStage(['medusa']);
+  for (let i = 0; i < 30 && floating.pets[0].y === 0; i += 1) floating = step(floating, { dt: 16, width: WIDTH, random: never });
+  assert.notStrictEqual(floating.pets[0].y, 0, 'non ha ancora ondeggiato');
+  const alone = step(floating, { dt: 16, width: WIDTH, mood: 'attention', random: never });
+  assert.strictEqual(alone.pets[0].pose, 'call');
+  assert.strictEqual(alone.pets[0].y, 0, 'per chiamare si posa');
+  const asleep = step(floating, { dt: 16, width: WIDTH, mood: 'sleep', random: never });
+  assert.strictEqual(asleep.pets[0].y, 0, 'per dormire si posa');
+  const both = step(onStage(['medusa', 'gatto']), { dt: 16, width: WIDTH, mood: 'attention', random: never });
+  assert.strictEqual(byKind(both, 'gatto').pose, 'call');
+  assert.notStrictEqual(byKind(both, 'medusa').pose, 'call');
+});

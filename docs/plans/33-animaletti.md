@@ -57,7 +57,7 @@ Spento di default. Si accende e si regola da `Vista › Personaggi…`.
 | id | Nome | Cosa fa |
 |----|------|---------|
 | `pescatore` | il pescatore | Rincorre la medusa col retino alzato; quando è vicino dà un colpo di retino (frame `swing`) e la manca sempre |
-| `medusa` | Medusa | Galleggia ondeggiando (seno sulla y); quando il pescatore è vicino scatta via |
+| `medusa` | Medusa | Galleggia ondeggiando (seno sulla y); quando il pescatore è vicino scatta via. Anche da sola, come voce `medusa`: gironzola e chiama solo se non c'è nessun altro |
 | `stella` | Stella | Cammina piano |
 | `lumaca` | Lumaca | Lumaca: lentissimo |
 | `gatto` | Gatto | Cammina |

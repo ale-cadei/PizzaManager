@@ -188,7 +188,9 @@
   };
 
   /** Chi salta o vola, per dormire o chiamare, scende a terra. */
-  const landed = (pet) => (['hop', 'fly'].includes(spriteOf(pet.kind).motion) ? { ...pet, y: 0 } : pet);
+  /** A terra per dormire o chiamare: chi vola, salta o galleggia (la medusa) scende. */
+  const floats = (pet) => ['hop', 'fly'].includes(spriteOf(pet.kind).motion) || pet.kind === 'medusa';
+  const landed = (pet) => (floats(pet) ? { ...pet, y: 0, lift: 0 } : pet);
 
   function wander(pet, ctx) {
     const sprite = spriteOf(pet.kind);
@@ -238,11 +240,13 @@
     return float(walk(cornered ? { ...next, lift: size } : next, speed * FLEE_FACTOR, ctx), ctx);
   }
 
-  /** Il personaggio più vicino al centro che chiama quando una sessione aspetta (mai la medusa). */
+  /** Il personaggio più vicino al centro che chiama quando una sessione
+   *  aspetta. La medusa solo se non c'è nessun altro: in coppia tocca al pescatore. */
   function callerOf(pets, ctx) {
     const mid = ctx.width / 2;
-    return pets
-      .filter((p) => p.kind !== 'medusa' && !isVanishing(p))
+    const present = pets.filter((p) => !isVanishing(p));
+    const others = present.filter((p) => p.kind !== 'medusa');
+    return (others.length ? others : present)
       .reduce((best, p) => (!best || Math.abs(centerOf(p, ctx.size) - mid) < Math.abs(centerOf(best, ctx.size) - mid) ? p : best), null);
   }
 
@@ -287,7 +291,7 @@
       if (p.act) return tickAct(p, ctx);
       const mate = mateOf(p);
       if (p.kind === 'pescatore' && mate) return chase(p, mate, ctx);
-      if (p.kind === 'medusa' && mate) return flee(p, mate, ctx);
+      if (p.kind === 'medusa') return mate ? flee(p, mate, ctx) : float(wander(p, ctx), ctx);
       return wander(p, ctx);
     });
     return { ...state, mood, attentionMs, caller: caller ? caller.key : state.caller || null, pets: moved.filter((p) => !p.gone) };

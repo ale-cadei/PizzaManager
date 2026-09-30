@@ -76,7 +76,7 @@ ok('usage bar: tre riquadri, percentuale e (per la finestra) quanto manca al res
   assert.strictEqual(texts.length, 3);
   assert.deepStrictEqual(texts.map((t) => t.trim()), [
     'SESSIONE 25%',
-    'FINESTRA 5h 50% claude · reset fra 2h 30m',
+    'FINESTRA 5h ~50% claude · reset fra 2h 30m',
     'SETTIMANA 30%',
   ]);
 });
@@ -118,6 +118,14 @@ ok('usage bar: la barra 5h disegna i token consumati, non il tempo passato', () 
   assert.ok(titles[1].includes('900K') && titles[1].includes('1.8M'), 'token consumati e tetto, in cifre');
   assert.ok(titles[1].includes('massimo osservato'), 'dichiara che il tetto e una calibrazione');
   assert.ok(!titles[1].includes('tempo trascorso'), 'la barra non parla piu di tempo');
+});
+
+ok('usage bar: una percentuale stimata si scrive come stima, non come quota', () => {
+  // Piano 35: un 21% calibrato sul picco sembrava la quota del fornitore
+  const { texts, titles } = mount(snapshot());
+  assert.ok(texts[1].includes('~50%'), 'la tilde marca la stima nella riga');
+  assert.ok(titles[1].includes('tutti i profili'), 'il tooltip dice che la stima mescola gli account');
+  assert.strictEqual(Bar.blockText({ ...snapshot().block, limitKind: 'declared', ratio: 0.21 }), '21%');
 });
 
 ok('usage bar: la quota dichiarata dal CLI si distingue dalla stima', () => {

@@ -79,6 +79,15 @@ ok('metaArgs: un set-option per chiave presente, le chiavi nulle si saltano', ()
   assert.ok(list.some((a) => a.includes('@ais_cwd') && a.includes('/w')));
 });
 
+ok('metaArgs: icona e modalità della shell si salvano in tmux', () => {
+  const list = t.metaArgs({ confPath: conf, name: 'ais-shell-1', meta: { icon_key: 'docker', icon_mode: 'manual' } });
+  assert.ok(list.some((a) => a.includes('@ais_icon_key') && a.includes('docker')));
+  assert.ok(list.some((a) => a.includes('@ais_icon_mode') && a.includes('manual')));
+  const S = t.FIELD_SEP;
+  const line = ['ais-shell-1', '1000', '0', ...t.META_KEYS.map((k) => ({ type: 'shell', icon_key: 'docker', icon_mode: 'manual' })[k] || '')].join(S);
+  assert.deepStrictEqual(t.parseSessionList(line).map((s) => [s.iconKey, s.iconMode]), [['docker', 'manual']]);
+});
+
 ok('parseSessionList: legge il formato, ignora sessioni altrui e righe rotte, ordina per recenza', () => {
   const S = t.FIELD_SEP;
   const riga = (name, created, attached, meta) => [name, created, attached, ...t.META_KEYS.map((k) => meta[k] || '')].join(S);
@@ -93,6 +102,7 @@ ok('parseSessionList: legge il formato, ignora sessioni altrui e righe rotte, or
   assert.deepStrictEqual(out[0], {
     name: 'ais-claude-b', createdAt: 2000000, attached: true, type: 'claude', cwd: '/b con spazi', label: 'Titolo: due punti',
     profileId: 'claude:default', profileLabel: null, resumeId: 'uuid-1', accountId: null, accountName: null,
+    iconKey: null, iconMode: null,
   });
   assert.deepStrictEqual(t.parseSessionList(''), []);
   assert.deepStrictEqual(t.parseSessionList(null), []);

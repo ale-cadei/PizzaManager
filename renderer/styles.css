@@ -191,6 +191,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   width: 1em; height: 1em; display: block;
   fill: currentColor; flex: 0 0 auto;
 }
+img.agent-icon { object-fit: contain; }
 /* Il marchio porta il proprio colore; lo shell segue l'identità di tipo */
 .agent-icon--claude   { color: var(--brand-claude); }
 .agent-icon--opencode { color: var(--brand-opencode); }
@@ -198,6 +199,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .agent-icon--antigravity { color: var(--brand-antigravity); }
 .agent-icon--shell    { color: var(--type-shell); }
 .agent-icon--git      { color: var(--type-git); }
+img.agent-icon--github { filter: invert(1); }
+img.agent-icon--node { border-radius: 2px; }
 /* Contenitori: l'icona eredita la dimensione dal font del contesto */
 .session-item .icon, .group-header .icon, .resume-item .icon,
 .dir-chip-type, .cmd-choice-icon, .type-glyph, .tab-glyph {
@@ -384,6 +387,25 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .session-item.active > .sel-mark { visibility: visible; }
 .session-item .icon { font-size: 16px; }
+.session-item .shell-icon-trigger {
+  position: relative; justify-content: flex-start; cursor: pointer;
+  width: 38px; height: 26px; margin: -5px 0 -5px -6px; padding-left: 5px;
+  box-sizing: border-box; border: 1px solid transparent; border-radius: 5px;
+}
+.session-item .shell-icon-trigger::after {
+  content: '▾'; position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; width: 8px; height: 12px;
+  color: var(--text-muted);
+  font-size: 10px; line-height: 1; visibility: hidden;
+}
+.session-item .shell-icon-trigger:hover,
+.session-item .shell-icon-trigger:focus-visible {
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  border-color: var(--border-strong);
+}
+.session-item .shell-icon-trigger:hover::after,
+.session-item .shell-icon-trigger:focus-visible::after { visibility: visible; }
+.session-item .shell-icon-trigger:focus-visible { outline: 2px solid var(--action); outline-offset: 3px; }
 /* `display: block` obbligatorio: su uno span inline overflow/text-overflow
    non hanno effetto e il testo sborda sotto la ✕ invece di troncarsi */
 .session-item .meta { flex: 1; min-width: 0; overflow: hidden; }
@@ -471,6 +493,15 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .export-md { flex: 0 0 auto; color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 6px; opacity: 0; }
 .session-item:hover .export-md, .session-item:focus-visible .export-md { opacity: 1; }
 .export-md:hover { color: var(--action); }
+
+.shell-icon-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 18px; }
+.shell-icon-choice { display: grid; grid-template-columns: 22px 1fr; align-items: center; column-gap: 10px; text-align: left;
+  padding: 10px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface-2); color: var(--text); cursor: pointer; }
+.shell-icon-choice:hover, .shell-icon-choice[aria-pressed="true"] { border-color: var(--action); background: var(--action-soft); }
+.shell-icon-choice:focus-visible { outline: 2px solid var(--action); outline-offset: 2px; }
+.shell-icon-choice .icon { grid-row: span 2; font-size: 20px; }
+.shell-icon-choice-label { font-size: 13px; font-weight: 600; }
+.shell-icon-choice-sub { font-size: 11px; color: var(--text-muted); }
 
 /* Badge runtime: corallo (da tokens.css). Varianti tipo = neutre. */
 .badge.shell, .badge.opencode, .badge.claude {

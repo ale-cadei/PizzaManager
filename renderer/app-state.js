@@ -38,6 +38,7 @@ const Titles = window.AisessTitles;
 const ConvSearch = window.AisessSearch;
 const ShellSearch = window.AisessShellSearch;
 const PromptCapture = window.AisessPromptCapture;
+const ShellIcons = window.AisessShellIcons;
 /* I nomi rinominati a mano sopravvivono alla chiusura dell'app: stanno in
    localStorage, non nello stato in memoria delle schede. */
 const titleStore = Titles.createTitleStore(window.localStorage);

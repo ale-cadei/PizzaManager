@@ -40,7 +40,7 @@ async function resolveProjectRoot(cwd) {
   return root;
 }
 
-async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null, previousSession = null, startedAt = Date.now() } = {}) {
+async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null, previousSession = null, startedAt = Date.now(), iconKey = 'shell', iconMode = 'auto' } = {}) {
   // La sessione git non ha pty: è un pannello (renderer/git-tab.js)
   if (type === 'git') return createGitTab({ name, cwd, startedAt });
   // attachSession: riaggancio di una sessione tmux gia' viva. Il comando e' gia'
@@ -71,7 +71,10 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
     // Nome tmux della sessione prima di un riavvio della macchina: la sola
     // identità stabile di una shell ricreata, per ritrovarne il posto.
     previousSession,
-    promptCapture: PromptCapture.createPromptCapture(), namedFromPrompt: false, claudeAccountId, claudeAccountName, commandProfileId: picked.id, commandProfileLabel: picked.label, term: null, fit: null, ro: null, wrap, alive: true, needsAttention: false, idleTimer: null, running: false, runTimer: null };
+    promptCapture: PromptCapture.createPromptCapture(), namedFromPrompt: false,
+    iconKey: ShellIcons.normalize(iconKey), iconMode: iconMode === 'manual' ? 'manual' : 'auto',
+    iconCapture: ShellIcons.createCommandCapture(),
+    claudeAccountId, claudeAccountName, commandProfileId: picked.id, commandProfileLabel: picked.label, term: null, fit: null, ro: null, wrap, alive: true, needsAttention: false, idleTimer: null, running: false, runTimer: null };
   tabs.set(id, tab);
   // Quello che la sessione scrive per prima (ridisegno di tmux, conversazione
   // ripresa) è l'avvio, non un lavoro finito: al ripristino le accendeva tutte.
@@ -111,6 +114,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   term.onData((d) => {
     window.aisess.write(id, d);
     applyTypedPrompt(tab, d);
+    observeShellIconInput(tab, d);
     // L'utente ha chiesto qualcosa qui: la risposta va segnalata anche se breve.
     // Non i report che xterm manda da solo (mouse, focus): lampeggio a caso.
     if (Attention.isTyping(d)) {
@@ -150,6 +154,9 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
     tab.alive = false;
   } else {
     if (res.session) tab.session = res.session;
+    if (!attachSession && type === 'shell' && (tab.iconKey !== 'shell' || tab.iconMode !== 'auto') && tab.session) {
+      window.aisess.setMeta(id, { iconKey: tab.iconKey, iconMode: tab.iconMode });
+    }
     if (tab.session) term.options.scrollback = 0;
     // Il main può spostare la sessione (cwd vuota, con ~ o inesistente finisce
     // nella home): senza la directory vera il titolo automatico non troverebbe

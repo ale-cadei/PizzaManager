@@ -65,26 +65,40 @@
     return { svg, frames };
   }
 
-  /** L'ombra a terra: un frame per frame di volo, larga quanto il suo disegno e centrata sotto il personaggio. */
-  function buildShadow(doc, kind, size, variant) {
-    const sprite = Sprites.SPRITES[kind];
-    if (!sprite.shadow) return null;
-    const px = Sprites.pixel(kind, size);
-    const palette = Sprites.paletteOf(kind, variant);
-    const cols = sprite.shadow[0][0].length;
-    const svg = buildSvg(doc, cols, sprite.shadow[0].length, px);
-    const frames = sprite.shadow.map((grid) => svg.appendChild(buildFrame(doc, grid, palette)));
+  /** Un disegno fuori dal div del personaggio, coi pixel suoi: un frame per griglia.
+   *  offset centra il disegno sotto il personaggio; width è quanto è largo. */
+  function buildLayer(doc, pet, size, grids, className, draw) {
+    const px = Sprites.pixel(pet.kind, size);
+    const palette = Sprites.paletteOf(pet.kind, pet.variant);
+    const cols = grids[0][0].length;
+    const svg = buildSvg(doc, cols, grids[0].length, px);
+    const frames = grids.map((grid) => svg.appendChild(buildFrame(doc, grid, palette)));
     const el = doc.createElement('div');
-    el.setAttribute('class', 'pet-shadow');
+    el.setAttribute('class', className);
     el.appendChild(svg);
-    return { el, frames, shown: null, offset: ((Sprites.dims(kind).cols - cols) / 2) * px };
+    return { el, frames, shown: null, draw, width: cols * px, offset: ((Sprites.dims(pet.kind).cols - cols) / 2) * px };
+  }
+
+  /** L'ombra a terra: un frame per frame di volo, sparisce quando si posa. */
+  function drawShadow(pet, layer) {
+    layer.el.hidden = pet.y === 0;
+    show(layer, layer.frames[Pets.frameIndex(pet, layer.frames.length)]);
+    layer.el.style.transform = `translate(${(pet.x + layer.offset).toFixed(1)}px, 0px)`;
+  }
+
+  /** I disegni a parte che ha il personaggio, nell'ordine in cui vanno sotto di lui. */
+  function buildLayers(doc, pet, size) {
+    const { shadow } = Sprites.SPRITES[pet.kind];
+    return [
+      shadow && buildLayer(doc, pet, size, shadow, 'pet-shadow', drawShadow),
+    ].filter(Boolean);
   }
 
   function buildPet(doc, pet, size) {
     const el = doc.createElement('div');
     const { svg, frames } = buildSprite(doc, pet.kind, size, pet.variant);
     el.appendChild(svg);
-    return { el, frames, shown: null, shadow: buildShadow(doc, pet.kind, size, pet.variant) };
+    return { el, frames, shown: null, layers: buildLayers(doc, pet, size) };
   }
 
   function show(view, frame) {
@@ -113,31 +127,25 @@
     const width = () => strip.clientWidth || 0;
     const active = () => Boolean(state && state.pets.length);
 
-    function drawShadow(pet, shadow) {
-      shadow.el.hidden = pet.y === 0;
-      show(shadow, shadow.frames[Pets.frameIndex(pet, shadow.frames.length)]);
-      shadow.el.style.transform = `translate(${(pet.x + shadow.offset).toFixed(1)}px, 0px)`;
-    }
-
     function drawPet(pet, view) {
       const list = view.frames[pet.pose] || view.frames.walk;
       show(view, list[Pets.frameIndex(pet, list.length)]);
       const left = pet.dir < 0 ? ' pet--left' : '';
       view.el.setAttribute('class', `pet pet--${pet.kind} pet--${pet.pose}${left}`);
       view.el.style.transform = `translate(${pet.x.toFixed(1)}px, ${(-pet.y).toFixed(1)}px)`;
-      if (view.shadow) drawShadow(pet, view.shadow);
+      for (const layer of view.layers) layer.draw(pet, layer, Pets.petWidth(pet.kind, size()));
     }
 
     function mount(pet) {
       const view = buildPet(doc, pet, size());
       views.set(pet.key, view);
-      if (view.shadow) strip.appendChild(view.shadow.el);
+      for (const layer of view.layers) strip.appendChild(layer.el);
       strip.appendChild(view.el);
     }
 
     function unmount(key) {
       const view = views.get(key);
-      if (view.shadow) view.shadow.el.remove();
+      for (const layer of view.layers) layer.el.remove();
       view.el.remove();
       views.delete(key);
     }

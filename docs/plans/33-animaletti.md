@@ -78,7 +78,7 @@ Spento di default. Si accende e si regola da `Vista › Personaggi…`.
 | `babbo` | Babbo Natale | Slitta con le renne, vola (`fly`); dal pacchetto |
 | `morte` | La Morte | Fluttua appena sopra il fondo (`swim`); quando chiama dà una falciata (8 frame) |
 | `zucca` | Zucco, la zucca | Cammina; dal pacchetto di Halloween |
-| `fantasmino` | Fantasmino | Vola (`fly`) col lenzuolo; dorme abbassandosi, fa «buu» quando chiama |
+| `fantasmino` | Fantasmino | Fluttua basso (`swim`, come la Morte) col lenzuolo; si posa per dormire e per fare «buu» quando chiama (chi ha l'ombra si posa) |
 
 Rana, uccellino e pesce aggiunti su richiesta dell'utente dopo il primo
 giro. Pizza, Fizzo, Rotolacampo e Babbo Natale vengono dal pacchetto

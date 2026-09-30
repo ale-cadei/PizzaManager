@@ -212,6 +212,20 @@ ok('pets: l uccellino vola sopra la striscia, e per dormire o chiamare si posa',
   assert.deepStrictEqual([calling.y, calling.pose], [0, 'call']);
 });
 
+ok('pets: il fantasmino fluttua basso, come la Morte', () => {
+  for (const kind of ['fantasmino', 'morte']) {
+    let state = onStage([kind]);
+    const heights = new Set();
+    for (let i = 0; i < 300; i += 1) {
+      state = step(state, { dt: 16, width: WIDTH, random: never });
+      const y = state.pets[0].y;
+      assert.ok(y >= 0 && y <= SIZE / 2, `${kind} quota fuori: ${y}`);
+      heights.add(Math.round(y));
+    }
+    assert.ok(heights.size > 3, `${kind} sta sempre alla stessa quota`);
+  }
+});
+
 ok('pets: il pesce nuota ondeggiando appena sopra il fondo', () => {
   let state = createPets({ cast: ['pesce'], width: WIDTH, size: SIZE, random: () => 0.5 });
   const heights = new Set();

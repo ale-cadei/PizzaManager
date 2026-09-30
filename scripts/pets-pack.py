@@ -7,6 +7,7 @@ from PIL import Image
 
 import os
 OUT = os.path.join(os.path.dirname(__file__), '..', 'renderer', 'pets-sprite-%s.js')
+GRID = 16  # righe della cella di riferimento (pets-sprites.js GRID)
 LETTERS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
 
 # id, pacchetto, cartella, pose → indici frame (0-based), speed, motion, height, commento
@@ -62,6 +63,11 @@ PALETTE_FIX = {
 # in fondo, facoltativi, i disegni a parte (layers): 'perch' (fotogramma,
 # riga a cui si siede) e 'bubbles' (larghezza, sovrapposizioni per frame).
 SPRITELLI_DIR = '/tmp/spiritelli/spritelli'
+# I fotogrammi Spritelli sono a 16 px, gli altri pacchetti a 24-32: si
+# raddoppiano con EPX (arrotonda le diagonali, tiene i bordi dritti) così
+# stanno allo stesso livello. Chi era più basso della cella tiene la sua
+# misura in scena con height.
+SPRITELLI_SCALE = 2
 SPRITELLI = [
     ('ape', 'ape-fiore',
      {'walk': ['bee-fly-1', 'bee-fly-2'], 'sleep': ['bee-rest'], 'call': ['bee-fly-1', 'bee-rest']},
@@ -270,6 +276,28 @@ def derive(frames, base, rows, over):
     return out
 
 
+def epx(grid):
+    """Il fotogramma a 2x con EPX/Scale2x: ogni pixel diventa 2×2, e sugli
+    angoli fra due vicini uguali prende il loro colore, così le diagonali
+    si arrotondano invece di fare le scalette."""
+    h, w = len(grid), len(grid[0])
+    at = lambda x, y: grid[y][x] if 0 <= x < w and 0 <= y < h else '.'
+    out = [[''] * (w * 2) for _ in range(h * 2)]
+    for y in range(h):
+        for x in range(w):
+            p, a, b, c, d = at(x, y), at(x, y - 1), at(x + 1, y), at(x - 1, y), at(x, y + 1)
+            out[2 * y][2 * x] = a if c == a and c != d and a != b else p
+            out[2 * y][2 * x + 1] = b if a == b and a != c and b != d else p
+            out[2 * y + 1][2 * x] = c if d == c and d != b and c != a else p
+            out[2 * y + 1][2 * x + 1] = b if b == d and b != a and d != c else p
+    return [''.join(r) for r in out]
+
+
+def scaled(grid, times):
+    """EPX ripetuto: 1 lascia com'è, 2 raddoppia, 4 quadruplica."""
+    return grid if times <= 1 else scaled(epx(grid), times // 2)
+
+
 def crop(grids):
     """Stessa misura per tutti, allineati in basso e a sinistra, poi via il vuoto intorno.
     Torna anche le righe tenute (y0, y1), per ritagliare allo stesso modo i disegni a parte."""
@@ -282,26 +310,27 @@ def crop(grids):
     return {k: [r[x0:x1] for r in g[y0:y1]] for k, g in full.items()}, (y0, y1)
 
 
-def layer_grids(frames, layers, height, rows):
-    """I disegni a parte, per nome: il posatoio ritagliato da solo, le bolle
-    disegnate su una tela alta quanto la cella e tagliate sulle righe (rows) del personaggio."""
+def layer_grids(frames, layers, height, rows, scale):
+    """I disegni a parte, per nome, ingranditi come il personaggio: il posatoio
+    ritagliato da solo, le bolle disegnate su una tela alta quanto la cella e
+    tagliate sulle righe (rows, già ingrandite) del personaggio."""
     out = {}
     if 'perch' in layers:
-        out['perch'], _ = crop({'perch': frames[layers['perch'][0]]})
+        out['perch'], _ = crop({'perch': scaled(frames[layers['perch'][0]], scale)})
         out['perch'] = out['perch']['perch']
     if 'bubbles' in layers:
         width, steps = layers['bubbles']
         blank = {'.': ['.' * width] * height}
         for i, over in enumerate(steps):
-            out[f'bolle-{i + 1}'] = derive({**frames, **blank}, '.', {}, over)[rows[0]:rows[1]]
+            out[f'bolle-{i + 1}'] = scaled(derive({**frames, **blank}, '.', {}, over), scale)[rows[0]:rows[1]]
     return out
 
 
-def layers_js(kind, layers, names):
+def layers_js(kind, layers, names, scale):
     """I campi perch e bubbles del personaggio, coi nomi delle costanti."""
     js = ''
     if 'perch' in layers:
-        js += f"\n      perch: {{ grid: {names('perch')}, seat: {layers['perch'][1]} }},"
+        js += f"\n      perch: {{ grid: {names('perch')}, seat: {layers['perch'][1] * scale} }},"
     if 'bubbles' in layers:
         js += f"\n      bubbles: [{', '.join(names(f'bolle-{i + 1}') for i in range(len(layers['bubbles'][1])))}],"
     return js
@@ -313,8 +342,9 @@ def spritelli(kind, folder, poses, speed, motion, comment, derived, layers=None)
     frames, pal = spritelli_frames(folder)
     frames = {**frames, **{n: derive(frames, *spec) for n, spec in derived.items()}}
     used = list(dict.fromkeys(n for v in poses.values() for n in v))
-    grids, rows = crop({n: frames[n] for n in used})
-    extra = layer_grids(frames, layers, len(frames[used[0]]), rows)
+    scale = SPRITELLI_SCALE
+    grids, rows = crop({n: scaled(frames[n], scale) for n in used})
+    extra = layer_grids(frames, layers, len(frames[used[0]]), rows, scale)
     drawn = [*used, *extra]
     grids = {**grids, **extra}
     # Solo i colori usati, nell'ordine in cui compaiono
@@ -334,8 +364,11 @@ def spritelli(kind, folder, poses, speed, motion, comment, derived, layers=None)
     if variants:
         rows_js = ',\n'.join('        { %s }' % ', '.join(f"{used_pal[h]}: '{c}'" for h, c in v.items()) for v in variants)
         variants_js = f'\n      variants: [\n{rows_js},\n      ],'
-    extra_js = variants_js + layers_js(kind, layers, cn)
-    return module_js(kind, comment, 'Spritelli', lines, speed, motion, None, palette_js(kind, used_pal), extra_js, frames_js)
+    extra_js = variants_js + layers_js(kind, layers, cn, scale)
+    # Alto in scena quanto lo era a 16 px: le righe sulla cella ingrandita
+    cell = GRID * scale
+    height = round(len(first) / cell, 3) if len(first) < cell else None
+    return module_js(kind, comment, 'Spritelli', lines, speed, motion, height, palette_js(kind, used_pal), extra_js, frames_js)
 
 
 def write(kind, src):

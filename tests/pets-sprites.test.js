@@ -48,8 +48,15 @@ ok('sprites: i personaggi del pacchetto Spritelli sono voci del cast', () => {
   assert.strictEqual(SPRITES.tazzina.motion, 'hop');
 });
 
+ok('sprites: gli Spritelli sono ingranditi a 2x, coi pixel fini quanto i pacchetti a 32 righe', () => {
+  for (const kind of ['ape', 'chiocciola', 'papera', 'anatroccolo', 'robottino', 'pesce']) {
+    assert.ok(dims(kind).rows >= 22, `${kind}: ${dims(kind).rows} righe`);
+    assert.ok(Math.abs(pixel(kind, 48) - 48 / 32) < 0.01, `${kind}: pixel ${pixel(kind, 48)}`);
+  }
+});
+
 ok('sprites: il pesce è quello del pacchetto Spritelli, coi suoi colori a scelta', () => {
-  assert.deepStrictEqual(dims('pesce'), { cols: 17, rows: 12 });
+  assert.deepStrictEqual(dims('pesce'), { cols: 34, rows: 24 });
   assert.strictEqual(SPRITES.pesce.motion, 'swim');
   assert.ok(SPRITES.pesce.variants.length >= 3);
 });

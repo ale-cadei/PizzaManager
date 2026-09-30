@@ -49,10 +49,37 @@ ok('sprites: i personaggi del pacchetto Spritelli sono voci del cast', () => {
 });
 
 ok('sprites: il pesce è quello del pacchetto Spritelli, coi suoi colori a scelta', () => {
-  assert.deepStrictEqual(dims('pesce'), { cols: 23, rows: 12 });
+  assert.deepStrictEqual(dims('pesce'), { cols: 17, rows: 12 });
   assert.strictEqual(SPRITES.pesce.motion, 'swim');
   assert.ok(SPRITES.pesce.variants.length >= 3);
-  assert.ok(SPRITES.pesce.frames.call.length >= 3, 'soffia le bolle');
+});
+
+ok('sprites: le bolle stanno a parte, alte quanto chi le soffia, coi colori in palette', () => {
+  const withBubbles = Object.entries(SPRITES).filter(([, s]) => s.bubbles);
+  assert.deepStrictEqual(withBubbles.map(([k]) => k), ['pesce']);
+  for (const [kind, sprite] of withBubbles) {
+    assert.ok(sprite.bubbles.length >= 2, `${kind}: bolle ferme`);
+    const cols = sprite.bubbles[0][0].length;
+    for (const grid of sprite.bubbles) {
+      assert.strictEqual(grid.length, dims(kind).rows, `${kind}: bolle di un'altra altezza`);
+      for (const row of grid) {
+        assert.strictEqual(row.length, cols);
+        for (const ch of row) if (ch !== '.') assert.ok(sprite.palette[ch], `${kind}: ${ch} delle bolle senza colore`);
+      }
+    }
+  }
+});
+
+ok('sprites: il fiore dell ape è un disegno a parte, col posto dove si posa', () => {
+  const { perch } = SPRITES.ape;
+  assert.ok(perch && Array.isArray(perch.grid), 'l ape non ha il fiore');
+  const cols = perch.grid[0].length;
+  for (const row of perch.grid) {
+    assert.strictEqual(row.length, cols);
+    for (const ch of row) if (ch !== '.') assert.ok(SPRITES.ape.palette[ch], `${ch} del fiore senza colore`);
+  }
+  assert.ok(perch.seat > 0 && perch.seat <= perch.grid.length, `posto fuori dal fiore: ${perch.seat}`);
+  assert.deepStrictEqual(Object.entries(SPRITES).filter(([, s]) => s.perch).map(([k]) => k), ['ape']);
 });
 
 ok('sprites: nessuna posa che il motore non conosca; le opzionali ci sono dove i pacchetti le danno', () => {

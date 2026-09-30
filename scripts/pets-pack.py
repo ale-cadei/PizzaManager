@@ -58,12 +58,16 @@ PALETTE_FIX = {
 # Pacchetto «Spritelli»: fotogrammi con un nome (<cartella>-sheet.json), a 1x.
 # Per personaggio: cartella, pose → nomi dei fotogrammi, speed, motion, commento,
 # e i fotogrammi derivati che il pacchetto non ha: base, righe ritoccate
-# (coordinate della cella) e altri fotogrammi sovrapposti in (x, y).
+# (coordinate della cella) e altri fotogrammi sovrapposti in (x, y);
+# in fondo, facoltativi, i disegni a parte (layers): 'perch' (fotogramma,
+# riga a cui si siede) e 'bubbles' (larghezza, sovrapposizioni per frame).
 SPRITELLI_DIR = '/tmp/spiritelli/spritelli'
 SPRITELLI = [
     ('ape', 'ape-fiore',
      {'walk': ['bee-fly-1', 'bee-fly-2'], 'sleep': ['bee-rest'], 'call': ['bee-fly-1', 'bee-rest']},
-     0.9, 'fly', "L'ape: vola, e si posa per dormire e per chiamare", {}),
+     0.9, 'fly', "L'ape: vola, e si posa sul suo fiore per dormire e per chiamare", {},
+     # Il fiore resta a terra; l'ape si posa a 13 righe d'altezza, tra i petali
+     {'perch': ('flower', 13)}),
     ('chiocciola', 'chiocciola',
      {'walk': ['snail-walk-1', 'snail-walk-2'], 'sleep': ['snail-sleep'],
       'call': ['snail-walk-1', 'snail-walk-2']},
@@ -97,12 +101,14 @@ SPRITELLI = [
      }),
     ('pesce', '/tmp/spritelli-pesce/pesce',
      {'walk': ['fish-swim-1', 'fish-swim-2'], 'sleep': ['fish-sleep'],
-      'call': ['fish-blow', 'fish-bubble-1', 'fish-bubble-2']},
+      'call': ['fish-blow']},
      0.7, 'swim', 'Il pesce: nuota ondeggiando, e chiama soffiando bolle', {
          'fish-sleep': ('fish-swim-1', {6: '.abbbcccccccaaca.'}, []),
-         'fish-bubble-1': ('fish-blow', {}, [('bubble-small', 16, 4)]),
-         'fish-bubble-2': ('fish-blow', {}, [('bubble-big', 17, 0)]),
-     }),
+     },
+     # Bolle davanti alla bocca (colonna 16, righe 6-7 della cella): nasce la
+     # piccola, sale e si gonfia, poi ne nasce un'altra mentre la prima va su
+     {'bubbles': (7, [[('bubble-small', 0, 4)], [('bubble-big', 0, 0)],
+                      [('bubble-small', 2, 0), ('bubble-small', 0, 5)]])}),
 ]
 # Colori a scelta (pets-sprites.js variants): colore del pacchetto → sostituto
 VARIANTS = {
@@ -265,24 +271,54 @@ def derive(frames, base, rows, over):
 
 
 def crop(grids):
-    """Stessa misura per tutti, allineati in basso e a sinistra, poi via il vuoto intorno."""
+    """Stessa misura per tutti, allineati in basso e a sinistra, poi via il vuoto intorno.
+    Torna anche le righe tenute (y0, y1), per ritagliare allo stesso modo i disegni a parte."""
     w = max(len(g[0]) for g in grids.values())
     h = max(len(g) for g in grids.values())
     full = {k: ['.' * w] * (h - len(g)) + [r.ljust(w, '.') for r in g] for k, g in grids.items()}
     ink = [(x, y) for g in full.values() for y, r in enumerate(g) for x, ch in enumerate(r) if ch != '.']
     x0, x1 = min(x for x, _ in ink), max(x for x, _ in ink) + 1
     y0, y1 = min(y for _, y in ink), max(y for _, y in ink) + 1
-    return {k: [r[x0:x1] for r in g[y0:y1]] for k, g in full.items()}
+    return {k: [r[x0:x1] for r in g[y0:y1]] for k, g in full.items()}, (y0, y1)
 
 
-def spritelli(kind, folder, poses, speed, motion, comment, derived):
+def layer_grids(frames, layers, height, rows):
+    """I disegni a parte, per nome: il posatoio ritagliato da solo, le bolle
+    disegnate su una tela alta quanto la cella e tagliate sulle righe (rows) del personaggio."""
+    out = {}
+    if 'perch' in layers:
+        out['perch'], _ = crop({'perch': frames[layers['perch'][0]]})
+        out['perch'] = out['perch']['perch']
+    if 'bubbles' in layers:
+        width, steps = layers['bubbles']
+        blank = {'.': ['.' * width] * height}
+        for i, over in enumerate(steps):
+            out[f'bolle-{i + 1}'] = derive({**frames, **blank}, '.', {}, over)[rows[0]:rows[1]]
+    return out
+
+
+def layers_js(kind, layers, names):
+    """I campi perch e bubbles del personaggio, coi nomi delle costanti."""
+    js = ''
+    if 'perch' in layers:
+        js += f"\n      perch: {{ grid: {names('perch')}, seat: {layers['perch'][1]} }},"
+    if 'bubbles' in layers:
+        js += f"\n      bubbles: [{', '.join(names(f'bolle-{i + 1}') for i in range(len(layers['bubbles'][1])))}],"
+    return js
+
+
+def spritelli(kind, folder, poses, speed, motion, comment, derived, layers=None):
     """Un personaggio del pacchetto Spritelli: il sorgente del file."""
+    layers = layers or {}
     frames, pal = spritelli_frames(folder)
     frames = {**frames, **{n: derive(frames, *spec) for n, spec in derived.items()}}
     used = list(dict.fromkeys(n for v in poses.values() for n in v))
-    grids = crop({n: frames[n] for n in used})
+    grids, rows = crop({n: frames[n] for n in used})
+    extra = layer_grids(frames, layers, len(frames[used[0]]), rows)
+    drawn = [*used, *extra]
+    grids = {**grids, **extra}
     # Solo i colori usati, nell'ordine in cui compaiono
-    ink = dict.fromkeys(ch for n in used for r in grids[n] for ch in r if ch != '.')
+    ink = dict.fromkeys(ch for n in drawn for r in grids[n] for ch in r if ch != '.')
     letter = {ch: LETTERS[i] for i, ch in enumerate(ink)}
     grids = {n: [''.join(letter.get(ch, ch) for ch in r) for r in g] for n, g in grids.items()}
     hexes = {v: h for h, v in pal.items()}
@@ -290,15 +326,16 @@ def spritelli(kind, folder, poses, speed, motion, comment, derived):
     cn = lambda n: f"{kind.upper()}_{n.upper().replace('-', '_')}"
     first = grids[used[0]]
     lines = [f'  // ---- {comment} ({len(first[0])}×{len(first)}) ----']
-    for n in used:
+    for n in drawn:
         lines += const_block(cn(n), grids[n])
     frames_js = ',\n'.join('        %s: [%s]' % (p, ', '.join(cn(n) for n in v)) for p, v in poses.items())
     variants = VARIANTS.get(kind, [])
     variants_js = ''
     if variants:
-        rows = ',\n'.join('        { %s }' % ', '.join(f"{used_pal[h]}: '{c}'" for h, c in v.items()) for v in variants)
-        variants_js = f'\n      variants: [\n{rows},\n      ],'
-    return module_js(kind, comment, 'Spritelli', lines, speed, motion, None, palette_js(kind, used_pal), variants_js, frames_js)
+        rows_js = ',\n'.join('        { %s }' % ', '.join(f"{used_pal[h]}: '{c}'" for h, c in v.items()) for v in variants)
+        variants_js = f'\n      variants: [\n{rows_js},\n      ],'
+    extra_js = variants_js + layers_js(kind, layers, cn)
+    return module_js(kind, comment, 'Spritelli', lines, speed, motion, None, palette_js(kind, used_pal), extra_js, frames_js)
 
 
 def write(kind, src):

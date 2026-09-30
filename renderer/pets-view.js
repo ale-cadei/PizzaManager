@@ -11,7 +11,10 @@
  * (specchio e saltello, con le proprietà CSS scale e translate, che si
  * sommano al transform del div invece di sovrascriverlo). Chi ha un'ombra
  * nel disegno ne ha una seconda, <div class="pet-shadow">, che resta a
- * terra sotto di lui e sparisce quando si posa.
+ * terra sotto di lui e sparisce quando si posa. Allo stesso modo, fuori
+ * dal div del personaggio: il posatoio (<div class="pet-perch">, il fiore
+ * dell'ape), fermo a terra nel suo punto, e le bolle (<div class="pet-bubbles">)
+ * davanti alla bocca, solo mentre chiama.
  *
  * Quando il cast cambia a striscia accesa non si ricomincia da capo: chi
  * resta continua da dov'è, chi esce svanisce (pets.js recast) e il suo
@@ -86,11 +89,30 @@
     layer.el.style.transform = `translate(${(pet.x + layer.offset).toFixed(1)}px, 0px)`;
   }
 
+  /** Il posatoio: fermo a terra nel suo punto, sotto dove si siede. */
+  function drawPerch(pet, layer) {
+    show(layer, layer.frames[0]);
+    layer.el.style.transform = `translate(${(pet.home + layer.offset).toFixed(1)}px, 0px)`;
+  }
+
+  /** Le bolle: davanti alla bocca, alla quota del personaggio, solo mentre chiama. */
+  function drawBubbles(pet, layer, petWidth) {
+    layer.el.hidden = pet.pose !== 'call';
+    if (layer.el.hidden) return;
+    show(layer, layer.frames[Pets.frameIndex(pet, layer.frames.length)]);
+    const left = pet.dir < 0;
+    layer.el.setAttribute('class', left ? 'pet-bubbles pet-bubbles--left' : 'pet-bubbles');
+    const x = left ? pet.x - layer.width : pet.x + petWidth;
+    layer.el.style.transform = `translate(${x.toFixed(1)}px, ${(-pet.y).toFixed(1)}px)`;
+  }
+
   /** I disegni a parte che ha il personaggio, nell'ordine in cui vanno sotto di lui. */
   function buildLayers(doc, pet, size) {
-    const { shadow } = Sprites.SPRITES[pet.kind];
+    const { shadow, perch, bubbles } = Sprites.SPRITES[pet.kind];
     return [
       shadow && buildLayer(doc, pet, size, shadow, 'pet-shadow', drawShadow),
+      perch && buildLayer(doc, pet, size, [perch.grid], 'pet-perch', drawPerch),
+      bubbles && buildLayer(doc, pet, size, bubbles, 'pet-bubbles', drawBubbles),
     ].filter(Boolean);
   }
 

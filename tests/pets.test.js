@@ -544,3 +544,61 @@ ok('pets: la fila entra ed esce dal cast tutta insieme', () => {
   assert.strictEqual(line[2].lead, line[1].key);
   assert.strictEqual(new Set(back.pets.map((p) => p.key)).size, back.pets.length, 'chiavi doppie');
 });
+
+const perchY = (kind) => require('../renderer/pets-sprites').SPRITES[kind].perch.seat * require('../renderer/pets-sprites').pixel(kind, SIZE);
+
+ok('pets: l ape ha il suo fiore in un punto della striscia', () => {
+  for (const seed of [1, 2, 3, 4]) {
+    const [bee] = createPets({ cast: ['ape'], width: WIDTH, size: SIZE, random: seeded(seed) }).pets;
+    assert.ok(bee.home >= 0 && bee.home <= WIDTH - petWidth('ape', SIZE), `fiore fuori: ${bee.home}`);
+  }
+  assert.strictEqual(createPets({ cast: ['gatto'], width: WIDTH, size: SIZE }).pets[0].home, undefined);
+});
+
+ok('pets: per dormire l ape vola al suo fiore e ci si posa sopra', () => {
+  const base = onStage(['ape']);
+  let state = { ...base, pets: [{ ...base.pets[0], x: 600, home: 100 }] };
+  let dist = 500;
+  for (let i = 0; i < 2000 && state.pets[0].pose !== 'sleep'; i += 1) {
+    state = step(state, { dt: 16, width: WIDTH, mood: 'sleep', random: never });
+    const bee = state.pets[0];
+    assert.ok(Math.abs(bee.x - 100) <= dist, 'si allontana dal fiore');
+    dist = Math.abs(bee.x - 100);
+  }
+  const bee = state.pets[0];
+  assert.deepStrictEqual([bee.x, bee.pose], [100, 'sleep']);
+  assert.ok(Math.abs(bee.y - perchY('ape')) < 1e-9, `non è sul fiore: ${bee.y}`);
+  const later = run(state, 50, { mood: 'sleep', random: never }).pets[0];
+  assert.deepStrictEqual([later.x, later.y, later.anim], [bee.x, bee.y, bee.anim], 'dorme ma si muove');
+});
+
+ok('pets: l ape chiama dal suo fiore', () => {
+  const base = onStage(['ape']);
+  let state = { ...base, pets: [{ ...base.pets[0], x: 500, home: 300 }] };
+  state = step(state, { dt: 16, width: WIDTH, mood: 'attention', random: never });
+  assert.notStrictEqual(state.pets[0].pose, 'call', 'chiama ancora lontana dal fiore');
+  state = run(state, 1000, { mood: 'attention', random: never });
+  const bee = state.pets[0];
+  assert.deepStrictEqual([bee.x, bee.pose], [300, 'call']);
+  assert.ok(Math.abs(bee.y - perchY('ape')) < 1e-9);
+});
+
+ok('pets: se la striscia si stringe il fiore resta dentro', () => {
+  const base = onStage(['ape']);
+  const state = { ...base, pets: [{ ...base.pets[0], x: 700, home: 750 }] };
+  const narrow = 300;
+  const [bee] = Pets.fit(state, narrow).pets;
+  assert.ok(bee.home <= narrow - petWidth('ape', SIZE), `fiore fuori: ${bee.home}`);
+});
+
+ok('pets: il pesce che chiama in una striscia senza posto per le bolle non si gira a ogni passo', () => {
+  const narrow = petWidth('pesce', SIZE) + 2;
+  const base = createPets({ cast: ['pesce'], width: narrow, size: SIZE, random: () => 0 });
+  let state = { ...base, pets: base.pets.map((p) => ({ ...p, act: null })) };
+  const dirs = [];
+  for (let i = 0; i < 6; i += 1) {
+    state = step(state, { dt: 16, width: narrow, mood: 'attention', random: never });
+    dirs.push(state.pets[0].dir);
+  }
+  assert.strictEqual(new Set(dirs.slice(1)).size, 1, `si gira: ${dirs}`);
+});

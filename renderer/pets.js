@@ -13,7 +13,9 @@
  *
  * Chi non cammina (MOVES): la rana salta e avanza solo in aria, l'uccellino
  * vola sopra la striscia e si posa per dormire o chiamare, il pesce nuota
- * ondeggiando appena sopra il fondo.
+ * ondeggiando appena sopra il fondo. Chi ha un posatoio (l'ape col fiore,
+ * pets-sprites.js perch) ce l'ha in un punto fisso, home: per dormire o
+ * chiamare ci vola sopra e si siede all'altezza del disegno.
  *
  * In fila (una voce del cast con più personaggi, come la papera con gli
  * anatroccoli): ognuno ha un lead, quello davanti, e gli sta dietro
@@ -113,6 +115,9 @@
     return { ...newPet(jellyKey, 'medusa', x, side, random), mate: sponge.key };
   }
 
+  /** Il punto del posatoio, per chi ne ha uno: la x a cui si posa. */
+  const withHome = (pet, width, size, random) => (spriteOf(pet.kind).perch ? { ...pet, home: random() * maxX(pet.kind, size, width) } : pet);
+
   /** In fila dietro al primo, ognuno col suo lead: quello davanti. */
   function placeLine([first, ...rest], group, width, size, random) {
     const lead = newPet(`${group}a`, first, random() * maxX(first, size, width), random() < 0.5 ? -1 : 1, random);
@@ -127,7 +132,7 @@
   /** I personaggi di una voce del cast; group li tiene insieme quando il cast cambia. */
   function spawn(id, group, width, size, random) {
     const kinds = Sprites.CAST[id] || [];
-    const tag = (p) => ({ ...p, cast: id, group });
+    const tag = (p) => ({ ...withHome(p, width, size, random), cast: id, group });
     if (kinds[0] === 'spongebob') {
       const [sKey, jKey] = [`${group}a`, `${group}b`];
       const sponge = { ...newPet(sKey, kinds[0], random() * maxX(kinds[0], size, width), 1, random), mate: jKey };
@@ -207,10 +212,35 @@
     swim: wave(SWIM),
   };
 
-  /** Chi salta o vola, per dormire o chiamare, scende a terra. */
   /** A terra per dormire o chiamare: chi vola, salta o galleggia (la medusa) scende. */
   const floats = (pet) => ['hop', 'fly'].includes(spriteOf(pet.kind).motion) || pet.kind === 'medusa';
   const landed = (pet) => (floats(pet) ? { ...pet, y: 0, lift: 0 } : pet);
+
+  /** Verso il posatoio in volo; arrivato si siede sul disegno con quella posa
+   *  (chi dorme non anima). */
+  function perch(pet, pose, ctx) {
+    const reach = spriteOf(pet.kind).speed * ctx.size * ctx.mult * ctx.s;
+    const dx = pet.home - pet.x;
+    if (Math.abs(dx) > reach) {
+      const dir = Math.sign(dx);
+      return MOVES[spriteOf(pet.kind).motion]({ ...pet, x: pet.x + dir * reach, dir, pose: 'walk', act: null }, ctx);
+    }
+    const y = spriteOf(pet.kind).perch.seat * Sprites.pixel(pet.kind, ctx.size);
+    const anim = pose === 'sleep' ? pet.anim - ctx.s * 1000 * ctx.mult : pet.anim;
+    return { ...pet, x: pet.home, y, lift: 0, pose, anim, act: null };
+  }
+
+  /** Chi soffia bolle (pets-sprites.js bubbles) chiama verso il lato dove
+   *  c'è posto per le bolle: al bordo si gira, se dall'altra parte ce n'è di più. */
+  function facingRoom(pet, ctx) {
+    const { bubbles } = spriteOf(pet.kind);
+    if (!bubbles) return pet;
+    const right = ctx.width - pet.x - petWidth(pet.kind, ctx.size);
+    const [ahead, behind] = pet.dir > 0 ? [right, pet.x] : [pet.x, right];
+    // Senza posto da nessuna parte non si gira a ogni frame
+    const turn = ahead < bubbles[0][0].length * Sprites.pixel(pet.kind, ctx.size) && behind > ahead;
+    return turn ? { ...pet, dir: -pet.dir } : pet;
+  }
 
   function wander(pet, ctx) {
     const sprite = spriteOf(pet.kind);
@@ -290,7 +320,11 @@
   }
 
   /** Nessuno resta fuori se la striscia si è stretta. */
-  const inside = (pet, ctx) => ({ ...pet, x: clamp(pet.x, 0, maxX(pet.kind, ctx.size, ctx.width)) });
+  function inside(pet, ctx) {
+    const limit = maxX(pet.kind, ctx.size, ctx.width);
+    const home = pet.home === undefined ? {} : { home: clamp(pet.home, 0, limit) };
+    return { ...pet, ...home, x: clamp(pet.x, 0, limit) };
+  }
 
   /** Solo il rientro nei bordi, per quando la striscia cambia misura a ciclo fermo. */
   const fit = (state, width) => ({ ...state, pets: state.pets.map((p) => inside(p, { size: state.size, width })) });
@@ -323,10 +357,11 @@
     const moved = pets.map((p0) => {
       const p = startActs(p0, state, mood);
       if (isVanishing(p)) return tickAct(p, ctx);
-      if (mood === 'sleep') return { ...landed(p), pose: 'sleep', anim: p0.anim - s * 1000 * ctx.mult, act: null };
-      if (caller && p.key === caller.key) {
-        return { ...landed(p), act: null, pose: attentionMs >= SAD_AFTER_MS && has(p.kind, 'sad') ? 'sad' : 'call' };
-      }
+      const calling = caller && p.key === caller.key;
+      const pose = mood === 'sleep' ? 'sleep' : calling && (attentionMs >= SAD_AFTER_MS && has(p.kind, 'sad') ? 'sad' : 'call');
+      if (pose && p.home !== undefined) return perch(p, pose, ctx);
+      if (mood === 'sleep') return { ...landed(p), pose, anim: p0.anim - s * 1000 * ctx.mult, act: null };
+      if (calling) return { ...facingRoom(landed(p), ctx), act: null, pose };
       if (p.act) return tickAct(p, ctx);
       const lead = p.lead ? byKey.get(p.lead) : null;
       if (lead) return follow(p, lead, ctx);

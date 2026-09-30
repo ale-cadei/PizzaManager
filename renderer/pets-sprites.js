@@ -368,7 +368,11 @@
   /** speed: misure del personaggio al secondo, a velocità «normale».
    *  motion: come si muove (pets.js MOTIONS): cammina, salta, vola, nuota.
    *  height: altezza come frazione della taglia, per chi non segue la regola di GRID.
-   *  shadow: ombra a terra per chi vola, un frame per frame di walk (facoltativa). */
+   *  shadow: ombra a terra per chi vola, un frame per frame di walk (facoltativa).
+   *  perch: dove si posa per dormire e chiamare, un disegno fermo a terra (grid)
+   *    e l'altezza in righe a cui si siede (seat). Facoltativo.
+   *  bubbles: disegni davanti alla bocca mentre chiama, alti quanto il
+   *    personaggio, uno dopo l'altro. Facoltativi. */
   const SPRITES = {
     spongebob: {
       speed: 1.3,

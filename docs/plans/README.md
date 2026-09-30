@@ -41,6 +41,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 30 | [`feat/plugin-skill-progetto`](30-plugin-skill-progetto.md) | 29 | ~½ h | fatto, da provare nell'app |
 | 31 | [`feat/git-branch-map-claude`](31-mappa-branch.md) | 25, 27 | ~1 g | fatto, da provare nell'app |
 | 33 | [`feat/animaletti`](33-animaletti.md) | — | ~1 g | fatto, da provare nell'app |
+| 34 | [`feat/git-main-a-sinistra`](34-git-main-a-sinistra.md) | 25, 27 | ~½ g | fatto, provato nell'app (smoke) |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

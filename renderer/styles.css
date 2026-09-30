@@ -868,6 +868,28 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .git-graph path, .git-graph circle, .git-ref { transition: none; }
 }
+/* Riga del commit di HEAD: sempre riconoscibile (docs/plans/34) */
+.git-row--head { background: color-mix(in srgb, var(--type-git) 12%, transparent); box-shadow: inset 3px 0 0 var(--type-git); }
+.git-row--head .git-subject { font-weight: 600; }
+/* Cambio di branch: avviso sotto l'intestazione e pulsante che pulsa */
+.git-switched {
+  flex: 0 0 auto; padding: 6px 16px; font-size: 13px; color: var(--text);
+  background: color-mix(in srgb, var(--type-git) 18%, var(--bg)); border-bottom: 1px solid color-mix(in srgb, var(--type-git) 45%, transparent);
+  animation: git-switched-in .25s ease-out;
+}
+.git-switched[hidden] { display: none; }
+.git-switched-from { font-family: var(--font-mono); color: var(--text-2); text-decoration: line-through; }
+.git-switched-arrow { color: var(--text-dim); }
+.git-switched-to { font-family: var(--font-mono); color: var(--type-git); }
+.git-branch--changed { animation: git-branch-pulse 1s ease-out 3; border-color: var(--type-git); }
+@keyframes git-switched-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes git-branch-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--type-git) 70%, transparent); background: color-mix(in srgb, var(--type-git) 25%, transparent); }
+  100% { box-shadow: 0 0 0 10px transparent; background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .git-switched, .git-branch--changed { animation: none; }
+}
 .git-subject { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .git-author { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .git-date { color: var(--text-dim); font-family: var(--font-mono); font-size: 12px; white-space: nowrap; }

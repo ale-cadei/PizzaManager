@@ -24,9 +24,10 @@
   const PAD_X = 12;
   const DOT_R = 4.5;
   const HASH_LEN = 7;
+  const SWITCH_NOTICE_MS = 4000;
   /* Un colore per corsia, ciclico. Scelti per staccarsi dal fondo scuro e
      fra loro; il primo è quello del tipo git, così il branch principale
-     (quasi sempre la corsia 0) ha il colore della card. */
+     (sempre la corsia 0, lib/git-graph.js) ha il colore della card. */
   const PALETTE = ['var(--type-git)', '#5AA2FF', '#4ADE80', '#F2C14E', '#C084FC', '#FF6B6B', '#2DD4BF', '#F472B6'];
 
   const laneX = (col) => PAD_X + col * LANE_W;
@@ -73,6 +74,24 @@
       if (ref) return ref.name;
     }
     return '';
+  }
+
+  /** Nome del punto in cui si trova HEAD: il branch, o il commit se è staccata. */
+  function headName(data) {
+    if (data.head) return data.head;
+    const row = (data.rows || []).find((r) => r.commit.refs.some((ref) => ref.head));
+    return row ? `HEAD staccata (${row.commit.hash.slice(0, HASH_LEN)})` : 'HEAD staccata';
+  }
+
+  /**
+   * Il branch corrente è cambiato fra due letture dello stesso repository?
+   * Un commit nuovo sullo stesso branch non conta.
+   * @returns {{from: string, to: string}|null}
+   */
+  function headChange(prev, next) {
+    if (!prev || !prev.ok || !next || !next.ok || prev.root !== next.root) return null;
+    const [from, to] = [headName(prev), headName(next)];
+    return from === to ? null : { from, to };
   }
 
   function createGitView({ root, document, onRefresh, onCopy, onBranchClick }) {
@@ -126,9 +145,13 @@
     merged.hidden = true;
     mergedBox.addEventListener('change', () => { showMerged = mergedBox.checked; render({ keepScroll: false }); });
     head.append(repo, branch, count, merged, modes, refresh);
+    // Avviso del cambio di branch: compare per qualche secondo sotto l'intestazione
+    const switched = el('div', 'git-switched');
+    switched.setAttribute('role', 'status');
+    switched.hidden = true;
     const scroll = el('div', 'git-scroll');
     const status = el('p', 'git-status muted');
-    view.append(head, scroll);
+    view.append(head, switched, scroll);
     root.appendChild(view);
 
     function showStatus(text, isError = false) {
@@ -172,7 +195,7 @@
 
     function drawRow(r) {
       const c = r.commit;
-      const li = el('li', 'git-row');
+      const li = el('li', 'git-row' + (c.refs.some((ref) => ref.head) ? ' git-row--head' : ''));
       const refs = el('span', 'git-refs');
       refs.append(...visibleRefs(c.refs).map((ref) => drawRef(ref, r.color)));
       const subject = el('span', 'git-subject', c.subject);
@@ -281,17 +304,40 @@
         showStatus((next && next.error) || 'Impossibile leggere il repository.', true);
         return;
       }
+      const change = headChange(data, next);
       data = next;
       repo.textContent = data.root || '';
       repo.title = data.root || '';
       branch.textContent = (data.head ? `⎇ ${data.head}` : 'HEAD staccata') + ' ▾';
       // Dopo un aggiornamento i colori possono cambiare: la linea isolata si
       // ritrova dal suo commit più recente, se c'è ancora
+      // Cambiando branch si torna a tutte le linee: HEAD potrebbe stare fuori da quella isolata
+      if (change) focus = null;
       if (focus !== null) {
         const tip = (data.rows || []).find((r) => r.commit.hash === focusTip);
         focus = tip ? tip.color : null;
       }
-      render({ keepScroll: true });
+      render({ keepScroll: !change });
+      if (change) announceSwitch(change);
+    }
+
+    let switchTimer = null;
+    /** Il branch è cambiato: il pulsante pulsa, l'avviso dice da dove a dove,
+        la timeline mostra il commit di HEAD. */
+    function announceSwitch({ from, to }) {
+      switched.replaceChildren(el('span', 'git-switched-label', '⎇ Cambio di branch: '), el('span', 'git-switched-from', from), el('span', 'git-switched-arrow', ' → '), el('b', 'git-switched-to', to));
+      switched.hidden = false;
+      // riavvia l'animazione anche se era già in corso
+      branch.classList.remove('git-branch--changed');
+      void branch.offsetWidth;
+      branch.classList.add('git-branch--changed');
+      clearTimeout(switchTimer);
+      switchTimer = setTimeout(() => {
+        switched.hidden = true;
+        branch.classList.remove('git-branch--changed');
+      }, SWITCH_NOTICE_MS);
+      const row = scroll.querySelector('.git-row--head');
+      if (row && row.scrollIntoView) row.scrollIntoView({ block: 'center' });
     }
 
     // Clic su una linea, un pallino o il nome di un branch: solo quella linea.
@@ -333,5 +379,5 @@
     return { update, setLoading, showStatus, setFocus, setMode, element: view };
   }
 
-  return { createGitView, edgePath, formatDate, visibleRefs, colorOf, graphWidth, focusRows, laneLabel, ROW_H, LANE_W, PALETTE };
+  return { createGitView, edgePath, formatDate, visibleRefs, colorOf, headChange, graphWidth, focusRows, laneLabel, ROW_H, LANE_W, PALETTE };
 });

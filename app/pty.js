@@ -242,12 +242,14 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
    * titolo automatico lo scopre — e' cio' che rende ripristinabile dopo un
    * riavvio una sessione nata "nuova".
    */
-  function setMeta(id, { label, resumeId } = {}) {
+  function setMeta(id, { label, resumeId, iconKey, iconMode } = {}) {
     const c = clients.get(id);
     if (!c || !c.session) return { ok: false };
     const meta = {};
     if (label !== undefined) meta.label = String(label || '');
     if (resumeId !== undefined) meta.resume_id = String(resumeId || '');
+    if (iconKey !== undefined) meta.icon_key = String(iconKey || 'shell');
+    if (iconMode !== undefined) meta.icon_mode = String(iconMode || 'auto');
     tmux.control.setMeta(c.session, meta).then(syncSnapshot).catch(() => {});
     return { ok: true };
   }

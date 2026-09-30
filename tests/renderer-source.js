@@ -12,6 +12,7 @@ const RENDERER_APP_FILES = [
   'app-state.js',
   'signals.js',
   'tabs.js',
+  'shell-icon-ui.js',
   'git-tab.js',
   'tab-names.js',
   'session-list.js',

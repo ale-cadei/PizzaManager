@@ -654,6 +654,10 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .pet-bubbles[hidden] { display: none; }
 .pet-perch svg, .pet-bubbles svg { display: block; }
 .pet-bubbles--left svg { scale: -1 1; }
+/* Gli sbuffi di fumo della tazzina: fermi dove nascono, sbiadiscono con l'età */
+.pet-puff { position: absolute; left: 0; bottom: 0; will-change: transform, opacity; }
+.pet-puff[hidden] { display: none; }
+.pet-puff svg { display: block; }
 /* Proprietà separate da transform, che la vista riscrive a ogni frame */
 .pet--left svg { scale: -1 1; }
 .pet--call svg { animation: pet-hop 0.5s ease-in-out infinite; }

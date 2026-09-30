@@ -104,7 +104,14 @@ vola sopra con la posa del volo e poi si siede a `seat` pixel del disegno.
 bocca (dalla parte in cui guarda) e alla sua quota, una dopo l'altra, solo
 in posa `call`; al bordo, se dall'altra parte c'è più posto, il pesce si
 gira per chiamare, così le bolle non escono dalla striscia. Nel generatore sono la voce facoltativa `layers` in fondo a
-una riga di `SPRITELLI`.
+una riga di `SPRITELLI`. `trail` è la scia di fumo della tazzina: i frame
+di uno sbuffo (nasce, si gonfia, si sfilaccia) e la cella del disegno da cui
+esce, dietro rispetto a dove va. Gli sbuffi stanno nello stato del
+personaggio (`puffs`, al massimo `MAX_PUFFS`): ne nasce uno ogni
+`PUFF_EVERY_MS` (più fitti di fretta), resta dove è nato, sale piano e
+svanisce dopo `PUFF_LIFE_MS`; da fredda (dorme) non ne nascono. La vista ha
+un `pet-puff` per posto della scia, nascosto finché è vuoto, sbiadito con
+l'età.
 
 Ogni pacchetto
 porta PNG 1x e un `data.json` con le animazioni: un file generato per

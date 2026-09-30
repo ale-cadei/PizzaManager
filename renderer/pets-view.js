@@ -13,8 +13,9 @@
  * nel disegno ne ha una seconda, <div class="pet-shadow">, che resta a
  * terra sotto di lui e sparisce quando si posa. Allo stesso modo, fuori
  * dal div del personaggio: il posatoio (<div class="pet-perch">, il fiore
- * dell'ape), fermo a terra nel suo punto, e le bolle (<div class="pet-bubbles">)
- * davanti alla bocca, solo mentre chiama.
+ * dell'ape), fermo a terra nel suo punto, le bolle (<div class="pet-bubbles">)
+ * davanti alla bocca, solo mentre chiama, e gli sbuffi di fumo della tazzina
+ * (<div class="pet-puff">, uno per posto della scia), dove il motore li tiene.
  *
  * Quando il cast cambia a striscia accesa non si ricomincia da capo: chi
  * resta continua da dov'è, chi esce svanisce (pets.js recast) e il suo
@@ -79,7 +80,7 @@
     const el = doc.createElement('div');
     el.setAttribute('class', className);
     el.appendChild(svg);
-    return { el, frames, shown: null, draw, width: cols * px, offset: ((Sprites.dims(pet.kind).cols - cols) / 2) * px };
+    return { el, frames, shown: null, draw, width: cols * px, height: grids[0].length * px, offset: ((Sprites.dims(pet.kind).cols - cols) / 2) * px };
   }
 
   /** L'ombra a terra: un frame per frame di volo, sparisce quando si posa. */
@@ -106,13 +107,27 @@
     layer.el.style.transform = `translate(${x.toFixed(1)}px, ${(-pet.y).toFixed(1)}px)`;
   }
 
+  /** Lo sbuffo i-esimo della scia di fumo: centrato dove il motore lo tiene,
+   *  il frame e la trasparenza secondo l'età; vuoto finché non c'è. */
+  const drawPuff = (i) => (pet, layer) => {
+    const puff = pet.puffs[i];
+    layer.el.hidden = !puff;
+    if (!puff) return;
+    const life = Math.min(puff.age / Pets.PUFF_LIFE_MS, 1);
+    show(layer, layer.frames[Math.min(layer.frames.length - 1, Math.floor(life * layer.frames.length))]);
+    layer.el.style.opacity = (1 - life).toFixed(2);
+    layer.el.style.transform = `translate(${(puff.x - layer.width / 2).toFixed(1)}px, ${(layer.height / 2 - puff.y).toFixed(1)}px)`;
+  };
+
   /** I disegni a parte che ha il personaggio, nell'ordine in cui vanno sotto di lui. */
   function buildLayers(doc, pet, size) {
-    const { shadow, perch, bubbles } = Sprites.SPRITES[pet.kind];
+    const { shadow, perch, bubbles, trail } = Sprites.SPRITES[pet.kind];
+    const puffs = trail ? Array.from({ length: Pets.MAX_PUFFS }, (_, i) => buildLayer(doc, pet, size, trail.frames, 'pet-puff', drawPuff(i))) : [];
     return [
       shadow && buildLayer(doc, pet, size, shadow, 'pet-shadow', drawShadow),
       perch && buildLayer(doc, pet, size, [perch.grid], 'pet-perch', drawPerch),
       bubbles && buildLayer(doc, pet, size, bubbles, 'pet-bubbles', drawBubbles),
+      ...puffs,
     ].filter(Boolean);
   }
 

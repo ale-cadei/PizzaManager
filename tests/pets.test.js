@@ -508,6 +508,79 @@ ok('pets: la tazzina cammina a terra come Fizzo, senza saltare', () => {
   }
 });
 
+const puffsOf = (state) => state.pets[0].puffs;
+
+ok('pets: la tazzina camminando lascia sbuffi di fumo dietro di sé, che restano dove nascono e salgono', () => {
+  const start = { ...onStage(['tazzina']), pets: [{ ...onStage(['tazzina']).pets[0], x: 100, dir: 1 }] };
+  const state = stillFor(start, 1500);
+  const cup = state.pets[0];
+  const puffs = puffsOf(state);
+  assert.ok(puffs.length >= 2, `${puffs.length} sbuffi in un secondo e mezzo`);
+  assert.ok(puffs.length <= Pets.MAX_PUFFS);
+  for (const puff of puffs) {
+    assert.ok(puff.x < center(cup), `sbuffo davanti: ${puff.x} contro ${center(cup)}`);
+    assert.ok(puff.y > 0, 'sbuffo a terra');
+  }
+  const later = step(state, { dt: 16, width: WIDTH, random: never });
+  const same = later.pets[0].puffs.filter((p) => puffs.some((q) => q.x === p.x));
+  assert.ok(same.length >= puffs.length - 1, 'gli sbuffi seguono la tazzina');
+  for (const puff of same) {
+    const was = puffs.find((q) => q.x === puff.x);
+    assert.ok(puff.y > was.y, 'lo sbuffo non sale');
+    assert.ok(puff.age > was.age);
+  }
+});
+
+ok('pets: gli sbuffi svaniscono con l età, e da fredda (dorme) la tazzina non fuma', () => {
+  const warm = stillFor(onStage(['tazzina']), 2000);
+  assert.ok(puffsOf(warm).length > 0);
+  const cold = stillFor(warm, Pets.PUFF_LIFE_MS + 100, { mood: 'sleep' });
+  assert.deepStrictEqual(puffsOf(cold), []);
+  const again = stillFor(cold, 1500);
+  assert.ok(puffsOf(again).length > 0, 'sveglia, non fuma più');
+  for (const puff of puffsOf(again)) assert.ok(puff.age < Pets.PUFF_LIFE_MS);
+});
+
+ok('pets: di fretta (busy) la tazzina fuma più fitto, ma gli sbuffi non superano il massimo', () => {
+  const calm = stillFor(onStage(['tazzina']), 3000);
+  const hurried = stillFor(onStage(['tazzina']), 3000, { mood: 'busy' });
+  assert.ok(puffsOf(hurried).length > puffsOf(calm).length, 'stesso fumo di fretta');
+  assert.strictEqual(puffsOf(hurried).length, Pets.MAX_PUFFS);
+});
+
+ok('pets: gli sbuffi nascono dietro di lei, dalla parte opposta a dove va', () => {
+  const base = onStage(['tazzina']).pets[0];
+  for (const dir of [1, -1]) {
+    let state = { ...onStage(['tazzina']), pets: [{ ...base, x: 300, dir }] };
+    let born = 0;
+    for (let i = 0; i < 60; i += 1) {
+      state = step(state, { dt: 16, width: WIDTH, random: never });
+      const fresh = puffsOf(state).find((p) => p.age === 0);
+      if (!fresh) continue;
+      born += 1;
+      const behind = (center(state.pets[0]) - fresh.x) * dir;
+      assert.ok(behind > 0.1 * SIZE, `sbuffo davanti andando a ${dir}: ${behind}`);
+    }
+    assert.ok(born >= 1, 'nessuno sbuffo nato');
+  }
+});
+
+ok('pets: se la striscia si stringe gli sbuffi rientrano, e quando la tazzina esce dal cast se li porta via', () => {
+  const smoky = stillFor({ ...onStage(['tazzina']), pets: [{ ...onStage(['tazzina']).pets[0], x: 700, dir: 1 }] }, 1500);
+  assert.ok(puffsOf(smoky).some((p) => p.x > 300), 'sbuffi già a sinistra');
+  for (const narrow of [Pets.fit(smoky, 300), step(smoky, { dt: 16, width: 300, random: never })]) {
+    assert.ok(puffsOf(narrow).length > 0);
+    for (const puff of puffsOf(narrow)) assert.ok(puff.x <= 300, `sbuffo fuori: ${puff.x}`);
+  }
+  const gone = recast(smoky, { cast: ['gatto'], width: WIDTH });
+  assert.ok(gone.pets.every((p) => p.kind !== 'tazzina' && p.puffs === undefined), 'sbuffi orfani');
+});
+
+ok('pets: chi non fuma non ha sbuffi', () => {
+  const state = stillFor(onStage(['fizzo', 'gatto']), 1000);
+  for (const pet of state.pets) assert.strictEqual(pet.puffs, undefined);
+});
+
 ok('pets: quando la papera si gira, l anatroccolo che si trova davanti non le passa attraverso: la aspetta', () => {
   const base = onStage(['papera']);
   const duck = { ...base.pets[0], x: 400, dir: 1 };

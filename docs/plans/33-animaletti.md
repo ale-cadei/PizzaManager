@@ -95,7 +95,12 @@ disegnato a mano) dal pacchetto «Spritelli», che ha un formato suo:
 fotogrammi con un nome in `<cartella>-sheet.json`, senza animazioni. Le
 pose mancanti (sonno della papera, richiamo col becco aperto…) sono
 fotogrammi derivati nel generatore: righe ritoccate e altri fotogrammi
-sovrapposti.
+sovrapposti. I disegni originali sono su 16×16 (i PNG «@4x» sono solo
+ingranditi), più grossolani degli altri pacchetti (18×26–35×33): il
+generatore li raddoppia con EPX (Scale2x, `SPRITELLI_SCALE`), che arrotonda
+i contorni senza inventare colori. Perché non crescano anche in scena, un
+disegno più basso di 32 righe riceve `height` (righe/32): il pixel resta
+quello di un disegno a 32 righe, e la tazzina resta tazzina.
 
 **Disegni a parte**: come l'ombra del fantasmino, stanno fuori dal div del
 personaggio (così non si specchiano né saltellano con lui) e li disegna la

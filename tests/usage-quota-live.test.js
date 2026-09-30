@@ -113,3 +113,29 @@ test('collect: scheda con chiave API, niente quota dichiarata', async () => {
   assert.deepEqual(asked, []);
   assert.notEqual(u.block.limitKind, 'declared');
 });
+
+test('collect: scheda Claude appena aperta (senza id) e Codex piu recente, la finestra resta di Claude', async () => {
+  const codexDopo = {
+    claude: () => ({ ok: true, events: claudeEvents() }),
+    codex: () => ({ ok: true, events: [{ ts: NOW - 60_000, source: 'codex', sessionId: 'x1', input: 10, output: 1, total: 11 }] }),
+    opencode: empty,
+  };
+  const u = await collectUsage({
+    now: NOW, collectors: codexDopo, profiles, env: {},
+    active: null,
+    tab: { type: 'claude', commandProfileId: 'claude:pers' },
+    quota: recordingQuota([]),
+  });
+  assert.equal(u.block.source, 'claude');
+  assert.equal(u.block.limitKind, 'declared');
+});
+
+test('collect: una scheda shell non sceglie l assistente, vale il piu recente', async () => {
+  const codexDopo = {
+    claude: () => ({ ok: true, events: claudeEvents() }),
+    codex: () => ({ ok: true, events: [{ ts: NOW - 60_000, source: 'codex', sessionId: 'x1', input: 10, output: 1, total: 11 }] }),
+    opencode: empty,
+  };
+  const u = await collectUsage({ now: NOW, collectors: codexDopo, env: {}, tab: { type: 'shell' }, quota: recordingQuota([]) });
+  assert.equal(u.block.source, 'codex');
+});

@@ -163,6 +163,11 @@ e confrontare la FINESTRA 5h con `/usage` dentro ciascuna.
 Fatto: `claude-token.js`, cache per config dir, `claude-target.js`, cablaggio
 scheda → main → `collectUsage`, tilde sulla stima. Suite verde.
 
+Emerso allo smoke test: una scheda Claude appena aperta (non ancora abbinata
+a un log) mostrava la finestra di Codex, perche' senza id di sessione la barra
+parlava dell'ultimo assistente attivo. Ora decide il tipo della scheda
+(`focus` in `aggregate`); solo una scheda shell ricade sul piu' recente.
+
 Non ancora: il tooltip che, col token scaduto (`401`), dice di aprire una
 sessione di quel profilo. Oggi il `401` ricade sulla stima in silenzio, come
 qualunque altro errore. E lo smoke test nell'app (compreso il dialogo del

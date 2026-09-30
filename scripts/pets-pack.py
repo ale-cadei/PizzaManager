@@ -370,7 +370,8 @@ def write(kind, src):
     print(kind, len(src.splitlines()), 'righe')
 
 
-for entry in SPEC:
-    write(entry[0], classic(*entry))
-for kind, *entry in SPRITELLI:
-    write(kind, spritelli(kind, *entry))
+if __name__ == '__main__':
+    for entry in SPEC:
+        write(entry[0], classic(*entry))
+    for kind, *entry in SPRITELLI:
+        write(kind, spritelli(kind, *entry))

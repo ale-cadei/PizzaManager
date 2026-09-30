@@ -36,7 +36,7 @@ ok('sprites: ogni personaggio ha le pose che il motore usa, walk con almeno due 
   assert.deepStrictEqual(EXTRA_POSES.spongebob, ['swing']);
   assert.deepStrictEqual(EXTRA_POSES.medusa, ['flee']);
   assert.deepStrictEqual(EXTRA_POSES.rana, ['jump']);
-  assert.deepStrictEqual(EXTRA_POSES.tazzina, ['jump']);
+  assert.strictEqual(EXTRA_POSES.tazzina, undefined, 'la tazzina non salta più');
 });
 
 ok('sprites: i personaggi del pacchetto Spritelli sono voci del cast', () => {
@@ -45,7 +45,32 @@ ok('sprites: i personaggi del pacchetto Spritelli sono voci del cast', () => {
     assert.strictEqual(CAST[id][0], id);
   }
   assert.strictEqual(SPRITES.ape.motion, 'fly');
-  assert.strictEqual(SPRITES.tazzina.motion, 'hop');
+});
+
+ok('sprites: la tazzina cammina come Fizzo, a quattro passi, disegnata fine quanto lui', () => {
+  const cup = SPRITES.tazzina;
+  assert.strictEqual(cup.motion, 'walk');
+  assert.strictEqual(cup.frames.walk.length, 4);
+  assert.notStrictEqual(cup.frames.walk[0], cup.frames.walk[1]);
+  assert.strictEqual(cup.frames.walk[1], cup.frames.walk[3], 'il passo di mezzo torna fra un piede e l altro');
+  assert.ok(dims('tazzina').rows >= 20, `${dims('tazzina').rows} righe`);
+  assert.ok(Math.abs(pixel('tazzina', 48) - pixel('fizzo', 48)) < 0.1, 'pixel di un altra misura');
+});
+
+ok('sprites: gli sbuffi di fumo della tazzina stanno a parte, tutti della stessa misura, coi colori in palette, e nascono dentro il disegno', () => {
+  const { trail, palette } = SPRITES.tazzina;
+  assert.ok(trail && trail.frames.length >= 2, 'fumo fermo');
+  const [cols, rows] = [trail.frames[0][0].length, trail.frames[0].length];
+  for (const grid of trail.frames) {
+    assert.strictEqual(grid.length, rows);
+    for (const row of grid) {
+      assert.strictEqual(row.length, cols);
+      for (const ch of row) if (ch !== '.') assert.ok(palette[ch], `${ch} del fumo senza colore`);
+    }
+  }
+  assert.ok(trail.at.col >= 0 && trail.at.col < dims('tazzina').cols);
+  assert.ok(trail.at.row >= 0 && trail.at.row < dims('tazzina').rows);
+  for (const [kind, sprite] of Object.entries(SPRITES)) if (kind !== 'tazzina') assert.strictEqual(sprite.trail, undefined, `${kind} fuma`);
 });
 
 ok('sprites: gli Spritelli sono ingranditi a 2x, coi pixel fini quanto i pacchetti a 32 righe', () => {

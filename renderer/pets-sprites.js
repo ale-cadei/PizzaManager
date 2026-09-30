@@ -28,7 +28,7 @@
   const GRID = 16;
 
   const REQUIRED_POSES = ['walk', 'sleep', 'call'];
-  const EXTRA_POSES = { spongebob: ['swing'], medusa: ['flee'], rana: ['jump'], tazzina: ['jump'] };
+  const EXTRA_POSES = { spongebob: ['swing'], medusa: ['flee'], rana: ['jump'] };
   /** Pose che un disegno può avere o no: il motore le usa solo se ci sono
    *  (pets.js). idle: si ferma un attimo a passeggio. turn: cambia verso.
    *  startle: un agente si mette al lavoro. laugh: un'attesa finisce.
@@ -372,7 +372,10 @@
    *  perch: dove si posa per dormire e chiamare, un disegno fermo a terra (grid)
    *    e l'altezza in righe a cui si siede (seat). Facoltativo.
    *  bubbles: disegni davanti alla bocca mentre chiama, alti quanto il
-   *    personaggio, uno dopo l'altro. Facoltativi. */
+   *    personaggio, uno dopo l'altro. Facoltativi.
+   *  trail: scia di sbuffi (la tazzina): i frame di uno sbuffo, dal più
+   *    giovane al più vecchio, e la cella del disegno (at) da cui nascono,
+   *    a personaggio girato a destra. Facoltativa. */
   const SPRITES = {
     spongebob: {
       speed: 1.3,

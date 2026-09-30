@@ -99,12 +99,6 @@ SPRITELLI = [
      0.7, 'walk', "Il robottino: cammina con l'antenna che lampeggia, e chiama con lo schermo acceso", {
          'robot-sleep': ('robot-walk-1-off', {5: '..adeeeeeeeeda..'}, []),
      }),
-    ('tazzina', 'tazzina-caffe',
-     {'walk': ['coffee-land', 'coffee-land'], 'jump': ['coffee-hop-1', 'coffee-hop-2'],
-      'sleep': ['coffee-sleep'], 'call': ['coffee-hop-1', 'coffee-land']},
-     1.2, 'hop', 'La tazzina di caffè: saltella fumando, e da fredda dorme', {
-         'coffee-sleep': ('coffee-land', {4: '.' * 16, 5: '.' * 16, 6: '.' * 16, 11: '..bcbbcccbbcbcb.'}, []),
-     }),
     ('pesce', '/tmp/spritelli-pesce/pesce',
      {'walk': ['fish-swim-1', 'fish-swim-2'], 'sleep': ['fish-sleep'],
       'call': ['fish-blow']},

@@ -11,7 +11,11 @@
  * (specchio e saltello, con le proprietà CSS scale e translate, che si
  * sommano al transform del div invece di sovrascriverlo). Chi ha un'ombra
  * nel disegno ne ha una seconda, <div class="pet-shadow">, che resta a
- * terra sotto di lui e sparisce quando si posa.
+ * terra sotto di lui e sparisce quando si posa. Allo stesso modo, fuori
+ * dal div del personaggio: il posatoio (<div class="pet-perch">, il fiore
+ * dell'ape), fermo a terra nel suo punto, le bolle (<div class="pet-bubbles">)
+ * davanti alla bocca, solo mentre chiama, e gli sbuffi di fumo della tazzina
+ * (<div class="pet-puff">, uno per posto della scia), dove il motore li tiene.
  *
  * Quando il cast cambia a striscia accesa non si ricomincia da capo: chi
  * resta continua da dov'è, chi esce svanisce (pets.js recast) e il suo
@@ -65,26 +69,73 @@
     return { svg, frames };
   }
 
-  /** L'ombra a terra: un frame per frame di volo, larga quanto il suo disegno e centrata sotto il personaggio. */
-  function buildShadow(doc, kind, size, variant) {
-    const sprite = Sprites.SPRITES[kind];
-    if (!sprite.shadow) return null;
-    const px = Sprites.pixel(kind, size);
-    const palette = Sprites.paletteOf(kind, variant);
-    const cols = sprite.shadow[0][0].length;
-    const svg = buildSvg(doc, cols, sprite.shadow[0].length, px);
-    const frames = sprite.shadow.map((grid) => svg.appendChild(buildFrame(doc, grid, palette)));
+  /** Un disegno fuori dal div del personaggio, coi pixel suoi: un frame per griglia.
+   *  offset centra il disegno sotto il personaggio; width è quanto è largo. */
+  function buildLayer(doc, pet, size, grids, className, draw) {
+    const px = Sprites.pixel(pet.kind, size);
+    const palette = Sprites.paletteOf(pet.kind, pet.variant);
+    const cols = grids[0][0].length;
+    const svg = buildSvg(doc, cols, grids[0].length, px);
+    const frames = grids.map((grid) => svg.appendChild(buildFrame(doc, grid, palette)));
     const el = doc.createElement('div');
-    el.setAttribute('class', 'pet-shadow');
+    el.setAttribute('class', className);
     el.appendChild(svg);
-    return { el, frames, shown: null, offset: ((Sprites.dims(kind).cols - cols) / 2) * px };
+    return { el, frames, shown: null, draw, width: cols * px, height: grids[0].length * px, offset: ((Sprites.dims(pet.kind).cols - cols) / 2) * px };
+  }
+
+  /** L'ombra a terra: un frame per frame di volo, sparisce quando si posa. */
+  function drawShadow(pet, layer) {
+    layer.el.hidden = pet.y === 0;
+    show(layer, layer.frames[Pets.frameIndex(pet, layer.frames.length)]);
+    layer.el.style.transform = `translate(${(pet.x + layer.offset).toFixed(1)}px, 0px)`;
+  }
+
+  /** Il posatoio: fermo a terra nel suo punto, sotto dove si siede. */
+  function drawPerch(pet, layer) {
+    show(layer, layer.frames[0]);
+    layer.el.style.transform = `translate(${(pet.home + layer.offset).toFixed(1)}px, 0px)`;
+  }
+
+  /** Le bolle: davanti alla bocca, alla quota del personaggio, solo mentre chiama. */
+  function drawBubbles(pet, layer, petWidth) {
+    layer.el.hidden = pet.pose !== 'call';
+    if (layer.el.hidden) return;
+    show(layer, layer.frames[Pets.frameIndex(pet, layer.frames.length)]);
+    const left = pet.dir < 0;
+    layer.el.setAttribute('class', left ? 'pet-bubbles pet-bubbles--left' : 'pet-bubbles');
+    const x = left ? pet.x - layer.width : pet.x + petWidth;
+    layer.el.style.transform = `translate(${x.toFixed(1)}px, ${(-pet.y).toFixed(1)}px)`;
+  }
+
+  /** Lo sbuffo i-esimo della scia di fumo: centrato dove il motore lo tiene,
+   *  il frame e la trasparenza secondo l'età; vuoto finché non c'è. */
+  const drawPuff = (i) => (pet, layer) => {
+    const puff = pet.puffs[i];
+    layer.el.hidden = !puff;
+    if (!puff) return;
+    const life = Math.min(puff.age / Pets.PUFF_LIFE_MS, 1);
+    show(layer, layer.frames[Math.min(layer.frames.length - 1, Math.floor(life * layer.frames.length))]);
+    layer.el.style.opacity = (1 - life).toFixed(2);
+    layer.el.style.transform = `translate(${(puff.x - layer.width / 2).toFixed(1)}px, ${(layer.height / 2 - puff.y).toFixed(1)}px)`;
+  };
+
+  /** I disegni a parte che ha il personaggio, nell'ordine in cui vanno sotto di lui. */
+  function buildLayers(doc, pet, size) {
+    const { shadow, perch, bubbles, trail } = Sprites.SPRITES[pet.kind];
+    const puffs = trail ? Array.from({ length: Pets.MAX_PUFFS }, (_, i) => buildLayer(doc, pet, size, trail.frames, 'pet-puff', drawPuff(i))) : [];
+    return [
+      shadow && buildLayer(doc, pet, size, shadow, 'pet-shadow', drawShadow),
+      perch && buildLayer(doc, pet, size, [perch.grid], 'pet-perch', drawPerch),
+      bubbles && buildLayer(doc, pet, size, bubbles, 'pet-bubbles', drawBubbles),
+      ...puffs,
+    ].filter(Boolean);
   }
 
   function buildPet(doc, pet, size) {
     const el = doc.createElement('div');
     const { svg, frames } = buildSprite(doc, pet.kind, size, pet.variant);
     el.appendChild(svg);
-    return { el, frames, shown: null, shadow: buildShadow(doc, pet.kind, size, pet.variant) };
+    return { el, frames, shown: null, layers: buildLayers(doc, pet, size) };
   }
 
   function show(view, frame) {
@@ -113,31 +164,25 @@
     const width = () => strip.clientWidth || 0;
     const active = () => Boolean(state && state.pets.length);
 
-    function drawShadow(pet, shadow) {
-      shadow.el.hidden = pet.y === 0;
-      show(shadow, shadow.frames[Pets.frameIndex(pet, shadow.frames.length)]);
-      shadow.el.style.transform = `translate(${(pet.x + shadow.offset).toFixed(1)}px, 0px)`;
-    }
-
     function drawPet(pet, view) {
       const list = view.frames[pet.pose] || view.frames.walk;
       show(view, list[Pets.frameIndex(pet, list.length)]);
       const left = pet.dir < 0 ? ' pet--left' : '';
       view.el.setAttribute('class', `pet pet--${pet.kind} pet--${pet.pose}${left}`);
       view.el.style.transform = `translate(${pet.x.toFixed(1)}px, ${(-pet.y).toFixed(1)}px)`;
-      if (view.shadow) drawShadow(pet, view.shadow);
+      for (const layer of view.layers) layer.draw(pet, layer, Pets.petWidth(pet.kind, size()));
     }
 
     function mount(pet) {
       const view = buildPet(doc, pet, size());
       views.set(pet.key, view);
-      if (view.shadow) strip.appendChild(view.shadow.el);
+      for (const layer of view.layers) strip.appendChild(layer.el);
       strip.appendChild(view.el);
     }
 
     function unmount(key) {
       const view = views.get(key);
-      if (view.shadow) view.shadow.el.remove();
+      for (const layer of view.layers) layer.el.remove();
       view.el.remove();
       views.delete(key);
     }

@@ -36,6 +36,82 @@ ok('sprites: ogni personaggio ha le pose che il motore usa, walk con almeno due 
   assert.deepStrictEqual(EXTRA_POSES.spongebob, ['swing']);
   assert.deepStrictEqual(EXTRA_POSES.medusa, ['flee']);
   assert.deepStrictEqual(EXTRA_POSES.rana, ['jump']);
+  assert.strictEqual(EXTRA_POSES.tazzina, undefined, 'la tazzina non salta più');
+});
+
+ok('sprites: i personaggi del pacchetto Spritelli sono voci del cast', () => {
+  for (const id of ['ape', 'chiocciola', 'papera', 'robottino', 'tazzina']) {
+    assert.ok(CAST[id], `${id} non è nel cast`);
+    assert.strictEqual(CAST[id][0], id);
+  }
+  assert.strictEqual(SPRITES.ape.motion, 'fly');
+});
+
+ok('sprites: la tazzina cammina come Fizzo, a quattro passi, disegnata fine quanto lui', () => {
+  const cup = SPRITES.tazzina;
+  assert.strictEqual(cup.motion, 'walk');
+  assert.strictEqual(cup.frames.walk.length, 4);
+  assert.notStrictEqual(cup.frames.walk[0], cup.frames.walk[1]);
+  assert.strictEqual(cup.frames.walk[1], cup.frames.walk[3], 'il passo di mezzo torna fra un piede e l altro');
+  assert.ok(dims('tazzina').rows >= 20, `${dims('tazzina').rows} righe`);
+  assert.ok(Math.abs(pixel('tazzina', 48) - pixel('fizzo', 48)) < 0.1, 'pixel di un altra misura');
+});
+
+ok('sprites: gli sbuffi di fumo della tazzina stanno a parte, tutti della stessa misura, coi colori in palette, e nascono dentro il disegno', () => {
+  const { trail, palette } = SPRITES.tazzina;
+  assert.ok(trail && trail.frames.length >= 2, 'fumo fermo');
+  const [cols, rows] = [trail.frames[0][0].length, trail.frames[0].length];
+  for (const grid of trail.frames) {
+    assert.strictEqual(grid.length, rows);
+    for (const row of grid) {
+      assert.strictEqual(row.length, cols);
+      for (const ch of row) if (ch !== '.') assert.ok(palette[ch], `${ch} del fumo senza colore`);
+    }
+  }
+  assert.ok(trail.at.col >= 0 && trail.at.col < dims('tazzina').cols);
+  assert.ok(trail.at.row >= 0 && trail.at.row < dims('tazzina').rows);
+  for (const [kind, sprite] of Object.entries(SPRITES)) if (kind !== 'tazzina') assert.strictEqual(sprite.trail, undefined, `${kind} fuma`);
+});
+
+ok('sprites: gli Spritelli sono ingranditi a 2x, coi pixel fini quanto i pacchetti a 32 righe', () => {
+  for (const kind of ['ape', 'chiocciola', 'papera', 'anatroccolo', 'robottino', 'pesce']) {
+    assert.ok(dims(kind).rows >= 22, `${kind}: ${dims(kind).rows} righe`);
+    assert.ok(Math.abs(pixel(kind, 48) - 48 / 32) < 0.01, `${kind}: pixel ${pixel(kind, 48)}`);
+  }
+});
+
+ok('sprites: il pesce è quello del pacchetto Spritelli, coi suoi colori a scelta', () => {
+  assert.deepStrictEqual(dims('pesce'), { cols: 34, rows: 24 });
+  assert.strictEqual(SPRITES.pesce.motion, 'swim');
+  assert.ok(SPRITES.pesce.variants.length >= 3);
+});
+
+ok('sprites: le bolle stanno a parte, alte quanto chi le soffia, coi colori in palette', () => {
+  const withBubbles = Object.entries(SPRITES).filter(([, s]) => s.bubbles);
+  assert.deepStrictEqual(withBubbles.map(([k]) => k), ['pesce']);
+  for (const [kind, sprite] of withBubbles) {
+    assert.ok(sprite.bubbles.length >= 2, `${kind}: bolle ferme`);
+    const cols = sprite.bubbles[0][0].length;
+    for (const grid of sprite.bubbles) {
+      assert.strictEqual(grid.length, dims(kind).rows, `${kind}: bolle di un'altra altezza`);
+      for (const row of grid) {
+        assert.strictEqual(row.length, cols);
+        for (const ch of row) if (ch !== '.') assert.ok(sprite.palette[ch], `${kind}: ${ch} delle bolle senza colore`);
+      }
+    }
+  }
+});
+
+ok('sprites: il fiore dell ape è un disegno a parte, col posto dove si posa', () => {
+  const { perch } = SPRITES.ape;
+  assert.ok(perch && Array.isArray(perch.grid), 'l ape non ha il fiore');
+  const cols = perch.grid[0].length;
+  for (const row of perch.grid) {
+    assert.strictEqual(row.length, cols);
+    for (const ch of row) if (ch !== '.') assert.ok(SPRITES.ape.palette[ch], `${ch} del fiore senza colore`);
+  }
+  assert.ok(perch.seat > 0 && perch.seat <= perch.grid.length, `posto fuori dal fiore: ${perch.seat}`);
+  assert.deepStrictEqual(Object.entries(SPRITES).filter(([, s]) => s.perch).map(([k]) => k), ['ape']);
 });
 
 ok('sprites: nessuna posa che il motore non conosca; le opzionali ci sono dove i pacchetti le danno', () => {

@@ -72,19 +72,56 @@ Spento di default. Si accende e si regola da `Vista › Personaggi…`.
 | `pizza` | Peppo, la pizza | Fetta con gambine, dal pacchetto «Sprite pixel-art originale» dell'utente |
 | `rana` | Rana | Salta (`motion: 'hop'`): avanza solo in aria, posa `jump` |
 | `uccellino` | Uccellino | Vola sopra la striscia (`fly`); per dormire o chiamare si posa. Azzurro, pettirosso, canarino o cardinale, a sorte |
-| `pesce` | Pesce | Nuota ondeggiando appena sopra il fondo (`swim`). Pagliaccio, blu, verde o rosa, a sorte |
+| `pesce` | Pesce | Nuota ondeggiando appena sopra il fondo (`swim`), chiama soffiando bolle (un disegno a parte davanti alla bocca); dal pacchetto «Spritelli». Azzurro, arancio, verde o rosa, a sorte |
 | `fizzo` | Fizzo, la bibita | Bicchiere con cannuccia, dal pacchetto |
 | `rotolacampo` | Rotolacampo | Rotola (12 frame); quando chiama rimbalza |
 | `babbo` | Babbo Natale | Slitta con le renne, vola (`fly`); dal pacchetto |
 | `morte` | La Morte | Fluttua appena sopra il fondo (`swim`); quando chiama dà una falciata (8 frame) |
 | `zucca` | Zucco, la zucca | Cammina; dal pacchetto di Halloween |
 | `fantasmino` | Fantasmino | Vola (`fly`) col lenzuolo; dorme abbassandosi, fa «buu» quando chiama |
+| `ape` | Ape | Vola (`fly`); ha un fiore suo in un punto della striscia, e ci vola sopra per dormire e per chiamare |
+| `chiocciola` | Chiocciola | Lentissima; dorme chiusa nel guscio, chiama dondolando le antenne |
+| `papera` | Papera e anatroccoli | La papera gironzola, i due anatroccoli (`anatroccolo`) le vanno dietro in fila; chiama facendo qua qua |
+| `robottino` | Robottino | Cammina con l'antenna che lampeggia; chiama con lo schermo giallo |
+| `tazzina` | Tazzina di caffè | Cammina come Fizzo (quattro passi) lasciando sbuffi di fumo dietro di sé (`trail`); da fredda dorme e non fuma. Disegnata a mano, al posto di quella del pacchetto Spritelli che saltellava |
 
 Rana, uccellino e pesce aggiunti su richiesta dell'utente dopo il primo
 giro. Pizza, Fizzo, Rotolacampo e Babbo Natale vengono dal pacchetto
 «Sprite pixel-art originale» dell'utente, La Morte e Zucco dall'«Halloween
 Pack», il Fantasmino dal pacchetto «Fantasmino Lenzuolo» (rifatto col
-lenzuolo al posto di quello dell'Halloween Pack). Ogni pacchetto
+lenzuolo al posto di quello dell'Halloween Pack). Ape, chiocciola, papera
+con anatroccoli, robottino e il pesce (al posto di quello disegnato a
+mano) dal pacchetto «Spritelli», che ha un formato suo:
+fotogrammi con un nome in `<cartella>-sheet.json`, senza animazioni. Le
+pose mancanti (sonno della papera, richiamo col becco aperto…) sono
+fotogrammi derivati nel generatore: righe ritoccate e altri fotogrammi
+sovrapposti. I disegni originali sono su 16×16 (i PNG «@4x» sono solo
+ingranditi), più grossolani degli altri pacchetti (18×26–35×33): il
+generatore li raddoppia con EPX (Scale2x, `SPRITELLI_SCALE`), che arrotonda
+i contorni senza inventare colori. Perché non crescano anche in scena, un
+disegno più basso di 32 righe riceve `height` (righe/32): il pixel resta
+quello di un disegno a 32 righe, e la tazzina resta tazzina.
+
+**Disegni a parte**: come l'ombra del fantasmino, stanno fuori dal div del
+personaggio (così non si specchiano né saltellano con lui) e li disegna la
+vista. `perch` è il posatoio: il fiore dell'ape, una griglia ferma a terra e
+`seat`, l'altezza in righe a cui si siede. Il motore le dà alla nascita un
+punto, `home`, che rientra nei bordi come la x; per dormire o chiamare ci
+vola sopra con la posa del volo e poi si siede a `seat` pixel del disegno.
+`bubbles` sono le bolle del pesce: griglie alte quanto lui, davanti alla
+bocca (dalla parte in cui guarda) e alla sua quota, una dopo l'altra, solo
+in posa `call`; al bordo, se dall'altra parte c'è più posto, il pesce si
+gira per chiamare, così le bolle non escono dalla striscia. Nel generatore sono la voce facoltativa `layers` in fondo a
+una riga di `SPRITELLI`. `trail` è la scia di fumo della tazzina: i frame
+di uno sbuffo (nasce, si gonfia, si sfilaccia) e la cella del disegno da cui
+esce, dietro rispetto a dove va. Gli sbuffi stanno nello stato del
+personaggio (`puffs`, al massimo `MAX_PUFFS`): ne nasce uno ogni
+`PUFF_EVERY_MS` (più fitti di fretta), resta dove è nato, sale piano e
+svanisce dopo `PUFF_LIFE_MS`; da fredda (dorme) non ne nascono. La vista ha
+un `pet-puff` per posto della scia, nascosto finché è vuoto, sbiadito con
+l'età.
+
+Ogni pacchetto
 porta PNG 1x e un `data.json` con le animazioni: un file generato per
 personaggio, `renderer/pets-sprite-*.js`, caricato prima di
 `pets-sprites.js` che li fonde nel catalogo. Le pose: `cammina`/`fluttua`/`insegui-dx`
@@ -96,6 +133,15 @@ e la medusa» (`inseguimento`): sono due personaggi legati. SpongeBob non ha
 una direzione sua: punta la medusa e tiene una distanza minima. La medusa
 fugge verso il lato con più spazio; messa all'angolo si alza e gli passa
 sopra. Il retino non la prende mai.
+
+**In fila**: una voce con più personaggi che non sia l'inseguimento
+(`papera` = papera + due anatroccoli) nasce in fila. Ognuno ha un `lead`,
+quello davanti, e gli sta a `LINE_GAP` misure dietro rispetto al verso in
+cui va, recuperando più svelto (`CATCH_UP`); arrivato si ferma, guarda
+dove guarda lui e non zampetta sul posto. Quando la papera si gira e se
+li trova davanti, gli anatroccoli non le passano attraverso: la aspettano
+guardandola e, passata, le vanno dietro. Chi segue non chiama mai: tocca
+al primo.
 
 Frame per personaggio: `walk` (2 frame; SpongeBob 4, con il corpo che sale
 fra un passo e l'altro), `sleep`, `call`. SpongeBob ha anche `swing`, la
@@ -161,7 +207,7 @@ Precedenza: `attention` > `busy` > `sleep` > `idle`.
 }
 ```
 
-- `MAX_CAST = 14` voci del dialogo, una per ognuna; la coppia SpongeBob e medusa è una voce
+- `MAX_CAST = 20` voci del dialogo, una per ognuna; la coppia SpongeBob e medusa è una voce, la papera con gli anatroccoli pure
   (contarla due impediva di sceglierne una di ognuna).
 - Voci sconosciute scartate, valori fuori elenco → default, JSON rotto →
   default intero.

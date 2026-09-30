@@ -496,17 +496,16 @@ ok('pets: a chiamare è la papera, mai un anatroccolo', () => {
   assert.ok(next.pets.filter((p) => p.kind === 'anatroccolo').every((p) => p.pose !== 'call'));
 });
 
-ok('pets: la tazzina saltella e avanza solo in aria, come la rana', () => {
+ok('pets: la tazzina cammina a terra come Fizzo, senza saltare', () => {
   let state = onStage(['tazzina']);
-  const poses = new Set();
   for (let i = 0; i < 200; i += 1) {
     const next = step(state, { dt: 16, width: WIDTH, random: never });
     const [was, cup] = [state.pets[0], next.pets[0]];
-    poses.add(cup.pose);
-    if (cup.pose !== 'jump') assert.strictEqual(cup.x, was.x, 'avanza da seduta');
+    assert.strictEqual(cup.pose, 'walk');
+    assert.strictEqual(cup.y, 0);
+    assert.notStrictEqual(cup.x, was.x, 'ferma');
     state = next;
   }
-  assert.ok(poses.has('jump') && poses.has('walk'));
 });
 
 ok('pets: quando la papera si gira, l anatroccolo che si trova davanti non le passa attraverso: la aspetta', () => {

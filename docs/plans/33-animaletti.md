@@ -75,15 +75,15 @@ Spento di default. Si accende e si regola da `Vista › Personaggi…`.
 | `chiocciola` | Chiocciola | Lentissima; dorme chiusa nel guscio, chiama dondolando le antenne |
 | `papera` | Papera e anatroccoli | La papera gironzola, i due anatroccoli (`anatroccolo`) le vanno dietro in fila; chiama facendo qua qua |
 | `robottino` | Robottino | Cammina con l'antenna che lampeggia; chiama con lo schermo giallo |
-| `tazzina` | Tazzina di caffè | Saltella come la rana (`hop`, posa `jump`) fumando; da fredda dorme |
+| `tazzina` | Tazzina di caffè | Cammina come Fizzo (quattro passi) lasciando sbuffi di fumo dietro di sé (`trail`); da fredda dorme e non fuma. Disegnata a mano, al posto di quella del pacchetto Spritelli che saltellava |
 
 Rana, uccellino e pesce aggiunti su richiesta dell'utente dopo il primo
 giro. Pizza, Fizzo, Rotolacampo e Babbo Natale vengono dal pacchetto
 «Sprite pixel-art originale» dell'utente, La Morte e Zucco dall'«Halloween
 Pack», il Fantasmino dal pacchetto «Fantasmino Lenzuolo» (rifatto col
 lenzuolo al posto di quello dell'Halloween Pack). Ape, chiocciola, papera
-con anatroccoli, robottino, tazzina e il pesce (al posto di quello
-disegnato a mano) dal pacchetto «Spritelli», che ha un formato suo:
+con anatroccoli, robottino e il pesce (al posto di quello disegnato a
+mano) dal pacchetto «Spritelli», che ha un formato suo:
 fotogrammi con un nome in `<cartella>-sheet.json`, senza animazioni. Le
 pose mancanti (sonno della papera, richiamo col becco aperto…) sono
 fotogrammi derivati nel generatore: righe ritoccate e altri fotogrammi

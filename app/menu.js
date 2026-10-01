@@ -59,6 +59,9 @@ function buildAppMenu({ sendToRenderer, platform = process.platform } = {}) {
         // Secondo acceleratore per «più grande»: su molte tastiere + è Shift+=
         { label: 'Testo del terminale più grande', accelerator: 'CmdOrCtrl+=', visible: false, click: () => sendToRenderer('menu-term-font-bigger') },
         { type: 'separator' },
+        // Pannello delle modifiche (docs/plans/32). Non Ctrl+D: è EOF nella shell
+        { label: 'Mostra modifiche', accelerator: 'CmdOrCtrl+Shift+M', click: () => sendToRenderer('menu-changes') },
+        { type: 'separator' },
         { label: 'Colori…', click: () => sendToRenderer('menu-type-colors') },
         { label: 'Personaggi…', click: () => sendToRenderer('menu-pets') },
         { type: 'separator' },
@@ -96,6 +99,7 @@ async function runMenuAction(action, win) {
       case 'open-config': wc.send('menu-open-config'); break;
       case 'type-colors': wc.send('menu-type-colors'); break;
       case 'pets': wc.send('menu-pets'); break;
+      case 'changes': wc.send('menu-changes'); break;
       case 'quit': app.quit(); break;
       // Stessa strada del menu nativo: il renderer sa se il fuoco e' su un
       // terminale e usa la selezione di xterm (renderer/term-clipboard.js).

@@ -38,6 +38,7 @@ async function init() {
   initUsageBar();
   initExtensions();
   initPets();
+  initChangesPanel();
   $('#group-mode-type').addEventListener('click', () => { if (sidebar.setMode('type')) renderSidebar(); });
   $('#group-mode-project').addEventListener('click', () => { if (sidebar.setMode('project')) renderSidebar(); });
   initMenubar(d.platform);

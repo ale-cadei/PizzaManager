@@ -207,6 +207,7 @@ function setActive(id) {
   renderSidebar();
   setTimeout(() => fitActive(), 30);
   refreshUsage(); // il riquadro SESSIONE parla della scheda in primo piano
+  refreshChanges().catch(() => {}); // e così il pannello delle modifiche
 }
 
 function refitTab(id) {
@@ -243,6 +244,7 @@ async function closeTab(id) {
   updateEmpty();
   if (tabs.size) fitActive();
   renderSidebar();
+  refreshChanges().catch(() => {});
   if (t.type === 'git') saveGitSessions();
 }
 

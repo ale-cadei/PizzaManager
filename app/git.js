@@ -3,11 +3,12 @@ const { readGitGraph } = require('../lib/git-graph');
 const { listBranches, switchBranch, createBranch, deleteBranch } = require('../lib/git-branches');
 const { createGitSessionsStore, savedBeforeBoot } = require('../lib/git-sessions');
 const { listWorktrees, worktreeStart, createWorktree, mergeWorktree, removeWorktree } = require('../lib/worktree');
+const { readChanges, readFileDiff } = require('../lib/git-changes');
 
 /**
- * Canali IPC della sessione di tipo git (docs/plans/25) e dei worktree
- * (docs/plans/36). La logica sta in lib/; qui solo il collegamento, per non
- * far crescere main.js.
+ * Canali IPC della sessione di tipo git (docs/plans/25), dei worktree
+ * (docs/plans/36) e del pannello delle modifiche (docs/plans/32). La logica
+ * sta in lib/; qui solo il collegamento, per non far crescere main.js.
  *
  * @param {Electron.IpcMain} ipcMain
  * @param {{userDataDir: () => string}} opts cartella dei dati, chiesta solo
@@ -44,6 +45,10 @@ function registerGitHandlers(ipcMain, { userDataDir } = {}) {
   ipcMain.handle('worktree-create', guard(({ root, branch, base }) => createWorktree({ root, branch, base })));
   ipcMain.handle('worktree-merge', guard(({ root, path }) => mergeWorktree({ root, path })));
   ipcMain.handle('worktree-remove', guard(({ root, path, branch, force }) => removeWorktree({ root, path, branch, force: force === true })));
+  // Pannello delle modifiche (docs/plans/32): base e percorso li ricontrolla
+  // lib/git-changes.js, il renderer non può far leggere un file qualsiasi.
+  ipcMain.handle('git-changes', guard(({ cwd, base }) => readChanges({ cwd, base })));
+  ipcMain.handle('git-file-diff', guard(({ cwd, base, path }) => readFileDiff({ cwd, base, path })));
 }
 
 module.exports = { registerGitHandlers };

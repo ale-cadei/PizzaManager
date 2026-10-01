@@ -1220,6 +1220,15 @@ a, .link { color: var(--action-text); }
 .confirm-bubble-actions { display: flex; justify-content: flex-end; gap: 8px; }
 /* Pulsanti piccoli: quelli dei modali (padding 11/20) qui sarebbero due mattoni */
 .confirm-bubble .btn { padding: 7px 13px; font-size: 12px; }
+/* La scelta fra più azioni (il ⋯ di un worktree): una colonna di pulsanti a
+   tutta larghezza, testo a sinistra come in un menu; «Annulla» in fondo. */
+.confirm-bubble-actions.is-column { flex-direction: column; align-items: stretch; gap: 6px; }
+.confirm-bubble-actions.is-column .btn { text-align: left; }
+.confirm-bubble .confirm-choice.is-danger { color: var(--state-error); }
+.confirm-bubble .confirm-choice.is-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--state-error) 12%, transparent);
+}
+.confirm-bubble .confirm-choice:disabled { opacity: .45; cursor: not-allowed; }
 /* La punta: un quadrato ruotato che prende due lati di bordo dal fumetto e si
    riempie della sua superficie, così il bordo prosegue senza interruzioni.
    `top` lo scrive il JS: insegue il centro della card anche quando il fumetto

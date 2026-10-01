@@ -91,6 +91,12 @@
       tip.style.top = `${pos.tip}px`;
     }
 
+    /* La risposta di chi rinuncia (Annulla, Esc, click fuori, render senza
+       più la card): false per le domande sì/no, null per le scelte. */
+    function cancel() {
+      if (open) settle(open.cancelValue);
+    }
+
     function settle(answer) {
       if (!open) return;
       const { el, resolve, onKey, onDown, onMove } = open;
@@ -110,20 +116,20 @@
      * risposta `false`) dal click fuori, dallo scroll e dal resize; con
      * `closeOnEscape` anche da Esc. Restituisce la risposta.
      */
-    function mount({ el, tip, anchor, key, closeOnEscape }) {
+    function mount({ el, tip, anchor, key, closeOnEscape, cancelValue = false }) {
       const host = deps.host || doc.body;
       host.appendChild(el);
 
       const onKey = closeOnEscape ? (e) => {
-        if (e.key === 'Escape') { if (e.preventDefault) e.preventDefault(); settle(false); }
+        if (e.key === 'Escape') { if (e.preventDefault) e.preventDefault(); cancel(); }
       } : null;
       // mousedown e non click: chi va a cliccare altrove ha già deciso che non
       // vuole rispondere, e il click finirebbe su un bersaglio che nel
       // frattempo si è spostato.
-      const onDown = (e) => { if (!inside(e.target, el)) settle(false); };
+      const onDown = (e) => { if (!inside(e.target, el)) cancel(); };
       // Il fumetto è ancorato a coordinate di finestra: se la lista scorre o la
       // finestra cambia misura, la punta non indica più niente.
-      const onMove = () => settle(false);
+      const onMove = () => cancel();
 
       if (onKey) doc.addEventListener('keydown', onKey, true);
       doc.addEventListener('mousedown', onDown, true);
@@ -133,7 +139,7 @@
       }
 
       const answer = new Promise((resolve) => {
-        open = { el, tip, key, resolve, onKey, onDown, onMove };
+        open = { el, tip, key, resolve, onKey, onDown, onMove, cancelValue };
       });
       pointAt(anchor);
       return answer;
@@ -148,14 +154,16 @@
     }
 
     /**
-     * @param {{anchor: Element, name: string, detachable?: boolean, key?: string}} o
+     * @param {{anchor: Element, name?: string, detachable?: boolean, key?: string,
+     *   title?: string, text?: string, confirmLabel?: string}} o
      *   `key` identifica la cosa a cui il fumetto è appeso (l'id della
-     *   sessione): serve a ritrovarne la card dopo un render.
+     *   sessione): serve a ritrovarne la card dopo un render. Senza `title`,
+     *   `text` e `confirmLabel` è la domanda di chiusura di una sessione.
      * @returns {Promise<boolean>} true se l'utente conferma
      */
-    function ask({ anchor, name, detachable = false, key = null }) {
+    function ask({ anchor, name, detachable = false, key = null, title = null, text = null, confirmLabel = 'Chiudi' }) {
       // Una domanda per volta: la precedente decade come se fosse stata annullata.
-      settle(false);
+      cancel();
       const el = doc.createElement('div');
       el.className = 'confirm-bubble';
       el.setAttribute('role', 'dialog');
@@ -163,10 +171,10 @@
       const tip = doc.createElement('span');
       tip.className = 'confirm-bubble-tip';
       el.appendChild(tip);
-      label(el, 'confirm-bubble-title', `Chiudere «${name}»?`);
-      label(el, 'confirm-bubble-text', detachable
+      label(el, 'confirm-bubble-title', title || `Chiudere «${name}»?`);
+      label(el, 'confirm-bubble-text', text || (detachable
         ? 'Il processo viene terminato: non potrai più riattaccarti a questa sessione.'
-        : 'Il processo in corso viene terminato.');
+        : 'Il processo in corso viene terminato.'));
 
       const actions = doc.createElement('div');
       actions.className = 'confirm-bubble-actions';
@@ -175,13 +183,13 @@
       no.textContent = 'Annulla';
       const yes = doc.createElement('button');
       yes.className = 'btn btn--primary confirm-yes';
-      yes.textContent = 'Chiudi';
+      yes.textContent = confirmLabel;
       actions.appendChild(no);
       actions.appendChild(yes);
       el.appendChild(actions);
 
       const answer = mount({ el, tip, anchor, key, closeOnEscape: true });
-      no.onclick = (e) => { e.stopPropagation(); settle(false); };
+      no.onclick = (e) => { e.stopPropagation(); cancel(); };
       yes.onclick = (e) => { e.stopPropagation(); settle(true); };
       // Il fuoco sul fumetto, non su un pulsante: da lì Tab porta prima ad
       // «Annulla» e poi a «Chiudi», e un Invio battuto per abitudine non
@@ -202,7 +210,7 @@
      * @returns {Promise<boolean>} true se chiuso con «Capito»
      */
     function tell({ anchor, title, text, key = null }) {
-      settle(false);
+      cancel();
       const el = doc.createElement('div');
       el.className = 'confirm-bubble is-hint';
       el.setAttribute('role', 'status');
@@ -224,6 +232,48 @@
     }
 
     /**
+     * Una scelta fra più azioni (il menu ⋯ di un worktree): un pulsante per
+     * azione, in colonna, più «Annulla». Un'azione `disabled` si vede spenta
+     * e dice perché nel tooltip (`hint`): sparire del tutto lascerebbe
+     * chiedersi dove sia finita. `danger` la colora come distruttiva.
+     * @param {{anchor: Element, title: string, text?: string, key?: string,
+     *   choices: Array<{value: string, label: string, hint?: string, disabled?: boolean, danger?: boolean}>}} o
+     * @returns {Promise<string|null>} il `value` scelto, null se si rinuncia
+     */
+    function choose({ anchor, title, text = '', key = null, choices }) {
+      cancel();
+      const el = doc.createElement('div');
+      el.className = 'confirm-bubble is-choice';
+      el.setAttribute('role', 'dialog');
+      el.setAttribute('tabindex', '-1');
+      const tip = doc.createElement('span');
+      tip.className = 'confirm-bubble-tip';
+      el.appendChild(tip);
+      label(el, 'confirm-bubble-title', title);
+      if (text) label(el, 'confirm-bubble-text', text);
+      const actions = doc.createElement('div');
+      actions.className = 'confirm-bubble-actions is-column';
+      const buttons = (Array.isArray(choices) ? choices : []).map((c) => {
+        const b = doc.createElement('button');
+        b.className = 'btn btn--ghost confirm-choice' + (c.danger ? ' is-danger' : '');
+        b.textContent = c.label;
+        if (c.hint) b.title = c.hint;
+        b.disabled = c.disabled === true;
+        b.onclick = (e) => { e.stopPropagation(); if (!b.disabled) settle(c.value); };
+        return b;
+      });
+      const no = doc.createElement('button');
+      no.className = 'btn btn--ghost confirm-no';
+      no.textContent = 'Annulla';
+      no.onclick = (e) => { e.stopPropagation(); cancel(); };
+      for (const b of [...buttons, no]) actions.appendChild(b);
+      el.appendChild(actions);
+      const answer = mount({ el, tip, anchor, key, closeOnEscape: true, cancelValue: null });
+      if (typeof el.focus === 'function') el.focus();
+      return answer;
+    }
+
+    /**
      * Dopo un render la card a cui il fumetto era appeso è un elemento nuovo:
      * il fumetto va rimesso su quella nuova, non fatto sparire (un render
      * capita per motivi che con la domanda non c'entrano — un titolo che
@@ -233,13 +283,13 @@
      */
     function retarget(findAnchor) {
       if (!open) return;
-      if (open.key === null) return settle(false);
+      if (open.key === null) return cancel();
       const anchor = findAnchor(open.key);
-      if (!anchor) return settle(false);
+      if (!anchor) return cancel();
       pointAt(anchor);
     }
 
-    return { ask, tell, retarget, close: () => settle(false), isOpen: () => Boolean(open) };
+    return { ask, tell, choose, retarget, close: cancel, isOpen: () => Boolean(open) };
   }
 
   return { place, createConfirmBubble, GAP, MARGIN, TIP_INSET };

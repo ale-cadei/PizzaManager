@@ -11,7 +11,10 @@
    - I contatori sulle righe dei worktree (changes-cache.js) non hanno un
      giro loro: si leggono quando un worktree compare, quando una sua
      sessione finisce, al ritorno della finestra, e dalla lettura del
-     pannello se la sessione in primo piano sta in un worktree. */
+     pannello se la sessione in primo piano sta in un worktree.
+   - «Unisci» di un worktree (worktree-actions.js, `review`) apre lo stesso
+     pannello sul diff del branch contro la base, con la conferma in fondo:
+     finché è aperto parla di quel worktree, qualunque sia la scheda attiva. */
 
 const CHANGES_POLL_MS = 3000;
 const CHANGES_WIDTH_KEY = 'aisess.changesWidth';
@@ -38,32 +41,54 @@ function noteWorktreeSessionDone(t) {
   if (w) changesCache.refresh(w).catch(() => {});
 }
 /* Stato del pannello: si sostituisce per intero, mai modificato sul posto */
-let changesState = { open: false, target: null, result: null, signature: 'none', expanded: {}, seq: 0 };
+let changesState = { open: false, target: null, result: null, signature: 'none', expanded: {}, seq: 0, merge: null };
 
 function setChangesState(patch) {
   changesState = { ...changesState, ...patch };
   renderChanges();
 }
 
+/** Il piè di pagina di «Unisci»: cosa succede, e perché non si può ancora */
+function mergeFooter(merge, result) {
+  if (!merge) return null;
+  const { worktree, conf } = merge;
+  const loaded = Boolean(result && result.ok);
+  const pending = loaded && result.uncommitted > 0 ? result.uncommitted : 0;
+  const warning = pending
+    ? `${pending === 1 ? '1 file non è' : `${pending} file non sono`} in un commit: non finirebbe nel merge, e Unisci `
+      + 'verrebbe rifiutato. Committa nel worktree (o chiedilo all\'agente), poi riprova.'
+    : loaded && !result.totals.files ? `Niente da unire: ${worktree.branch} non ha cambiato niente rispetto a ${worktree.base}.` : null;
+  return { text: conf.text, confirmLabel: `Unisci in ${worktree.base}`, warning, canConfirm: loaded && !pending };
+}
+
 function renderChanges() {
   if (!changesView) return;
-  const { open, target, result, expanded } = changesState;
+  const { open, target, result, expanded, merge } = changesState;
   const ok = Boolean(result && result.ok);
   // Fuori da un repository (o senza sessione) non c'è niente da aprire; un
-  // errore di git invece si mostra, se il pannello era aperto
+  // errore di git invece si mostra, se il pannello era aperto. Per «Unisci»
+  // il pannello si apre comunque: è lì che si annulla.
   const readable = ok || Boolean(result && result.error);
+  const unreadable = result && !result.ok
+    ? result.error || (merge ? 'Non riesco a leggere il worktree: la cartella c\'è ancora?' : null)
+    : null;
   changesView.render({
     label: ChangesModel.tabLabel(result),
-    open: open && Boolean(target) && readable,
+    open: open && Boolean(target) && (readable || Boolean(merge)),
+    loading: !result,
     title: ChangesModel.headerTitle(target, result),
     summary: ChangesModel.summary(result),
-    error: result && !result.ok && result.error ? result.error : null,
+    error: unreadable,
     files: ok ? result.files : [],
     expanded,
+    heading: merge ? 'Stai per unire' : 'Modifiche',
+    merge: mergeFooter(merge, result),
   });
 }
 
 function activeChangesTarget() {
+  const { merge } = changesState;
+  if (merge) return ChangesModel.targetFor({ type: 'worktree', cwd: merge.worktree.path }, merge.worktree);
   const t = activeId ? tabs.get(activeId) : null;
   const worktree = t ? Groups.worktreeOf(t, worktreeCache.snapshot()) : null;
   return ChangesModel.targetFor(t, worktree);
@@ -118,8 +143,32 @@ function toggleChangesFile(path) {
   loadFileDiff(path);
 }
 
+/**
+ * La conferma di «Unisci» (worktree-actions.js, `review`): il pannello si
+ * apre sul diff del worktree contro la base; la promessa si scioglie con la
+ * scelta dell'utente. Chiudere il pannello in qualsiasi modo vale «Annulla».
+ * @returns {Promise<boolean>}
+ */
+function reviewMerge(worktree, conf) {
+  finishMerge(false); // una revisione rimasta aperta (un altro worktree) si annulla
+  return new Promise((resolve) => {
+    setChangesState({ open: true, merge: { worktree, conf, resolve } });
+    refreshChanges().catch((e) => console.warn('[modifiche]', e));
+  });
+}
+
+function finishMerge(confirmed) {
+  const { merge } = changesState;
+  if (!merge) return;
+  setChangesState({ merge: null, open: false });
+  merge.resolve(confirmed);
+  // Si torna a parlare della scheda in primo piano
+  refreshChanges().catch(() => {});
+}
+
 function toggleChangesPanel(force) {
   const open = typeof force === 'boolean' ? force : !changesState.open;
+  if (!open && changesState.merge) { finishMerge(false); return; }
   setChangesState({ open });
   // Aprendolo il fuoco resta al terminale: si può scrivere all'agente col
   // diff sotto gli occhi. Esc chiude quando il fuoco è nel pannello (un clic
@@ -175,6 +224,7 @@ function initChangesPanel() {
     onToggle: () => toggleChangesPanel(),
     onClose: () => toggleChangesPanel(false),
     onFile: (path) => toggleChangesFile(path),
+    onMerge: (confirmed) => finishMerge(confirmed),
   });
   initChangesResize();
   try { window.aisess.onMenu('menu-changes', () => toggleChangesPanel()); } catch {}

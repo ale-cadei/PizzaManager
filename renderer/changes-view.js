@@ -13,6 +13,9 @@
  * interfaccia a ogni apertura. I file sono a fisarmonica: a metà schermo
  * lista e diff affiancati sarebbero troppo stretti.
  *
+ * In modalità «Unisci» (piano 32, momento 3) lo stesso pannello mostra il
+ * diff del branch contro la base e, in fondo, la conferma del merge.
+ *
  * Qui solo il disegno: cosa mostrare lo decide changes-model.js, quando
  * leggere changes-panel.js. Tutto con textContent: il testo di un diff è
  * quello dei file dell'utente, e può contenere qualsiasi cosa.
@@ -94,9 +97,10 @@
 
   /**
    * @param {{doc: Document, host: Element, shortcut: string,
-   *   onToggle: () => void, onClose: () => void, onFile: (path: string) => void}} o
+   *   onToggle: () => void, onClose: () => void, onFile: (path: string) => void,
+   *   onMerge?: (confirmed: boolean) => void}} o
    */
-  function createChangesView({ doc, host, shortcut, onToggle, onClose, onFile }) {
+  function createChangesView({ doc, host, shortcut, onToggle, onClose, onFile, onMerge = () => {} }) {
     const tab = button(doc, 'changes-tab', '', `Modifiche di questa sessione (${shortcut})`, () => onToggle());
     tab.hidden = true;
 
@@ -112,7 +116,8 @@
     resizer.title = 'Trascina per allargare il pannello';
     const head = el(doc, 'header', 'changes-head');
     const heading = el(doc, 'div', 'changes-heading');
-    heading.appendChild(el(doc, 'span', 'changes-label', 'Modifiche'));
+    const label = el(doc, 'span', 'changes-label', 'Modifiche');
+    heading.appendChild(label);
     const title = el(doc, 'span', 'changes-title');
     heading.appendChild(title);
     const summary = el(doc, 'div', 'changes-summary');
@@ -120,16 +125,31 @@
     head.appendChild(summary);
     head.appendChild(button(doc, 'changes-close', '×', `Chiudi (${shortcut} o Esc)`, () => onClose()));
     const body = el(doc, 'div', 'changes-body');
+    const foot = el(doc, 'footer', 'changes-foot');
+    foot.hidden = true;
+    const footText = el(doc, 'p', 'changes-foot-text');
+    const warning = el(doc, 'p', 'changes-warning');
+    warning.setAttribute('role', 'alert');
+    const actions = el(doc, 'div', 'changes-foot-actions');
+    const cancel = button(doc, 'btn btn--ghost changes-cancel', 'Annulla', 'Annulla: non unire', () => onMerge(false));
+    const confirm = button(doc, 'btn btn--primary changes-confirm', '', 'Unisci', () => onMerge(true));
+    actions.appendChild(cancel);
+    actions.appendChild(confirm);
+    foot.appendChild(footText);
+    foot.appendChild(warning);
+    foot.appendChild(actions);
     panel.appendChild(resizer);
     panel.appendChild(head);
     panel.appendChild(body);
+    panel.appendChild(foot);
     host.appendChild(tab);
     host.appendChild(panel);
 
     /**
      * @param {{label: {visible: boolean, clean: boolean, text: string}, open: boolean,
      *   title: string, summary: string, error: string|null, files: object[],
-     *   expanded: Object<string, object>}} state
+     *   expanded: Object<string, object>, heading?: string, loading?: boolean,
+     *   merge?: {text: string, confirmLabel: string, warning: string|null, canConfirm: boolean}|null}} state
      */
     function render(state) {
       tab.hidden = state.open || !state.label.visible;
@@ -137,13 +157,29 @@
       tab.classList.toggle('is-clean', state.label.clean);
       panel.hidden = !state.open;
       if (!state.open) return;
+      label.textContent = state.heading || 'Modifiche';
       title.textContent = state.title;
+      renderFoot(state.merge || null);
       summary.textContent = state.summary;
       const items = [];
-      if (state.error) items.push(el(doc, 'div', 'changes-error', state.error));
+      if (state.loading) items.push(el(doc, 'div', 'changes-empty', 'Carico…'));
+      else if (state.error) items.push(el(doc, 'div', 'changes-error', state.error));
       else if (!state.files.length) items.push(el(doc, 'div', 'changes-empty', 'Nessuna modifica: tutto come all\'ultimo commit.'));
       for (const f of state.files) items.push(fileRow(doc, f, state.expanded[f.path] || null, onFile));
       body.replaceChildren(...items);
+    }
+
+    function renderFoot(merge) {
+      foot.hidden = !merge;
+      panel.classList.toggle('is-merge', Boolean(merge));
+      if (!merge) return;
+      footText.textContent = merge.text;
+      warning.hidden = !merge.warning;
+      warning.textContent = merge.warning || '';
+      confirm.textContent = merge.confirmLabel;
+      confirm.title = merge.confirmLabel;
+      confirm.setAttribute('aria-label', merge.confirmLabel);
+      confirm.disabled = !merge.canConfirm;
     }
 
     function setWidth(px) {

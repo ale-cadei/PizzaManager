@@ -666,6 +666,7 @@ ok('git: readChanges e readFileDiff su modifiche, file nuovi, rinominati e workt
     assert.strictEqual(w.base, 'main');
     assert.deepStrictEqual(w.files.map((f) => [f.path, f.status]), [['b.txt', 'A'], ['c.txt', '?']],
       'i commit di main dopo la partenza non sono lavoro del branch');
+    assert.strictEqual(w.uncommitted, 1, 'solo c.txt non è in un commit');
     const vsHead = await readChanges({ cwd: wtPath });
     assert.deepStrictEqual(vsHead.files.map((f) => f.path), ['c.txt']);
 

@@ -241,7 +241,29 @@ radice di progetto visibile e lo tiene in una cache (come
 crea/unisci/tieni/butta e quando la finestra torna in primo piano. Un worktree
 toccato fuori dall'app si vede al rientro, non in tempo reale: va bene.
 
-### 5. Sidebar
+### 5. Sidebar ✅ fatto (il [⑂] si accende col modale, passo 6)
+
+Com'è venuto, in sei commit:
+- il fumetto di conferma (`confirm-bubble.js`) ha `ask` con titolo, testo e
+  pulsante propri, e `choose` per il menu ⋯ (azioni in colonna, quelle non
+  disponibili spente col perché nel tooltip);
+- `renderer/worktree-section.js` costruisce la riga e il contenitore (tutto
+  `textContent`: git ammette `<` nei nomi dei branch); `sidebar.js` ci mette
+  le card e conta nel gruppo anche quelle dei worktree;
+- `renderer/worktree-cache.js`: ultimo elenco per radice, ridisegno solo se
+  cambia, richiesta al rientro in primo piano;
+- `renderer/worktree-actions.js`: il flusso del ⋯. **Le sessioni del worktree
+  si chiudono dopo** che la cartella se n'è andata, non prima: un Unisci
+  rifiutato o un conflitto non costano gli agenti al lavoro. Se la rimozione
+  fallisce con sessioni aperte (Windows: un processo blocca la cartella) si
+  chiudono e si riprova una volta;
+- `renderer/worktrees.js` collega cache e azioni a `tabs`, `window.aisess` e
+  `closeConfirm`; `findAnchor` ritrova il ⋯ dopo un render (`worktree:<path>`).
+- Una cartella senza git ora non ha worktree invece di dare errore a ogni
+  rientro; se Unisci fa il merge ma la cartella resta, lo dice (`merged`).
+
+Il [⑂] della linguetta c'è nella sidebar ma compare solo quando il renderer
+passa `onNewWorktree`, cioè col modale del passo 6.
 
 `renderer/sidebar.js`:
 - `[⑂]` nell'intestazione dei gruppi progetto con radice (stessa regola di

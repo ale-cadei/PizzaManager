@@ -655,6 +655,50 @@ img.agent-icon--node { border-radius: 2px; }
    per l'attributo [hidden]: serve una regola esplicita di pari specificità. */
 .group-body[hidden] { display: none; }
 
+/* ---------- Worktree dentro il gruppo del progetto (docs/plans/36) ----------
+   Una sotto-sezione per worktree, sotto le card della cartella principale: una
+   riga sottile col branch (⑂, il colore della sessione git) e le sue card un
+   filo rientrate, appese a un filetto verticale che dice «stanno lì dentro». */
+.group-worktree {
+  flex: 0 0 auto; margin: 0 4px 0 0; padding: 2px 6px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--text-dim); font-family: var(--font-ui);
+  font-size: 14px; line-height: 1; cursor: pointer;
+}
+.group-cap:hover .group-worktree { color: var(--text-muted); }
+.group-worktree:hover { color: var(--action); background: var(--action-soft); }
+.group-worktree:focus-visible { outline: 2px solid var(--action); }
+#session-list .session-group.group-dragging > .group-cap > .group-worktree { opacity: .3; }
+
+.worktree-section { display: flex; flex-direction: column; gap: var(--space-session-gap); margin-top: 4px; }
+.worktree-row {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  padding: 4px 2px 2px 6px;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-ui); font-size: 12px; color: var(--text-muted);
+}
+.worktree-glyph { flex: 0 0 auto; color: var(--type-git); font-size: 13px; }
+.worktree-branch {
+  flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-family: var(--font-mono); color: var(--text);
+}
+.worktree-base { flex: 0 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-dim); font-size: 11px; }
+.worktree-add, .worktree-menu {
+  flex: 0 0 auto; padding: 1px 6px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--text-dim); font-family: var(--font-ui);
+  font-size: 14px; line-height: 1; cursor: pointer;
+}
+.worktree-row:hover .worktree-add, .worktree-row:hover .worktree-menu { color: var(--text-muted); }
+.worktree-add:hover, .worktree-menu:hover { color: var(--action); background: var(--action-soft); }
+.worktree-add:focus-visible, .worktree-menu:focus-visible { outline: 2px solid var(--action); }
+.worktree-body {
+  display: flex; flex-direction: column; gap: var(--space-session-gap);
+  margin-left: 10px; padding-left: 6px;
+  border-left: 1px solid color-mix(in srgb, var(--type-git) 45%, transparent);
+}
+.worktree-empty { padding: 2px 0 4px 4px; font-size: 11px; font-style: italic; color: var(--text-dim); }
+.worktree-body.reordering .session-item { transition: transform .16s ease; }
+.worktree-body.reordering .session-item.dragging { transition: none; }
+
 /* ---------- Area terminale ---------- */
 /* Colonna: terminale sopra, barra dell'uso sotto. La barra sta qui e non in
    fondo alla finestra perche' parla della sessione in primo piano: sotto la

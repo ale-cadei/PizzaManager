@@ -21,13 +21,18 @@
   const NO_PROJECT_LABEL = 'Senza directory';
 
   /**
-   * @param {Array<{id: string, type: string, projectRoot?: string|null}>} sessions
-   * @param {{mode?: 'type'|'project', typeOrder?: string[], typeLabels?: Record<string,string>}} [options]
-   * @returns {Array<{key: string, kind: 'type'|'project', label: string, title: string, items: object[]}>}
+   * @param {Array<{id: string, type: string, cwd?: string, projectRoot?: string|null}>} sessions
+   * @param {{mode?: 'type'|'project', typeOrder?: string[], typeLabels?: Record<string,string>,
+   *   projectOrder?: string[], worktrees?: Record<string, Array<{path: string, branch?: string|null, base?: string|null}>>}} [options]
+   *   `worktrees`: per radice di progetto, i suoi worktree (docs/plans/36)
+   * @returns {Array<{key: string, kind: 'type'|'project', label: string, title: string, items: object[],
+   *   worktrees?: Array<{path: string, branch: string|null, base: string|null, items: object[]}>}>}
+   *   in modalità progetto le sessioni di un worktree stanno nella sua
+   *   sotto-sezione e non in `items`
    */
   function groupSessions(sessions, options = {}) {
     const list = Array.isArray(sessions) ? sessions : [];
-    return options.mode === 'project' ? groupByProject(list, options.projectOrder) : groupByType(list, options);
+    return options.mode === 'project' ? groupByProject(list, options.projectOrder, options.worktrees) : groupByType(list, options);
   }
 
   function groupByType(sessions, { typeOrder = TYPE_ORDER, typeLabels = TYPE_LABELS } = {}) {
@@ -53,7 +58,7 @@
    * @param {string[]} [projectOrder] radici nell'ordine scelto dall'utente
    *   (trascinando le linguette). Chi non c'è va in coda, in ordine alfabetico.
    */
-  function groupByProject(sessions, projectOrder) {
+  function groupByProject(sessions, projectOrder, worktrees) {
     const byKey = new Map();
     for (const s of sessions) {
       const key = s && typeof s.projectRoot === 'string' && s.projectRoot ? s.projectRoot : NO_PROJECT_KEY;
@@ -67,12 +72,50 @@
     // A parità di etichetta si ordina sulla chiave: così l'ordine è totale e
     // due render successivi non invertono mai due gruppi.
     const out = roots
-      .map((key) => ({ key, kind: 'project', label: labels.get(key), title: key, items: byKey.get(key) }))
+      .map((key) => ({ key, kind: 'project', label: labels.get(key), title: key, ...splitByWorktree(byKey.get(key), worktreesOf(worktrees, key)) }))
       .sort((a, b) => byRank(a, b) || a.label.localeCompare(b.label) || a.key.localeCompare(b.key));
     if (byKey.has(NO_PROJECT_KEY)) {
-      out.push({ key: NO_PROJECT_KEY, kind: 'project', label: NO_PROJECT_LABEL, title: NO_PROJECT_LABEL, items: byKey.get(NO_PROJECT_KEY) });
+      out.push({ key: NO_PROJECT_KEY, kind: 'project', label: NO_PROJECT_LABEL, title: NO_PROJECT_LABEL, items: byKey.get(NO_PROJECT_KEY), worktrees: [] });
     }
     return out;
+  }
+
+  /* L'elenco dei worktree di una radice; quello che non ha un percorso si scarta */
+  function worktreesOf(worktrees, root) {
+    if (!worktrees || typeof worktrees !== 'object' || !Object.prototype.hasOwnProperty.call(worktrees, root)) return [];
+    const list = worktrees[root];
+    return Array.isArray(list) ? list.filter((w) => w && typeof w.path === 'string' && w.path) : [];
+  }
+
+  /* Una sessione sta in un worktree se la sua cwd è il worktree o ci sta
+     dentro; tutte le altre restano fra quelle della cartella principale.
+     Un worktree senza sessioni c'è lo stesso: è il posto da cui si butta. */
+  function splitByWorktree(items, list) {
+    const sections = list.map((w) => ({
+      path: w.path, branch: w.branch || null, base: w.base || null,
+      items: items.filter((s) => isInside(s && s.cwd, w.path)),
+    }));
+    const placed = new Set(sections.flatMap((w) => w.items));
+    return { items: items.filter((s) => !placed.has(s)), worktrees: sections };
+  }
+
+  /**
+   * Il worktree in cui sta una sessione, fra quelli del suo progetto; null se
+   * sta nella cartella principale o fuori da tutto.
+   * @param {{cwd?: string, projectRoot?: string|null}} session
+   * @param {Record<string, Array<{path: string, branch?: string|null, base?: string|null}>>} worktrees
+   */
+  function worktreeOf(session, worktrees) {
+    if (!session || typeof session.projectRoot !== 'string') return null;
+    return worktreesOf(worktrees, session.projectRoot).find((w) => isInside(session.cwd, w.path)) || null;
+  }
+
+  function isInside(cwd, dir) {
+    const c = String(cwd || '').replace(TRAILING_SEP_RE, '');
+    const d = String(dir || '').replace(TRAILING_SEP_RE, '');
+    if (!c || !d) return false;
+    // Il separatore dopo la base evita che feat-x2 passi per una sottocartella di feat-x
+    return c === d || (c.startsWith(d) && /[\\/]/.test(c[d.length]));
   }
 
   /* Etichette dei progetti: il nome della cartella, che è quello che l'utente
@@ -115,5 +158,5 @@
     return lastSegments(cwd, 2);
   }
 
-  return { groupSessions, relativeSubpath, shortPath, TYPE_ORDER, TYPE_LABELS, NO_PROJECT_LABEL };
+  return { groupSessions, worktreeOf, relativeSubpath, shortPath, TYPE_ORDER, TYPE_LABELS, NO_PROJECT_LABEL };
 });

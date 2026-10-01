@@ -56,7 +56,8 @@ La **scheda git** esiste (piani 25, 27, 31):
      vedono anche i commit fatti dall'agente). Richiede di annotare lo sha
      all'avvio: sulla scheda, e sulla sessione tmux (`@ais_*`) per
      sopravvivere a un riavvio dell'app.
-   - Con i worktree (idea futura): branch contro `main`.
+   - Con i worktree (piano 36): branch contro la sua base, letta da
+     `git config branch.<nome>.pizzaBase`.
 3. **Aggiornamento dal vivo.**
    - **Consigliato: polling di `git status` solo mentre la vista è
      visibile** (ogni 2–3 s, `--porcelain=v2 -z`, economico), più
@@ -157,5 +158,5 @@ Eventuali spostamenti di codice esistente in commit `refactor:` separati.
 - Evidenziazione della sintassi e vista affiancata (side-by-side).
 - Diff di un commit della timeline (clic su un commit): annotato nel piano 25,
   userebbe `readFileDiff` con un intervallo di commit.
-- Worktree per agente (idea separata in idee.md): quando arriverà, il
-  pannello mostrerà il branch contro `main`.
+- Worktree per agente ([piano 36](36-sessione-worktree.md)): il pannello
+  mostrerà il branch contro la base salvata in `branch.<nome>.pizzaBase`.

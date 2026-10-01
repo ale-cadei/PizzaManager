@@ -51,6 +51,7 @@ async function init() {
     updateClaudeAccountRow();
   }));
   $('#new-cancel').addEventListener('click', () => $('#modal-new').hidden = true);
+  initWorktreeModal();
   $('#btn-browse').addEventListener('click', async () => {
     const p = await window.aisess.pickCwd();
     if (p) {
@@ -141,6 +142,7 @@ async function init() {
   });
 
   window.addEventListener('resize', () => fitActive());
+  watchWorktrees();
   renderSidebar();
   updateEmpty();
   ensureClaudeAccounts();

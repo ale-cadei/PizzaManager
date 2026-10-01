@@ -20,6 +20,13 @@ const sidebar = Sidebar.createSidebar({
   // radice; il tipo lo si sceglie lì come sempre.
   onNewInProject: (root) => { openNewModal(undefined, { cwd: root }).catch(() => {}); },
   onResumeInProject: (root) => { openResumeModal({ projectRoot: root }).catch(() => {}); },
+  // Worktree (docs/plans/36): sotto-sezioni nel gruppo, «+» e ⋯ sulla riga
+  WorktreeSection: window.AisessWorktreeSection,
+  onNewWorktree: (root) => { openWorktreeModal(root).catch((e) => console.warn('modale worktree', e)); },
+  onNewInWorktree: (path) => { openNewModal(undefined, { cwd: path }).catch(() => {}); },
+  onWorktreeMenu: (w, root, anchor) => {
+    worktreeActions.openMenu(w, root, anchor).catch((e) => console.warn('menu del worktree', e));
+  },
   onReorder: (movedId, targetId, opts) => {
     const next = Order.moveAdjacent(sessionOrder, movedId, targetId, opts);
     if (next === sessionOrder) return;
@@ -62,7 +69,11 @@ function savedRanks() {
 const renderSidebar = () => {
   sessionOrder = Order.syncOrder(sessionOrder, [...tabs.keys()], { rankOf: savedRanks() });
   saveOrder();
-  sidebar.render(Order.applyOrder([...tabs.values()], sessionOrder), activeId);
+  const ordered = Order.applyOrder([...tabs.values()], sessionOrder);
+  // I worktree di un progetto si chiedono la prima volta che il progetto compare;
+  // la risposta ridisegna la sidebar da sola (worktrees.js)
+  worktreeCache.sync(ordered.map((t) => t.projectRoot)).catch(() => {});
+  sidebar.render(ordered, activeId, worktreeCache.snapshot());
   refreshOpenSearchScope();
   // La barra in basso dice in che chat si è: cambia con la scheda attiva, un
   // rinomina, il titolo automatico — tutte strade che passano da qui.
@@ -207,10 +218,14 @@ const HINT_DELAY_MS = 800;
 const hintStore = window.AisessHints ? window.AisessHints.createHintStore(window.localStorage) : null;
 let hintTimer = null;
 
-/** L'elemento a cui appendere un fumetto: `group:<radice>` è una linguetta, il resto una card. */
+/** L'elemento a cui appendere un fumetto: `group:<radice>` è una linguetta,
+    `worktree:<percorso>` il ⋯ di un worktree, il resto una card. */
 function findAnchor(key) {
   if (key.startsWith('group:')) {
     return document.querySelector(`#session-list .group-header[data-key="${CSS.escape(key.slice('group:'.length))}"]`);
+  }
+  if (key.startsWith('worktree:')) {
+    return document.querySelector(`#session-list .worktree-menu[data-path="${CSS.escape(key.slice('worktree:'.length))}"]`);
   }
   return document.querySelector(`#session-list .session-item[data-id="${CSS.escape(key)}"]`);
 }

@@ -2,7 +2,7 @@
 const os = require('os');
 const { buildCommand, installHint } = require('../lib/commands');
 const { augmentedEnv } = require('../lib/binaries');
-const { resolveWorkdir } = require('../lib/workdir');
+const { describeWorkdir } = require('../lib/workdir');
 const tmuxLib = require('../lib/tmux');
 const { shouldCapture } = require('../lib/scrollback');
 const { replayCommand } = require('../lib/scrollback-command');
@@ -132,7 +132,10 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
   async function spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId, label, cols, rows, previousSession = null }) {
     if (!pty) return { ok: false, error: 'node-pty non installato. Esegui: npm install' };
 
-    const workdir = resolveWorkdir(cwd);
+    // Se la cartella non c'è più (un worktree tolto) la sessione parte altrove:
+    // `moved` torna alla scheda, che lo dice
+    const where = describeWorkdir(cwd);
+    const workdir = where.dir;
     const { cmd, args, commandLine, profileEnv, missing, searchedPath, error, profile } = buildCommand(type, resumeId, commandProfileId, { profiles });
     if (!cmd) {
       if (error) return { ok: false, error };
@@ -206,7 +209,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
       });
       // La directory risolta torna alla scheda: e' quella su cui il titolo
       // automatico cerca la conversazione, non quella digitata dall'utente.
-      return { ok: true, cwd: workdir, session };
+      return { ok: true, cwd: workdir, session, moved: where.moved, requested: where.requested };
     } catch (e) {
       return { ok: false, error: String(e.message || e) };
     }

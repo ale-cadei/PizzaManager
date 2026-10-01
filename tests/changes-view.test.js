@@ -25,9 +25,11 @@ function setup(extra = {}) {
   return { host, view, calls };
 }
 
-const label = (text, clean = false) => ({ visible: true, clean, text });
+const label = (text, clean = false, parts = [{ kind: clean ? 'clean' : 'files', text }]) => ({ visible: true, clean, text, parts });
+const COUNTS = [{ kind: 'files', text: '2' }, { kind: 'add', text: '+3' }, { kind: 'del', text: '−1' }];
 const baseState = (over = {}) => ({
-  label: label('2 · +3 −1'), open: true, title: 'feat/x da main', summary: '2 file · +3 −1',
+  label: label('2 · +3 −1', false, COUNTS), open: true, title: 'feat/x da main',
+  summary: [{ kind: 'files', text: '2 file' }, { kind: 'add', text: '+3' }, { kind: 'del', text: '−1' }],
   error: null, files: [], expanded: {}, ...over,
 });
 const file = (path, extra = {}) => ({ path, status: 'M', added: 2, removed: 1, binary: false, ...extra });
@@ -37,7 +39,10 @@ ok('vista modifiche: la linguetta mostra il contatore e apre il pannello', () =>
   view.render(baseState({ open: false }));
   const tab = one(host, 'changes-tab');
   assert.strictEqual(tab.hidden, false);
-  assert.strictEqual(textOf(tab), '2 · +3 −1');
+  // un pezzo per colore: verde le aggiunte, rosso le rimozioni
+  assert.deepStrictEqual(['changes-n-files', 'changes-n-add', 'changes-n-del'].map((c) => textOf(one(tab, c))), ['2', '+3', '−1']);
+  assert.strictEqual(tab.getAttribute('aria-label'), 'Modifiche di questa sessione: 2 · +3 −1 (⌘⇧M)');
+  assert.ok(host.classes.has('has-changes-tab'), 'senza la classe la barra di scorrimento finisce sotto la linguetta');
   assert.ok(tab.title.includes('⌘⇧M'), 'la linguetta non dice la scorciatoia');
   assert.strictEqual(one(host, 'changes-panel').hidden, true);
   tab.onclick();
@@ -46,8 +51,9 @@ ok('vista modifiche: la linguetta mostra il contatore e apre il pannello', () =>
 
 ok('vista modifiche: fuori da un repository la linguetta non c\'è; pulito si spegne', () => {
   const { host, view } = setup();
-  view.render(baseState({ open: false, label: { visible: false, clean: true, text: '' } }));
+  view.render(baseState({ open: false, label: { visible: false, clean: true, text: '', parts: [] } }));
   assert.strictEqual(one(host, 'changes-tab').hidden, true);
+  assert.ok(!host.classes.has('has-changes-tab'));
   view.render(baseState({ open: false, label: label('±0', true) }));
   assert.ok(one(host, 'changes-tab').classes.has('is-clean'));
 });
@@ -58,7 +64,8 @@ ok('vista modifiche: col pannello aperto la linguetta si nasconde e l\'intestazi
   assert.strictEqual(one(host, 'changes-panel').hidden, false);
   assert.strictEqual(one(host, 'changes-tab').hidden, true);
   assert.strictEqual(textOf(one(host, 'changes-title')), 'feat/x da main');
-  assert.strictEqual(textOf(one(host, 'changes-summary')), '2 file · +3 −1');
+  const summary = one(host, 'changes-summary');
+  assert.deepStrictEqual(['changes-n-files', 'changes-n-add', 'changes-n-del'].map((c) => textOf(one(summary, c))), ['2 file', '+3', '−1']);
 });
 
 ok('vista modifiche: le righe dei file, con stato, percorso e contatori', () => {
@@ -118,7 +125,7 @@ ok('vista modifiche: caricamento, errore, binario, troncato', () => {
 
 ok('vista modifiche: niente modifiche ed errore si dicono', () => {
   const { host, view } = setup();
-  view.render(baseState({ files: [], summary: 'Nessuna modifica' }));
+  view.render(baseState({ files: [], summary: [{ kind: 'note', text: 'Nessuna modifica' }] }));
   assert.strictEqual(textOf(one(host, 'changes-empty')), 'Nessuna modifica: tutto come all\'ultimo commit.');
   view.render(baseState({ error: 'git: boh' }));
   assert.strictEqual(textOf(one(host, 'changes-error')), 'git: boh');

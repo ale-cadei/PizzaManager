@@ -28,8 +28,11 @@ ok('modifiche: niente bersaglio per la scheda git o senza cartella', () => {
 });
 
 ok('modifiche: la linguetta dice file e righe, e sparisce fuori da un repository', () => {
-  assert.deepStrictEqual(M.tabLabel(result([file('a', 120, 30), file('b'), file('c')])), { visible: true, clean: false, text: '3 · +122 −30' });
-  assert.deepStrictEqual(M.tabLabel(result([])), { visible: true, clean: true, text: '±0' });
+  const dirty = M.tabLabel(result([file('a', 120, 30), file('b'), file('c')]));
+  assert.deepStrictEqual([dirty.visible, dirty.clean, dirty.text], [true, false, '3 · +122 −30']);
+  assert.deepStrictEqual(dirty.parts, [{ kind: 'files', text: '3' }, { kind: 'add', text: '+122' }, { kind: 'del', text: '−30' }]);
+  const clean = M.tabLabel(result([]));
+  assert.deepStrictEqual([clean.clean, clean.text, clean.parts], [true, '±0', [{ kind: 'clean', text: '±0' }]]);
   assert.strictEqual(M.tabLabel(null).visible, false);
   assert.strictEqual(M.tabLabel({ ok: false, reason: 'not-a-repo' }).visible, false);
   assert.strictEqual(M.tabLabel({ ok: false, error: 'boh' }).visible, false);
@@ -97,4 +100,11 @@ ok('modifiche: un file riscritto con gli stessi contatori si rilegge', () => {
 
 ok('modifiche: un collegamento o una cartella lo dicono invece di «grande»', () => {
   assert.deepStrictEqual(M.fileCounts({ ...file('link'), added: null, special: true }), { added: null, removed: null, note: 'non è un file' });
+});
+
+ok('modifiche: il riepilogo a pezzi, per colorare aggiunte e rimozioni', () => {
+  assert.deepStrictEqual(M.summaryParts(result([file('a', 2, 1)])),
+    [{ kind: 'files', text: '1 file' }, { kind: 'add', text: '+2' }, { kind: 'del', text: '−1' }]);
+  assert.deepStrictEqual(M.summaryParts(result([])), [{ kind: 'note', text: 'Nessuna modifica' }]);
+  assert.deepStrictEqual(M.summaryParts({ ok: false }), []);
 });

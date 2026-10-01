@@ -24,6 +24,7 @@ const sidebar = Sidebar.createSidebar({
   WorktreeSection: window.AisessWorktreeSection,
   onNewWorktree: (root) => { openWorktreeModal(root).catch((e) => console.warn('modale worktree', e)); },
   onNewInWorktree: (path) => { openNewModal(undefined, { cwd: path }).catch(() => {}); },
+  changesOf: (path) => changesCache.get(path),
   onWorktreeMenu: (w, root, anchor) => {
     worktreeActions.openMenu(w, root, anchor).catch((e) => console.warn('menu del worktree', e));
   },
@@ -73,6 +74,8 @@ const renderSidebar = () => {
   // I worktree di un progetto si chiedono la prima volta che il progetto compare;
   // la risposta ridisegna la sidebar da sola (worktrees.js)
   worktreeCache.sync(ordered.map((t) => t.projectRoot)).catch(() => {});
+  // I numeri di un worktree si leggono la prima volta che compare (changes-panel.js)
+  changesCache.ensure(knownWorktrees()).catch(() => {});
   sidebar.render(ordered, activeId, worktreeCache.snapshot());
   refreshOpenSearchScope();
   // La barra in basso dice in che chat si è: cambia con la scheda attiva, un

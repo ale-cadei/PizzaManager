@@ -1,8 +1,11 @@
 /* La sotto-sezione di un worktree dentro il gruppo del suo progetto, nella
  * sidebar (docs/plans/36-sessione-worktree.md):
  *
- *   ⑂ feat/scorciatoie   da main         [+] [⋯]
+ *   ⑂ feat/scorciatoie   da main   +120 −30   [+] [⋯]
  *      ▸ Claude · scorciatoie ⌘T
+ *
+ * I numeri sono le righe toccate rispetto alla base (docs/plans/32), letti
+ * da changes-cache.js; un worktree pulito non ne mostra.
  *
  * Le card le crea la sidebar (`fill`), che sa disegnarle e trascinarle; qui
  * si costruisce la riga e il contenitore. Tutto con textContent: il nome di
@@ -36,14 +39,25 @@
     return b;
   }
 
+  function changesBadge(doc, changes, base) {
+    const badge = doc.createElement('span');
+    badge.className = 'worktree-changes';
+    badge.appendChild(span(doc, 'worktree-added', `+${changes.added}`));
+    badge.appendChild(span(doc, 'worktree-removed', `−${changes.removed}`));
+    const files = changes.files === 1 ? '1 file cambiato' : `${changes.files} file cambiati`;
+    badge.title = base ? `${files} rispetto a ${base}` : `${files} rispetto all'ultimo commit`;
+    return badge;
+  }
+
   /**
    * @param {{doc: Document, worktree: {path: string, branch: string|null, base: string|null},
+   *   changes?: {files: number, added: number, removed: number}|null,
    *   onNew?: (() => void)|null, onMenu?: ((el: Element) => void)|null,
    *   fill: (body: Element) => number}} o
    *   `fill` mette le card nel corpo e dice quante sono
    * @returns {Element}
    */
-  function createSection({ doc, worktree, onNew = null, onMenu = null, fill }) {
+  function createSection({ doc, worktree, changes = null, onNew = null, onMenu = null, fill }) {
     const name = worktree.branch || lastSegment(worktree.path);
     const section = doc.createElement('div');
     section.className = 'worktree-section';
@@ -57,6 +71,7 @@
     row.appendChild(glyph);
     row.appendChild(span(doc, 'worktree-branch', name));
     if (worktree.base) row.appendChild(span(doc, 'worktree-base', `da ${worktree.base}`));
+    if (changes && changes.files > 0) row.appendChild(changesBadge(doc, changes, worktree.base));
     if (onNew) row.appendChild(button(doc, 'worktree-add', '+', `Nuova sessione nel worktree ${name}`, () => onNew()));
     if (onMenu) {
       const menu = button(doc, 'worktree-menu', '⋯', `Unisci, tieni il branch o butta ${name}`, (el) => onMenu(el));

@@ -7,6 +7,9 @@
 const WorktreeForm = window.AisessWorktreeForm;
 /** La radice del progetto per cui il modale è aperto */
 let worktreeModalRoot = null;
+/** Le basi proposte (worktree-form.js startModel) e quella scelta */
+let worktreeBases = [];
+let worktreeBase = null;
 
 function showWorktreeLine(id, text) {
   const el = $(id);
@@ -22,7 +25,10 @@ async function openWorktreeModal(root) {
   worktreeModalRoot = root;
   $('#wt-project').textContent = root;
   $('#wt-branch').value = '';
-  $('#wt-base').replaceChildren();
+  $('#wt-base-filter').value = '';
+  worktreeBases = [];
+  worktreeBase = null;
+  renderWorktreeBases('Carico i branch…');
   for (const id of ['#wt-path', '#wt-warning', '#wt-note', '#wt-error']) showWorktreeLine(id, '');
   setWorktreeBusy(true);
   $('#modal-worktree').hidden = false;
@@ -37,17 +43,52 @@ async function openWorktreeModal(root) {
   // Chiuso o riaperto per un altro progetto mentre git rispondeva
   if (worktreeModalRoot !== root || $('#modal-worktree').hidden) return;
   const model = WorktreeForm.startModel(start);
-  $('#wt-base').replaceChildren(...model.bases.map((b) => {
-    const o = document.createElement('option');
-    o.value = b.value;
-    o.textContent = b.label;
-    return o;
-  }));
-  if (model.selected) $('#wt-base').value = model.selected;
+  worktreeBases = model.bases;
+  worktreeBase = model.selected;
+  renderWorktreeBases();
   showWorktreeLine('#wt-warning', model.warning);
   showWorktreeLine('#wt-note', model.note);
   showWorktreeLine('#wt-error', model.blocked);
   setWorktreeBusy(Boolean(model.blocked));
+}
+
+/* «Parte da»: le voci come quelle dell'albero git (nome a sinistra,
+   suggerimento grigio a destra, gruppo «Locali»), la scelta evidenziata.
+   Nomi dei branch sempre con textContent. */
+function worktreeBaseItem(b) {
+  const item = document.createElement('button');
+  item.type = 'button';
+  item.className = 'git-picker-item' + (b.value === worktreeBase ? ' is-selected' : '');
+  item.setAttribute('role', 'option');
+  item.setAttribute('aria-selected', String(b.value === worktreeBase));
+  const name = document.createElement('span');
+  name.className = 'git-picker-name';
+  name.textContent = b.label;
+  item.appendChild(name);
+  if (b.hint) {
+    const hint = document.createElement('span');
+    hint.className = 'git-picker-hint';
+    hint.textContent = b.hint;
+    item.appendChild(hint);
+  }
+  item.addEventListener('click', () => { worktreeBase = b.value; renderWorktreeBases(); });
+  return item;
+}
+
+function renderWorktreeBases(message) {
+  const shown = WorktreeForm.filterBases(worktreeBases, $('#wt-base-filter').value);
+  const note = (text) => {
+    const p = document.createElement('p');
+    p.className = 'git-picker-empty small muted';
+    p.textContent = text;
+    return p;
+  };
+  if (message) { $('#wt-base-list').replaceChildren(note(message)); return; }
+  if (!shown.length) { $('#wt-base-list').replaceChildren(note(worktreeBases.length ? 'Nessun branch con questo nome.' : 'Nessun branch.')); return; }
+  const group = document.createElement('div');
+  group.className = 'git-picker-group';
+  group.textContent = 'Locali';
+  $('#wt-base-list').replaceChildren(group, ...shown.map(worktreeBaseItem));
 }
 
 function closeWorktreeModal() {
@@ -63,7 +104,7 @@ async function confirmWorktree({ openSession }) {
   showWorktreeLine('#wt-error', '');
   let res;
   try {
-    res = await window.aisess.worktreeCreate(root, $('#wt-branch').value.trim(), $('#wt-base').value);
+    res = await window.aisess.worktreeCreate(root, $('#wt-branch').value.trim(), worktreeBase);
   } catch (e) {
     res = { ok: false, error: String((e && e.message) || e) };
   }
@@ -94,6 +135,14 @@ function initWorktreeModal() {
   // Invio nel nome: il caso più comune, crea e apri una sessione
   $('#wt-branch').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !$('#wt-create-open').disabled) { e.preventDefault(); confirmWorktree({ openSession: true }).catch(() => {}); }
+  });
+  $('#wt-base-filter').addEventListener('input', () => renderWorktreeBases());
+  // Invio nel filtro sceglie il primo branch che corrisponde, non crea
+  $('#wt-base-filter').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const first = WorktreeForm.filterBases(worktreeBases, $('#wt-base-filter').value)[0];
+    if (first) { worktreeBase = first.value; renderWorktreeBases(); }
   });
   $('#wt-create').addEventListener('click', () => { confirmWorktree({ openSession: false }).catch(() => {}); });
   $('#wt-create-open').addEventListener('click', () => { confirmWorktree({ openSession: true }).catch(() => {}); });

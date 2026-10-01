@@ -4,16 +4,17 @@ const { test: ok } = require('node:test');
 /* Il modale «Nuovo worktree» (docs/plans/36): da dove si parte, cosa non
    seguirà, se si può creare e dove finirà la cartella. La parte pura, senza
    DOM: renderer/worktree-form.js. */
-const { startModel, folderPreview } = require('../renderer/worktree-form');
+const { startModel, folderPreview, filterBases } = require('../renderer/worktree-form');
 
 const START = { ok: true, current: { branch: 'feat/y', commit: 'abc1234' }, dirty: 0, busy: null, bases: ['feat/y', 'main', 'develop'] };
 
 ok('form: le basi nell ordine di lib/worktree.js, la corrente segnata e preselezionata', () => {
   const m = startModel(START);
+  // Come le voci dell'albero git: nome, e a destra il suggerimento grigio
   assert.deepStrictEqual(m.bases, [
-    { value: 'feat/y', label: 'feat/y (quello corrente)' },
-    { value: 'main', label: 'main' },
-    { value: 'develop', label: 'develop' },
+    { value: 'feat/y', label: 'feat/y', hint: 'corrente' },
+    { value: 'main', label: 'main', hint: '' },
+    { value: 'develop', label: 'develop', hint: '' },
   ]);
   assert.strictEqual(m.selected, 'feat/y');
   assert.strictEqual(m.warning, null);
@@ -22,7 +23,7 @@ ok('form: le basi nell ordine di lib/worktree.js, la corrente segnata e preselez
 
 ok('form: da HEAD staccato la prima base è il commit, e lo dice', () => {
   const m = startModel({ ...START, current: { branch: null, commit: 'abc1234' }, bases: ['abc1234', 'main'] });
-  assert.deepStrictEqual(m.bases[0], { value: 'abc1234', label: 'commit abc1234 (HEAD staccato)' });
+  assert.deepStrictEqual(m.bases[0], { value: 'abc1234', label: 'abc1234', hint: 'commit corrente, HEAD staccato' });
   assert.match(m.note, /Unisci/, 'non avvisa che da un commit non si potrà unire');
 });
 
@@ -59,4 +60,12 @@ ok('form: ogni elemento che il modale cerca esiste in index.html, e [⑂] lo apr
   const missing = ids.filter((id) => !html.includes(`id="${id}"`));
   assert.deepStrictEqual(missing, [], 'il modale cerca elementi che la pagina non ha');
   assert.match(fs.readFileSync(path.join(dir, 'session-list.js'), 'utf8'), /onNewWorktree: \(root\) => \{ openWorktreeModal\(root\)/);
+});
+
+ok('form: il filtro delle basi funziona come quello dell albero git, e tiene l ordine', () => {
+  const { bases } = startModel(START);
+  assert.deepStrictEqual(filterBases(bases, 'MA').map((b) => b.value), ['main'], 'non ignora maiuscole e minuscole');
+  assert.deepStrictEqual(filterBases(bases, 'e').map((b) => b.value), ['feat/y', 'develop']);
+  assert.deepStrictEqual(filterBases(bases, '  ').map((b) => b.value), ['feat/y', 'main', 'develop']);
+  assert.deepStrictEqual(filterBases(bases, 'nessuno'), []);
 });

@@ -199,7 +199,11 @@ servono, come `lib/git-branches.js`.
   modifiche, git rifiuta: si restituisce `{ ok: false, dirty: true }` per la
   seconda conferma (come `notMerged` di `deleteBranch`).
 
-### 3. IPC
+### 3. IPC ✅ fatto
+
+Provato con un finto `ipcMain` in `tests/git-ipc.test.js`: i canali ci sono,
+ogni canale `git-*`/`worktree-*` del preload ha il suo handler, un payload
+vuoto risponde con un errore.
 
 In `app/git.js`, stessa `guard`: `worktree-list`, `worktree-start`,
 `worktree-create`, `worktree-merge`, `worktree-remove`. In `preload.js` le
@@ -211,7 +215,17 @@ esistente, dopo la conferma «N sessioni aperte verranno terminate». Un
 processo con la cartella cancellata sotto i piedi è peggio di una conferma in
 più.
 
-### 4. Gruppi con sotto-sezioni
+### 4. Gruppi con sotto-sezioni ✅ fatto (la funzione; il collegamento nel 5)
+
+`groupSessions` con `worktrees` è pronta e testata, ma la sidebar non gliela
+passa ancora: le sessioni dei worktree uscirebbero da `items` e sparirebbero
+finché il passo 5 non disegna le sotto-sezioni. Cache e collegamento entrano
+nel commit del passo 5, così ogni commit lascia l'app usabile.
+
+Limite noto, accettato: un worktree si vede solo se il suo progetto ha un
+gruppo nella sidebar, cioè almeno una sessione aperta (nella cartella
+principale o in un worktree). Chiusa l'ultima, i worktree restano su disco e
+ricompaiono alla prossima sessione nel progetto.
 
 `renderer/session-groups.js`: `groupSessions(sessions, { mode: 'project',
 worktrees })` dove `worktrees` è `{ [root]: [{ path, branch, base }] }`. Ogni

@@ -207,6 +207,9 @@ ok('nomi: la scheda adotta la directory davvero usata dal pty', () => {
   assert.strictEqual(resolveWorkdir('/non/esiste', { home, isDir }), home, 'una directory inesistente non ripiega sulla home');
   assert.strictEqual(resolveWorkdir('', { home, isDir }), home);
   assert.ok(/return \{ ok: true, cwd: workdir\b/.test(read('app', 'pty.js')), 'pty.spawn non restituisce la directory risolta');
+  // Spostata perché la cartella non c'è più (un worktree tolto): la scheda lo dice
+  assert.ok(/moved: where\.moved, requested: where\.requested/.test(read('app', 'pty.js')), 'pty.spawn non dice se ha spostato la sessione');
+  assert.ok(/if \(res\.moved\) notifyMovedSession\(id, res\)/.test(readRendererApp()), 'la scheda non dice che la sessione è stata spostata');
   assert.ok(/res\.cwd/.test(readRendererApp()), 'il renderer non adotta la directory risolta dal main');
 });
 

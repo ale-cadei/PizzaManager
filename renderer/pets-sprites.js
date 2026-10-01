@@ -508,8 +508,8 @@
     ape: 'Ape',
     chiocciola: 'Chiocciola',
     papera: 'Papera e anatroccoli',
-    robottino: 'Robottino',
-    tazzina: 'Tazzina di caffè',
+    robottino: 'Robbo, il robottino',
+    tazzina: 'Tazzi, la tazzina',
   };
 
   /** Quanti aspetti ha un personaggio: la palette di base più le variants. */

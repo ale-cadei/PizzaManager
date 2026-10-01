@@ -191,6 +191,23 @@ ok('changes: con una base confronta con il punto di partenza del branch', async 
   assert.deepStrictEqual(mb.slice(-2), ['refs/heads/main', 'HEAD']);
 });
 
+ok('changes: con una base conta a parte i file non ancora committati', async () => {
+  const run = fakeGit(repoAnswers({
+    'merge-base': 'fff999\n',
+    'diff --name-status': z('A', 'b.js', 'M', 'c.js'),
+    'diff --numstat': '1\t0\tb.js' + NUL + '2\t0\tc.js' + NUL,
+    'diff --name-only': z('c.js'),
+    'ls-files': z('nuovo.txt'),
+  }));
+  const r = await readChanges({ cwd: ROOT, base: 'main', run, fsImpl: { lstatSync: () => { throw new Error('no'); } } });
+  assert.strictEqual(r.uncommitted, 2, 'c.js modificato e nuovo.txt non tracciato; b.js è nei commit');
+});
+
+ok('changes: contro HEAD tutto quello che si vede è non committato', async () => {
+  const r = await readChanges({ cwd: ROOT, run: fakeGit(repoAnswers()) });
+  assert.strictEqual(r.uncommitted, 1);
+});
+
 ok('changes: una base che non esiste più ricade su HEAD', async () => {
   const run = fakeGit(repoAnswers({ 'rev-parse --verify': (args) => {
     if (args.includes('refs/heads/sparito')) throw gitError('');

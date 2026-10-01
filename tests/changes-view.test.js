@@ -139,3 +139,41 @@ ok('vista modifiche: la larghezza si applica e si legge', () => {
   assert.strictEqual(one(host, 'changes-panel').style.width, '420px');
   assert.ok(view.resizer && view.resizer.classes.has('changes-resizer'));
 });
+
+ok('vista modifiche: in modalità Unisci c\'è il piè di pagina con conferma e annulla', () => {
+  const merged = [];
+  const { host, view, calls } = setup({ onMerge: (yes) => merged.push(yes) });
+  view.render(baseState({ files: [file('b.js')], heading: 'Stai per unire', merge: {
+    text: 'Il merge si fa nella cartella principale.', confirmLabel: 'Unisci in main', warning: null, canConfirm: true,
+  } }));
+  assert.strictEqual(textOf(one(host, 'changes-label')), 'Stai per unire');
+  const foot = one(host, 'changes-foot');
+  assert.strictEqual(foot.hidden, false);
+  assert.strictEqual(textOf(one(foot, 'changes-foot-text')), 'Il merge si fa nella cartella principale.');
+  assert.strictEqual(one(foot, 'changes-warning').hidden, true);
+  const confirm = one(foot, 'changes-confirm');
+  assert.strictEqual(textOf(confirm), 'Unisci in main');
+  assert.strictEqual(confirm.disabled, false);
+  confirm.onclick();
+  one(foot, 'changes-cancel').onclick();
+  assert.deepStrictEqual(merged, [true, false]);
+  assert.strictEqual(calls.close, 0, 'annullare non passa dalla chiusura');
+});
+
+ok('vista modifiche: con un avviso la conferma si spegne e l\'avviso si vede', () => {
+  const { host, view } = setup({ onMerge: () => {} });
+  view.render(baseState({ merge: { text: 't', confirmLabel: 'Unisci in main', warning: '2 file non committati', canConfirm: false } }));
+  assert.strictEqual(one(host, 'changes-confirm').disabled, true);
+  assert.strictEqual(one(host, 'changes-warning').hidden, false);
+  assert.strictEqual(textOf(one(host, 'changes-warning')), '2 file non committati');
+  // fuori dalla modalità Unisci il piè di pagina sparisce
+  view.render(baseState());
+  assert.strictEqual(one(host, 'changes-foot').hidden, true);
+  assert.strictEqual(textOf(one(host, 'changes-label')), 'Modifiche');
+});
+
+ok('vista modifiche: finché la lettura non arriva dice che sta caricando', () => {
+  const { host, view } = setup();
+  view.render(baseState({ loading: true }));
+  assert.strictEqual(textOf(one(host, 'changes-empty')), 'Carico…');
+});

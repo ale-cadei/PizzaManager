@@ -797,6 +797,18 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .changes-line.del .changes-sign { color: var(--state-error); }
 .changes-line.note { color: var(--text-faint); font-style: italic; }
 .changes-diff-note { padding: 6px 12px; font: 400 11px/1.4 var(--font-ui); color: var(--text-dim); }
+/* Modalità «Unisci»: la conferma sta in fondo, sempre visibile */
+.changes-panel.is-merge .changes-label { color: var(--action-text); }
+.changes-foot {
+  display: flex; flex-direction: column; gap: var(--gap-sm);
+  padding: 12px 14px; border-top: 1px solid var(--border); background: var(--surface-2);
+}
+.changes-foot[hidden] { display: none; }
+.changes-foot-text { margin: 0; font-size: 12px; color: var(--text-muted); }
+.changes-warning { margin: 0; font-size: 12px; color: var(--accent); white-space: pre-wrap; }
+.changes-warning[hidden] { display: none; }
+.changes-foot-actions { display: flex; justify-content: flex-end; gap: var(--gap-sm); }
+.changes-confirm[disabled] { opacity: .45; cursor: not-allowed; }
 
 /* ---------- Animaletti (renderer/pets-view.js, piano 33) ----------
    Striscia sotto il terminale: ne ruba l'altezza invece di coprirne l'ultima

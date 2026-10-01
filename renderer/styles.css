@@ -682,6 +682,10 @@ img.agent-icon--node { border-radius: 2px; }
   font-family: var(--font-mono); color: var(--text);
 }
 .worktree-base { flex: 0 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-dim); font-size: 11px; }
+/* Righe toccate rispetto alla base (piano 32): non si stringono, il nome del branch sì */
+.worktree-changes { flex: 0 0 auto; display: inline-flex; gap: 4px; font: 400 11px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.worktree-added { color: var(--state-ok); }
+.worktree-removed { color: var(--state-error); }
 .worktree-add, .worktree-menu {
   flex: 0 0 auto; padding: 1px 6px; border: 0; border-radius: 6px;
   background: transparent; color: var(--text-dim); font-family: var(--font-ui);

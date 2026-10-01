@@ -13,10 +13,10 @@ const result = (files, extra = {}) => ({
 const file = (path, added = 1, removed = 0, status = 'M') => ({ path, status, added, removed, binary: false });
 
 ok('modifiche: il bersaglio è la cartella della sessione, con la base se sta in un worktree', () => {
-  assert.deepStrictEqual(M.targetFor({ type: 'claude', cwd: '/r' }, null), { cwd: '/r', base: null, branch: null, key: '/r\0' });
+  assert.deepStrictEqual(M.targetFor({ type: 'claude', cwd: '/r' }, null), { cwd: '/r', base: null, branch: null, path: null, key: '/r\0' });
   const wt = { path: '/r.worktrees/feat-x', branch: 'feat/x', base: 'main' };
   assert.deepStrictEqual(M.targetFor({ type: 'shell', cwd: '/r.worktrees/feat-x' }, wt),
-    { cwd: '/r.worktrees/feat-x', base: 'main', branch: 'feat/x', key: '/r.worktrees/feat-x\0main' });
+    { cwd: '/r.worktrees/feat-x', base: 'main', branch: 'feat/x', path: '/r.worktrees/feat-x', key: '/r.worktrees/feat-x\0main' });
   // worktree senza base: contro HEAD, ma il branch si mostra
   assert.strictEqual(M.targetFor({ type: 'shell', cwd: '/w' }, { path: '/w', branch: 'x', base: null }).base, null);
 });

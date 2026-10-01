@@ -17,13 +17,16 @@
    * sua base il confronto è con la base, altrimenti con HEAD.
    * @param {{type: string, cwd?: string}|null} tab
    * @param {{path: string, branch: string|null, base: string|null}|null} worktree
-   * @returns {{cwd: string, base: string|null, branch: string|null, key: string}|null}
+   * `path` è la cartella del worktree (null nella cartella principale): la
+   * lettura vale anche per il contatore sulla sua riga in sidebar.
+   * @returns {{cwd: string, base: string|null, branch: string|null, path: string|null, key: string}|null}
    */
   function targetFor(tab, worktree) {
     if (!tab || tab.type === 'git' || typeof tab.cwd !== 'string' || !tab.cwd) return null;
     const base = (worktree && worktree.base) || null;
     const branch = (worktree && worktree.branch) || null;
-    return { cwd: tab.cwd, base, branch, key: `${tab.cwd}\0${base || ''}` };
+    const path = (worktree && worktree.path) || null;
+    return { cwd: tab.cwd, base, branch, path, key: `${tab.cwd}\0${base || ''}` };
   }
 
   const isRepo = (result) => Boolean(result && result.ok);

@@ -22,6 +22,8 @@ function noteActivity(t, bytes) {
 function flagAttention(t, { bell = false } = {}) {
   clearTimeout(t.idleTimer);
   t.idleTimer = null;
+  // Anche se non lampeggia (shell): il lavoro è finito, i numeri del suo worktree cambiano
+  noteWorktreeSessionDone(t);
   if (t.type === 'shell' || t.id === activeId || t.needsAttention) return;
   if (!(bell ? attention.bell(t.id) : attention.idle(t.id))) return;
   t.needsAttention = true;

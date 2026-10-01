@@ -7,7 +7,11 @@
    - Il diff di un file si legge solo quando lo si apre, e si rilegge quando
      cambiano i suoi contatori.
    - Una risposta che arriva dopo un cambio di scheda si butta: parlerebbe
-     di un'altra cartella. */
+     di un'altra cartella.
+   - I contatori sulle righe dei worktree (changes-cache.js) non hanno un
+     giro loro: si leggono quando un worktree compare, quando una sua
+     sessione finisce, al ritorno della finestra, e dalla lettura del
+     pannello se la sessione in primo piano sta in un worktree. */
 
 const CHANGES_POLL_MS = 3000;
 const CHANGES_WIDTH_KEY = 'aisess.changesWidth';
@@ -18,6 +22,21 @@ const CHANGES_SHORTCUT = navigator.platform.startsWith('Mac') ? '⌘⇧M' : 'Ctr
 const ChangesModel = window.AisessChangesModel;
 
 let changesView = null;
+const changesCache = window.AisessChangesCache.createChangesCache({
+  read: (cwd, base) => window.aisess.gitChanges(cwd, base),
+  onChange: () => renderSidebar(),
+});
+
+/** Tutti i worktree noti, di tutti i progetti in sidebar */
+function knownWorktrees() {
+  return Object.values(worktreeCache.snapshot()).flat();
+}
+
+/** Una sessione ha finito (signals.js): se sta in un worktree, se ne rileggono i numeri. */
+function noteWorktreeSessionDone(t) {
+  const w = Groups.worktreeOf(t, worktreeCache.snapshot());
+  if (w) changesCache.refresh(w).catch(() => {});
+}
 /* Stato del pannello: si sostituisce per intero, mai modificato sul posto */
 let changesState = { open: false, target: null, result: null, signature: 'none', expanded: {}, seq: 0 };
 
@@ -66,6 +85,7 @@ async function refreshChanges() {
   }
   if (seq !== changesState.seq) return; // nel frattempo è partita una lettura più nuova
   if (result && !result.ok && result.error) console.warn('[modifiche]', result.error);
+  if (target.path) changesCache.put(target.path, result);
   const signature = ChangesModel.signature(result);
   if (signature === changesState.signature) return;
   const prev = changesState.result;
@@ -163,6 +183,9 @@ function initChangesPanel() {
     refreshChanges().catch((e) => console.warn('[modifiche]', e));
   }, CHANGES_POLL_MS);
   // Tornando alla finestra si rilegge subito: intanto l'agente ha lavorato
-  window.addEventListener('focus', () => { refreshChanges().catch(() => {}); });
+  window.addEventListener('focus', () => {
+    refreshChanges().catch(() => {});
+    changesCache.refreshAll(knownWorktrees()).catch(() => {});
+  });
   renderChanges();
 }

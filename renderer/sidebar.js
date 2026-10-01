@@ -86,6 +86,7 @@
    *   onNewWorktree?: (projectRoot: string) => void,
    *   onNewInWorktree?: (path: string, projectRoot: string) => void,
    *   onWorktreeMenu?: (worktree: object, projectRoot: string, anchor: Element) => void,
+   *   changesOf?: (path: string) => ({files: number, added: number, removed: number}|null),
    *   onReorder?: (movedId: string, targetId: string, opts: {before: boolean}) => void,
    *   Order?: {moveAdjacent: Function}}} deps
    * Senza `Order` le linguette dei progetti non si trascinano. Senza
@@ -111,6 +112,8 @@
     const onNewWorktree = fnOrNull(deps.onNewWorktree);
     const onNewInWorktree = fnOrNull(deps.onNewInWorktree);
     const onWorktreeMenu = fnOrNull(deps.onWorktreeMenu);
+    // Righe toccate in ogni worktree (docs/plans/32): le legge il renderer
+    const changesOf = fnOrNull(deps.changesOf);
     const Order = deps.Order && typeof deps.Order.moveAdjacent === 'function' ? deps.Order : null;
 
     /* Collassi in liste separate per modalità: collassare "Claude" e collassare
@@ -559,6 +562,7 @@
         body.appendChild(WorktreeSection.createSection({
           doc: document,
           worktree: w,
+          changes: changesOf ? changesOf(w.path) : null,
           onNew: onNewInWorktree ? () => onNewInWorktree(w.path, g.key) : null,
           onMenu: onWorktreeMenu ? (el) => onWorktreeMenu(w, g.key, el) : null,
           fill: (wtBody) => {

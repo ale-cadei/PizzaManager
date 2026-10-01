@@ -1104,6 +1104,9 @@ img.agent-icon--node { border-radius: 2px; }
 @media (prefers-reduced-motion: reduce) { .git-map-svg path, .git-map-svg circle, .git-map-label { transition: none; } }
 .modal-error { color: var(--state-error); margin: 0; white-space: pre-wrap; }
 .modal-error[hidden] { display: none; }
+/* Avviso che non blocca (es. file modificati che non seguiranno un worktree) */
+.modal-warning { color: var(--accent); margin: 0; white-space: pre-wrap; }
+.modal-warning[hidden] { display: none; }
 
 /* Type cards */
 .type-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }

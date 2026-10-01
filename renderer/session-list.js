@@ -22,6 +22,7 @@ const sidebar = Sidebar.createSidebar({
   onResumeInProject: (root) => { openResumeModal({ projectRoot: root }).catch(() => {}); },
   // Worktree (docs/plans/36): sotto-sezioni nel gruppo, «+» e ⋯ sulla riga
   WorktreeSection: window.AisessWorktreeSection,
+  onNewWorktree: (root) => { openWorktreeModal(root).catch((e) => console.warn('modale worktree', e)); },
   onNewInWorktree: (path) => { openNewModal(undefined, { cwd: path }).catch(() => {}); },
   onWorktreeMenu: (w, root, anchor) => {
     worktreeActions.openMenu(w, root, anchor).catch((e) => console.warn('menu del worktree', e));

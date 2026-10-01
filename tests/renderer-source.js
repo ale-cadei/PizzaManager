@@ -18,6 +18,7 @@ const RENDERER_APP_FILES = [
   'worktrees.js',
   'session-list.js',
   'new-session.js',
+  'worktree-modal.js',
   'claude-accounts-ui.js',
   'resume.js',
   'restore.js',

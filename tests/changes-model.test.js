@@ -82,3 +82,19 @@ ok('modifiche: il percorso si divide in cartella e nome, anche con i rinominati'
   assert.strictEqual(M.displayPath({ path: 'b.js', oldPath: 'lib/a.js' }), 'lib/a.js → b.js');
   assert.strictEqual(M.displayPath({ path: 'b.js' }), 'b.js');
 });
+
+ok('modifiche: un commit nel worktree cambia la firma anche se i file sono gli stessi', () => {
+  const before = result([file('a', 1, 0)], { uncommitted: 1 });
+  const after = result([file('a', 1, 0)], { uncommitted: 0 });
+  assert.notStrictEqual(M.signature(before), M.signature(after));
+});
+
+ok('modifiche: un file riscritto con gli stessi contatori si rilegge', () => {
+  const prev = [{ ...file('a', 1, 1), stamp: '10:1' }];
+  const next = [{ ...file('a', 1, 1), stamp: '10:2' }];
+  assert.deepStrictEqual(M.diffsToReload(prev, next, ['a']), { reload: ['a'], drop: [] });
+});
+
+ok('modifiche: un collegamento o una cartella lo dicono invece di «grande»', () => {
+  assert.deepStrictEqual(M.fileCounts({ ...file('link'), added: null, special: true }), { added: null, removed: null, note: 'non è un file' });
+});

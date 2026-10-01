@@ -86,3 +86,17 @@ ok('contatori worktree: refreshAll rilegge quelli passati', async () => {
   await cache.refreshAll([W1, W2]);
   assert.strictEqual(reads.length, 2);
 });
+
+ok('contatori worktree: una refresh lenta non sovrascrive la lettura del pannello arrivata dopo', async () => {
+  let release;
+  const slow = new Promise((r) => { release = r; });
+  const cache = createChangesCache({
+    read: async () => { await slow; return okResult(1, 1, 1); },
+    onChange: () => {}, warn: () => {},
+  });
+  const pending = cache.refresh(W1);
+  cache.put(W1.path, okResult(7, 7, 7));
+  release();
+  await pending;
+  assert.deepStrictEqual(cache.get(W1.path), { files: 7, added: 7, removed: 7 });
+});

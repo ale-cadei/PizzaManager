@@ -81,6 +81,7 @@
     const row = el(doc, 'button', 'changes-file-row');
     row.type = 'button';
     row.title = M.displayPath(f);
+    row.dataset.path = f.path;
     row.setAttribute('aria-expanded', diff ? 'true' : 'false');
     row.onclick = () => onFile(f.path);
     row.appendChild(el(doc, 'span', 'changes-chevron', diff ? '▾' : '▸'));
@@ -165,8 +166,18 @@
       if (state.loading) items.push(el(doc, 'div', 'changes-empty', 'Carico…'));
       else if (state.error) items.push(el(doc, 'div', 'changes-error', state.error));
       else if (!state.files.length) items.push(el(doc, 'div', 'changes-empty', 'Nessuna modifica: tutto come all\'ultimo commit.'));
-      for (const f of state.files) items.push(fileRow(doc, f, state.expanded[f.path] || null, onFile));
+      // Proprietà proprie: un file che si chiama `constructor` o `__proto__`
+      // non deve trovare quelle di Object.prototype
+      const diffOf = (p) => (Object.prototype.hasOwnProperty.call(state.expanded, p) ? state.expanded[p] : null);
+      const focused = focusedPath();
+      for (const f of state.files) items.push(fileRow(doc, f, diffOf(f.path), onFile));
       body.replaceChildren(...items);
+      // Il ridisegno sostituisce le righe: il fuoco torna su quella di prima,
+      // o finirebbe sul body (e Esc non chiuderebbe più)
+      if (focused !== null) {
+        const row = [...body.querySelectorAll('.changes-file-row')].find((r) => r.dataset.path === focused);
+        if (row && row.focus) row.focus();
+      }
     }
 
     function renderFoot(merge) {
@@ -180,6 +191,12 @@
       confirm.title = merge.confirmLabel;
       confirm.setAttribute('aria-label', merge.confirmLabel);
       confirm.disabled = !merge.canConfirm;
+    }
+
+    function focusedPath() {
+      const active = doc.activeElement;
+      if (!active || !active.dataset || typeof active.dataset.path !== 'string') return null;
+      return active.classList && active.classList.contains('changes-file-row') ? active.dataset.path : null;
     }
 
     function setWidth(px) {

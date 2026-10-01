@@ -10,7 +10,7 @@ const { test: ok } = require('node:test');
    git vero sta in tests/integration.test.js. */
 const {
   parseNameStatus, parseNumstat, parseNulList, mergeChanges, parseUnifiedDiff,
-  countLines, isSafeRelative, readChanges, readFileDiff,
+  countLines, isSafeRelative, createCountCache, readChanges, readFileDiff,
 } = require('../lib/git-changes');
 
 const NUL = '\0';
@@ -178,7 +178,7 @@ ok('changes: readChanges nella cartella principale confronta con HEAD', async ()
   // tutto dalla radice: ls-files --others darebbe percorsi relativi alla cwd
   assert.ok(calls.slice(1).every((c) => c.cwd === ROOT));
   const diff = calls.find((c) => c.args.includes('--numstat')).args;
-  for (const flag of ['--no-ext-diff', '--no-textconv', '--no-color', '-z']) assert.ok(diff.includes(flag), flag);
+  for (const flag of ['--no-ext-diff', '--no-textconv', '--no-color', '-z', 'diff.suppressBlankEmpty=false']) assert.ok(diff.includes(flag), flag);
 });
 
 ok('changes: con una base confronta con il punto di partenza del branch', async () => {
@@ -199,7 +199,7 @@ ok('changes: con una base conta a parte i file non ancora committati', async () 
     'diff --name-only': z('c.js'),
     'ls-files': z('nuovo.txt'),
   }));
-  const r = await readChanges({ cwd: ROOT, base: 'main', run, fsImpl: { lstatSync: () => { throw new Error('no'); } } });
+  const r = await readChanges({ cwd: ROOT, base: 'main', run, fsp: { lstat: async () => { throw new Error('no'); } } });
   assert.strictEqual(r.uncommitted, 2, 'c.js modificato e nuovo.txt non tracciato; b.js è nei commit');
 });
 
@@ -263,7 +263,8 @@ ok('changes: i file non tracciati si contano leggendoli; grandi e collegamenti n
   assert.deepStrictEqual([by['nuovo.txt'].status, by['nuovo.txt'].added], ['?', 3]);
   assert.strictEqual(by['grande.txt'].added, null);
   assert.strictEqual(by['img.bin'].binary, true);
-  if (by.link) assert.strictEqual(by.link.added, null, 'un collegamento non si segue');
+  if (by.link) assert.deepStrictEqual([by.link.added, by.link.special], [null, true], 'un collegamento non si segue');
+  assert.ok(by['nuovo.txt'].stamp, 'un file nuovo ha il suo timbro');
   assert.deepStrictEqual(r.totals, { files: r.files.length, added: 3, removed: 0 });
 });
 
@@ -352,4 +353,39 @@ ok('changes: readFileDiff di un file nuovo troppo lungo si tronca', async (t) =>
   const r = await readFileDiff({ cwd: dir, path: 'lungo.txt', run, maxLines: 5 });
   assert.strictEqual(r.truncated, true);
   assert.strictEqual(r.hunks[0].lines.length, 5);
+});
+
+ok('changes: le righe di un file nuovo non cambiato non si ricontano a ogni giro', async (t) => {
+  const dir = tmpRepo({ 'nuovo.txt': 'a\nb\n' });
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const run = fakeGit({
+    'rev-parse --show-toplevel': `${dir}\n`, 'rev-parse --verify': 'abc\n', 'diff --name-status': '', 'diff --numstat': '',
+    'ls-files': z('nuovo.txt'),
+  });
+  let opened = 0;
+  const fsp = { lstat: (p) => fs.promises.lstat(p), open: (...a) => { opened += 1; return fs.promises.open(...a); } };
+  const countCache = createCountCache();
+  await readChanges({ cwd: dir, run, fsp, countCache });
+  const again = await readChanges({ cwd: dir, run, fsp, countCache });
+  assert.strictEqual(opened, 1);
+  assert.strictEqual(again.files[0].added, 2);
+  fs.writeFileSync(path.join(dir, 'nuovo.txt'), 'a\nb\nc\n');
+  fs.utimesSync(path.join(dir, 'nuovo.txt'), new Date(), new Date(Date.now() + 5000));
+  const changed = await readChanges({ cwd: dir, run, fsp, countCache });
+  assert.strictEqual(changed.files[0].added, 3, 'riscritto: si riconta');
+  assert.notStrictEqual(changed.files[0].stamp, again.files[0].stamp);
+});
+
+ok('changes: readFileDiff non rilegge tutti i file nuovi per trovarne uno', async (t) => {
+  const dir = tmpRepo({ 'uno.txt': 'x\n' });
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const calls = [];
+  const run = fakeGit({
+    'rev-parse --show-toplevel': `${dir}\n`, 'rev-parse --verify': 'abc\n', 'diff --name-status': '',
+    'ls-files': (args) => (args.includes('--') ? z(args[args.length - 1]) : z('uno.txt', 'altri.txt')),
+  }, calls);
+  const r = await readFileDiff({ cwd: dir, path: 'uno.txt', run });
+  assert.strictEqual(r.ok, true, r.error);
+  const ls = calls.filter((c) => c.args.includes('ls-files')).map((c) => c.args);
+  assert.ok(ls.every((a) => a.includes('--literal-pathspecs') && a[a.length - 1] === 'uno.txt'), 'ls-files senza il percorso');
 });

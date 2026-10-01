@@ -43,6 +43,15 @@ function noteWorktreeSessionDone(t) {
 /* Stato del pannello: si sostituisce per intero, mai modificato sul posto */
 let changesState = { open: false, target: null, result: null, signature: 'none', expanded: {}, seq: 0, merge: null };
 
+/* L'ultima richiesta di diff per file: una risposta più vecchia (file chiuso
+   e riaperto, due riletture di fila) non deve sovrascrivere quella nuova */
+const changesDiffTokens = new Map();
+/* Una lettura alla volta: in un repository grande un giro può durare più
+   del periodo, e i processi git non devono accumularsi */
+let changesInFlight = false;
+
+const isExpanded = (path) => Object.prototype.hasOwnProperty.call(changesState.expanded, path);
+
 function setChangesState(patch) {
   changesState = { ...changesState, ...patch };
   renderChanges();
@@ -74,7 +83,9 @@ function renderChanges() {
     : null;
   changesView.render({
     label: ChangesModel.tabLabel(result),
-    open: open && Boolean(target) && (readable || Boolean(merge)),
+    // Mentre la prima lettura di una scheda arriva, il pannello aperto resta
+    // aperto e dice che sta caricando (cambiare scheda non lo fa lampeggiare)
+    open: open && Boolean(target) && (readable || Boolean(merge) || !result),
     loading: !result,
     title: ChangesModel.headerTitle(target, result),
     summary: ChangesModel.summary(result),
@@ -92,6 +103,17 @@ function activeChangesTarget() {
   const t = activeId ? tabs.get(activeId) : null;
   const worktree = t ? Groups.worktreeOf(t, worktreeCache.snapshot()) : null;
   return ChangesModel.targetFor(t, worktree);
+}
+
+/** Il giro periodico: salta se la lettura di prima non è ancora tornata. */
+async function pollChanges() {
+  if (changesInFlight || document.hidden) return;
+  changesInFlight = true;
+  try {
+    await refreshChanges();
+  } finally {
+    changesInFlight = false;
+  }
 }
 
 /** Rilegge le modifiche della sessione in primo piano; ridisegna solo se è cambiato qualcosa. */
@@ -125,20 +147,26 @@ async function refreshChanges() {
 async function loadFileDiff(path) {
   const target = changesState.target;
   if (!target) return;
+  const token = (changesDiffTokens.get(path) || 0) + 1;
+  changesDiffTokens.set(path, token);
   let diff;
   try {
     diff = await window.aisess.gitFileDiff(target.cwd, target.base, path);
   } catch (e) {
     diff = { ok: false, error: String((e && e.message) || e) };
   }
-  // Scheda cambiata o file richiuso nel frattempo: la risposta non serve più
-  if (!changesState.target || changesState.target.key !== target.key || !changesState.expanded[path]) return;
+  // Scheda cambiata, file richiuso o riletto nel frattempo: la risposta non serve più
+  if (changesDiffTokens.get(path) !== token) return;
+  if (!changesState.target || changesState.target.key !== target.key || !isExpanded(path)) return;
   setChangesState({ expanded: { ...changesState.expanded, [path]: diff } });
 }
 
 function toggleChangesFile(path) {
-  const { [path]: wasOpen, ...rest } = changesState.expanded;
-  if (wasOpen) { setChangesState({ expanded: rest }); return; }
+  if (isExpanded(path)) {
+    const rest = Object.fromEntries(Object.entries(changesState.expanded).filter(([p]) => p !== path));
+    setChangesState({ expanded: rest });
+    return;
+  }
   setChangesState({ expanded: { ...changesState.expanded, [path]: { loading: true } } });
   loadFileDiff(path);
 }
@@ -173,12 +201,10 @@ function toggleChangesPanel(force) {
   // Aprendolo il fuoco resta al terminale: si può scrivere all'agente col
   // diff sotto gli occhi. Esc chiude quando il fuoco è nel pannello (un clic
   // su un file); chiudendolo il fuoco torna al terminale.
-  if (open) {
-    refreshChanges().catch((e) => console.warn('[modifiche]', e));
-  } else {
-    const t = activeId ? tabs.get(activeId) : null;
-    if (t && t.term) t.term.focus();
-  }
+  if (open) refreshChanges().catch((e) => console.warn('[modifiche]', e));
+  // Il clic sulla linguetta lascerebbe il fuoco su un pulsante che sparisce
+  const t = activeId ? tabs.get(activeId) : null;
+  if (t && t.term) t.term.focus();
 }
 
 /* ---------- Larghezza: si trascina il bordo sinistro, come la sidebar ---------- */
@@ -228,10 +254,7 @@ function initChangesPanel() {
   });
   initChangesResize();
   try { window.aisess.onMenu('menu-changes', () => toggleChangesPanel()); } catch {}
-  setInterval(() => {
-    if (document.hidden) return;
-    refreshChanges().catch((e) => console.warn('[modifiche]', e));
-  }, CHANGES_POLL_MS);
+  setInterval(() => { pollChanges().catch((e) => console.warn('[modifiche]', e)); }, CHANGES_POLL_MS);
   // Tornando alla finestra si rilegge subito: intanto l'agente ha lavorato
   window.addEventListener('focus', () => {
     refreshChanges().catch(() => {});

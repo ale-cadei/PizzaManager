@@ -36,6 +36,13 @@
        dopo non deve sovrascrivere quella nuova */
     const latest = new Map();
 
+    /* Una lettura arrivata da fuori (il pannello) è la più nuova: una
+       refresh partita prima non deve sovrascriverla */
+    function take(path, result) {
+      latest.set(path, (latest.get(path) || 0) + 1);
+      put(path, result);
+    }
+
     function put(path, result) {
       const next = totalsOf(result);
       const known = Object.prototype.hasOwnProperty.call(byPath, path);
@@ -63,7 +70,7 @@
 
     return {
       get: (path) => byPath[path] || null,
-      put,
+      put: take,
       refresh,
       /** Legge i worktree mai letti (né in corso) */
       ensure: (list) => Promise.all(valid(list).filter((w) => !latest.has(w.path)).map(refresh)),

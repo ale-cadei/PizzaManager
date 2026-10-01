@@ -57,6 +57,7 @@
 
   /** I contatori di una riga: solo quelli diversi da zero; binari e file troppo grandi lo dicono */
   function fileCounts(f) {
+    if (f.special) return { added: null, removed: null, note: 'non è un file' };
     if (f.binary) return { added: null, removed: null, note: 'binario' };
     if (f.added === null || f.added === undefined) return { added: null, removed: null, note: 'grande' };
     return {
@@ -66,13 +67,18 @@
     };
   }
 
-  const fileKey = (f) => [f.path, f.oldPath || '', f.status, f.added, f.removed, f.binary ? 1 : 0].join('\x1f');
+  /* Il timbro (dimensione e data del file) cambia a ogni riscrittura: un file
+     ritoccato senza cambiare i contatori va comunque riletto */
+  const fileKey = (f) => [f.path, f.oldPath || '', f.status, f.added, f.removed, f.binary ? 1 : 0, f.stamp || ''].join('\x1f');
 
   /** Uguale finché non cambia niente di visibile: si ridisegna solo allora */
   function signature(result) {
     if (!result) return 'none';
     if (!result.ok) return `ko:${result.reason || result.error || ''}`;
-    return [result.against, result.base || '', result.truncated ? 1 : 0, result.totals.files, ...result.files.map(fileKey)].join('\x1e');
+    // `uncommitted` decide se «Unisci» si può confermare: un commit lo cambia
+    // senza toccare l'elenco dei file
+    return [result.against, result.base || '', result.truncated ? 1 : 0, result.totals.files, result.uncommitted,
+      ...result.files.map(fileKey)].join('\x1e');
   }
 
   /**

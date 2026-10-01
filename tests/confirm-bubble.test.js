@@ -199,3 +199,78 @@ ok('suggerimento: non prende il fuoco e lascia passare Esc al terminale', async 
     assert.strictEqual(await answer, false, 'il click fuori non lo chiude');
   } finally { restore(); }
 });
+
+/* Domande diverse dal «Chiudere?» e scelte fra più azioni: le usano i
+   worktree (docs/plans/36), Unisci / Tieni il branch / Butta dal menu ⋯. */
+
+ok('fumetto: titolo, testo e pulsante si possono dire, sempre come testo', async () => {
+  const restore = installDocument();
+  try {
+    const a = apri({ title: 'Unire «<b>feat</b>»?', text: 'Il branch entra in main.', confirmLabel: 'Unisci' });
+    const testi = descendants(a.el).map((n) => n.textContent);
+    assert.ok(testi.includes('Unire «<b>feat</b>»?'), 'titolo non usato o non come testo');
+    assert.ok(testi.includes('Il branch entra in main.'));
+    assert.strictEqual(a.confirm.textContent, 'Unisci');
+    a.confirm.onclick({ stopPropagation() {} });
+    assert.strictEqual(await a.answer, true);
+  } finally { restore(); }
+});
+
+function scegli(choices) {
+  const bubble = Bubble.createConfirmBubble({ viewport: () => VIEWPORT });
+  const anchor = createElement('button');
+  anchor.rect = CARD;
+  document.body.appendChild(anchor);
+  const answer = bubble.choose({ anchor, title: 'feat/x', text: 'da main', key: 'worktree:/w', choices });
+  const el = descendants(document.body).find((n) => n.classes.has('confirm-bubble'));
+  const bottoni = descendants(el).filter((n) => n.tag === 'button');
+  return { bubble, el, answer, bottoni };
+}
+
+const AZIONI = [
+  { value: 'merge', label: 'Unisci in main' },
+  { value: 'keep', label: 'Tieni il branch', hint: 'per la PR' },
+  { value: 'delete', label: 'Butta', danger: true },
+];
+
+ok('scelta: un pulsante per azione più «Annulla», e risponde con l azione scelta', async () => {
+  const restore = installDocument();
+  try {
+    const { el, answer, bottoni } = scegli(AZIONI);
+    assert.ok(el.classes.has('is-choice'));
+    assert.deepStrictEqual(bottoni.map((b) => b.textContent), ['Unisci in main', 'Tieni il branch', 'Butta', 'Annulla']);
+    assert.ok(bottoni[2].classes.has('is-danger'), 'Butta non si distingue');
+    assert.strictEqual(bottoni[1].title, 'per la PR');
+    bottoni[1].onclick({ stopPropagation() {} });
+    assert.strictEqual(await answer, 'keep');
+    assert.ok(!descendants(document.body).some((n) => n.classes.has('confirm-bubble')), 'il fumetto è rimasto');
+  } finally { restore(); }
+});
+
+ok('scelta: «Annulla», Esc e il click fuori rispondono null', async () => {
+  const restore = installDocument();
+  try {
+    const a = scegli(AZIONI);
+    a.bottoni[3].onclick({ stopPropagation() {} });
+    assert.strictEqual(await a.answer, null);
+    const b = scegli(AZIONI);
+    fire(document, 'keydown', { key: 'Escape' });
+    assert.strictEqual(await b.answer, null);
+    const c = scegli(AZIONI);
+    fire(document, 'mousedown', { target: createElement('div') });
+    assert.strictEqual(await c.answer, null);
+  } finally { restore(); }
+});
+
+ok('scelta: un azione non disponibile c è, spenta, e dice perché', async () => {
+  const restore = installDocument();
+  try {
+    const { answer, bottoni, bubble } = scegli([{ value: 'merge', label: 'Unisci', disabled: true, hint: 'base sconosciuta' }, ...AZIONI.slice(1)]);
+    assert.strictEqual(bottoni[0].disabled, true);
+    assert.strictEqual(bottoni[0].title, 'base sconosciuta');
+    bottoni[0].onclick({ stopPropagation() {} });
+    assert.ok(bubble.isOpen(), 'un azione spenta ha risposto');
+    bubble.close();
+    assert.strictEqual(await answer, null);
+  } finally { restore(); }
+});

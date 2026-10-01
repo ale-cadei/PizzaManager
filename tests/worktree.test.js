@@ -412,3 +412,12 @@ ok('worktree: removeWorktree vuole sapere cosa fare del branch', async () => {
   const r = await removeWorktree({ root: '/src/progetto', path: WT, branch: 'boh', run, rmdir: () => {} });
   assert.strictEqual(r.ok, false);
 });
+
+ok('worktree: se dopo il merge la cartella non si toglie, lo dice: il merge è fatto', async () => {
+  const { run } = mergeRepo({ over: { 'worktree remove': gitError("error: failed to delete '/w': Permission denied") } });
+  const r = await mergeWorktree({ root: '/src/progetto', path: WT, run, rmdir: () => {} });
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.merged, true);
+  assert.match(r.error, /unit/i, 'il messaggio non dice che il merge c è stato: ' + r.error);
+  assert.match(r.error, /Permission denied/);
+});

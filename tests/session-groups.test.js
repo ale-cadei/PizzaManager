@@ -4,7 +4,7 @@ const { test: ok } = require('node:test');
 /* Raggruppamento delle sessioni aperte nella sidebar: per tipo (default) o per
    progetto. Il modulo sta in renderer/ perché il renderer non ha require e non
    potrebbe importarlo da lib/; il wrapper UMD lo rende comunque testabile qui. */
-const { groupSessions, relativeSubpath, shortPath, TYPE_ORDER, TYPE_LABELS, NO_PROJECT_LABEL } = require('../renderer/session-groups');
+const { groupSessions, worktreeOf, relativeSubpath, shortPath, TYPE_ORDER, TYPE_LABELS, NO_PROJECT_LABEL } = require('../renderer/session-groups');
 
 const byType = (sessions) => groupSessions(sessions, { mode: 'type', typeOrder: TYPE_ORDER, typeLabels: TYPE_LABELS });
 const byProject = (sessions) => groupSessions(sessions, { mode: 'project' });
@@ -186,4 +186,14 @@ ok('worktree: né le sessioni né l elenco dei worktree vengono mutati', () => {
   const [g] = withWorktrees(sessions, worktrees);
   assert.strictEqual(JSON.stringify({ sessions, worktrees }), before);
   assert.notStrictEqual(g.worktrees[0], worktrees['/src/progetto'][0], 'la sotto-sezione è l oggetto dell elenco');
+});
+
+ok('worktree: worktreeOf dice in quale worktree sta una sessione, o null', () => {
+  const at = (cwd, projectRoot = '/src/progetto') => worktreeOf({ cwd, projectRoot }, WORKTREES);
+  assert.strictEqual(at('/src/progetto.worktrees/feat-x/src').branch, 'feat/x');
+  assert.strictEqual(at('/src/progetto'), null, 'la cartella principale non è un worktree');
+  assert.strictEqual(at('/src/progetto.worktrees/feat-x2'), null);
+  assert.strictEqual(at('/src/progetto.worktrees/feat-x', '/altro'), null, 'cercato nei worktree di un altro progetto');
+  for (const bad of [null, undefined, {}]) assert.strictEqual(worktreeOf(bad, WORKTREES), null);
+  assert.strictEqual(worktreeOf({ cwd: '/x', projectRoot: '/x' }, null), null);
 });

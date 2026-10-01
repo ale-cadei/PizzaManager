@@ -24,7 +24,7 @@
   /**
    * @param {{ok: boolean, error?: string, current?: {branch: string|null, commit: string},
    *   dirty?: number, busy?: 'merge'|'rebase'|null, bases?: string[]}} start
-   * @returns {{bases: Array<{value: string, label: string}>, selected: string|null,
+   * @returns {{bases: Array<{value: string, label: string, hint: string}>, selected: string|null,
    *   warning: string|null, note: string|null, blocked: string|null}}
    */
   function startModel(start) {
@@ -32,9 +32,11 @@
     if (!start || !start.ok) return { ...empty, blocked: (start && start.error) || 'Non riesco a leggere il repository.' };
     const current = start.current || { branch: null, commit: '' };
     const list = Array.isArray(start.bases) ? start.bases : [];
+    // Come le voci dell'albero git (git-branch-picker.js): nome, e a destra un
+    // suggerimento grigio
     const bases = list.map((value, i) => {
-      if (i > 0) return { value, label: value };
-      return { value, label: current.branch ? `${value} (quello corrente)` : `commit ${value} (HEAD staccato)` };
+      if (i > 0) return { value, label: value, hint: '' };
+      return { value, label: value, hint: current.branch ? 'corrente' : 'commit corrente, HEAD staccato' };
     });
     return {
       bases,
@@ -45,6 +47,12 @@
     };
   }
 
+  /** Le basi che contengono il testo, senza badare alle maiuscole: come il filtro dell'albero git */
+  function filterBases(bases, query) {
+    const needle = String(query || '').trim().toLowerCase();
+    return (Array.isArray(bases) ? bases : []).filter((b) => !needle || b.value.toLowerCase().includes(needle));
+  }
+
   /** `<progetto>.worktrees/<branch con / → ->`, come lib/worktree.js worktreeDirFor */
   function folderPreview(root, branch) {
     const name = String(branch || '').trim();
@@ -53,5 +61,5 @@
     return `${project}.worktrees/${name.replace(/\//g, '-')}`;
   }
 
-  return { startModel, folderPreview };
+  return { startModel, folderPreview, filterBases };
 });

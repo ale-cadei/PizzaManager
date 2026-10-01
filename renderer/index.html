@@ -265,7 +265,14 @@
     <h2>Nuovo worktree</h2>
     <p class="muted small" id="wt-project"></p>
     <label>Nome del branch<input class="input" id="wt-branch" placeholder="feat/nome, fix/nome…" autocomplete="off" spellcheck="false" /></label>
-    <label>Parte da<select class="input" id="wt-base"></select></label>
+    <!-- Stesso aspetto della scelta del branch nell'albero git (git-branch-picker.js) -->
+    <div class="wt-base-field">
+      <span>Parte da</span>
+      <div class="git-picker is-inline" id="wt-base-picker">
+        <input class="git-picker-input" id="wt-base-filter" type="text" placeholder="Cerca un branch" aria-label="Branch da cui partire" autocomplete="off" spellcheck="false" />
+        <div class="git-picker-list" id="wt-base-list" role="listbox" aria-label="Branch da cui partire"></div>
+      </div>
+    </div>
     <p class="muted small" id="wt-path" hidden></p>
     <p class="modal-warning small" id="wt-warning" hidden></p>
     <p class="muted small" id="wt-note" hidden></p>

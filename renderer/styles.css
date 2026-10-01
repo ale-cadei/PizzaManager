@@ -1007,6 +1007,16 @@ img.agent-icon--node { border-radius: 2px; }
   box-shadow: var(--shadow-modal); padding: 8px; display: flex; flex-direction: column; gap: 6px;
 }
 .git-picker[hidden] { display: none; }
+/* Lo stesso riquadro dentro il modale «Nuovo worktree»: al suo posto nel
+   flusso, non sospeso sopra il pannello, e con l'elenco più basso */
+.git-picker.is-inline { position: static; width: auto; max-width: none; box-shadow: none; }
+.git-picker.is-inline .git-picker-list { max-height: 180px; }
+.git-picker-item.is-selected { background: var(--action-soft); box-shadow: inset 2px 0 0 var(--action); }
+.wt-base-field { display: flex; flex-direction: column; gap: 6px; }
+/* L'etichetta come quelle dei campi del modale (.modal label) */
+.wt-base-field > span { font-size: 13px; font-weight: 500; color: var(--text-muted); }
+/* .modal input vincerebbe sul campo del riquadro: qui deve restare quello dell'albero git */
+.modal .git-picker-input { padding: 8px 10px; font-size: 13px; }
 .git-picker-grip { position: absolute; top: 0; bottom: 0; right: -4px; width: 8px; cursor: col-resize; }
 .git-picker-grip::before {
   content: ''; position: absolute; top: 8px; bottom: 8px; left: 3px; width: 2px;

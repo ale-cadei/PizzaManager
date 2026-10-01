@@ -716,9 +716,10 @@ img.agent-icon--node { border-radius: 2px; }
 /* ---------- Pannello «cosa ha cambiato» (renderer/changes-view.js, piano 32) ----------
    Linguetta appesa al bordo alto, a sinistra della barra di scorrimento, e
    pannello SOPRA il terminale: assoluti, così il contenitore del terminale
-   non cambia misura e il pty non si ridimensiona aprendolo. */
+   non cambia misura e il pty non si ridimensiona aprendolo. Lo z-index
+   supera quelli di xterm (.xterm-helpers, la composizione dell'IME). */
 .changes-tab {
-  position: absolute; top: 0; right: 22px; z-index: 4;
+  position: absolute; top: 0; right: 22px; z-index: 11;
   height: 20px; padding: 0 9px;
   border: 1px solid var(--border-strong); border-top: 0;
   border-radius: 0 0 var(--radius) var(--radius);
@@ -730,7 +731,7 @@ img.agent-icon--node { border-radius: 2px; }
 .changes-tab.is-clean { color: var(--text-faint); background: var(--surface); }
 .changes-tab[hidden] { display: none; }
 .changes-panel {
-  position: absolute; top: 0; right: 0; bottom: 0; z-index: 5;
+  position: absolute; top: 0; right: 0; bottom: 0; z-index: 12;
   width: 46%; min-width: 320px; max-width: calc(100% - 160px);
   display: flex; flex-direction: column;
   background: var(--surface); border-left: 1px solid var(--border);

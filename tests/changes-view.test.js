@@ -177,3 +177,22 @@ ok('vista modifiche: finché la lettura non arriva dice che sta caricando', () =
   view.render(baseState({ loading: true }));
   assert.strictEqual(textOf(one(host, 'changes-empty')), 'Carico…');
 });
+
+ok('vista modifiche: un file che si chiama come una proprietà di Object non rompe il pannello', () => {
+  const { host, view } = setup();
+  assert.doesNotThrow(() => view.render(baseState({ files: [file('constructor'), file('__proto__'), file('toString')] })));
+  assert.ok(byClass(host, 'changes-file-row').every((r) => r.getAttribute('aria-expanded') === 'false'));
+  assert.strictEqual(byClass(host, 'changes-diff').length, 0);
+});
+
+ok('vista modifiche: dopo un ridisegno il fuoco torna sulla riga del file', () => {
+  const focusDoc = { createElement, activeElement: null };
+  const host = createElement('div');
+  const view = createChangesView({ doc: focusDoc, host, shortcut: 'x', onToggle() {}, onClose() {}, onFile() {} });
+  view.render(baseState({ files: [file('a'), file('b')] }));
+  focusDoc.activeElement = byClass(host, 'changes-file-row')[1];
+  view.render(baseState({ files: [file('a'), file('b', { added: 9 })] }));
+  const rowB = byClass(host, 'changes-file-row')[1];
+  assert.notStrictEqual(rowB, focusDoc.activeElement, 'la riga è nuova');
+  assert.strictEqual(rowB.focused, true);
+});

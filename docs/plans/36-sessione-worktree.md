@@ -149,7 +149,21 @@ finiscono nel gruppo PizzaManager; filtro progetto del Resume
 (`renderer/resume-projects.js`), nome nella barra (`usage-bar.js`) e
 pannello estensioni (`extensions-panel.js`) usano la radice principale.
 
-### 2. `lib/worktree.js` — la logica, senza Electron
+### 2. `lib/worktree.js` — la logica, senza Electron ✅ fatto
+
+Divisa in due file: `lib/worktree.js` (git) e `lib/worktree-files.js`
+(symlink e copie). Emerso strada facendo, tutto dal test con git vero:
+- **il symlink `node_modules` non è ignorato** da un `.gitignore` con
+  `node_modules/` (la barra vale solo per le cartelle): il worktree sembrava
+  sempre «con modifiche» e un `git add -A` lo avrebbe committato. Se
+  `check-ignore` dice che non è ignorato, si aggiunge `/node_modules` a
+  `info/exclude` (locale, condiviso dai worktree, mai committato);
+- **`.worktreeinclude` copia solo i file ignorati da git**, come Claude Code:
+  un file tracciabile copiato renderebbe il worktree mai pulito. «Ignorato» si
+  chiede nel worktree, dove deve risultare pulito;
+- `check-ignore -z` vale solo con `--stdin`: si legge per righe con
+  `core.quotePath=false`;
+- `worktree add --no-track`: da una base remota il branch non la segue.
 
 Tutto con `run` iniettabile (default `runGit`) e `fs`/`path` iniettabili dove
 servono, come `lib/git-branches.js`.

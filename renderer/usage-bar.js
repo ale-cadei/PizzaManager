@@ -193,10 +193,13 @@
     return ratio === null ? EMPTY : formatPercent(ratio);
   }
 
-  /** Testo del riquadro FINESTRA 5h: quanto e' pieno, in token. */
+  /** Testo del riquadro FINESTRA 5h: quanto e' pieno, in token. La tilde
+      marca la stima calibrata: senza, un 21% sul massimo osservato si legge
+      come la quota del fornitore (docs/plans/35-quota-per-profilo.md). */
   function blockText(block) {
     const ratio = blockProgress(block);
-    return ratio === null ? EMPTY : formatPercent(ratio);
+    if (ratio === null) return EMPTY;
+    return (block.limitKind === 'calibrated' ? '~' : '') + formatPercent(ratio);
   }
 
   /** Riga secondaria del riquadro FINESTRA 5h: di chi parla e quando si azzera. */
@@ -232,7 +235,8 @@
       const visto = formatDay(block.peakObservedAt);
       const oltre = block.overPeak ? '\nSei oltre il massimo osservato: la barra resta piena.' : '';
       return `${chi}${tokensLine(block.totals)} sul massimo osservato di ${formatTokens(block.limit)}`
-        + `${visto ? ` (${visto})` : ''}.\nStima calibrata sul tuo uso, non una quota del fornitore.${oltre}\n${quando}${dettaglio}`;
+        + `${visto ? ` (${visto})` : ''}.\nStima calibrata sul tuo uso, non una quota del fornitore:`
+        + ` somma i log di tutti i profili che li condividono.${oltre}\n${quando}${dettaglio}`;
     }
     return `${chi}${tokensLine(block.totals)} in questa finestra, senza percentuale: il tetto si calibra`
       + ` sulla prima finestra di 5 ore conclusa, e non ce n'e' ancora una.\n${quando}${dettaglio}`;

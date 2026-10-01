@@ -65,3 +65,77 @@ test('collect: senza limitsDir non si tocca la rete', async () => {
   assert.equal(u.rateLimits, null);
   assert.ok(u.block);
 });
+
+/* Piano 35: la quota e' quella dell'account della scheda, non una per tutta l'app. */
+const profiles = {
+  load: () => ({ version: 1, profiles: { claude: [
+    { id: 'claude:lavoro', label: 'Lavoro', command: 'CLAUDE_CONFIG_DIR=/u/.claude claude', resumeArgs: '--resume {id}' },
+    { id: 'claude:pers', label: 'Personale', command: 'CLAUDE_CONFIG_DIR=/u/.claude-personal claude', resumeArgs: '--resume {id}' },
+  ] } }),
+};
+const recordingQuota = (asked) => ({
+  read: async ({ configDir }) => {
+    asked.push(configDir);
+    return { ts: NOW, source: 'claude', fiveHour: { usedPercent: configDir === '/u/.claude-personal' ? 40 : 7, windowMinutes: 300 }, weekly: null };
+  },
+});
+
+test('collect: la quota chiesta e\' quella del profilo della scheda', async () => {
+  const asked = [];
+  const u = await collectUsage({
+    now: NOW, collectors, profiles, env: {},
+    active: { source: 'claude', sessionId: 's2' },
+    tab: { type: 'claude', commandProfileId: 'claude:pers', claudeAccountId: 'oauth' },
+    quota: recordingQuota(asked),
+  });
+  assert.deepEqual(asked, ['/u/.claude-personal']);
+  assert.equal(u.block.ratio, 0.4);
+});
+
+test('collect: cambiando scheda cambia l account', async () => {
+  const asked = [];
+  await collectUsage({
+    now: NOW, collectors, profiles, env: {},
+    tab: { type: 'claude', commandProfileId: 'claude:lavoro' },
+    quota: recordingQuota(asked),
+  });
+  assert.deepEqual(asked, ['/u/.claude']);
+});
+
+test('collect: scheda con chiave API, niente quota dichiarata', async () => {
+  const asked = [];
+  const u = await collectUsage({
+    now: NOW, collectors, profiles, env: {},
+    active: { source: 'claude', sessionId: 's2' },
+    tab: { type: 'claude', commandProfileId: 'claude:pers', claudeAccountId: 'acc_chiave' },
+    quota: recordingQuota(asked),
+  });
+  assert.deepEqual(asked, []);
+  assert.notEqual(u.block.limitKind, 'declared');
+});
+
+test('collect: scheda Claude appena aperta (senza id) e Codex piu recente, la finestra resta di Claude', async () => {
+  const codexDopo = {
+    claude: () => ({ ok: true, events: claudeEvents() }),
+    codex: () => ({ ok: true, events: [{ ts: NOW - 60_000, source: 'codex', sessionId: 'x1', input: 10, output: 1, total: 11 }] }),
+    opencode: empty,
+  };
+  const u = await collectUsage({
+    now: NOW, collectors: codexDopo, profiles, env: {},
+    active: null,
+    tab: { type: 'claude', commandProfileId: 'claude:pers' },
+    quota: recordingQuota([]),
+  });
+  assert.equal(u.block.source, 'claude');
+  assert.equal(u.block.limitKind, 'declared');
+});
+
+test('collect: una scheda shell non sceglie l assistente, vale il piu recente', async () => {
+  const codexDopo = {
+    claude: () => ({ ok: true, events: claudeEvents() }),
+    codex: () => ({ ok: true, events: [{ ts: NOW - 60_000, source: 'codex', sessionId: 'x1', input: 10, output: 1, total: 11 }] }),
+    opencode: empty,
+  };
+  const u = await collectUsage({ now: NOW, collectors: codexDopo, env: {}, tab: { type: 'shell' }, quota: recordingQuota([]) });
+  assert.equal(u.block.source, 'codex');
+});

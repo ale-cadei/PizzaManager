@@ -99,6 +99,17 @@
     return { items: items.filter((s) => !placed.has(s)), worktrees: sections };
   }
 
+  /**
+   * Il worktree in cui sta una sessione, fra quelli del suo progetto; null se
+   * sta nella cartella principale o fuori da tutto.
+   * @param {{cwd?: string, projectRoot?: string|null}} session
+   * @param {Record<string, Array<{path: string, branch?: string|null, base?: string|null}>>} worktrees
+   */
+  function worktreeOf(session, worktrees) {
+    if (!session || typeof session.projectRoot !== 'string') return null;
+    return worktreesOf(worktrees, session.projectRoot).find((w) => isInside(session.cwd, w.path)) || null;
+  }
+
   function isInside(cwd, dir) {
     const c = String(cwd || '').replace(TRAILING_SEP_RE, '');
     const d = String(dir || '').replace(TRAILING_SEP_RE, '');
@@ -147,5 +158,5 @@
     return lastSegments(cwd, 2);
   }
 
-  return { groupSessions, relativeSubpath, shortPath, TYPE_ORDER, TYPE_LABELS, NO_PROJECT_LABEL };
+  return { groupSessions, worktreeOf, relativeSubpath, shortPath, TYPE_ORDER, TYPE_LABELS, NO_PROJECT_LABEL };
 });

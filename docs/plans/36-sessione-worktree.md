@@ -284,7 +284,16 @@ Drag & drop delle card: una card **non** si trascina fra il progetto e un
 worktree (la `cwd` non cambia trascinando). Test in un
 `tests/sidebar-worktree.test.js` con `tests/fake-dom.js`.
 
-### 6. Modale «Crea worktree»
+### 6. Modale «Crea worktree» ✅ fatto
+
+Cambiato rispetto a sotto: niente card del tipo dentro questo modale. «Crea e
+apri una sessione» crea il worktree e apre il modale **«Nuova sessione»** già
+impostato sulla sua cartella: stesse card, account Claude e profili, senza
+copiarne il codice. «Crea soltanto» è il caso «Nessuna». La parte pura
+(voci di «Parte da», avvisi, blocchi, anteprima della cartella) è
+`renderer/worktree-form.js`; la colla `renderer/worktree-modal.js`. Gli
+avvisi di creazione (node_modules non collegato, file non copiati) escono in
+un fumetto dalla riga del worktree appena comparsa.
 
 Nuovo modale in `renderer/index.html` (nessuno script inline: CSP) e un
 `renderer/worktree-modal.js` (caricato prima di `renderer.js`; aggiornare

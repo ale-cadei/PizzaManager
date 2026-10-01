@@ -258,6 +258,26 @@
 
 <!-- Modal ripristino dopo riavvio: le sessioni che il registro dava per vive
      e che tmux non ha più (docs/plans/README.md, branch 8) -->
+<!-- Nuovo worktree (docs/plans/36): nome del branch e punto di partenza; il
+     tipo di sessione lo si sceglie dopo, nel modale «Nuova sessione» -->
+<div class="modal-backdrop" id="modal-worktree" hidden>
+  <div class="modal">
+    <h2>Nuovo worktree</h2>
+    <p class="muted small" id="wt-project"></p>
+    <label>Nome del branch<input class="input" id="wt-branch" placeholder="feat/nome, fix/nome…" autocomplete="off" spellcheck="false" /></label>
+    <label>Parte da<select class="input" id="wt-base"></select></label>
+    <p class="muted small" id="wt-path" hidden></p>
+    <p class="modal-warning small" id="wt-warning" hidden></p>
+    <p class="muted small" id="wt-note" hidden></p>
+    <p class="modal-error small" id="wt-error" role="alert" hidden></p>
+    <div class="modal-actions">
+      <button class="btn btn--ghost" id="wt-cancel">Annulla</button>
+      <button class="btn btn--secondary" id="wt-create">Crea soltanto</button>
+      <button class="btn btn--primary" id="wt-create-open">Crea e apri una sessione</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="modal-restore" hidden>
   <div class="modal">
     <h2>Ripristinare le sessioni di prima?</h2>
@@ -383,6 +403,7 @@
 <script src="worktree-section.js"></script>
 <script src="worktree-cache.js"></script>
 <script src="worktree-actions.js"></script>
+<script src="worktree-form.js"></script>
 <script src="attention.js"></script>
 <script src="running.js"></script>
 <script src="prompt-capture.js"></script>
@@ -433,6 +454,7 @@
 <script src="worktrees.js"></script>
 <script src="session-list.js"></script>
 <script src="new-session.js"></script>
+<script src="worktree-modal.js"></script>
 <script src="claude-accounts-ui.js"></script>
 <script src="resume.js"></script>
 <script src="restore.js"></script>

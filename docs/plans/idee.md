@@ -49,8 +49,11 @@ Accanto al terminale, `git diff` del progetto della sessione: file toccati,
 righe +/−, aggiornato mentre l'agente lavora. Con i worktree: diff del branch
 contro `main`.
 
-- [ ] studio — pannello a scomparsa o scheda? quanto spazio ruba al terminale?
-- [ ] piano
+- [x] studio — fatto con l'utente il 2026-10-01: pannello sovrapposto al
+      terminale con linguetta-contatore, contro `HEAD` o contro la base del
+      worktree, contatore sulla riga del worktree, Unisci passa dal pannello,
+      solo lettura
+- [x] piano — [32-pannello-modifiche.md](32-pannello-modifiche.md)
 - [ ] fatto
 - [ ] provato
 

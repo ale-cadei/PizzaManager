@@ -39,12 +39,19 @@ SPEC = [
       'idle': [0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4, 0], 'turn': [4, 4],
       'startle': [15, 16, 15, 16, 15, 16, 15, 16, 0], 'laugh': [17, 18, 17, 18, 17, 18],
       'sad': [19], 'appear': [25, 24, 23, 22, 4], 'vanish': [4, 22, 23, 24, 25]},
-     1.0, 'fly', None, 'Fantasmino col lenzuolo: vola, si ferma a guardare, fa buu'),
+     1.0, 'swim', None, 'Fantasmino col lenzuolo: fluttua basso, si ferma a guardare, fa buu'),
 ]
 PACKS = {
     'zip1': ('/tmp/sb/zip/assets', 'Sprite pixel-art originale', 'frames'),
     'zip2': ('/tmp/sb/zip2/assets-halloween', 'Halloween Pack pixel-art', 'sheet'),
     'zip3': ('/tmp/sb/zip3', 'Fantasmino Lenzuolo', 'sheet'),
+}
+# Nessun personaggio ha il contorno scuro attorno alla sagoma (l'utente lo
+# vuole così: sul terminale scuro fa un alone). Colore del bordo dei pacchetti
+# che ce l'hanno, tolto da unoutlined; Rotolacampo ha solo rametti, non bordo.
+OUTLINES = {
+    'pizza': '#3A1F14', 'fizzo': '#2B1418', 'zucca': '#3A1A0A', 'babbo': '#1F1420',
+    'morte': '#050307', 'fantasmino': '#222034',
 }
 # Ombra a terra, in sincrono coi frame di chi vola: file, larghezza di un frame.
 # È semitrasparente (alpha 50-70): soglia bassa, e il colore tiene l'alpha.
@@ -68,6 +75,9 @@ SPRITELLI_DIR = '/tmp/spiritelli/spritelli'
 # stanno allo stesso livello. Chi era più basso della cella tiene la sua
 # misura in scena con height.
 SPRITELLI_SCALE = 2
+# I PNG Spritelli hanno un contorno di 1 px di questo colore attorno a ogni
+# sagoma: si toglie (unoutlined) prima di ingrandire, come per gli altri.
+SPRITELLI_OUTLINE = '#2B2233'
 SPRITELLI = [
     ('ape', 'ape-fiore',
      {'walk': ['bee-fly-1', 'bee-fly-2'], 'sleep': ['bee-rest'], 'call': ['bee-fly-1', 'bee-rest']},
@@ -219,6 +229,8 @@ def classic(kind, pack, folder, poses, speed, motion, height, comment):
         pal[hexv.upper()] = LETTERS[len(pal)]
     box = union_bbox([ims[i] for i in used])
     grids = {i: grid(ims[i], box, pal) for i in used}
+    if kind in OUTLINES:
+        grids = {i: unoutlined(g, pal[OUTLINES[kind]]) for i, g in grids.items()}
     names = d['frames']
     cn = lambda i: f"{kind.upper()}_{names[i].upper().replace('-', '_')}"
     lines = [f'  // ---- {comment} ({box[2] - box[0]}×{box[3] - box[1]}) ----']
@@ -268,6 +280,23 @@ def derive(frames, base, rows, over):
     widths = {len(r) for r in out}
     assert len(widths) == 1 and len(out) == len(frames[base]), f'{base}: ritocco fuori misura'
     return out
+
+
+def unoutlined(grid, ch):
+    """Via il contorno esterno: i pixel del colore del bordo (ch) a contatto col
+    vuoto e con un colore pieno. Restano quelli dentro (occhi, bocche, righe
+    fra due colori), le linee fatte solo di quel colore (gambe, antenne) e il
+    pixel del bordo a cui si attaccano, così non restano staccate."""
+    h, w = len(grid), len(grid[0])
+    at = lambda x, y: grid[y][x] if 0 <= x < w and 0 <= y < h else '.'
+    around = lambda x, y: (at(x - 1, y), at(x + 1, y), at(x, y - 1), at(x, y + 1))
+    corners = lambda x, y: (at(x - 1, y - 1), at(x + 1, y - 1), at(x - 1, y + 1), at(x + 1, y + 1))
+    # Anche in diagonale: l'angolo del bordo tocca il pieno solo così
+    filled = lambda x, y: any(c not in ('.', ch) for c in around(x, y) + corners(x, y))
+    limb = lambda x, y: at(x, y) == ch and not filled(x, y)
+    edge = lambda x, y: at(x, y) == ch and '.' in around(x, y) and filled(x, y)
+    joint = lambda x, y: any(limb(x + dx, y + dy) for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)))
+    return [''.join('.' if edge(x, y) and not joint(x, y) else c for x, c in enumerate(r)) for y, r in enumerate(grid)]
 
 
 def epx(grid):
@@ -335,6 +364,7 @@ def spritelli(kind, folder, poses, speed, motion, comment, derived, layers=None)
     layers = layers or {}
     frames, pal = spritelli_frames(folder)
     frames = {**frames, **{n: derive(frames, *spec) for n, spec in derived.items()}}
+    frames = {n: unoutlined(g, pal[SPRITELLI_OUTLINE]) for n, g in frames.items()}
     used = list(dict.fromkeys(n for v in poses.values() for n in v))
     scale = SPRITELLI_SCALE
     grids, rows = crop({n: scaled(frames[n], scale) for n in used})
@@ -370,7 +400,8 @@ def write(kind, src):
     print(kind, len(src.splitlines()), 'righe')
 
 
-for entry in SPEC:
-    write(entry[0], classic(*entry))
-for kind, *entry in SPRITELLI:
-    write(kind, spritelli(kind, *entry))
+if __name__ == '__main__':
+    for entry in SPEC:
+        write(entry[0], classic(*entry))
+    for kind, *entry in SPRITELLI:
+        write(kind, spritelli(kind, *entry))

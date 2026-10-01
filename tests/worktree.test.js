@@ -104,9 +104,14 @@ ok('worktree: listWorktrees senza nessuna base salvata (git config esce con 1) v
 });
 
 ok('worktree: listWorktrees passa l\'errore di git e rifiuta una radice mancante', async () => {
-  const { run } = fakeGit(() => { throw gitError('fatal: not a git repository'); });
-  assert.deepStrictEqual(await listWorktrees({ root: '/x', run }), { ok: false, error: 'fatal: not a git repository' });
+  const { run } = fakeGit(() => { throw gitError('fatal: unable to read tree'); });
+  assert.deepStrictEqual(await listWorktrees({ root: '/x', run }), { ok: false, error: 'fatal: unable to read tree' });
   assert.strictEqual((await listWorktrees({ root: '', run })).ok, false);
+});
+
+ok('worktree: una cartella che non è un repository non ha worktree, non è un errore', async () => {
+  const { run } = fakeGit(() => { throw gitError('fatal: not a git repository (or any of the parent directories): .git'); });
+  assert.deepStrictEqual(await listWorktrees({ root: '/home/tizio/note', run }), { ok: true, worktrees: [] });
 });
 
 // ---------- da dove parte (il modale) ----------

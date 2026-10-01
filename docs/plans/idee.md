@@ -35,9 +35,11 @@ nuovo, ci lancia l'agente, la card mostra il branch. A lavoro finito: «Unisci»
 o «Butta» (rimuove worktree e branch). Due agenti sullo stesso repo smettono di
 pestarsi i file.
 
-- [ ] studio — dove vivono i worktree, nomi dei branch, cosa fare con
-      modifiche non committate, rapporto con i gruppi per progetto (piano 8)
-- [ ] piano
+- [x] studio — fatto con l'utente il 2026-10-01: worktree in
+      `<Progetto>.worktrees/`, base = branch corrente, `node_modules` in
+      symlink, Unisci prudente / Tieni il branch / Butta, sotto-sezioni nel
+      gruppo del progetto
+- [x] piano — [36-sessione-worktree.md](36-sessione-worktree.md)
 - [ ] fatto
 - [ ] provato
 

@@ -75,13 +75,39 @@ ok('sprites: gli sbuffi di fumo della tazzina stanno a parte, tutti della stessa
 
 ok('sprites: gli Spritelli sono ingranditi a 2x, coi pixel fini quanto i pacchetti a 32 righe', () => {
   for (const kind of ['ape', 'chiocciola', 'papera', 'anatroccolo', 'robottino', 'pesce']) {
-    assert.ok(dims(kind).rows >= 22, `${kind}: ${dims(kind).rows} righe`);
+    assert.ok(dims(kind).rows >= 18, `${kind}: ${dims(kind).rows} righe`);
     assert.ok(Math.abs(pixel(kind, 48) - 48 / 32) < 0.01, `${kind}: pixel ${pixel(kind, 48)}`);
   }
 });
 
+ok('sprites: nessun personaggio ha il contorno scuro attorno alla sagoma (i pacchetti ce l avevano)', () => {
+  // Il colore del bordo che ogni pacchetto disegnava attorno alla sagoma
+  const OUTLINE = {
+    ape: '#2B2233', chiocciola: '#2B2233', papera: '#2B2233', anatroccolo: '#2B2233', robottino: '#2B2233',
+    pesce: '#2B2233', tazzina: '#2B2233', pizza: '#3A1F14', fizzo: '#2B1418', zucca: '#3A1A0A',
+    babbo: '#1F1420', morte: '#050307', fantasmino: '#222034',
+  };
+  for (const [kind, hex] of Object.entries(OUTLINE)) {
+    const { palette, frames } = SPRITES[kind];
+    const dark = Object.keys(palette).find((ch) => palette[ch].toUpperCase() === hex);
+    assert.ok(dark, `${kind}: ${hex} non è più in palette`);
+    for (const [pose, grids] of Object.entries(frames)) for (const grid of grids) {
+      const at = (x, y) => (grid[y] && grid[y][x]) || '.';
+      const edge = [];
+      grid.forEach((row, y) => [...row].forEach((ch, x) => {
+        if (ch === '.') return;
+        if ([at(x - 1, y), at(x + 1, y), at(x, y - 1), at(x, y + 1)].includes('.')) edge.push(ch);
+      }));
+      const outlined = edge.filter((ch) => ch === dark).length;
+      // Col contorno il bordo era scuro dal 72% in su (Babbo Natale); senza,
+      // resta lo scuro di gambe e braccia: fino al 41% (Zucco a braccia alzate)
+      assert.ok(outlined <= edge.length / 2, `${kind} ${pose}: ${outlined} pixel scuri su ${edge.length} di bordo`);
+    }
+  }
+});
+
 ok('sprites: il pesce è quello del pacchetto Spritelli, coi suoi colori a scelta', () => {
-  assert.deepStrictEqual(dims('pesce'), { cols: 34, rows: 24 });
+  assert.deepStrictEqual(dims('pesce'), { cols: 32, rows: 20 });
   assert.strictEqual(SPRITES.pesce.motion, 'swim');
   assert.ok(SPRITES.pesce.variants.length >= 3);
 });

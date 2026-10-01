@@ -78,7 +78,7 @@ Spento di default. Si accende e si regola da `Vista › Personaggi…`.
 | `babbo` | Babbo Natale | Slitta con le renne, vola (`fly`); dal pacchetto |
 | `morte` | La Morte | Fluttua appena sopra il fondo (`swim`); quando chiama dà una falciata (8 frame) |
 | `zucca` | Zucco, la zucca | Cammina; dal pacchetto di Halloween |
-| `fantasmino` | Fantasmino | Vola (`fly`) col lenzuolo; dorme abbassandosi, fa «buu» quando chiama |
+| `fantasmino` | Fantasmino | Fluttua basso (`swim`, come la Morte) col lenzuolo; si posa per dormire e per fare «buu» quando chiama (chi ha l'ombra si posa) |
 | `ape` | Ape | Vola (`fly`); ha un fiore suo in un punto della striscia, e ci vola sopra per dormire e per chiamare |
 | `chiocciola` | Chiocciola | Lentissima; dorme chiusa nel guscio, chiama dondolando le antenne |
 | `papera` | Papera e anatroccoli | La papera gironzola, i due anatroccoli (`anatroccolo`) le vanno dietro in fila; chiama facendo qua qua |
@@ -101,6 +101,18 @@ generatore li raddoppia con EPX (Scale2x, `SPRITELLI_SCALE`), che arrotonda
 i contorni senza inventare colori. Perché non crescano anche in scena, un
 disegno più basso di 32 righe riceve `height` (righe/32): il pixel resta
 quello di un disegno a 32 righe, e la tazzina resta tazzina.
+
+**Senza contorno**: i pacchetti disegnano un bordo scuro di 1 px attorno a
+ogni sagoma (gli Spritelli tutti dello stesso `#2B2233`, Fizzo, la pizza,
+Zucco, Babbo, la Morte e il fantasmino ognuno del suo), che sul terminale
+scuro fa un alone; i disegni fatti a mano (Patrick, il gatto, la rana…) non
+ce l'hanno. L'utente li vuole tutti senza: il generatore lo toglie
+(`unoutlined`, colori in `OUTLINES` e `SPRITELLI_OUTLINE`) prima di
+ingrandire, lasciando lo scuro che sta dentro (occhi, bocche, la riga fra
+due colori), le gambe e le braccia fatte solo di quel colore e il pixel a
+cui si attaccano. SpongeBob e la tazzina, disegnati a mano con lo stesso
+bordo, sono stati ritoccati una volta con la stessa funzione. Il test misura
+quanto bordo scuro resta sulla sagoma.
 
 **Disegni a parte**: come l'ombra del fantasmino, stanno fuori dal div del
 personaggio (così non si specchiano né saltellano con lui) e li disegna la

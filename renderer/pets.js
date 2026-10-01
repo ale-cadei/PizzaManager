@@ -220,8 +220,12 @@
     swim: wave(SWIM),
   };
 
-  /** A terra per dormire o chiamare: chi vola, salta o galleggia (la medusa) scende. */
-  const floats = (pet) => ['hop', 'fly'].includes(spriteOf(pet.kind).motion) || pet.kind === 'medusa';
+  /** A terra per dormire o chiamare: chi vola, salta o galleggia (la medusa) scende,
+   *  e chi ha l'ombra (il fantasmino), che fluttua basso ma si posa. */
+  const floats = (pet) => {
+    const sprite = spriteOf(pet.kind);
+    return ['hop', 'fly'].includes(sprite.motion) || Boolean(sprite.shadow) || pet.kind === 'medusa';
+  };
   const landed = (pet) => (floats(pet) ? { ...pet, y: 0, lift: 0 } : pet);
 
   /** Verso il posatoio in volo; arrivato si siede sul disegno con quella posa

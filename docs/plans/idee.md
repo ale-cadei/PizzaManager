@@ -40,8 +40,9 @@ pestarsi i file.
       symlink, Unisci prudente / Tieni il branch / Butta, sotto-sezioni nel
       gruppo del progetto
 - [x] piano — [36-sessione-worktree.md](36-sessione-worktree.md)
-- [ ] fatto
-- [ ] provato
+- [ ] fatto (branch `feat/sessione-worktree`, PR aperta)
+- [x] provato — repository di prova: crea, Unisci, conflitto, Butta con
+      modifiche, Tieni il branch + Resume, worktree fatti fuori dall'app
 
 ### Pannello «cosa ha cambiato»
 Accanto al terminale, `git diff` del progetto della sessione: file toccati,

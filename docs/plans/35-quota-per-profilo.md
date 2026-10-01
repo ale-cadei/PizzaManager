@@ -170,8 +170,10 @@ parlava dell'ultimo assistente attivo. Ora decide il tipo della scheda
 
 Non ancora: il tooltip che, col token scaduto (`401`), dice di aprire una
 sessione di quel profilo. Oggi il `401` ricade sulla stima in silenzio, come
-qualunque altro errore. E lo smoke test nell'app (compreso il dialogo del
-Keychain).
+qualunque altro errore.
+
+Smoke test nell'app impacchettata (2026-10-01): quota giusta su scheda lavoro
+e scheda personale, confrontata con `/usage`.
 
 ## Fuori da questo branch
 

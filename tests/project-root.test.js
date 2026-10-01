@@ -108,3 +108,11 @@ ok('progetto: un errore del filesystem non fa saltare la risalita', () => {
   const boom = () => { throw new Error('EACCES: permission denied'); };
   assert.strictEqual(findProjectRoot('/opt/segreto/lavoro', { exists: boom }), '/opt/segreto/lavoro');
 });
+
+ok('progetto: la cartella di un worktree tolto appartiene ancora al suo progetto', () => {
+  const git = new Set(['/src/progetto/.git']);
+  const exists = (p) => git.has(p);
+  assert.strictEqual(findProjectRoot('/src/progetto.worktrees/feat-x/src', { exists }), '/src/progetto');
+  // Se anche il progetto non c'è (o non è un repository) vale la cartella com'è
+  assert.strictEqual(findProjectRoot('/src/altro.worktrees/feat-x', { exists }), '/src/altro.worktrees/feat-x');
+});

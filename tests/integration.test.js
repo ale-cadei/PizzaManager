@@ -481,6 +481,12 @@ ok('git: worktree creato, unito, in conflitto e buttato, con il git installato',
     assert.strictEqual(thrown.ok, true, thrown.error);
     assert.ok(!fs.existsSync(due.path));
     assert.strictEqual(git(root, 'branch', '--list', 'feat/due'), '', 'il branch buttato è rimasto');
+
+    // Una conversazione nata nel worktree buttato riparte nel progetto (passo 7)
+    const { findProjectRoot } = require('../lib/project-root');
+    const { describeWorkdir } = require('../lib/workdir');
+    assert.strictEqual(findProjectRoot(due.path), root, 'il Resume la raggruppa fuori dal progetto');
+    assert.deepStrictEqual(describeWorkdir(due.path), { dir: root, moved: 'worktree', requested: due.path });
   } finally {
     fs.rmSync(base, { recursive: true, force: true });
   }

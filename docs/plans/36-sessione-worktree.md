@@ -309,7 +309,21 @@ l'ordine verificato da `tests/renderer-load.test.js`):
 
 Crea → `worktree-create` → `createTab(tipo, { cwd: path })`.
 
-### 7. Resume dopo che il worktree non c'è più
+### 7. Resume dopo che il worktree non c'è più ✅ fatto
+
+Com'è venuto: niente etichetta «worktree eliminato» nell'elenco del Resume
+(servirebbe chiedere al main se esiste ogni cartella dell'elenco). Lo si dice
+dove conta, **quando la sessione parte**:
+- `lib/worktree-path.js` (`worktreeProjectDir`): il progetto di una cartella
+  dentro `<progetto>.worktrees/`, solo stringhe;
+- `lib/workdir.js` (`describeWorkdir`): una cartella sparita dentro
+  `.worktrees/` riparte nel progetto (`moved: 'worktree'`), ogni altra
+  cartella sparita nella home (`moved: 'missing'`, prima succedeva in silenzio);
+- `findProjectRoot`: un worktree tolto appartiene ancora al suo progetto, così
+  il Resume raggruppa le sue conversazioni lì;
+- la scheda mostra un fumetto dalla card («Sessione spostata… controlla il
+  branch»): l'agente può credersi ancora sul branch del worktree. Fumetto e
+  non riga nel terminale perché tmux la ridisegnerebbe.
 
 Le conversazioni restano nella cronologia con la `cwd` del worktree. Nel
 Resume: se la `cwd` non esiste più ed è dentro una cartella `.worktrees`,

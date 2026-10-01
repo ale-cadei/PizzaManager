@@ -376,6 +376,36 @@ ok('git: readGitGraph legge branch, merge e repository vuoti con il git installa
   }
 });
 
+// ---------- git: un worktree vero appartiene al progetto principale ----------
+ok('git: un worktree creato da git fa gruppo con il progetto principale, anche nella scheda git', async (t) => {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const path = require('path');
+  const { resolveBinary } = require('../lib/binaries');
+  const { readGitGraph } = require('../lib/git-graph');
+  const { findProjectRoot } = require('../lib/project-root');
+  const bin = resolveBinary('git');
+  if (!bin.path) return t.skip('git non installato su questa macchina');
+  const base = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-gitwt-')));
+  const main = path.join(base, 'progetto');
+  const wt = path.join(base, 'progetto.worktrees', 'feat-x');
+  const env = { ...process.env, GIT_AUTHOR_NAME: 'Prova', GIT_AUTHOR_EMAIL: 'p@x', GIT_COMMITTER_NAME: 'Prova', GIT_COMMITTER_EMAIL: 'p@x' };
+  const git = (...args) => execFileSync(bin.path, args, { cwd: main, env });
+  try {
+    fs.mkdirSync(main);
+    git('init', '-q', '-b', 'main');
+    git('commit', '-q', '--allow-empty', '-m', 'primo');
+    git('worktree', 'add', '-q', '-b', 'feat/x', wt);
+
+    assert.strictEqual(findProjectRoot(wt), main, 'la sessione nel worktree fa gruppo a sé');
+    const graph = await readGitGraph({ cwd: wt });
+    assert.strictEqual(graph.ok, true, graph.error);
+    assert.strictEqual(graph.root, main, 'la scheda git nel worktree fa gruppo a sé');
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+});
+
 // ---------- git: la mappa dei branch su un repository vero ----------
 ok('git: la mappa ricostruisce chi nasce da chi e chi è unito, con il git installato', async (t) => {
   const { execFileSync } = require('child_process');

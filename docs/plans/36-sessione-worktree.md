@@ -125,7 +125,13 @@ come branch** per una PR, oppure lo **butta**.
 Commit separati, in quest'ordine. Il passo 1 cambia un comportamento
 esistente: commit `feat:` suo, così se qualcosa si rompe si sa dove.
 
-### 1. Un worktree appartiene al progetto principale
+### 1. Un worktree appartiene al progetto principale ✅ fatto
+
+Emerso strada facendo: anche la **scheda git** va riportata al progetto
+principale. Prende la radice da `git rev-parse --show-toplevel`
+(`lib/git-graph.js`), che in un worktree risponde con il worktree: passa
+anch'essa da `mainWorktreeRoot`. Caso con git vero in
+`tests/integration.test.js`.
 
 `findProjectRoot`: se `.git` è un **file**, leggere `gitdir: <percorso>`; se
 in quella directory c'è `commondir`, la radice è la cartella che contiene la

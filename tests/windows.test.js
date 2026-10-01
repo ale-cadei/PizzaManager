@@ -197,6 +197,22 @@ ok('win: la radice si trova risalendo con i backslash, fino all unità', () => {
   assert.strictEqual(findProjectRoot('C:\\Users\\jack\\altro', { exists, pathImpl: win }), 'C:\\Users\\jack\\altro', 'senza .git vale la directory di partenza');
 });
 
+/* git per Windows scrive il gitdir del worktree con gli slash (`C:/...`): la
+   radice deve tornare coi backslash, uguale a quella del progetto principale. */
+ok('win: un worktree appartiene al progetto principale anche con gitdir C:/...', () => {
+  const files = {
+    // a capo CRLF (git per Windows con autocrlf): il \r non finisce nel percorso
+    'C:\\Users\\jack\\repo.worktrees\\feat-x\\.git': 'gitdir: C:/Users/jack/repo/.git/worktrees/feat-x\r\n',
+    'C:\\Users\\jack\\repo\\.git\\worktrees\\feat-x\\commondir': '../..\r\n',
+  };
+  const exists = (p) => p in files || p === 'C:\\Users\\jack\\repo\\.git';
+  const readFile = (p) => {
+    if (!(p in files)) throw new Error(`ENOENT ${p}`);
+    return files[p];
+  };
+  assert.strictEqual(findProjectRoot('C:\\Users\\jack\\repo.worktrees\\feat-x\\src', { exists, readFile, pathImpl: win }), 'C:\\Users\\jack\\repo');
+});
+
 // ---------- lib/git-graph ----------
 const { readGitGraph } = require('../lib/git-graph');
 

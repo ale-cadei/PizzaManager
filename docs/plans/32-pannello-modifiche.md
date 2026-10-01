@@ -40,10 +40,12 @@ toccato?** Oggi per saperlo si apre una shell e si lancia `git status` /
 
 ## Decisioni (prese con l'utente il 2026-10-01)
 
-1. **Pannello sovrapposto al terminale, con una linguetta.** In pratica la
-   linguetta pende dal bordo **alto**, a destra, e non sta sul fianco come
-   nello schizzo qui sotto: sul fianco destro c'è la barra di scorrimento del
-   terminale (`term-scroll.js`), e le due si sarebbero coperte.
+1. **Pannello sovrapposto al terminale, con una linguetta sul fianco destro**,
+   in alto, testo girato e bordo arancione tenue; +N verde, −N rosso. Sul
+   fianco c'è anche la barra di scorrimento del terminale (`term-scroll.js`):
+   quando la linguetta c'è, la barra comincia sotto (`has-changes-tab`).
+   (Una prima versione la appendeva al bordo alto: l'utente la voleva di
+   lato, il 2026-10-01.)
    ```
    ┌ sidebar ┬──────────── terminale ─────────────┬─┐
    │         │ $ claude                          │5│ ← linguetta: contatore

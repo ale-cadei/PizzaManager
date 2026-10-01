@@ -31,12 +31,18 @@
 
   const isRepo = (result) => Boolean(result && result.ok);
 
-  /** Testo della linguetta: `3 · +121 −30`, `±0` se è tutto pulito. Fuori da un repository non c'è. */
+  /* I pezzi di un contatore, ciascuno col suo colore: file, aggiunte (verde),
+     rimozioni (rosso). `text` è la stessa cosa in una riga, per i titoli. */
+  function countParts({ files, added, removed }, filesText = String(files)) {
+    return [{ kind: 'files', text: filesText }, { kind: 'add', text: `+${added}` }, { kind: 'del', text: `−${removed}` }];
+  }
+
+  /** Linguetta: `3 · +121 −30`, `±0` se è tutto pulito. Fuori da un repository non c'è. */
   function tabLabel(result) {
-    if (!isRepo(result)) return { visible: false, clean: true, text: '' };
+    if (!isRepo(result)) return { visible: false, clean: true, text: '', parts: [] };
     const { files, added, removed } = result.totals;
-    if (!files) return { visible: true, clean: true, text: '±0' };
-    return { visible: true, clean: false, text: `${files} · +${added} −${removed}` };
+    if (!files) return { visible: true, clean: true, text: '±0', parts: [{ kind: 'clean', text: '±0' }] };
+    return { visible: true, clean: false, text: `${files} · +${added} −${removed}`, parts: countParts(result.totals) };
   }
 
   /** Di cosa parla il pannello, sotto la parola «Modifiche» */
@@ -47,6 +53,15 @@
     return branch ? `${branch} · ${SINCE_COMMIT}` : SINCE_COMMIT;
   }
 
+  /** Il riepilogo sotto il titolo, a pezzi colorati come la linguetta */
+  function summaryParts(result) {
+    if (!isRepo(result)) return [];
+    if (!result.totals.files) return [{ kind: 'note', text: 'Nessuna modifica' }];
+    const parts = countParts(result.totals, `${result.totals.files} file`);
+    return result.truncated ? [...parts, { kind: 'note', text: `mostrati i primi ${result.files.length}` }] : parts;
+  }
+
+  /** Lo stesso riepilogo in una riga di testo */
   function summary(result) {
     if (!isRepo(result)) return '';
     const { files, added, removed } = result.totals;
@@ -104,5 +119,5 @@
     return f.oldPath ? `${f.oldPath} → ${f.path}` : f.path;
   }
 
-  return { targetFor, tabLabel, headerTitle, summary, fileCounts, signature, diffsToReload, splitPath, displayPath };
+  return { targetFor, tabLabel, headerTitle, summary, summaryParts, fileCounts, signature, diffsToReload, splitPath, displayPath };
 });

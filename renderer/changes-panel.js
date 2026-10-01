@@ -88,7 +88,7 @@ function renderChanges() {
     open: open && Boolean(target) && (readable || Boolean(merge) || !result),
     loading: !result,
     title: ChangesModel.headerTitle(target, result),
-    summary: ChangesModel.summary(result),
+    summary: ChangesModel.summaryParts(result),
     error: unreadable,
     files: ok ? result.files : [],
     expanded,

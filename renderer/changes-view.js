@@ -52,6 +52,11 @@
     return b;
   }
 
+  /** Pezzi di un contatore (changes-model.js, countParts), ognuno con la sua classe di colore */
+  function fillParts(doc, box, parts) {
+    box.replaceChildren(...parts.map((p) => el(doc, 'span', `changes-n-${p.kind}`, p.text)));
+  }
+
   function diffLine(doc, line) {
     const row = el(doc, 'div', `changes-line ${line.kind}`);
     const no = line.kind === 'del' ? line.oldNo : line.newNo;
@@ -104,6 +109,7 @@
   function createChangesView({ doc, host, shortcut, onToggle, onClose, onFile, onMerge = () => {} }) {
     const tab = button(doc, 'changes-tab', '', `Modifiche di questa sessione (${shortcut})`, () => onToggle());
     tab.hidden = true;
+    const tabTitle = (text) => `Modifiche di questa sessione: ${text} (${shortcut})`;
 
     const panel = el(doc, 'aside', 'changes-panel');
     panel.hidden = true;
@@ -147,21 +153,26 @@
     host.appendChild(panel);
 
     /**
-     * @param {{label: {visible: boolean, clean: boolean, text: string}, open: boolean,
-     *   title: string, summary: string, error: string|null, files: object[],
+     * @param {{label: {visible: boolean, clean: boolean, text: string, parts: object[]}, open: boolean,
+     *   title: string, summary: Array<{kind: string, text: string}>, error: string|null, files: object[],
      *   expanded: Object<string, object>, heading?: string, loading?: boolean,
      *   merge?: {text: string, confirmLabel: string, warning: string|null, canConfirm: boolean}|null}} state
      */
     function render(state) {
       tab.hidden = state.open || !state.label.visible;
-      tab.textContent = state.label.text;
+      fillParts(doc, tab, state.label.parts);
+      tab.title = tabTitle(state.label.text);
+      tab.setAttribute('aria-label', tabTitle(state.label.text));
       tab.classList.toggle('is-clean', state.label.clean);
+      // La linguetta sta sul fianco destro, dove c'è la barra di scorrimento
+      // del terminale: con questa classe la barra comincia sotto (styles.css)
+      host.classList.toggle('has-changes-tab', !tab.hidden);
       panel.hidden = !state.open;
       if (!state.open) return;
       label.textContent = state.heading || 'Modifiche';
       title.textContent = state.title;
       renderFoot(state.merge || null);
-      summary.textContent = state.summary;
+      fillParts(doc, summary, state.summary);
       const items = [];
       if (state.loading) items.push(el(doc, 'div', 'changes-empty', 'Carico…'));
       else if (state.error) items.push(el(doc, 'div', 'changes-error', state.error));

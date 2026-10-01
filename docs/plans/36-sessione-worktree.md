@@ -250,10 +250,19 @@ Le conversazioni restano nella cronologia con la `cwd` del worktree. Nel
 Resume: se la `cwd` non esiste più ed è dentro una cartella `.worktrees`,
 riga con «worktree eliminato» e apertura nella **radice del progetto** (lì il
 codice ormai è unito, o il branch esiste ancora). Senza questo il pty partiva
-nella home (`resolveWorkdir`) e l'agente non trovava la conversazione. Il
-`--resume` di Claude cerca la conversazione per directory: verificare a mano
-se la ritrova lanciato dalla radice; se no, l'avviso lo dice invece di
-promettere.
+nella home (`resolveWorkdir`).
+
+**Claude: verificato a mano (2026-10-01).** Conversazione nata in
+`progetto.worktrees/feat-prova`, poi `claude --resume <id>` lanciato da
+`progetto/`: con il worktree ancora presente ritrova tutta la chat; con il
+worktree già rimosso (`git worktree remove`) la ritrova lo stesso e la riapre
+nella cartella principale. Quindi per Claude basta cambiare la `cwd` di
+apertura, nessun avviso «non riprendibile».
+
+Codex e opencode non sono verificati: provarli allo stesso modo durante
+l'implementazione (Codex salva le conversazioni per data, non per directory,
+e dovrebbe comportarsi uguale; opencode le lega al progetto). Se uno dei due
+non la ritrova, per quel tipo la riga lo dice invece di promettere.
 
 ## Test
 

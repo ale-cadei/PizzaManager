@@ -141,6 +141,7 @@ async function init() {
   });
 
   window.addEventListener('resize', () => fitActive());
+  watchWorktrees();
   renderSidebar();
   updateEmpty();
   ensureClaudeAccounts();

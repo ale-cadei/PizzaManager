@@ -82,9 +82,15 @@
    *   onExport?: (session: object, card: Element) => void,
    *   onNewInProject?: (projectRoot: string) => void,
    *   onResumeInProject?: (projectRoot: string) => void,
+   *   WorktreeSection?: {createSection: Function},
+   *   onNewWorktree?: (projectRoot: string) => void,
+   *   onNewInWorktree?: (path: string, projectRoot: string) => void,
+   *   onWorktreeMenu?: (worktree: object, projectRoot: string, anchor: Element) => void,
    *   onReorder?: (movedId: string, targetId: string, opts: {before: boolean}) => void,
    *   Order?: {moveAdjacent: Function}}} deps
-   * Senza `Order` le linguette dei progetti non si trascinano.
+   * Senza `Order` le linguette dei progetti non si trascinano. Senza
+   * `WorktreeSection` i worktree non hanno sotto-sezioni e le loro sessioni
+   * restano fra quelle del progetto (docs/plans/36).
    */
   function createSidebar(deps) {
     const { list, count, storage, Icons, Slice, Groups, escapeHtml, onSelect, onClose, onRename } = deps;
@@ -99,6 +105,12 @@
        sessione e la card, su cui appoggiare un eventuale errore. */
     const onExport = typeof deps.onExport === 'function' ? deps.onExport : null;
     const onIcon = typeof deps.onIcon === 'function' ? deps.onIcon : null;
+    /* Worktree (docs/plans/36): la sidebar disegna, il renderer crea, unisce e butta */
+    const WorktreeSection = deps.WorktreeSection && typeof deps.WorktreeSection.createSection === 'function' ? deps.WorktreeSection : null;
+    const fnOrNull = (f) => (typeof f === 'function' ? f : null);
+    const onNewWorktree = fnOrNull(deps.onNewWorktree);
+    const onNewInWorktree = fnOrNull(deps.onNewInWorktree);
+    const onWorktreeMenu = fnOrNull(deps.onWorktreeMenu);
     const Order = deps.Order && typeof deps.Order.moveAdjacent === 'function' ? deps.Order : null;
 
     /* Collassi in liste separate per modalità: collassare "Claude" e collassare
@@ -128,6 +140,8 @@
     let lastRender = null;
     /* Chiavi dei gruppi progetto mostrati, nell'ordine in cui si vedono. */
     let shownProjectKeys = [];
+    /* Worktree per radice dell'ultimo render: la card ci legge il suo branch */
+    let shownWorktrees = {};
 
     /** Insieme dei gruppi collassati della modalità corrente. */
     function collapsedSet() {
@@ -388,7 +402,8 @@
       });
     }
 
-    function createSessionItem(t, activeId, groupKey, body) {
+    /** @param {string|null} [baseDir] cartella rispetto a cui mostrare la sottocartella (un worktree) */
+    function createSessionItem(t, activeId, groupKey, body, baseDir = null) {
       const b = document.createElement('button');
       // L'id sulla card e non solo nella chiusura del click: dopo un render le
       // card sono elementi nuovi, e chi era appeso a una di loro (il fumetto di
@@ -402,13 +417,15 @@
       if (t.needsAttention) b.title = ATTENTION_TITLE;
       // Il comando si mostra solo se per quel tipo ce n'è più di uno configurato
       const multiCommand = Commands && Commands.profilesFor(t.type).length > 1;
-      const extras = [t.claudeAccountName, multiCommand ? t.commandProfileLabel : null].filter(Boolean);
+      // Per tipo il worktree non ha una sotto-sezione: il branch lo dice la card
+      const worktree = groupMode === 'type' ? Groups.worktreeOf && Groups.worktreeOf(t, shownWorktrees) : null;
+      const extras = [t.claudeAccountName, multiCommand ? t.commandProfileLabel : null, worktree ? `⑂ ${worktree.branch || 'staccato'}` : null].filter(Boolean);
       const fullSub = [t.cwd || '', ...extras].filter(Boolean).join(' · ');
       // In modalità progetto l'header del gruppo è già il path: ripeterlo sotto è
       // rumore. Al suo posto il tipo della sessione (che lì non è più nell'header)
       // e la sottocartella, se la sessione non sta nella radice del progetto.
       const displayParts = groupMode === 'project'
-        ? [Groups.TYPE_LABELS[t.type] || t.type, Groups.relativeSubpath(t.cwd, t.projectRoot), ...extras]
+        ? [Groups.TYPE_LABELS[t.type] || t.type, Groups.relativeSubpath(t.cwd, baseDir || t.projectRoot), ...extras]
         : [Groups.shortPath(t.cwd), ...extras];
       const displaySub = displayParts.filter(Boolean).join(' · ');
       // Il marker resta nel DOM anche se invisibile: così tutte le card sono allineate
@@ -478,6 +495,18 @@
       return add;
     }
 
+    /** [⑂] accanto alla linguetta di un progetto: un worktree nuovo di quel repository. */
+    function createWorktreeButton(g) {
+      const b = document.createElement('button');
+      b.className = 'group-worktree';
+      b.type = 'button';
+      b.textContent = '⑂';
+      b.title = `Nuovo worktree di ${g.title}`;
+      b.setAttribute('aria-label', b.title);
+      b.onclick = (e) => { e.stopPropagation(); onNewWorktree(g.key); };
+      return b;
+    }
+
     function createResumeButton(g) {
       const resume = document.createElement('button');
       resume.className = 'group-resume';
@@ -521,13 +550,36 @@
       return true;
     }
 
+    /** Le sotto-sezioni dei worktree di un gruppo, con le loro card. */
+    function appendWorktrees(body, g, activeId, painting) {
+      for (const w of g.worktrees || []) {
+        // Le card si riordinano solo dentro il loro worktree: per il
+        // trascinamento è un gruppo a sé
+        const dragKey = `${g.key}\u0000${w.path}`;
+        body.appendChild(WorktreeSection.createSection({
+          doc: document,
+          worktree: w,
+          onNew: onNewInWorktree ? () => onNewInWorktree(w.path, g.key) : null,
+          onMenu: onWorktreeMenu ? (el) => onWorktreeMenu(w, g.key, el) : null,
+          fill: (wtBody) => {
+            for (const t of w.items) wtBody.appendChild(painting(t, createSessionItem(t, activeId, dragKey, wtBody, w.path)));
+            attachBodyDrag(wtBody, dragKey);
+            return w.items.length;
+          },
+        }));
+      }
+    }
+
     /**
      * @param {object[]} sessions schede aperte, nell'ordine di apertura
      * @param {string|null} activeId scheda in primo piano
+     * @param {Record<string, object[]>} [worktrees] i worktree di ogni radice
+     *   di progetto (renderer/worktree-cache.js)
      */
-    function render(sessions, activeId) {
-      if (dragging || draggingGroup) { pendingRender = [sessions, activeId]; return; }
-      lastRender = [sessions, activeId];
+    function render(sessions, activeId, worktrees = {}) {
+      if (dragging || draggingGroup) { pendingRender = [sessions, activeId, worktrees]; return; }
+      lastRender = [sessions, activeId, worktrees];
+      shownWorktrees = worktrees && typeof worktrees === 'object' ? worktrees : {};
       painted = new Map();
       list.innerHTML = '';
       if (count) count.textContent = sessions.length ? `(${sessions.length})` : '';
@@ -540,13 +592,18 @@
         typeOrder: Groups.TYPE_ORDER,
         typeLabels: Groups.TYPE_LABELS,
         projectOrder,
+        // Senza chi disegna le sotto-sezioni le sessioni dei worktree restano
+        // fra quelle del progetto, invece di sparire
+        worktrees: WorktreeSection ? shownWorktrees : null,
       });
       shownProjectKeys = groups.filter((g) => g.kind === 'project' && g.key).map((g) => g.key);
       for (const g of groups) {
         // Gruppo espandibile/collassabile sempre, anche con una sola sessione:
         // la posizione delle card resta stabile quando il gruppo cresce.
         const collapsed = collapsedSet().has(g.key);
-        const hasActive = g.items.some((t) => t.id === activeId);
+        // Le sessioni del gruppo, comprese quelle nei suoi worktree
+        const allItems = [...g.items, ...(g.worktrees || []).flatMap((w) => w.items)];
+        const hasActive = allItems.some((t) => t.id === activeId);
         const group = document.createElement('div');
         // `is-focused` alza i bordi del fascicolo che contiene la sessione in
         // primo piano; `data-sheets` dice quanti fogli disegnare sotto la
@@ -555,9 +612,9 @@
         // progetto il gruppo non ne ha uno, e il marker che compare sulla
         // linguetta quando il gruppo è chiuso deve essere del colore della card
         // che si è scelta (styles.css, `.group-header.has-active .sel-mark`).
-        const activeItem = hasActive ? g.items.find((t) => t.id === activeId) : null;
+        const activeItem = hasActive ? allItems.find((t) => t.id === activeId) : null;
         group.className = 'session-group' + (activeItem ? ` is-focused type-${activeItem.type}` : '');
-        group.dataset.sheets = String(sheetCount(g.items.length, collapsed));
+        group.dataset.sheets = String(sheetCount(allItems.length, collapsed));
         // La linguetta e il «+» stanno sulla stessa riga: il «+» all'estremità
         // destra, dove non collide con la ✕ della prima sessione.
         const cap = document.createElement('div');
@@ -565,7 +622,7 @@
         const header = document.createElement('button');
         // Se collassato nasconde la scheda attiva (o una che lampeggia), l'header lo segnala
         const hidesActive = collapsed && hasActive;
-        const hidesAttention = collapsed && g.items.some((t) => t.needsAttention);
+        const hidesAttention = collapsed && allItems.some((t) => t.needsAttention);
         header.className = `group-header` + (g.kind === 'type' ? ` type-${g.key}` : ' is-project')
           + (hidesActive ? ' has-active' : '')
           + (hidesAttention ? ' needs-attention' : '');
@@ -579,7 +636,7 @@
       <span class="sel-mark" aria-hidden="true">◆</span>
       <span class="icon">${groupIcon}</span>
       <span class="group-name">${escapeHtml(g.label)}</span>
-      <span class="group-count">${g.items.length}</span>`;
+      <span class="group-count">${allItems.length}</span>`;
         header.onclick = () => {
           // Il rilascio del trascinamento della linguetta non è un click
           if (Date.now() - dragEndedAt <= DRAG_CLICK_GUARD_MS) return;
@@ -587,7 +644,7 @@
           if (set.has(g.key)) set.delete(g.key);
           else set.add(g.key);
           saveCollapsed();
-          render(sessions, activeId);
+          render(sessions, activeId, worktrees);
         };
         attachGroupDrag(group, header, g.key);
         cap.appendChild(header);
@@ -595,18 +652,22 @@
         // directory» (chiave vuota) non ce l'ha, e per tipo la directory non è nota.
         if (onNewInProject && g.kind === 'project' && g.key) cap.appendChild(createAddButton(g));
         if (onResumeInProject && g.kind === 'project' && g.key) cap.appendChild(createResumeButton(g));
+        if (onNewWorktree && WorktreeSection && g.kind === 'project' && g.key) cap.appendChild(createWorktreeButton(g));
         group.appendChild(cap);
         const body = document.createElement('div');
         body.className = 'group-body';
         if (collapsed) body.hidden = true;
         const cards = [];
-        for (const t of g.items) {
-          const card = createSessionItem(t, activeId, g.key, body);
+        // Ogni card disegnata si annota per signal(): il segnale di un gruppo
+        // chiuso guarda tutte le sue card, anche quelle nei worktree
+        const painting = (t, card) => {
           cards.push(card);
           painted.set(t.id, { card, header, body, cards });
-          body.appendChild(card);
-        }
+          return card;
+        };
+        for (const t of g.items) body.appendChild(painting(t, createSessionItem(t, activeId, g.key, body)));
         attachBodyDrag(body, g.key);
+        if (WorktreeSection) appendWorktrees(body, g, activeId, painting);
         group.appendChild(body);
         list.appendChild(group);
       }

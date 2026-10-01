@@ -376,6 +376,122 @@ ok('git: readGitGraph legge branch, merge e repository vuoti con il git installa
   }
 });
 
+// ---------- git: un worktree vero appartiene al progetto principale ----------
+ok('git: un worktree creato da git fa gruppo con il progetto principale, anche nella scheda git', async (t) => {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const path = require('path');
+  const { resolveBinary } = require('../lib/binaries');
+  const { readGitGraph } = require('../lib/git-graph');
+  const { findProjectRoot } = require('../lib/project-root');
+  const bin = resolveBinary('git');
+  if (!bin.path) return t.skip('git non installato su questa macchina');
+  const base = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-gitwt-')));
+  const main = path.join(base, 'progetto');
+  const wt = path.join(base, 'progetto.worktrees', 'feat-x');
+  const env = { ...process.env, GIT_AUTHOR_NAME: 'Prova', GIT_AUTHOR_EMAIL: 'p@x', GIT_COMMITTER_NAME: 'Prova', GIT_COMMITTER_EMAIL: 'p@x' };
+  const git = (...args) => execFileSync(bin.path, args, { cwd: main, env });
+  try {
+    fs.mkdirSync(main);
+    git('init', '-q', '-b', 'main');
+    git('commit', '-q', '--allow-empty', '-m', 'primo');
+    git('worktree', 'add', '-q', '-b', 'feat/x', wt);
+
+    assert.strictEqual(findProjectRoot(wt), main, 'la sessione nel worktree fa gruppo a sé');
+    const graph = await readGitGraph({ cwd: wt });
+    assert.strictEqual(graph.ok, true, graph.error);
+    assert.strictEqual(graph.root, main, 'la scheda git nel worktree fa gruppo a sé');
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+});
+
+// ---------- git: il ciclo di vita di un worktree con git vero (piano 36) ----------
+ok('git: worktree creato, unito, in conflitto e buttato, con il git installato', async (t) => {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const path = require('path');
+  const { resolveBinary } = require('../lib/binaries');
+  const wt = require('../lib/worktree');
+  const bin = resolveBinary('git');
+  if (!bin.path) return t.skip('git non installato su questa macchina');
+  const base = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-wtlife-')));
+  const root = path.join(base, 'progetto');
+  const git = (cwd, ...args) => String(execFileSync(bin.path, args, { cwd })).trim();
+  const commitFile = (cwd, file, text) => {
+    fs.writeFileSync(path.join(cwd, file), text);
+    git(cwd, 'add', file);
+    git(cwd, 'commit', '-q', '-m', `${file}: ${text}`);
+  };
+  try {
+    fs.mkdirSync(root);
+    git(root, 'init', '-q', '-b', 'main');
+    // Identità locale: il merge di lib/worktree.js gira con l'env dell'app
+    git(root, 'config', 'user.name', 'Prova');
+    git(root, 'config', 'user.email', 'p@x');
+    commitFile(root, '.gitignore', 'node_modules/\n.env\n');
+    commitFile(root, 'a.txt', 'uno\n');
+    fs.mkdirSync(path.join(root, 'node_modules', 'pkg'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'node_modules', 'pkg', 'i.js'), 'x');
+    fs.writeFileSync(path.join(root, '.env'), 'SEGRETO=1\n', { mode: 0o600 });
+    fs.chmodSync(path.join(root, '.env'), 0o600);
+    fs.writeFileSync(path.join(root, '.worktreeinclude'), '.env\n');
+
+    const start = await wt.worktreeStart({ root });
+    assert.strictEqual(start.ok, true, start.error);
+    assert.deepStrictEqual(start.current.branch, 'main');
+    assert.strictEqual(start.busy, null);
+
+    // Crea: cartella accanto al progetto, base ricordata, file ignorati portati
+    const made = await wt.createWorktree({ root, branch: 'feat/uno', base: 'main' });
+    assert.strictEqual(made.ok, true, made.error);
+    assert.deepStrictEqual(made.warnings, []);
+    assert.strictEqual(made.path, path.join(base, 'progetto.worktrees', 'feat-uno'));
+    assert.ok(fs.lstatSync(path.join(made.path, 'node_modules')).isSymbolicLink(), 'node_modules non collegato');
+    assert.strictEqual(fs.statSync(path.join(made.path, '.env')).mode & 0o777, 0o600, '.env non copiato o con altri permessi');
+    const listed = await wt.listWorktrees({ root });
+    assert.deepStrictEqual(listed.worktrees.map((w) => [w.path, w.branch, w.base]), [[made.path, 'feat/uno', 'main']]);
+
+    // Unisci: il commit del worktree arriva in main, cartella e branch spariscono
+    commitFile(made.path, 'b.txt', 'dal worktree\n');
+    const merged = await wt.mergeWorktree({ root, path: made.path });
+    assert.strictEqual(merged.ok, true, merged.error);
+    assert.ok(fs.existsSync(path.join(root, 'b.txt')), 'il lavoro del worktree non è in main');
+    assert.ok(!fs.existsSync(made.path), 'la cartella del worktree è rimasta');
+    assert.ok(!fs.existsSync(path.join(base, 'progetto.worktrees')), 'la cartella .worktrees vuota è rimasta');
+    assert.strictEqual(git(root, 'branch', '--list', 'feat/uno'), '', 'il branch unito è rimasto');
+    assert.ok(fs.existsSync(path.join(root, 'node_modules', 'pkg', 'i.js')), 'node_modules del progetto cancellato');
+
+    // Conflitto: il merge si annulla e la cartella principale torna pulita
+    const due = await wt.createWorktree({ root, branch: 'feat/due', base: 'main' });
+    assert.strictEqual(due.ok, true, due.error);
+    commitFile(due.path, 'a.txt', 'dal worktree\n');
+    commitFile(root, 'a.txt', 'da main\n');
+    const clash = await wt.mergeWorktree({ root, path: due.path });
+    assert.strictEqual(clash.ok, false);
+    assert.strictEqual(clash.conflict, true, clash.error);
+    assert.strictEqual(git(root, 'status', '--porcelain', '--untracked-files=no'), '', 'cartella principale a metà merge');
+    assert.ok(fs.existsSync(due.path), 'worktree tolto dopo un conflitto');
+
+    // Butta con un file non committato: prima chiede, poi con force butta tutto
+    fs.writeFileSync(path.join(due.path, 'nuovo.txt'), 'non committato');
+    const asked = await wt.removeWorktree({ root, path: due.path, branch: 'delete' });
+    assert.deepStrictEqual({ ok: asked.ok, dirty: asked.dirty }, { ok: false, dirty: true }, asked.error);
+    const thrown = await wt.removeWorktree({ root, path: due.path, branch: 'delete', force: true });
+    assert.strictEqual(thrown.ok, true, thrown.error);
+    assert.ok(!fs.existsSync(due.path));
+    assert.strictEqual(git(root, 'branch', '--list', 'feat/due'), '', 'il branch buttato è rimasto');
+
+    // Una conversazione nata nel worktree buttato riparte nel progetto (passo 7)
+    const { findProjectRoot } = require('../lib/project-root');
+    const { describeWorkdir } = require('../lib/workdir');
+    assert.strictEqual(findProjectRoot(due.path), root, 'il Resume la raggruppa fuori dal progetto');
+    assert.deepStrictEqual(describeWorkdir(due.path), { dir: root, moved: 'worktree', requested: due.path });
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+});
+
 // ---------- git: la mappa dei branch su un repository vero ----------
 ok('git: la mappa ricostruisce chi nasce da chi e chi è unito, con il git installato', async (t) => {
   const { execFileSync } = require('child_process');

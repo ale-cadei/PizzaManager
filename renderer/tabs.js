@@ -162,6 +162,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
     // nella home): senza la directory vera il titolo automatico non troverebbe
     // mai la conversazione, che viene riconosciuta proprio dalla directory.
     if (res.cwd) tab.cwd = res.cwd;
+    if (res.moved) notifyMovedSession(id, res);
     // La radice si risolve sulla directory davvero usata dal pty, non su quella
     // digitata: con cwd vuota o inesistente il main sposta la sessione altrove.
     resolveProjectRoot(tab.cwd).then((root) => {
@@ -251,6 +252,24 @@ async function terminateTab(id) {
   if (!t) return;
   if (t.session) await window.aisess.terminate(id);
   await closeTab(id);
+}
+
+/* Il main ha fatto partire la sessione altrove perché la cartella non c'è più
+   (lib/workdir.js, describeWorkdir). Lo dice un fumetto dalla card, che resta
+   finché non lo si legge: una riga nel terminale la ridisegnerebbe tmux. Dopo
+   un worktree tolto conta più che mai: l'agente può credersi ancora sul suo
+   branch (docs/plans/36, passo 7). */
+function notifyMovedSession(id, res) {
+  const text = res.moved === 'worktree'
+    ? `Il worktree ${res.requested} non esiste più: la sessione parte nella cartella del progetto, ${res.cwd}. `
+      + 'Controlla il branch prima di lavorare: non è più quello del worktree.'
+    : `La cartella ${res.requested} non esiste: la sessione parte in ${res.cwd}.`;
+  // Al frame dopo: la card della sessione deve essere già nella sidebar
+  requestAnimationFrame(() => {
+    const anchor = findAnchor(id);
+    if (anchor) closeConfirm.tell({ anchor, key: id, title: 'Sessione spostata', text }).catch(() => {});
+    else console.warn('[sessione spostata]', text);
+  });
 }
 
 /* La ✕ della card. Chiude la sessione per davvero (il processo muore): prima

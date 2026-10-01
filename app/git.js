@@ -2,10 +2,12 @@
 const { readGitGraph } = require('../lib/git-graph');
 const { listBranches, switchBranch, createBranch, deleteBranch } = require('../lib/git-branches');
 const { createGitSessionsStore, savedBeforeBoot } = require('../lib/git-sessions');
+const { listWorktrees, worktreeStart, createWorktree, mergeWorktree, removeWorktree } = require('../lib/worktree');
 
 /**
- * Canali IPC della sessione di tipo git (docs/plans/25). La logica sta in
- * lib/; qui solo il collegamento, per non far crescere main.js.
+ * Canali IPC della sessione di tipo git (docs/plans/25) e dei worktree
+ * (docs/plans/36). La logica sta in lib/; qui solo il collegamento, per non
+ * far crescere main.js.
  *
  * @param {Electron.IpcMain} ipcMain
  * @param {{userDataDir: () => string}} opts cartella dei dati, chiesta solo
@@ -34,6 +36,14 @@ function registerGitHandlers(ipcMain, { userDataDir } = {}) {
     return { ok: true, sessions: list, ask: savedBeforeBoot(savedAt) };
   }));
   ipcMain.handle('git-sessions-save', guard(({ sessions: list }) => ({ ok: true, sessions: sessions().write(list) })));
+  // Worktree (docs/plans/36). Le sessioni aperte in un worktree le chiude il
+  // renderer, che le conosce, prima di unire o buttare. Si passano solo i
+  // campi attesi: `force` vale solo se è proprio true.
+  ipcMain.handle('worktree-list', guard(({ root }) => listWorktrees({ root })));
+  ipcMain.handle('worktree-start', guard(({ root }) => worktreeStart({ root })));
+  ipcMain.handle('worktree-create', guard(({ root, branch, base }) => createWorktree({ root, branch, base })));
+  ipcMain.handle('worktree-merge', guard(({ root, path }) => mergeWorktree({ root, path })));
+  ipcMain.handle('worktree-remove', guard(({ root, path, branch, force }) => removeWorktree({ root, path, branch, force: force === true })));
 }
 
 module.exports = { registerGitHandlers };

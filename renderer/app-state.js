@@ -53,6 +53,9 @@ const TERM_LINE_HEIGHT = 1.2;
 // Animaletti in fondo alla finestra, accesi e scelti dal menu View (renderer/pets-config.js)
 const petsStore = window.AisessPetsConfig.createPetsStore(window.localStorage);
 
+// Notifiche di sistema accese o spente dal menu View (renderer/notify.js, piano 38)
+const notifyStore = window.AisessNotify.createNotifyStore(window.localStorage);
+
 // Colore principale e colori dei tipi cambiati dal menu View (renderer/type-colors.js):
 // si applicano subito, prima che la sidebar disegni la prima card.
 const COLOR_KEYS = [window.AisessTypeColors.ACTION, ...Groups.TYPE_ORDER];

@@ -1,5 +1,7 @@
 'use strict';
 const { app, Menu, shell: electronShell } = require('electron');
+const { isPlatformSupported } = require('../lib/notifications');
+const { MENU_ITEM_ID: NOTIFICATIONS_ID } = require('./notify');
 
 const REPO_URL = 'https://github.com/ale-cadei/PizzaManager';
 
@@ -64,6 +66,10 @@ function buildAppMenu({ sendToRenderer, platform = process.platform } = {}) {
         { type: 'separator' },
         { label: 'Colori…', click: () => sendToRenderer('menu-type-colors') },
         { label: 'Personaggi…', click: () => sendToRenderer('menu-pets') },
+        // La spunta la tiene allineata app/notify.js; la preferenza vive nel renderer
+        ...(isPlatformSupported(platform)
+          ? [{ id: NOTIFICATIONS_ID, label: 'Notifiche di sistema', type: 'checkbox', checked: true, click: () => sendToRenderer('menu-notifications') }]
+          : []),
         { type: 'separator' },
         { role: 'togglefullscreen', label: 'Schermo intero' },
       ],
@@ -99,6 +105,7 @@ async function runMenuAction(action, win) {
       case 'open-config': wc.send('menu-open-config'); break;
       case 'type-colors': wc.send('menu-type-colors'); break;
       case 'pets': wc.send('menu-pets'); break;
+      case 'notifications': wc.send('menu-notifications'); break;
       case 'changes': wc.send('menu-changes'); break;
       case 'quit': app.quit(); break;
       // Stessa strada del menu nativo: il renderer sa se il fuoco e' su un

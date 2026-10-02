@@ -153,3 +153,13 @@ ok('primo prompt: un incolla lungo diventa un titolo corto', () => {
   const out = cap.feed('x'.repeat(200) + '\r');
   assert.strictEqual(out.length, 40);
 });
+
+ok('prompt inviati: con repeat ogni riga inviata conta, non solo la prima', () => {
+  const { createPromptCapture } = require('../renderer/prompt-capture');
+  const cap = createPromptCapture({ repeat: true });
+  assert.strictEqual(cap.feed('primo\r'), 'primo');
+  assert.strictEqual(cap.feed('\r'), null, 'una riga vuota non apre un giro');
+  assert.strictEqual(cap.feed('/compact\r'), null, 'un comando slash non apre un giro');
+  assert.strictEqual(cap.feed('secondo\r'), 'secondo');
+  assert.strictEqual(cap.isDone(), false);
+});

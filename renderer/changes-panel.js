@@ -35,6 +35,31 @@ function knownWorktrees() {
   return Object.values(worktreeCache.snapshot()).flat();
 }
 
+/**
+ * Quello che l'utente digita in una sessione agente (tabs.js): un prompt
+ * inviato apre un «giro», e i file si fotografano adesso, prima che l'agente
+ * li tocchi. La fotografia resta sulla scheda e sulla sessione tmux.
+ */
+function noteTurnInput(tab, data) {
+  if (!tab.turnCapture || !tab.cwd) return;
+  let line = null;
+  try { line = tab.turnCapture.feed(data); } catch { return; }
+  if (line) takeTurnSnapshot(tab).catch((e) => console.warn('[modifiche] fotografia non riuscita', e));
+}
+
+async function takeTurnSnapshot(tab) {
+  const snap = await window.aisess.gitSnapshot(tab.cwd);
+  if (!snap || !snap.ok) {
+    // Fuori da un repository non c'è niente da fotografare, e va bene così
+    if (snap && snap.error) console.warn('[modifiche] fotografia non riuscita:', snap.error);
+    return;
+  }
+  tab.turnTree = snap.tree;
+  tab.turnAt = snap.at;
+  if (tab.session) window.aisess.setMeta(tab.id, { turnTree: snap.tree, turnAt: snap.at });
+  if (tab.id === activeId) refreshChanges().catch(() => {});
+}
+
 /** Una sessione ha finito (signals.js): se sta in un worktree, se ne rileggono i numeri. */
 function noteWorktreeSessionDone(t) {
   const w = Groups.worktreeOf(t, worktreeCache.snapshot());

@@ -32,9 +32,11 @@
 
   /**
    * Accumula quello che l'utente digita e restituisce la prima riga inviata.
-   * @param {{max?: number}} [opts] lunghezza massima del titolo
+   * Con `repeat` restituisce ogni riga inviata, non solo la prima: è l'invio
+   * di un prompt che apre un «giro» del pannello delle modifiche (piano 32).
+   * @param {{max?: number, repeat?: boolean}} [opts] lunghezza massima del titolo
    */
-  function createPromptCapture({ max = DEFAULT_MAX } = {}) {
+  function createPromptCapture({ max = DEFAULT_MAX, repeat = false } = {}) {
     let buffer = '';
     let done = false;
 
@@ -51,7 +53,7 @@
       buffer = '';
       // Una riga vuota o un comando del CLI (/model, /init…) non è un prompt
       if (!line || line.startsWith('/')) return null;
-      done = true;
+      done = !repeat;
       return line.slice(0, max);
     }
 

@@ -40,7 +40,7 @@ async function resolveProjectRoot(cwd) {
   return root;
 }
 
-async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null, previousSession = null, startedAt = Date.now(), iconKey = 'shell', iconMode = 'auto' } = {}) {
+async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null, previousSession = null, startedAt = Date.now(), iconKey = 'shell', iconMode = 'auto', turnTree = null, turnAt = null } = {}) {
   // La sessione git non ha pty: è un pannello (renderer/git-tab.js)
   if (type === 'git') return createGitTab({ name, cwd, startedAt });
   // attachSession: riaggancio di una sessione tmux gia' viva. Il comando e' gia'
@@ -74,6 +74,11 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
     promptCapture: PromptCapture.createPromptCapture(), namedFromPrompt: false,
     iconKey: ShellIcons.normalize(iconKey), iconMode: iconMode === 'manual' ? 'manual' : 'auto',
     iconCapture: ShellIcons.createCommandCapture(),
+    // «Ultimo giro» del pannello delle modifiche (changes-panel.js): ogni
+    // prompt inviato a un agente fotografa i file; l'ultima fotografia resta
+    // qui e sulla sessione tmux
+    turnCapture: AI_TYPES.includes(type) ? PromptCapture.createPromptCapture({ repeat: true }) : null,
+    turnTree, turnAt,
     claudeAccountId, claudeAccountName, commandProfileId: picked.id, commandProfileLabel: picked.label, term: null, fit: null, ro: null, wrap, alive: true, needsAttention: false, idleTimer: null, running: false, runTimer: null };
   tabs.set(id, tab);
   // Quello che la sessione scrive per prima (ridisegno di tmux, conversazione
@@ -115,6 +120,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
     window.aisess.write(id, d);
     applyTypedPrompt(tab, d);
     observeShellIconInput(tab, d);
+    noteTurnInput(tab, d);
     // L'utente ha chiesto qualcosa qui: la risposta va segnalata anche se breve.
     // Non i report che xterm manda da solo (mouse, focus): lampeggio a caso.
     if (Attention.isTyping(d)) {

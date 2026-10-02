@@ -405,5 +405,7 @@ ok('main.js e solo cablaggio: nessuna funzione di logica definita al suo interno
   // lib/scrollback.js e app/quit-capture.js: qui restano solo le chiamate.
   // 220: altre 5 per l'handler della sessione git (lib/git-graph.js), arrivato
   // su main in parallelo — anche quello solo cablaggio.
-  assert.ok(main.split('\n').length < 220, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
+  // 225: altre 5 per le notifiche di sistema (piano 38): un require e la
+  // registrazione; la logica sta in lib/notifications.js e app/notify.js.
+  assert.ok(main.split('\n').length < 225, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
 });

@@ -65,7 +65,9 @@ ok('sessioni: la card lampeggia quando l assistente ha finito e si spegne alla s
   assert.ok(js.includes('term.onBell'), 'il bell dell agente non viene usato come segnale di fine turno');
   assert.ok(/function setActive\(id[^)]*\)[\s\S]{0,500}clearAttention\(id\)/.test(js),
     'selezionare la sessione non spegne il lampeggio');
-  assert.ok(/t\.id === activeId\) return/.test(js), 'la scheda in primo piano non deve lampeggiare');
+  // In primo piano = scheda attiva E finestra con il focus (piano 38): con
+  // l'app dietro anche la scheda attiva lampeggia, e notifica.
+  assert.ok(/isWatched\(t\)\) return/.test(js), 'la scheda in primo piano non deve lampeggiare');
   // La regola sta in renderer/attention.js (e lì è provata sul comportamento):
   // qui si verifica solo che il renderer le passi i tre eventi che non può
   // dedurre da sola — l'utente che scrive, che guarda, e che se ne va.

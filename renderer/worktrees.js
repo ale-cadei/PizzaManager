@@ -27,6 +27,8 @@ const worktreeActions = window.AisessWorktreeActions.createWorktreeActions({
   // Una alla volta: terminateTab ridisegna la sidebar a ogni chiusura
   closeSessions: async (list) => { for (const t of list) await terminateTab(t.id); },
   refresh: (root) => worktreeCache.refresh(root),
+  // Unisci si conferma guardando il diff nel pannello delle modifiche (changes-panel.js)
+  review: (w, conf) => reviewMerge(w, conf),
 });
 
 /** Un worktree creato o tolto fuori dall'app (un terminale, un agente) si vede al rientro. */

@@ -33,6 +33,9 @@ contextBridge.exposeInMainWorld('aisess', {
   gitDeleteBranch: (cwd, name, force) => ipcRenderer.invoke('git-delete-branch', { cwd, name, force }),
   gitSessions: () => ipcRenderer.invoke('git-sessions'),
   saveGitSessions: (sessions) => ipcRenderer.invoke('git-sessions-save', { sessions }),
+  gitChanges: (cwd, base, since) => ipcRenderer.invoke('git-changes', { cwd, base, since }),
+  gitFileDiff: (cwd, base, path, since) => ipcRenderer.invoke('git-file-diff', { cwd, base, path, since }),
+  gitSnapshot: (cwd) => ipcRenderer.invoke('git-snapshot', { cwd }),
   worktreeList: (root) => ipcRenderer.invoke('worktree-list', { root }),
   worktreeStart: (root) => ipcRenderer.invoke('worktree-start', { root }),
   worktreeCreate: (root, branch, base) => ipcRenderer.invoke('worktree-create', { root, branch, base }),
@@ -58,7 +61,7 @@ contextBridge.exposeInMainWorld('aisess', {
   clipboardRead: () => ipcRenderer.invoke('clipboard-read'),
   onMenuEdit: (cb) => ipcRenderer.on('menu-edit', (_e, action) => cb(action)),
   onMenu: (channel, cb) => {
-    const allowed = ['menu-new-session', 'menu-open-config', 'menu-term-font-bigger', 'menu-term-font-smaller', 'menu-term-font-reset', 'menu-type-colors', 'menu-pets'];
+    const allowed = ['menu-new-session', 'menu-open-config', 'menu-term-font-bigger', 'menu-term-font-smaller', 'menu-term-font-reset', 'menu-type-colors', 'menu-pets', 'menu-changes'];
     if (!allowed.includes(channel)) return;
     ipcRenderer.on(channel, () => cb());
   },

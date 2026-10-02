@@ -153,3 +153,31 @@ ok('primo prompt: un incolla lungo diventa un titolo corto', () => {
   const out = cap.feed('x'.repeat(200) + '\r');
   assert.strictEqual(out.length, 40);
 });
+
+ok('prompt inviati: con repeat ogni riga inviata conta, non solo la prima', () => {
+  const { createPromptCapture } = require('../renderer/prompt-capture');
+  const cap = createPromptCapture({ repeat: true });
+  assert.strictEqual(cap.feed('primo\r'), 'primo');
+  assert.strictEqual(cap.feed('\r'), null, 'una riga vuota non apre un giro');
+  assert.strictEqual(cap.feed('/compact\r'), null, 'un comando slash non apre un giro');
+  assert.strictEqual(cap.feed('secondo\r'), 'secondo');
+  assert.strictEqual(cap.isDone(), false);
+});
+
+ok('prompt inviati: un incolla su più righe è un prompt solo, inviato dall\'Invio dopo', () => {
+  const { createPromptCapture } = require('../renderer/prompt-capture');
+  const cap = createPromptCapture({ repeat: true, max: 200 });
+  assert.strictEqual(cap.feed('\x1b[200~riga uno\nriga due\x1b[201~'), null, 'l\'incolla da solo non invia');
+  assert.strictEqual(cap.feed('\r'), 'riga uno riga due');
+});
+
+ok('prompt inviati: le risposte ai menu e le bozze abbandonate con Ctrl+C non contano', () => {
+  const { createPromptCapture } = require('../renderer/prompt-capture');
+  const cap = createPromptCapture({ repeat: true });
+  cap.feed('1'); // permesso concesso: Claude lo prende senza Invio
+  assert.strictEqual(cap.feed('\r'), null, 'la risposta al menu è passata per un prompt');
+  cap.feed('bozza');
+  cap.feed('\x03');
+  assert.strictEqual(cap.feed('\r'), null, 'la bozza abbandonata è passata per un prompt');
+  assert.strictEqual(cap.feed('vero prompt\r'), 'vero prompt');
+});

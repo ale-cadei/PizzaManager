@@ -600,3 +600,136 @@ ok('git: switchBranch, createBranch e deleteBranch con il git installato, remoti
     fs.rmSync(base, { recursive: true, force: true });
   }
 });
+
+// ---------- git: il pannello «cosa ha cambiato» su un repository vero (piano 32) ----------
+ok('git: readChanges e readFileDiff su modifiche, file nuovi, rinominati e worktree, con il git installato', async (t) => {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const path = require('path');
+  const { resolveBinary } = require('../lib/binaries');
+  const { readChanges, readFileDiff } = require('../lib/git-changes');
+  const bin = resolveBinary('git');
+  if (!bin.path) return t.skip('git non installato su questa macchina');
+  const base = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-changes-')));
+  const root = path.join(base, 'progetto');
+  const wtPath = path.join(base, 'progetto.worktrees', 'feat-x');
+  const git = (cwd, ...args) => String(execFileSync(bin.path, args, { cwd })).trim();
+  const write = (cwd, file, text) => fs.writeFileSync(path.join(cwd, file), text);
+  try {
+    fs.mkdirSync(root);
+    git(root, 'init', '-q', '-b', 'main');
+    git(root, 'config', 'user.name', 'Prova');
+    git(root, 'config', 'user.email', 'p@x');
+
+    // Senza commit: tutto quello che c'è è nuovo
+    write(root, 'a.txt', 'uno\ndue\n');
+    const unborn = await readChanges({ cwd: root });
+    assert.strictEqual(unborn.ok, true, unborn.error);
+    assert.deepStrictEqual(unborn.files.map((f) => [f.path, f.status, f.added]), [['a.txt', '?', 2]]);
+
+    write(root, 'vecchio.txt', 'resto uguale\nper il rename\ne ancora\n');
+    git(root, 'add', '.');
+    git(root, 'commit', '-q', '-m', 'primo');
+    const clean = await readChanges({ cwd: root });
+    assert.deepStrictEqual([clean.files, clean.totals], [[], { files: 0, added: 0, removed: 0 }]);
+
+    // Una modifica, un file nuovo con un nome strano, un rename
+    write(root, 'a.txt', 'uno\nDUE\ntre\n');
+    write(root, 'perché è.md', '<script>x</script>\n');
+    git(root, 'mv', 'vecchio.txt', 'nuovo.txt');
+    const r = await readChanges({ cwd: path.join(root) });
+    assert.strictEqual(r.ok, true, r.error);
+    assert.deepStrictEqual(r.files.map((f) => [f.path, f.status, f.added, f.removed]), [
+      ['a.txt', 'M', 2, 1], ['nuovo.txt', 'R', 0, 0], ['perché è.md', '?', 1, 0],
+    ]);
+    assert.strictEqual(r.files[1].oldPath, 'vecchio.txt');
+
+    const d = await readFileDiff({ cwd: root, path: 'a.txt' });
+    assert.strictEqual(d.ok, true, d.error);
+    assert.deepStrictEqual(d.hunks[0].lines.map((l) => [l.kind, l.text]), [['ctx', 'uno'], ['del', 'due'], ['add', 'DUE'], ['add', 'tre']]);
+    const n = await readFileDiff({ cwd: root, path: 'perché è.md' });
+    assert.strictEqual(n.hunks[0].lines[0].text, '<script>x</script>');
+    assert.strictEqual((await readFileDiff({ cwd: root, path: '../progetto/a.txt' })).ok, false);
+    git(root, 'add', '.');
+    git(root, 'commit', '-q', '-m', 'secondo');
+
+    // Worktree: commit del branch + non committato, contro la base
+    git(root, 'worktree', 'add', '-q', '-b', 'feat/x', wtPath);
+    write(root, 'a.txt', 'cambiato su main dopo\n');
+    git(root, 'commit', '-q', '-am', 'main va avanti');
+    write(wtPath, 'b.txt', 'dal branch\n');
+    git(wtPath, 'add', 'b.txt');
+    git(wtPath, 'commit', '-q', '-m', 'sul branch');
+    write(wtPath, 'c.txt', 'non committato\n');
+    const w = await readChanges({ cwd: wtPath, base: 'main' });
+    assert.strictEqual(w.ok, true, w.error);
+    assert.strictEqual(w.base, 'main');
+    assert.deepStrictEqual(w.files.map((f) => [f.path, f.status]), [['b.txt', 'A'], ['c.txt', '?']],
+      'i commit di main dopo la partenza non sono lavoro del branch');
+    assert.strictEqual(w.uncommitted, 1, 'solo c.txt non è in un commit');
+    const vsHead = await readChanges({ cwd: wtPath });
+    assert.deepStrictEqual(vsHead.files.map((f) => f.path), ['c.txt']);
+
+    const outside = await readChanges({ cwd: base });
+    assert.deepStrictEqual(outside, { ok: false, reason: 'not-a-repo' });
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+});
+
+// ---------- git: «ultimo giro», fotografia e confronto con git vero (piano 32) ----------
+ok('git: la fotografia non tocca l\'indice e il confronto vede solo quello che è cambiato dopo, con il git installato', async (t) => {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const path = require('path');
+  const { resolveBinary } = require('../lib/binaries');
+  const { snapshotTree } = require('../lib/git-snapshot');
+  const { readChanges, readFileDiff } = require('../lib/git-changes');
+  const bin = resolveBinary('git');
+  if (!bin.path) return t.skip('git non installato su questa macchina');
+  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-giro-')));
+  const git = (...args) => String(execFileSync(bin.path, args, { cwd: root })).trim();
+  const write = (file, text) => fs.writeFileSync(path.join(root, file), text);
+  try {
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.name', 'Prova');
+    git('config', 'user.email', 'p@x');
+    write('a.txt', 'uno\n');
+    write('b.txt', 'bi\n');
+    git('add', '.');
+    git('commit', '-q', '-m', 'primo');
+
+    // Giro precedente: lavoro non committato, una cosa in stage
+    write('a.txt', 'uno\ngiro vecchio\n');
+    write('vecchio-nuovo.txt', 'dal giro prima\n');
+    git('add', 'a.txt');
+    const stagedBefore = git('diff', '--cached', '--name-only');
+    const snap = await snapshotTree({ cwd: root });
+    assert.strictEqual(snap.ok, true, snap.error);
+    assert.strictEqual(git('diff', '--cached', '--name-only'), stagedBefore, 'la fotografia ha toccato l\'indice');
+    assert.strictEqual(git('status', '--porcelain', '--', 'vecchio-nuovo.txt'), '?? vecchio-nuovo.txt', 'il file nuovo è finito nell\'indice');
+    const again = await snapshotTree({ cwd: root });
+    assert.strictEqual(again.tree, snap.tree, 'due fotografie senza modifiche in mezzo sono diverse');
+
+    // Il giro: una riga in più in a.txt, b.txt toccato, un file nuovo, uno tolto
+    write('a.txt', 'uno\ngiro vecchio\ngiro nuovo\n');
+    write('b.txt', 'BI\n');
+    write('giro.txt', 'nuovo in questo giro\n');
+    fs.rmSync(path.join(root, 'vecchio-nuovo.txt'));
+    const r = await readChanges({ cwd: root, since: snap.tree });
+    assert.strictEqual(r.ok, true, r.error);
+    assert.deepStrictEqual(r.files.map((f) => [f.path, f.status, f.added, f.removed]), [
+      ['a.txt', 'M', 1, 0], ['b.txt', 'M', 1, 1], ['giro.txt', 'A', 1, 0], ['vecchio-nuovo.txt', 'D', 0, 1],
+    ]);
+    const d = await readFileDiff({ cwd: root, path: 'a.txt', since: snap.tree });
+    assert.strictEqual(d.ok, true, d.error);
+    assert.deepStrictEqual(d.hunks[0].lines.filter((l) => l.kind !== 'ctx').map((l) => [l.kind, l.text]), [['add', 'giro nuovo']]);
+    const n = await readFileDiff({ cwd: root, path: 'giro.txt', since: snap.tree });
+    assert.deepStrictEqual(n.hunks[0].lines.map((l) => l.text), ['nuovo in questo giro']);
+    // Dall'ultimo commit invece si vede tutto, giro vecchio compreso
+    const all = await readChanges({ cwd: root });
+    assert.deepStrictEqual(all.files.map((f) => f.path), ['a.txt', 'b.txt', 'giro.txt']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

@@ -46,7 +46,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 35 | [`feat/quota-per-profilo`](35-quota-per-profilo.md) | 17 | ~½ g | fatto, provato nell'app (smoke) |
 | 36 | [`feat/sessione-worktree`](36-sessione-worktree.md) | 8, 25, 27 | ~1½ g | fatto, provato nell'app |
 | 37 | [`fix/collassi-al-riavvio`](37-collassi-al-riavvio.md) | 8, 6 | ~1h | fatto, da provare nell'app |
-| 38 | [`feat/notifiche-sistema`](38-notifiche-sistema.md) — macOS e Linux | — | ~½ g | pianificato |
+| 38 | [`feat/notifiche-sistema`](38-notifiche-sistema.md) — macOS e Linux | — | ~½ g | fatto, da provare nell'app (macOS e Linux) |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

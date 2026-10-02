@@ -3,6 +3,10 @@
 Branch: `feat/notifiche-sistema` · Dipende da: — · Taglia: ~½ g
 Scritto il 2026-10-02. Solo macOS e Linux; Windows dopo, con un piano suo.
 
+**Stato (2026-10-02):** fatto (commit `feat: notifiche di sistema…` e
+`feat: la scheda attiva conta come non vista…`), suite verde. Da provare
+nell'app: la «Verifica nell'app» qui sotto, su macOS e su Linux.
+
 ## Obiettivo
 
 Oggi la card lampeggia quando l'assistente ha finito, ma il lampeggio si vede

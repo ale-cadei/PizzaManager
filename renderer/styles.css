@@ -804,10 +804,18 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .changes-ln { flex: 0 0 5ch; padding-right: 1ch; text-align: right; color: var(--text-faint); user-select: none; }
 .changes-sign { flex: 0 0 2ch; text-align: center; user-select: none; }
 .changes-code { padding-right: 12px; }
-.changes-line.add { background: color-mix(in srgb, var(--state-ok) 12%, transparent); }
-.changes-line.add .changes-sign { color: var(--state-ok); }
-.changes-line.del { background: color-mix(in srgb, var(--state-error) 12%, transparent); }
-.changes-line.del .changes-sign { color: var(--state-error); }
+/* Righe del diff: aggiunte e tolte devono saltare all'occhio. Fondo pieno
+   del loro colore, barra a sinistra, numero di riga più carico; il contesto
+   resta attenuato, così il contrasto viene da entrambi i lati. */
+.changes-line { border-left: 3px solid transparent; }
+.changes-line.ctx .changes-code { color: var(--text-dim); }
+.changes-line.add { background: color-mix(in srgb, var(--state-ok) 24%, transparent); border-left-color: var(--state-ok); }
+.changes-line.add .changes-ln { background: color-mix(in srgb, var(--state-ok) 34%, transparent); color: var(--text); }
+.changes-line.add .changes-sign { color: var(--state-ok); font-weight: 600; }
+.changes-line.del { background: color-mix(in srgb, var(--state-error) 24%, transparent); border-left-color: var(--state-error); }
+.changes-line.del .changes-ln { background: color-mix(in srgb, var(--state-error) 34%, transparent); color: var(--text); }
+.changes-line.del .changes-sign { color: var(--state-error); font-weight: 600; }
+.changes-line.add .changes-code, .changes-line.del .changes-code { color: var(--text); }
 .changes-line.note { color: var(--text-faint); font-style: italic; }
 .changes-diff-note { padding: 6px 12px; font: 400 11px/1.4 var(--font-ui); color: var(--text-dim); }
 /* Modalità «Unisci»: la conferma sta in fondo, sempre visibile */

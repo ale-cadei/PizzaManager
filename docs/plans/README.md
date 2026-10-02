@@ -45,6 +45,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 34 | [`feat/git-main-a-sinistra`](34-git-main-a-sinistra.md) | 25, 27 | ~½ g | fatto, provato nell'app (smoke) |
 | 35 | [`feat/quota-per-profilo`](35-quota-per-profilo.md) | 17 | ~½ g | fatto, provato nell'app (smoke) |
 | 36 | [`feat/sessione-worktree`](36-sessione-worktree.md) | 8, 25, 27 | ~1½ g | fatto, provato nell'app |
+| 37 | [`fix/collassi-al-riavvio`](37-collassi-al-riavvio.md) | 8, 6 | ~1h | fatto, da provare nell'app |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

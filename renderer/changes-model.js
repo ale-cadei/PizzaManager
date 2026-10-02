@@ -64,6 +64,13 @@
     return result.truncated ? [...parts, { kind: 'note', text: `mostrati i primi ${result.files.length}` }] : parts;
   }
 
+  /** Un avviso sopra l'elenco: per ora solo la fotografia senza i file nuovi */
+  function notice(result) {
+    if (!result || !result.ok || !result.partial) return null;
+    return 'Troppi file nuovi non ignorati (una cartella generata?): l\'ultimo giro non vede i file nuovi. '
+      + 'Aggiungi quella cartella a .gitignore.';
+  }
+
   /** Lo stesso riepilogo in una riga di testo */
   function summary(result) {
     if (!isRepo(result)) return '';
@@ -143,5 +150,5 @@
     return result && result.since ? 'Nessuna modifica dall\'ultimo prompt.' : 'Nessuna modifica: tutto come all\'ultimo commit.';
   }
 
-  return { targetFor, tabLabel, headerTitle, summary, summaryParts, modeChoice, emptyText, fileCounts, signature, diffsToReload, splitPath, displayPath };
+  return { targetFor, tabLabel, headerTitle, summary, summaryParts, notice, modeChoice, emptyText, fileCounts, signature, diffsToReload, splitPath, displayPath };
 });

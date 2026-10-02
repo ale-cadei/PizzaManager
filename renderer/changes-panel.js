@@ -50,7 +50,11 @@ function noteTurnInput(tab, data) {
 }
 
 async function takeTurnSnapshot(tab) {
+  // Due prompt di fila: vale la fotografia dell'ultimo, anche se arriva prima
+  const seq = (tab.turnSeq || 0) + 1;
+  tab.turnSeq = seq;
   const snap = await window.aisess.gitSnapshot(tab.cwd);
+  if (tab.turnSeq !== seq) return;
   if (!snap || !snap.ok) {
     // Fuori da un repository non c'è niente da fotografare, e va bene così
     if (snap && snap.error) console.warn('[modifiche] fotografia non riuscita:', snap.error);
@@ -146,6 +150,7 @@ function renderChanges() {
     // In modalità Unisci si guarda il branch contro la base, nient'altro
     modes: merge ? null : ChangesModel.modeChoice(activeTab(), mode),
     emptyText: ChangesModel.emptyText(result),
+    notice: ChangesModel.notice(result),
   });
 }
 

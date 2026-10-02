@@ -29,6 +29,12 @@
   const PASTE_END = /\x1b\[201~/g;
   const ESCAPE_SEQ = /\x1b(\][^\x07\x1b]*(\x07|\x1b\\)?|\[[0-9;?]*[ -/]*[@-~]|O[@-~]|.)/g;
   const CONTROL = /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g;
+  /* Un incolla su più righe è un prompt solo, inviato dall'Invio che viene dopo */
+  const PASTED_BLOCK = /\x1b\[200~([\s\S]*?)(?:\x1b\[201~|$)/g;
+  /* Risposte ai menu delle TUI (permessi: «1», «y»): con `repeat` restano nel
+     buffer e un Invio dopo le farebbe passare per un prompt */
+  const MENU_ANSWER = /^[0-9yn]{1,3}$/i;
+  const CTRL_C = '\x03';
 
   /**
    * Accumula quello che l'utente digita e restituisce la prima riga inviata.
@@ -53,6 +59,7 @@
       buffer = '';
       // Una riga vuota o un comando del CLI (/model, /init…) non è un prompt
       if (!line || line.startsWith('/')) return null;
+      if (repeat && MENU_ANSWER.test(line)) return null;
       done = !repeat;
       return line.slice(0, max);
     }
@@ -63,7 +70,9 @@
      */
     function feed(data) {
       if (done) return null;
-      const raw = String(data == null ? '' : data);
+      const raw = String(data == null ? '' : data).replace(PASTED_BLOCK, (m, body) => `\x1b[200~${body.replace(/\r\n|\r|\n/g, ' ')}\x1b[201~`);
+      // Ctrl+C: la bozza è abbandonata (Claude e codex svuotano la riga)
+      if (raw.includes(CTRL_C)) { buffer = ''; return null; }
       const pasted = PASTE_START.test(raw);
       PASTE_START.lastIndex = 0;
       // Risposta del terminale o tasto speciale: non l'ha scritto l'utente

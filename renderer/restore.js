@@ -29,6 +29,8 @@ async function reattachLiveSessions() {
       // L'istante di avvio e' quello della sessione tmux, non del riattacco:
       // senza id, la conversazione va cercata da quando e' nata davvero.
       startedAt: s.createdAt || Date.now(),
+      // Tornano da sole: i gruppi restano collassati come li aveva lasciati l'utente
+      reveal: false,
     });
   }
 }
@@ -91,7 +93,7 @@ function sessionRestoreItem(s) {
   return {
     type, name: s.label || type, cwd: s.cwd, how,
     iconKey: plan.iconKey,
-    restore: () => createTab(plan.type, { name: plan.name, cwd: plan.cwd, resumeId: plan.resumeId, claudeAccountId: plan.claudeAccountId, commandProfileId: plan.commandProfileId, previousSession: plan.previousSession, iconKey: plan.iconKey, iconMode: plan.iconMode }),
+    restore: () => createTab(plan.type, { name: plan.name, cwd: plan.cwd, resumeId: plan.resumeId, claudeAccountId: plan.claudeAccountId, commandProfileId: plan.commandProfileId, previousSession: plan.previousSession, iconKey: plan.iconKey, iconMode: plan.iconMode, reveal: false }),
   };
 }
 
@@ -99,7 +101,7 @@ function gitRestoreItem(s) {
   const repoName = String(s.cwd || '').split(/[\\/]/).filter(Boolean).pop();
   return {
     type: 'git', name: s.name || repoName || 'git', cwd: s.cwd, how: 'timeline git',
-    restore: () => createGitTab({ name: s.name, cwd: s.cwd, startedAt: s.startedAt }),
+    restore: () => createGitTab({ name: s.name, cwd: s.cwd, startedAt: s.startedAt, reveal: false }),
   };
 }
 

@@ -40,9 +40,12 @@ async function resolveProjectRoot(cwd) {
   return root;
 }
 
-async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null, previousSession = null, startedAt = Date.now(), iconKey = 'shell', iconMode = 'auto', turnTree = null, turnAt = null } = {}) {
+/* reveal: false per le schede che tornano al riavvio dell'app. Non le ha
+   scelte l'utente adesso: espanderne il gruppo cancellerebbe i collassi
+   che aveva lasciato (setActive). */
+async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null, previousSession = null, startedAt = Date.now(), iconKey = 'shell', iconMode = 'auto', turnTree = null, turnAt = null, reveal = true } = {}) {
   // La sessione git non ha pty: è un pannello (renderer/git-tab.js)
-  if (type === 'git') return createGitTab({ name, cwd, startedAt });
+  if (type === 'git') return createGitTab({ name, cwd, startedAt, reveal });
   // attachSession: riaggancio di una sessione tmux gia' viva. Il comando e' gia'
   // stato risolto quando e' nata, quindi niente scelta del profilo.
   const picked = attachSession
@@ -85,7 +88,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   // ripresa) è l'avvio, non un lavoro finito: al ripristino le accendeva tutte.
   if (type !== 'shell') attention.born(id);
   updateEmpty();
-  setActive(id);
+  setActive(id, { reveal });
 
   // scrollback: senza tmux la history con cui scorre la rotella è QUESTA.
   // Le 1000 righe di default coprivano poco: allineate all'ordine di
@@ -194,7 +197,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   setTimeout(() => { refreshAutoTitles().catch(() => {}); }, 4000);
 }
 
-function setActive(id) {
+function setActive(id, { reveal = true } = {}) {
   // La scheda che lascia il primo piano si ridisegna per il refit: quell'output
   // è una conseguenza della visita, non un lavoro nuovo (attention.js).
   if (activeId && activeId !== id) attention.left(activeId);
@@ -206,8 +209,9 @@ function setActive(id) {
   // Selezionare una scheda espande il suo gruppo, così la card resta visibile.
   // Va fatto SOLO qui e non in renderSidebar(), altrimenti il click sull'header
   // richiuderebbe e riaprirebbe subito il gruppo della scheda attiva.
+  // Non al ripristino (reveal false): i collassi sono quelli lasciati dall'utente.
   const t = tabs.get(id);
-  if (t) sidebar.expandGroupOf(t);
+  if (t && reveal) sidebar.expandGroupOf(t);
   // La timeline git si rilegge tornando in primo piano: intanto si è lavorato
   if (t && t.git && id !== previousId) refreshGitTab(t);
   renderSidebar();

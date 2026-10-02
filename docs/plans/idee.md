@@ -67,6 +67,10 @@ soglie di byte e di tempo) e si vede solo dentro l'app. L'idea:
   primo piano;
 - Codex/opencode restano sull'euristica attuale.
 
+Le notifiche di sistema si fanno subito sul segnale di oggi, senza toccarlo:
+[38-notifiche-sistema.md](38-notifiche-sistema.md). Il segnale esatto (hook)
+resta qui, ci lavora Ale.
+
 - [ ] studio — come installare l'hook senza sporcare la config dell'utente
 - [ ] piano
 - [ ] fatto

@@ -10,9 +10,18 @@
 const ATTENTION_IDLE_MS = 1500;
 const attention = Attention.createAttention();
 
+/* La scheda attiva è sotto gli occhi dell'utente solo se la finestra ha il
+   focus: con l'app dietro può accendersi (e notificare) come le altre. È il
+   caso più comune: chiedo qualcosa, passo al browser, aspetto (piano 38). */
+let windowFocused = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+
+function isWatched(t) {
+  return t.id === activeId && windowFocused;
+}
+
 function noteActivity(t, bytes) {
   if (t.type === 'shell') return;   // nessun assistente: niente da segnalare
-  if (t.id === activeId) return;    // già sotto gli occhi dell'utente
+  if (isWatched(t)) return;         // già sotto gli occhi dell'utente
   attention.data(t.id, bytes);
   clearTimeout(t.idleTimer);
   t.idleTimer = setTimeout(() => flagAttention(t), ATTENTION_IDLE_MS);
@@ -24,12 +33,33 @@ function flagAttention(t, { bell = false } = {}) {
   t.idleTimer = null;
   // Anche se non lampeggia (shell): il lavoro è finito, i numeri del suo worktree cambiano
   noteWorktreeSessionDone(t);
-  if (t.type === 'shell' || t.id === activeId || t.needsAttention) return;
+  if (t.type === 'shell' || isWatched(t) || t.needsAttention) return;
   if (!(bell ? attention.bell(t.id) : attention.idle(t.id))) return;
   t.needsAttention = true;
+  notifyFinished(t);
+  syncBadge();
   // Solo la classe sulla card: rifare la sidebar farebbe ripartire da capo il
   // lampeggio di tutte le altre (render() ricostruisce gli elementi).
   if (!sidebar.signal(t.id, { needsAttention: true })) renderSidebar();
+}
+
+/* Lasciare la finestra è lasciare la scheda attiva: parte la finestra di
+   silenzio, così il ridisegno del focus-out non accende la card. Tornarci è
+   rivederla, come selezionarla. */
+function onWindowBlur() {
+  windowFocused = false;
+  if (activeId) attention.left(activeId);
+}
+
+function onWindowFocus() {
+  windowFocused = true;
+  if (!activeId || !clearAttention(activeId)) return;
+  if (!sidebar.signal(activeId, { needsAttention: false })) renderSidebar();
+}
+
+function watchWindowFocus() {
+  window.addEventListener('blur', onWindowBlur);
+  window.addEventListener('focus', onWindowFocus);
 }
 
 /* ---------- "Sta lavorando adesso": barra del tipo animata ----------
@@ -60,6 +90,7 @@ function stopRunning(t) {
 function retractAttention(t) {
   if (!t.needsAttention || !attention.resumed(t.id)) return;
   t.needsAttention = false;
+  syncBadge();
   if (!sidebar.signal(t.id, { needsAttention: false })) renderSidebar();
 }
 
@@ -80,5 +111,25 @@ function clearAttention(id) {
   attention.seen(id);
   if (!t.needsAttention) return false;
   t.needsAttention = false;
+  syncBadge();
   return true;
+}
+
+/* ---------- Notifiche di sistema e badge (docs/plans/38) ----------
+   Seguono la card: si accende → il main valuta se notificare (finestra
+   dietro, notifiche accese); il badge è il numero di card accese. */
+function notifyFinished(t) {
+  try {
+    window.aisess.notifyFinished(window.AisessNotify.notifyItem(t, { typeLabels: Groups.TYPE_LABELS, shortPath: Groups.shortPath }));
+  } catch (e) {
+    console.warn('notifica non inviata', e);
+  }
+}
+
+function syncBadge() {
+  try {
+    window.aisess.notifyBadge(window.AisessNotify.attentionCount(tabs.values()));
+  } catch (e) {
+    console.warn('badge non aggiornato', e);
+  }
 }

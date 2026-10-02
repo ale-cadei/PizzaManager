@@ -38,6 +38,8 @@ async function init() {
   initUsageBar();
   initExtensions();
   initPets();
+  initNotifications().catch((e) => console.warn('notifiche non inizializzate', e));
+  watchWindowFocus();
   initChangesPanel();
   $('#group-mode-type').addEventListener('click', () => { if (sidebar.setMode('type')) renderSidebar(); });
   $('#group-mode-project').addEventListener('click', () => { if (sidebar.setMode('project')) renderSidebar(); });

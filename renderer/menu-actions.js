@@ -32,6 +32,28 @@ function typeColorsDialog() {
   return typeColorsDialogInstance;
 }
 
+/* Notifiche di sistema (piano 38): la preferenza vive qui, il main la riceve
+   e tiene allineata la spunta del menu nativo; quella della menubar in-app
+   la aggiorna applyNotifications. */
+async function applyNotifications(enabled) {
+  const check = $('#mb-notifications-check');
+  if (check) check.textContent = enabled ? '✓' : '';
+  try {
+    return await window.aisess.notifyConfig({ enabled });
+  } catch (e) {
+    console.warn('notify-config fallito', e);
+    return null;
+  }
+}
+async function initNotifications() {
+  window.aisess.onMenu('menu-notifications', () => { applyNotifications(notifyStore.toggle()); });
+  // Click sulla notifica: la scheda, se c'è ancora
+  window.aisess.onNotifyOpenTab((id) => { if (tabs.has(id)) setActive(id); });
+  const res = await applyNotifications(notifyStore.get());
+  const item = $('#mb-notifications');
+  if (item && !(res && res.supported)) item.hidden = true;
+}
+
 /* Animaletti in fondo alla finestra (renderer/pets-view.js, piano 33).
    Reagiscono a tutte le schede: una al lavoro li fa correre, una che
    aspetta ne fa chiamare uno. */

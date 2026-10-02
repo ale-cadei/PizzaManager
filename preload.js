@@ -59,9 +59,14 @@ contextBridge.exposeInMainWorld('aisess', {
   listExtensions: (cwd) => ipcRenderer.invoke('list-extensions', { cwd }),
   clipboardWrite: (text) => ipcRenderer.invoke('clipboard-write', { text }),
   clipboardRead: () => ipcRenderer.invoke('clipboard-read'),
+  // Notifiche di sistema (app/notify.js): il renderer dice chi ha finito, il main decide se mostrarla
+  notifyFinished: (item) => ipcRenderer.send('notify-finished', item),
+  notifyBadge: (count) => ipcRenderer.send('notify-badge', count),
+  notifyConfig: (cfg) => ipcRenderer.invoke('notify-config', cfg),
+  onNotifyOpenTab: (cb) => ipcRenderer.on('notify-open-tab', (_e, id) => cb(id)),
   onMenuEdit: (cb) => ipcRenderer.on('menu-edit', (_e, action) => cb(action)),
   onMenu: (channel, cb) => {
-    const allowed = ['menu-new-session', 'menu-open-config', 'menu-term-font-bigger', 'menu-term-font-smaller', 'menu-term-font-reset', 'menu-type-colors', 'menu-pets', 'menu-changes'];
+    const allowed = ['menu-new-session', 'menu-open-config', 'menu-term-font-bigger', 'menu-term-font-smaller', 'menu-term-font-reset', 'menu-type-colors', 'menu-pets', 'menu-changes', 'menu-notifications'];
     if (!allowed.includes(channel)) return;
     ipcRenderer.on(channel, () => cb());
   },

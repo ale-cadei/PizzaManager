@@ -325,3 +325,17 @@ ok('notifiche: main registra gli handler, la card accesa notifica, menu nativo e
   assert.ok(read('renderer', 'index.html').includes('data-action="notifications"'), 'manca la voce nella menubar in-app');
   assert.ok(read('app', 'menu.js').includes("case 'notifications': wc.send('menu-notifications')"), 'runMenuAction non gestisce le notifiche');
 });
+
+ok('notifiche: la scheda attiva conta come vista solo con la finestra in primo piano', () => {
+  const rend = readRendererApp();
+  const note = rend.slice(rend.indexOf('function noteActivity'), rend.indexOf('function flagAttention'));
+  const flag = rend.slice(rend.indexOf('function flagAttention'), rend.indexOf('function retractAttention'));
+  for (const [name, body] of [['noteActivity', note], ['flagAttention', flag]]) {
+    assert.ok(body.includes('isWatched(t)'), `${name} non usa isWatched`);
+    assert.ok(!body.includes('t.id === activeId'), `${name} esclude ancora la scheda attiva anche con l app dietro`);
+  }
+  assert.ok(/function isWatched\(t\)\s*\{\s*return t\.id === activeId && windowFocused;/.test(rend), 'isWatched deve guardare anche il focus');
+  assert.ok(rend.includes("window.addEventListener('blur', onWindowBlur)"), 'manca il blur della finestra');
+  assert.ok(rend.includes("window.addEventListener('focus', onWindowFocus)"), 'manca il focus della finestra');
+  assert.ok(rend.includes('watchWindowFocus()'), 'init non collega il focus della finestra');
+});

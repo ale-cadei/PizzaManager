@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Notification, Menu } = require('electron');
 const fs = require('fs');
 const os = require('os');
 const { getDefaultShell, platformLabel } = require('./lib/shell');
@@ -28,6 +28,7 @@ const { registerClipboardHandlers } = require('./app/clipboard');
 const { installQuitCapture } = require('./app/quit-capture');
 const { registerExportHandlers } = require('./app/export');
 const { registerGitHandlers } = require('./app/git');
+const { registerNotifyHandlers } = require('./app/notify');
 
 // La cartella dei dati NON segue il nome dell'app. Electron la deriva da
 // productName: un rebrand ("PizzaManager") la sposterebbe in una cartella nuova
@@ -216,3 +217,6 @@ ipcMain.handle('usage-snapshot', async (event, { active, tab } = {}) => {
 // ---------- Appunti (per term-clipboard.js nel renderer) ----------
 registerClipboardHandlers(ipcMain);
 registerGitHandlers(ipcMain, { userDataDir: () => app.getPath('userData') });
+
+// ---------- Notifiche di sistema e badge (docs/plans/38) ----------
+registerNotifyHandlers(ipcMain, { electron: { app, Notification, Menu }, getWindow: () => mainWindow, sendToRenderer });

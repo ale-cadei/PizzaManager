@@ -27,6 +27,8 @@ function flagAttention(t, { bell = false } = {}) {
   if (t.type === 'shell' || t.id === activeId || t.needsAttention) return;
   if (!(bell ? attention.bell(t.id) : attention.idle(t.id))) return;
   t.needsAttention = true;
+  notifyFinished(t);
+  syncBadge();
   // Solo la classe sulla card: rifare la sidebar farebbe ripartire da capo il
   // lampeggio di tutte le altre (render() ricostruisce gli elementi).
   if (!sidebar.signal(t.id, { needsAttention: true })) renderSidebar();
@@ -60,6 +62,7 @@ function stopRunning(t) {
 function retractAttention(t) {
   if (!t.needsAttention || !attention.resumed(t.id)) return;
   t.needsAttention = false;
+  syncBadge();
   if (!sidebar.signal(t.id, { needsAttention: false })) renderSidebar();
 }
 
@@ -80,5 +83,25 @@ function clearAttention(id) {
   attention.seen(id);
   if (!t.needsAttention) return false;
   t.needsAttention = false;
+  syncBadge();
   return true;
+}
+
+/* ---------- Notifiche di sistema e badge (docs/plans/38) ----------
+   Seguono la card: si accende → il main valuta se notificare (finestra
+   dietro, notifiche accese); il badge è il numero di card accese. */
+function notifyFinished(t) {
+  try {
+    window.aisess.notifyFinished(window.AisessNotify.notifyItem(t, { typeLabels: Groups.TYPE_LABELS, shortPath: Groups.shortPath }));
+  } catch (e) {
+    console.warn('notifica non inviata', e);
+  }
+}
+
+function syncBadge() {
+  try {
+    window.aisess.notifyBadge(window.AisessNotify.attentionCount(tabs.values()));
+  } catch (e) {
+    console.warn('badge non aggiornato', e);
+  }
 }

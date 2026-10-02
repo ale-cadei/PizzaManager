@@ -60,6 +60,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   padding: 7px 10px; border-radius: 6px; width: 100%;
 }
 .mb-drop button:hover { background: var(--action-soft); }
+.mb-drop button[hidden] { display: none; }
 .mb-acc { color: var(--text-dim); font-family: var(--font-mono); font-size: 11px; }
 .mb-sep { height: 1px; background: var(--border); margin: 4px 6px; }
 

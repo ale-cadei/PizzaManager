@@ -312,3 +312,16 @@ ok('export: handler registrato dal main, preload, bottoni nel Resume e sulla car
   assert.ok(/onExport: \(t, anchor\) =>/.test(js), 'la sidebar non riceve onExport');
   assert.ok(js.includes('window.aisess.exportConversation('), 'il renderer non chiama l export');
 });
+
+// ---------- Notifiche di sistema (piano 38) ----------
+ok('notifiche: main registra gli handler, la card accesa notifica, menu nativo e in-app collegati', () => {
+  assert.ok(read('main.js').includes('registerNotifyHandlers(ipcMain'), 'main.js non registra gli handler delle notifiche');
+  assert.ok(read('preload.js').includes("'menu-notifications'"), 'menu-notifications manca dalla lista allowed del preload');
+  const rend = readRendererApp();
+  const flag = rend.slice(rend.indexOf('function flagAttention'), rend.indexOf('function retractAttention'));
+  assert.ok(/needsAttention = true;\s*notifyFinished\(t\);\s*syncBadge\(\);/.test(flag), 'flagAttention non notifica quando accende la card');
+  assert.ok(rend.includes("onMenu('menu-notifications'"), 'il renderer non ascolta la voce di menu');
+  assert.ok(rend.includes('onNotifyOpenTab('), 'il click sulla notifica non apre la scheda');
+  assert.ok(read('renderer', 'index.html').includes('data-action="notifications"'), 'manca la voce nella menubar in-app');
+  assert.ok(read('app', 'menu.js').includes("case 'notifications': wc.send('menu-notifications')"), 'runMenuAction non gestisce le notifiche');
+});

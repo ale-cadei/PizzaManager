@@ -4,8 +4,9 @@ Branch: `feat/notifiche-sistema` · Dipende da: — · Taglia: ~½ g
 Scritto il 2026-10-02. Solo macOS e Linux; Windows dopo, con un piano suo.
 
 **Stato (2026-10-02):** fatto (commit `feat: notifiche di sistema…` e
-`feat: la scheda attiva conta come non vista…`), suite verde. Da provare
-nell'app: la «Verifica nell'app» qui sotto, su macOS e su Linux.
+`feat: la scheda attiva conta come non vista…`), suite verde. Provato
+nell'app installata su macOS (notifica con nome e icona di PizzaManager).
+Da provare su Linux dal `.deb`.
 
 ## Obiettivo
 

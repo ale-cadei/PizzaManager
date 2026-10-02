@@ -114,6 +114,30 @@ toccato?** Oggi per saperlo si apre una shell e si lancia `git status` /
 5. **Solo lettura.** Niente stage, scarta, commit: li fa l'agente o il
    terminale. «Scarta» è distruttivo e merita un piano suo.
 6. **Un solo branch** per tutti e tre i momenti.
+7. **«Ultimo giro»** (aggiunto il 2026-10-02, su richiesta dell'utente, nello
+   stesso branch). Quando le modifiche non committate si accumulano su più
+   richieste, «rispetto all'ultimo commit» mostra anche il lavoro già visto.
+   - **Fotografia all'invio di un prompt** in una sessione agente (non shell,
+     non git): una riga non vuota inviata con Invio; righe vuote e comandi
+     `/…` non contano. Vale l'ultima fotografia, non una pila.
+   - **Cos'è la fotografia:** un tree git dello stato dei file in quel
+     momento, tracciati e nuovi (non gli ignorati). Si fa con una copia
+     dell'indice in un file temporaneo (`GIT_INDEX_FILE`), `git add -A` e
+     `git write-tree`: indice dell'utente, HEAD, branch e stash non si
+     toccano; si scrivono solo oggetti nel database di git, che `git gc`
+     ripulisce da solo. La copia dell'indice evita di rileggere i file non
+     cambiati.
+   - **Si ricorda** sulla scheda e sulla sessione tmux (`@ais_turn_tree`,
+     `@ais_turn_at`): sopravvive alla chiusura dell'app. Senza tmux
+     (Windows) solo finché la scheda è aperta.
+   - **Nel pannello** un selettore «Dall'ultimo commit | Ultimo giro»
+     nell'intestazione, con lo stile del selettore della sidebar. La scelta
+     si ricorda. «Ultimo giro» è spento (e dice perché) se la sessione non ha
+     ancora una fotografia. In modalità Unisci il selettore non c'è.
+   - **Il confronto** è fra la fotografia e una fotografia di adesso, quindi
+     vede anche i file nuovi. Si fa solo mentre il pannello è aperto su
+     «Ultimo giro»: linguetta e contatori dei worktree restano «dall'ultimo
+     commit» e non scrivono niente nel repository.
 
 ## Come
 
@@ -209,6 +233,9 @@ tetto di righe, se lo alzi spiega il perché nel commit), metodi nel
 3. `feat:` IPC + pannello con linguetta (momenti 1 e 2)
 4. `feat:` contatore sulla riga del worktree
 5. `feat:` Unisci passa dal pannello (momento 3)
+6. `feat:` fotografia di un tree e confronto con una fotografia (lib + IPC)
+7. `feat:` fotografia all'invio del prompt, ricordata in tmux
+8. `feat:` selettore «Ultimo giro» nel pannello
 
 Eventuali spostamenti di codice esistente in commit `refactor:` separati.
 

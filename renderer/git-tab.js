@@ -76,12 +76,12 @@ async function restoreGitSessions() {
   if (!r || !r.ok) { if (r) console.warn('git-sessions fallito:', r.error); return []; }
   if (r.ask) return r.sessions;
   for (const s of r.sessions) {
-    await createGitTab({ name: s.name, cwd: s.cwd, startedAt: s.startedAt, restoring: true });
+    await createGitTab({ name: s.name, cwd: s.cwd, startedAt: s.startedAt, restoring: true, reveal: false });
   }
   return [];
 }
 
-async function createGitTab({ name, cwd, startedAt = Date.now(), restoring = false } = {}) {
+async function createGitTab({ name, cwd, startedAt = Date.now(), restoring = false, reveal = true } = {}) {
   const id = 'tab-' + Date.now() + '-' + Math.floor(Math.random() * 1e6);
   const wrap = document.createElement('div');
   wrap.className = 'term-wrap git-wrap type-git';
@@ -105,7 +105,7 @@ async function createGitTab({ name, cwd, startedAt = Date.now(), restoring = fal
   tab.git = { view, picker, pending: null };
   tabs.set(id, tab);
   updateEmpty();
-  setActive(id);
+  setActive(id, { reveal });
   // Durante il ripristino la lista su disco è già quella giusta: riscriverla
   // a ogni scheda la accorcerebbe, se l'app si chiudesse a metà
   if (!restoring) saveGitSessions();

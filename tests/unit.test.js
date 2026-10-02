@@ -175,7 +175,7 @@ ok('renderer: fit robusto primo tab (proposeDimensions + ResizeObserver)', () =>
   assert.ok(js.includes('refitTab'), 'manca refitTab');
   // il terminale deve aprirsi a wrap già visibile: tabs.set/updateEmpty/setActive prima di term.open
   const body = js.slice(js.indexOf('async function createTab'));
-  const order = ['tabs.set(id, tab)', 'updateEmpty()', 'setActive(id)', 'term.open(inner)'].map(s => body.indexOf(s));
+  const order = ['tabs.set(id, tab)', 'updateEmpty()', 'setActive(id, { reveal })', 'term.open(inner)'].map(s => body.indexOf(s));
   assert.ok(order.every(i => i >= 0), 'sequenza createTab incompleta');
   assert.ok(order[0] < order[1] && order[1] < order[2] && order[2] < order[3], 'ordine createTab errato');
 });

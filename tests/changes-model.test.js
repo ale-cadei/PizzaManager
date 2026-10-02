@@ -131,3 +131,9 @@ ok('ultimo giro: titolo e messaggio vuoto lo dicono', () => {
   assert.strictEqual(M.emptyText(turn), 'Nessuna modifica dall\'ultimo prompt.');
   assert.match(M.emptyText(result([])), /ultimo commit/);
 });
+
+ok('ultimo giro: una fotografia senza i file nuovi lo dice', () => {
+  assert.match(M.notice(result([], { since: true, partial: true })), /gitignore/);
+  assert.strictEqual(M.notice(result([], { since: true, partial: false })), null);
+  assert.strictEqual(M.notice(null), null);
+});

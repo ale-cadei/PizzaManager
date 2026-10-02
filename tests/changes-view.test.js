@@ -224,3 +224,10 @@ ok('ultimo giro: il selettore dice qual è acceso, e spento dice perché', () =>
   view.render(baseState({ modes: null }));
   assert.strictEqual(one(host, 'changes-modes').hidden, true);
 });
+
+ok('vista modifiche: un avviso si vede sopra l\'elenco', () => {
+  const { host, view } = setup();
+  view.render(baseState({ files: [file('a')], notice: 'Troppi file nuovi' }));
+  assert.strictEqual(textOf(one(host, 'changes-notice')), 'Troppi file nuovi');
+  assert.strictEqual(one(host, 'changes-body').children[0], one(host, 'changes-notice'));
+});

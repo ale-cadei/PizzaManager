@@ -138,6 +138,19 @@ toccato?** Oggi per saperlo si apre una shell e si lancia `git status` /
      vede anche i file nuovi. Si fa solo mentre il pannello è aperto su
      «Ultimo giro»: linguetta e contatori dei worktree restano «dall'ultimo
      commit» e non scrivono niente nel repository.
+   - **Dopo la revisione** (stesso giorno): l'indice è **dell'app e
+     persistente** (uno per repository, nella tmpdir), così un file già
+     fotografato non si rilegge; i file nuovi entrano con
+     `update-index --add --remove` (uno sparito nel frattempo non fa fallire
+     tutto, lo sparse checkout non dà fastidio), senza hook dell'utente; se i
+     file nuovi da aggiungere sono più di 1000 o pesano più di 50 MB non ne
+     entra nessuno e il pannello lo dice (una cartella generata da ignorare).
+   - **Limiti noti del «quando parte un giro»**, che si legge da quello che
+     si digita: un prompt ripreso dalla cronologia (↑ e Invio) non apre un
+     giro, perché ↑ e Invio servono anche nei menu dei permessi; le risposte
+     ai menu («1», «y») e le bozze abbandonate con Ctrl+C non contano. Il
+     segnale esatto arriverebbe dagli hook di Claude (`UserPromptSubmit`),
+     cioè l'idea «Segnale esatto» di idee.md: quando si fa, questo passa di lì.
 
 ## Come
 

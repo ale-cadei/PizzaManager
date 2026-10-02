@@ -708,6 +708,8 @@ ok('git: la fotografia non tocca l\'indice e il confronto vede solo quello che �
     assert.strictEqual(snap.ok, true, snap.error);
     assert.strictEqual(git('diff', '--cached', '--name-only'), stagedBefore, 'la fotografia ha toccato l\'indice');
     assert.strictEqual(git('status', '--porcelain', '--', 'vecchio-nuovo.txt'), '?? vecchio-nuovo.txt', 'il file nuovo è finito nell\'indice');
+    const again = await snapshotTree({ cwd: root });
+    assert.strictEqual(again.tree, snap.tree, 'due fotografie senza modifiche in mezzo sono diverse');
 
     // Il giro: una riga in più in a.txt, b.txt toccato, un file nuovo, uno tolto
     write('a.txt', 'uno\ngiro vecchio\ngiro nuovo\n');

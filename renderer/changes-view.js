@@ -165,7 +165,7 @@
     /**
      * @param {{label: {visible: boolean, clean: boolean, text: string, parts: object[]}, open: boolean,
      *   title: string, summary: Array<{kind: string, text: string}>, error: string|null, files: object[],
-     *   expanded: Object<string, object>, heading?: string, loading?: boolean, emptyText?: string,
+     *   expanded: Object<string, object>, heading?: string, loading?: boolean, emptyText?: string, notice?: string|null,
      *   modes?: {current: 'commit'|'turn', turnAvailable: boolean, turnHint: string}|null,
      *   merge?: {text: string, confirmLabel: string, warning: string|null, canConfirm: boolean}|null}} state
      */
@@ -186,6 +186,7 @@
       renderFoot(state.merge || null);
       fillParts(doc, summary, state.summary);
       const items = [];
+      if (state.notice) items.push(el(doc, 'div', 'changes-notice', state.notice));
       if (state.loading) items.push(el(doc, 'div', 'changes-empty', 'Carico…'));
       else if (state.error) items.push(el(doc, 'div', 'changes-error', state.error));
       else if (!state.files.length) items.push(el(doc, 'div', 'changes-empty', state.emptyText || 'Nessuna modifica: tutto come all\'ultimo commit.'));

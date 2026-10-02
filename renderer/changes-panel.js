@@ -63,7 +63,11 @@ async function takeTurnSnapshot(tab) {
   tab.turnTree = snap.tree;
   tab.turnAt = snap.at;
   if (tab.session) window.aisess.setMeta(tab.id, { turnTree: snap.tree, turnAt: snap.at });
-  if (tab.id === activeId) refreshChanges().catch(() => {});
+  if (tab.id !== activeId) return;
+  // Subito: il selettore si accende anche se la lettura non cambia niente
+  // (a pannello aperto, finché i file restano uguali, non si ridisegnava)
+  renderChanges();
+  refreshChanges().catch(() => {});
 }
 
 /** Una sessione ha finito (signals.js): se sta in un worktree, se ne rileggono i numeri. */

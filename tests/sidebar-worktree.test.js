@@ -170,3 +170,30 @@ ok('sidebar worktree: in un worktree la sottocartella si mostra rispetto al work
     assert.match(sub.innerHTML, /Terminale · src</, 'la sottocartella non è relativa al worktree: ' + sub.innerHTML);
   } finally { restore(); }
 });
+
+ok('sidebar worktree: la riga mostra le righe toccate, e niente se il worktree è pulito', () => {
+  const restore = installDocument();
+  try {
+    const counts = { [FEAT.path]: { files: 3, added: 10, removed: 2 }, [EMPTY.path]: { files: 0, added: 0, removed: 0 } };
+    const { list } = render({ changesOf: (p) => counts[p] || null, onNewInWorktree: () => {} });
+    const badges = byClass(list, 'worktree-changes');
+    assert.strictEqual(badges.length, 1, 'un worktree pulito non ha numeri');
+    assert.deepStrictEqual(textOf(badges[0], 'worktree-added'), ['+10']);
+    assert.deepStrictEqual(textOf(badges[0], 'worktree-removed'), ['−2']);
+    assert.strictEqual(badges[0].title, '3 file cambiati rispetto a main');
+    const row = byClass(list, 'worktree-row')[0];
+    assert.ok(row.children.indexOf(badges[0]) < row.children.indexOf(byClass(row, 'worktree-add')[0]), 'i numeri vanno prima dei pulsanti');
+  } finally {
+    restore();
+  }
+});
+
+ok('sidebar worktree: senza changesOf le righe restano come prima', () => {
+  const restore = installDocument();
+  try {
+    const { list } = render();
+    assert.strictEqual(byClass(list, 'worktree-changes').length, 0);
+  } finally {
+    restore();
+  }
+});

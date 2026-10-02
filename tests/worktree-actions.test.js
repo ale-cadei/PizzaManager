@@ -14,8 +14,9 @@ const ANCHOR = { id: 'ancora' };
  * `choice` è la risposta al menu, `asks` le risposte alle conferme in ordine,
  * `merge` / `remove` le risposte del main (una per chiamata).
  */
-function setup({ choice, asks = [], merge = [], remove = [], open = [] }) {
+function setup({ choice, asks = [], merge = [], remove = [], open = [], reviews = null }) {
   const log = [];
+  const reviewed = [];
   const asked = [];
   const told = [];
   const deps = {
@@ -35,8 +36,10 @@ function setup({ choice, asks = [], merge = [], remove = [], open = [] }) {
       open = open.filter((t) => !list.includes(t));
     },
     refresh: async (root) => { log.push(`refresh ${root}`); },
+    // Il pannello delle modifiche (docs/plans/32): c'è solo se il test lo chiede
+    ...(reviews ? { review: async (w, conf) => { log.push('review'); reviewed.push({ w, conf }); return reviews.shift(); } } : {}),
   };
-  return { actions: createWorktreeActions(deps), log, asked, told };
+  return { actions: createWorktreeActions(deps), log, asked, told, reviewed };
 }
 
 const steps = (log) => log.filter((l) => !l.startsWith('sessionsIn'));
@@ -139,4 +142,26 @@ ok('azioni: un errore del canale non resta appeso, si dice', async () => {
   });
   await failing.openMenu(WT, '/p', ANCHOR);
   assert.match(told[0].text, /ipc giù/);
+});
+
+ok('azioni: col pannello, Unisci si conferma dalla revisione del diff e non dal fumetto', async () => {
+  const open = [{ id: 'a' }];
+  const { actions, log, reviewed } = setup({ choice: 'merge', reviews: [true], merge: [{ ok: true }], open });
+  await actions.openMenu(WT, '/p', ANCHOR);
+  assert.deepStrictEqual(steps(log), ['choose', 'review', 'merge /p /p.worktrees/feat-x', 'close a', 'refresh /p']);
+  assert.strictEqual(reviewed[0].w, WT);
+  assert.match(reviewed[0].conf.text, /sessione aperta/, 'la revisione non dice che la sessione si chiude');
+});
+
+ok('azioni: Annulla nella revisione non tocca niente', async () => {
+  const { actions, log } = setup({ choice: 'merge', reviews: [false], open: [{ id: 'a' }] });
+  await actions.openMenu(WT, '/p', ANCHOR);
+  assert.deepStrictEqual(steps(log), ['choose', 'review']);
+});
+
+ok('azioni: col pannello, Tieni il branch e Butta restano sul fumetto', async () => {
+  const { actions, log } = setup({ choice: 'keep', asks: [true], reviews: [true], remove: [{ ok: true }] });
+  await actions.openMenu(WT, '/p', ANCHOR);
+  assert.ok(!log.includes('review'));
+  assert.ok(log.includes('ask'));
 });

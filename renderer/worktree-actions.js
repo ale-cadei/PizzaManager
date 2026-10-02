@@ -57,9 +57,12 @@
    *   bubble: {choose: Function, ask: Function, tell: Function},
    *   sessionsIn: (path: string) => Array<{id: string}>,
    *   closeSessions: (sessions: Array<{id: string}>) => Promise<void>,
-   *   refresh: (root: string) => Promise<void>}} deps
+   *   refresh: (root: string) => Promise<void>,
+   *   review?: (w: object, conf: {title: string, text: string, confirmLabel: string}) => Promise<boolean>}} deps
+   *   `review`: Unisci si conferma guardando il diff del branch nel pannello
+   *   delle modifiche (docs/plans/32), invece che dal fumetto.
    */
-  function createWorktreeActions({ api, bubble, sessionsIn, closeSessions, refresh }) {
+  function createWorktreeActions({ api, bubble, sessionsIn, closeSessions, refresh, review = null }) {
     /* Chiamata al main che non lancia mai: un canale giù diventa un errore da dire */
     const call = (fn) => fn().catch((e) => ({ ok: false, error: messageOf(e) }));
 
@@ -95,7 +98,9 @@
       const choice = await bubble.choose({ ...ctx, title: `⑂ ${nameOf(w)}`, text: w.base ? `Parte da ${w.base}.` : '', choices: menuChoices(w) });
       if (!choice) return;
       const open = sessionsIn(w.path);
-      if (!(await bubble.ask({ ...ctx, ...confirmation(choice, w, open.length) }))) return;
+      const conf = confirmation(choice, w, open.length);
+      const confirmed = choice === 'merge' && review ? await review(w, conf) : await bubble.ask({ ...ctx, ...conf });
+      if (!confirmed) return;
 
       const res = choice === 'merge'
         ? await call(() => api.merge(root, w.path))

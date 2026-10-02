@@ -6,6 +6,7 @@ const { describeWorkdir } = require('../lib/workdir');
 const tmuxLib = require('../lib/tmux');
 const { shouldCapture } = require('../lib/scrollback');
 const { replayCommand } = require('../lib/scrollback-command');
+const { isTreeId } = require('../lib/git-snapshot');
 
 let pty = null;
 try {
@@ -245,7 +246,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
    * titolo automatico lo scopre — e' cio' che rende ripristinabile dopo un
    * riavvio una sessione nata "nuova".
    */
-  function setMeta(id, { label, resumeId, iconKey, iconMode } = {}) {
+  function setMeta(id, { label, resumeId, iconKey, iconMode, turnTree, turnAt } = {}) {
     const c = clients.get(id);
     if (!c || !c.session) return { ok: false };
     const meta = {};
@@ -253,6 +254,11 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     if (resumeId !== undefined) meta.resume_id = String(resumeId || '');
     if (iconKey !== undefined) meta.icon_key = String(iconKey || 'shell');
     if (iconMode !== undefined) meta.icon_mode = String(iconMode || 'auto');
+    // La fotografia dell'ultimo giro (docs/plans/32): solo uno sha, mai altro
+    if (turnTree !== undefined && isTreeId(turnTree)) {
+      meta.turn_tree = String(turnTree);
+      meta.turn_at = String(Number(turnAt) || Date.now());
+    }
     tmux.control.setMeta(c.session, meta).then(syncSnapshot).catch(() => {});
     return { ok: true };
   }

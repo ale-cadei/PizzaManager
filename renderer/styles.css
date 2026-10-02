@@ -682,6 +682,10 @@ img.agent-icon--node { border-radius: 2px; }
   font-family: var(--font-mono); color: var(--text);
 }
 .worktree-base { flex: 0 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-dim); font-size: 11px; }
+/* Righe toccate rispetto alla base (piano 32): non si stringono, il nome del branch sì */
+.worktree-changes { flex: 0 0 auto; display: inline-flex; gap: 4px; font: 400 11px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.worktree-added { color: var(--state-ok); }
+.worktree-removed { color: var(--state-error); }
 .worktree-add, .worktree-menu {
   flex: 0 0 auto; padding: 1px 6px; border: 0; border-radius: 6px;
   background: transparent; color: var(--text-dim); font-family: var(--font-ui);
@@ -707,7 +711,135 @@ img.agent-icon--node { border-radius: 2px; }
 /* Il terminale non ha cornice: nell'artboard l'area di destra e' il fondo
    dell'app, senza pannello. Il bordo lo fa gia' la sidebar, e un riquadro
    attorno al testo ruberebbe colonne alle righe lunghe. */
-#terminals { flex: 1; min-height: 0; display: flex; padding: 0; }
+#terminals { flex: 1; min-height: 0; display: flex; padding: 0; position: relative; }
+
+/* ---------- Pannello «cosa ha cambiato» (renderer/changes-view.js, piano 32) ----------
+   Linguetta attaccata al fianco destro, in alto, e pannello SOPRA il
+   terminale: assoluti, così il contenitore del terminale non cambia misura e
+   il pty non si ridimensiona aprendolo. Lo z-index supera quelli di xterm
+   (.xterm-helpers, la composizione dell'IME). */
+#terminals { --changes-tab-top: 14px; --changes-tab-max: 128px; }
+.changes-tab {
+  position: absolute; top: var(--changes-tab-top); right: 0; z-index: 11;
+  /* Testo girato: in vertical-rl la riga del flex scende dall'alto in basso */
+  writing-mode: vertical-rl; display: flex; align-items: center; gap: 7px;
+  width: 22px; max-height: var(--changes-tab-max); padding: 9px 0; overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--action) 50%, transparent); border-right: 0;
+  border-radius: var(--radius) 0 0 var(--radius);
+  background: var(--surface-2); color: var(--text-muted);
+  font: 500 11px/1 var(--font-mono); font-variant-numeric: tabular-nums;
+  cursor: pointer; transition: border-color 120ms ease, background-color 120ms ease;
+}
+.changes-tab:hover { border-color: var(--action); background: var(--surface-3); }
+.changes-tab:focus-visible { outline: 2px solid var(--action); outline-offset: -2px; }
+.changes-tab.is-clean { border-color: var(--border-strong); background: var(--surface); }
+.changes-tab[hidden] { display: none; }
+/* Con la linguetta la barra di scorrimento del terminale comincia sotto */
+#terminals.has-changes-tab .term-scroll { top: calc(var(--changes-tab-top) + var(--changes-tab-max) + 8px); }
+/* Contatori: verde le aggiunte, rosso le rimozioni (linguetta e riepilogo) */
+.changes-n-files { color: var(--text-muted); }
+.changes-n-add { color: var(--state-ok); }
+.changes-n-del { color: var(--state-error); }
+.changes-n-clean, .changes-n-note { color: var(--text-faint); }
+.changes-panel {
+  position: absolute; top: 0; right: 0; bottom: 0; z-index: 12;
+  width: 46%; min-width: 320px; max-width: calc(100% - 160px);
+  display: flex; flex-direction: column;
+  background: var(--surface); border-left: 1px solid var(--border);
+  box-shadow: -18px 0 36px -24px rgba(0,0,0,0.9);
+}
+.changes-panel[hidden] { display: none; }
+.changes-resizer {
+  position: absolute; top: 0; bottom: 0; left: -3px; width: 6px;
+  cursor: col-resize; z-index: 1;
+}
+.changes-resizer:hover, body.changes-resizing .changes-resizer { background: var(--action-ring); }
+body.changes-resizing { cursor: col-resize; user-select: none; }
+.changes-head {
+  display: grid; grid-template-columns: 1fr auto; align-items: center;
+  gap: 2px var(--gap-sm); padding: 10px 12px 9px 14px;
+  border-bottom: 1px solid var(--divider);
+}
+.changes-heading { display: flex; align-items: baseline; gap: var(--gap-xs); min-width: 0; }
+.changes-label { font: 600 12px/1.3 var(--font-ui); color: var(--text); }
+.changes-title {
+  font: 500 12px/1.3 var(--font-mono); color: var(--text-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.changes-summary { grid-column: 1; display: flex; flex-wrap: wrap; gap: 0 8px; font: 400 11px/1.3 var(--font-mono); color: var(--text-faint); }
+.changes-close {
+  grid-column: 2; grid-row: 1 / span 2;
+  width: 24px; height: 24px; border: 0; border-radius: var(--radius);
+  background: transparent; color: var(--text-dim); font-size: 16px; cursor: pointer;
+}
+.changes-close:hover { background: var(--surface-2); color: var(--text); }
+/* «Dall'ultimo commit | Ultimo giro»: il selettore della sidebar, sotto il titolo */
+.changes-modes {
+  grid-column: 1 / -1; justify-self: start; margin-top: 6px;
+  display: flex; gap: 4px; padding: 3px;
+  background: var(--bg); border: 1px solid var(--divider); border-radius: var(--radius);
+}
+.changes-modes[hidden] { display: none; }
+.changes-modes .seg-btn { padding: 4px 9px; }
+.changes-modes .seg-btn[disabled] { opacity: .45; cursor: not-allowed; }
+.changes-body { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 0 12px; }
+.changes-empty, .changes-error { padding: 14px; font-size: 12px; color: var(--text-dim); }
+.changes-notice { margin: 4px 12px 8px; padding: 8px 10px; font-size: 12px; color: var(--accent); background: var(--accent-soft); border-radius: var(--radius); }
+.changes-error { color: var(--state-error); }
+.changes-file-row {
+  display: flex; align-items: center; gap: var(--gap-xs);
+  width: 100%; padding: 4px 12px; border: 0; background: transparent;
+  color: var(--text-muted); text-align: left; cursor: pointer;
+  font: 400 12px/1.4 var(--font-mono);
+}
+.changes-file-row:hover, .changes-file-row:focus-visible { background: var(--surface-2); color: var(--text); outline: none; }
+.changes-file-row[aria-expanded="true"] { color: var(--text); }
+.changes-chevron { width: 1ch; color: var(--text-faint); }
+.changes-status { width: 1.4ch; text-align: center; font-weight: 600; color: var(--text-dim); }
+.changes-status.s-M { color: var(--action-text); }
+.changes-status.s-A, .changes-status.s-new { color: var(--state-ok); }
+.changes-status.s-D { color: var(--state-error); }
+.changes-status.s-R { color: var(--accent); }
+.changes-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.changes-add { color: var(--state-ok); font-variant-numeric: tabular-nums; }
+.changes-del { color: var(--state-error); font-variant-numeric: tabular-nums; }
+.changes-note { color: var(--text-faint); font-size: 11px; }
+.changes-diff {
+  margin: 2px 0 8px; overflow-x: auto;
+  font: 400 12px/1.45 var(--font-mono); background: var(--bg);
+  border-top: 1px solid var(--divider); border-bottom: 1px solid var(--divider);
+}
+.changes-hunk { padding: 3px 12px; color: var(--text-faint); background: var(--surface-2); white-space: pre; }
+.changes-line { display: flex; white-space: pre; min-width: max-content; }
+.changes-ln { flex: 0 0 5ch; padding-right: 1ch; text-align: right; color: var(--text-faint); user-select: none; }
+.changes-sign { flex: 0 0 2ch; text-align: center; user-select: none; }
+.changes-code { padding-right: 12px; }
+/* Righe del diff: aggiunte e tolte devono saltare all'occhio. Fondo pieno
+   del loro colore, barra a sinistra, numero di riga più carico; il contesto
+   resta attenuato, così il contrasto viene da entrambi i lati. */
+.changes-line { border-left: 3px solid transparent; }
+.changes-line.ctx .changes-code { color: var(--text-dim); }
+.changes-line.add { background: color-mix(in srgb, var(--state-ok) 24%, transparent); border-left-color: var(--state-ok); }
+.changes-line.add .changes-ln { background: color-mix(in srgb, var(--state-ok) 34%, transparent); color: var(--text); }
+.changes-line.add .changes-sign { color: var(--state-ok); font-weight: 600; }
+.changes-line.del { background: color-mix(in srgb, var(--state-error) 24%, transparent); border-left-color: var(--state-error); }
+.changes-line.del .changes-ln { background: color-mix(in srgb, var(--state-error) 34%, transparent); color: var(--text); }
+.changes-line.del .changes-sign { color: var(--state-error); font-weight: 600; }
+.changes-line.add .changes-code, .changes-line.del .changes-code { color: var(--text); }
+.changes-line.note { color: var(--text-faint); font-style: italic; }
+.changes-diff-note { padding: 6px 12px; font: 400 11px/1.4 var(--font-ui); color: var(--text-dim); }
+/* Modalità «Unisci»: la conferma sta in fondo, sempre visibile */
+.changes-panel.is-merge .changes-label { color: var(--action-text); }
+.changes-foot {
+  display: flex; flex-direction: column; gap: var(--gap-sm);
+  padding: 12px 14px; border-top: 1px solid var(--border); background: var(--surface-2);
+}
+.changes-foot[hidden] { display: none; }
+.changes-foot-text { margin: 0; font-size: 12px; color: var(--text-muted); }
+.changes-warning { margin: 0; font-size: 12px; color: var(--accent); white-space: pre-wrap; }
+.changes-warning[hidden] { display: none; }
+.changes-foot-actions { display: flex; justify-content: flex-end; gap: var(--gap-sm); }
+.changes-confirm[disabled] { opacity: .45; cursor: not-allowed; }
 
 /* ---------- Animaletti (renderer/pets-view.js, piano 33) ----------
    Striscia sotto il terminale: ne ruba l'altezza invece di coprirne l'ultima
@@ -1063,7 +1195,7 @@ img.agent-icon--node { border-radius: 2px; }
   background: none; border: 1px solid var(--border-strong); color: var(--text);
 }
 .git-picker-confirm-yes { background: var(--state-error); border-color: var(--state-error); color: #fff; font-weight: 600; }
-.git-picker-confirm-no:hover { background: var(--surface-3, var(--surface-2)); }
+.git-picker-confirm-no:hover { background: var(--surface-3); }
 .git-picker-confirm-yes:hover { filter: brightness(1.1); }
 @media (prefers-reduced-motion: reduce) { .git-picker-delete { transition: none; } }
 .git-picker-item--current { cursor: default; color: var(--type-git); }

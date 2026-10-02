@@ -1,143 +1,254 @@
 # 32 — Pannello «cosa ha cambiato»
 
-Branch: `feat/pannello-modifiche` · Dipende da: 25, 27, 31 · Taglia: ~1 g
-Stato: **bozza da cui partire**. Scritta il 2026-09-28 fuori da un branch:
-chi la riprende crea il branch da `main`, verifica che il numero 32 sia
-ancora libero in `docs/plans/README.md`, completa le decisioni aperte con
-l'utente e committa questo file come primo commit `docs:`.
+Branch: `feat/pannello-modifiche` · Dipende da: 25, 27, 31, 36 · Taglia: ~1½ g
 
 ## Obiettivo
 
 Quando un agente dice «fatto», la domanda è sempre la stessa: **che cosa ha
 toccato?** Oggi per saperlo si apre una shell e si lancia `git status` /
-`git diff`. Il pannello lo mostra dentro l'app: file modificati, righe +/−,
-e cliccando un file il suo diff, aggiornato mentre l'agente lavora.
+`git diff`. Il pannello lo mostra dentro l'app, in tre momenti:
+
+1. **mentre l'agente lavora** — un'occhiata: quanti file, quante righe;
+2. **quando dice «fatto»** — la revisione: elenco dei file e diff;
+3. **prima di «Unisci»** un worktree (piano 36) — cosa sta per finire nella
+   base. Oggi Unisci parte alla cieca.
 
 È l'idea «Pannello "cosa ha cambiato"» di [idee.md](idee.md), sezione
 «Agenti in parallelo».
 
 ## Cosa c'è già (non rifarlo)
 
-La **scheda git** esiste (piani 25, 27, 31):
-- `renderer/git-tab.js`: scheda senza pty, pannello con timeline e mappa dei
-  branch; si aggiorna tornando in primo piano e dal pulsante «Aggiorna».
-- `renderer/git-graph-view.js`: selettore **Timeline / Mappa**;
-  `renderer/git-map-view.js`, `renderer/git-branch-picker.js`.
-- `lib/git-run.js` (`runGit`): git lanciato con `execFile`, niente shell,
+- **Scheda git** (piani 25, 27, 31): `renderer/git-tab.js`,
+  `renderer/git-graph-view.js` (Timeline / Mappa), `renderer/git-map-view.js`.
+- `lib/git-run.js` (`runGit`): git con `execFile`, niente shell,
   `GIT_TERMINAL_PROMPT=0`, `GIT_OPTIONAL_LOCKS=0` (leggere non deve mai
   bloccare né prendere lock sul repository dell'utente). **Tutte le letture
   di questo piano passano da lì.**
 - `lib/git-graph.js`: modello di un lettore con `run` iniettabile e parsing
-  puro testato senza git (`tests/git-graph.test.js`); caso con git vero in
-  `tests/integration.test.js`.
-- IPC `git-graph`, `git-branches`, `git-switch`… in `main.js` / `preload.js`.
-- Le schede di sessione (agenti, shell) conoscono `cwd` e `projectRoot`
-  (`renderer/tabs.js`, `resolveProjectRoot`).
+  puro testato senza git (`tests/git-graph.test.js`).
+- **Worktree** (piano 36): `lib/worktree.js` legge `git worktree list` e la
+  base di ogni branch da `branch.<nome>.pizzaBase`;
+  `renderer/worktree-cache.js` tiene `{ path, branch, base }` per radice;
+  `renderer/worktree-section.js` disegna la riga `⑂ <branch> da <base>`;
+  `renderer/worktree-actions.js` fa scelta → conferma → azione di Unisci /
+  Tieni il branch / Butta.
+- Le schede di sessione conoscono `cwd` e `projectRoot` (`renderer/tabs.js`).
+- «Ha finito»: `flagAttention()` in `renderer/signals.js` (inattività o bell),
+  solo per le schede non in primo piano.
+- Refit del terminale: un `ResizeObserver` su `inner` in `renderer/tabs.js`
+  ridimensiona il pty a ogni cambio di misura del contenitore.
 
-## Decisioni aperte — da chiedere all'utente (con raccomandazione)
+## Decisioni (prese con l'utente il 2026-10-01)
 
-1. **Dove sta il pannello.** L'utente teme di dividere troppo lo schermo
-   (sidebar + terminale + pannello = tre colonne; lo ha detto per le
-   «sessioni affiancate»).
-   - **A (consigliata): terza vista della scheda git**, «Modifiche», accanto
-     a Timeline e Mappa, più un pulsante sulla card di una sessione agente
-     («vedi modifiche») che apre o porta in primo piano la scheda git del
-     suo progetto già sulla vista Modifiche. Zero spazio rubato al
-     terminale, riusa tutta l'infrastruttura della scheda git.
-   - B: pannello a scomparsa a destra del terminale della sessione, con una
-     scorciatoia. Più immediato mentre l'agente lavora, ma è la terza
-     colonna.
-2. **Rispetto a cosa.**
-   - **Consigliata: albero di lavoro contro `HEAD`**, cioè quello che non è
-     ancora committato (staged + non staged + file nuovi). È il «cosa ha
-     toccato» del caso tipico.
-   - In più, se costa poco: **«da quando è partita la sessione»**, cioè il
-     diff contro il commit che era `HEAD` all'avvio della sessione (così si
-     vedono anche i commit fatti dall'agente). Richiede di annotare lo sha
-     all'avvio: sulla scheda, e sulla sessione tmux (`@ais_*`) per
-     sopravvivere a un riavvio dell'app.
-   - Con i worktree (piano 36): branch contro la sua base, letta da
-     `git config branch.<nome>.pizzaBase`.
-3. **Aggiornamento dal vivo.**
-   - **Consigliato: polling di `git status` solo mentre la vista è
-     visibile** (ogni 2–3 s, `--porcelain=v2 -z`, economico), più
-     l'aggiornamento esistente al ritorno in primo piano. Il contenuto del
-     diff si legge solo per il file aperto.
-   - Alternativa: `fs.watch` sul repository (il piano 25 annotava un watcher
-     su `.git/refs` e `.git/HEAD`). Ricorsivo non è affidabile su Linux, e
-     `node_modules` genera rumore: il polling è più semplice e prevedibile.
-4. **Solo lettura o anche azioni** (stage, scarta, commit).
-   **Consigliato: solo lettura** in questo branch. «Scarta» è distruttivo e
-   merita un piano suo con le sue conferme.
+1. **Pannello sovrapposto al terminale, con una linguetta sul fianco destro**,
+   in alto, testo girato e bordo arancione tenue; +N verde, −N rosso. Sul
+   fianco c'è anche la barra di scorrimento del terminale (`term-scroll.js`):
+   quando la linguetta c'è, la barra comincia sotto (`has-changes-tab`).
+   (Una prima versione la appendeva al bordo alto: l'utente la voleva di
+   lato, il 2026-10-01.)
+   ```
+   ┌ sidebar ┬──────────── terminale ─────────────┬─┐
+   │         │ $ claude                          │5│ ← linguetta: contatore
+   │         │ ● Sto modificando app.js…         │·│   dal vivo (momento 1)
+   │         │                                   │+│
+   │         │                                   │1│
+   │         │                                   │2│
+   └─────────┴───────────────────────────────────┴─┘
+                 clic sulla linguetta / scorciatoia ↓
+   ┌ sidebar ┬───── terminale ──────┬─ Modifiche · feat/x da main ─┐
+   │         │ $ claude             │ 5 file  +120 −30         [×] │
+   │         │ ● Sto modificando…   │ ▾ M renderer/app.js  +12 −3  │
+   │         │                      │   @@ -10,4 +10,6 @@          │
+   │         │                      │   - vecchia riga             │
+   │         │                      │   + nuova riga               │
+   │         │                      │ ▸ A lib/x.js         +40     │
+   │         │                      │ ▸ D old.js           −20     │
+   └─────────┴──────────────────────┴──────────────────────────────┘
+   ```
+   - **Sovrapposto, non affiancato**: il contenitore del terminale non cambia
+     misura, quindi il pty non viene ridimensionato e Claude non ridisegna la
+     sua interfaccia a ogni apertura/chiusura. L'utente temeva la terza
+     colonna fissa; questa c'è solo quando serve.
+   - **Non ruba la tastiera**: un clic sul terminale e si scrive all'agente col
+     diff ancora aperto. `Esc` dentro il pannello lo chiude.
+   - **File a fisarmonica**, non lista + diff affiancati (a metà schermo
+     sarebbero troppo stretti). Il bordo sinistro si trascina per allargarlo,
+     come la sidebar; la larghezza si ricorda (localStorage, con try/catch).
+   - Scorciatoia: **⌘⇧M** / **Ctrl+Shift+M**, voce «Mostra modifiche» nel menu
+     Vista. Non `Ctrl+D` (è EOF nella shell su Linux/Windows).
+   - **Apribile in ogni sessione** (agenti e shell), purché la cartella sia un
+     repository; altrimenti la linguetta non compare. Non sulla scheda git.
+2. **Rispetto a cosa**, deciso dalla sessione:
+   - cartella principale → **albero di lavoro contro `HEAD`**: staged, non
+     staged e file nuovi;
+   - worktree con base → **contro il punto di partenza dalla base**
+     (`git merge-base <base> HEAD`, poi `git diff <quello>`): commit del
+     branch **più** quello non ancora committato, cioè tutto il lavoro
+     dell'agente. Nell'intestazione: `Modifiche · <branch> da <base>`;
+   - worktree senza base (creato a mano, HEAD staccato) → come la cartella
+     principale, contro `HEAD`.
+   L'idea «da quando è partita la sessione» (sha annotato all'avvio) cade: con
+   i worktree il branch contro la sua base risponde già.
+3. **Aggiornamento.**
+   - Linguetta e pannello: polling di `git status --porcelain=v2 -z` + numstat
+     **solo per la sessione in primo piano**, ogni 3 s, fermo quando la
+     finestra non è visibile (`document.hidden`). Il contenuto del diff si
+     legge **solo per il file aperto**, e si rilegge quando cambiano i suoi
+     contatori.
+   - **Sidebar: contatore sulla riga del worktree** (`⑂ feat/x da main
+     +120 −30`), **senza polling**: si aggiorna quando una sessione di quel
+     worktree finisce (`flagAttention`), al ritorno della finestra in primo
+     piano (come già `worktree-cache.js`) e quando il polling della sessione
+     in primo piano legge quel worktree. Niente contatore sulle card, né sulle
+     sessioni della cartella principale: troppe chiamate.
+4. **Unisci con revisione.** «Unisci» dal menu `⋯` del worktree apre lo stesso
+   pannello in modalità «stai per unire»: diff del branch contro la base e, in
+   fondo, **Unisci in <base>** / **Annulla**. Prende il posto della conferma a
+   fumetto di oggi (il testo su cartella principale e sessioni chiuse va in
+   fondo al pannello); i passi dopo la conferma restano quelli di
+   `worktree-actions.js`. Funziona anche se il worktree non ha sessioni
+   aperte: il pannello è uno solo, sopra l'area dei terminali, e il suo
+   contenuto è un **bersaglio** (`{ cwd, base }`), non la scheda attiva.
+   Se il worktree ha modifiche non committate il pannello lo dice in cima
+   (oggi è il main a rifiutare: il rifiuto resta, l'avviso arriva prima).
+5. **Solo lettura.** Niente stage, scarta, commit: li fa l'agente o il
+   terminale. «Scarta» è distruttivo e merita un piano suo.
+6. **Un solo branch** per tutti e tre i momenti.
+7. **«Ultimo giro»** (aggiunto il 2026-10-02, su richiesta dell'utente, nello
+   stesso branch). Quando le modifiche non committate si accumulano su più
+   richieste, «rispetto all'ultimo commit» mostra anche il lavoro già visto.
+   - **Fotografia all'invio di un prompt** in una sessione agente (non shell,
+     non git): una riga non vuota inviata con Invio; righe vuote e comandi
+     `/…` non contano. Vale l'ultima fotografia, non una pila.
+   - **Cos'è la fotografia:** un tree git dello stato dei file in quel
+     momento, tracciati e nuovi (non gli ignorati). Si fa con una copia
+     dell'indice in un file temporaneo (`GIT_INDEX_FILE`), `git add -A` e
+     `git write-tree`: indice dell'utente, HEAD, branch e stash non si
+     toccano; si scrivono solo oggetti nel database di git, che `git gc`
+     ripulisce da solo. La copia dell'indice evita di rileggere i file non
+     cambiati.
+   - **Si ricorda** sulla scheda e sulla sessione tmux (`@ais_turn_tree`,
+     `@ais_turn_at`): sopravvive alla chiusura dell'app. Senza tmux
+     (Windows) solo finché la scheda è aperta.
+   - **Nel pannello** un selettore «Dall'ultimo commit | Ultimo giro»
+     nell'intestazione, con lo stile del selettore della sidebar. La scelta
+     si ricorda. «Ultimo giro» è spento (e dice perché) se la sessione non ha
+     ancora una fotografia. In modalità Unisci il selettore non c'è.
+   - **Il confronto** è fra la fotografia e una fotografia di adesso, quindi
+     vede anche i file nuovi. Si fa solo mentre il pannello è aperto su
+     «Ultimo giro»: linguetta e contatori dei worktree restano «dall'ultimo
+     commit» e non scrivono niente nel repository.
+   - **Dopo la revisione** (stesso giorno): l'indice è **dell'app e
+     persistente** (uno per repository, nella tmpdir), così un file già
+     fotografato non si rilegge; i file nuovi entrano con
+     `update-index --add --remove` (uno sparito nel frattempo non fa fallire
+     tutto, lo sparse checkout non dà fastidio), senza hook dell'utente; se i
+     file nuovi da aggiungere sono più di 1000 o pesano più di 50 MB non ne
+     entra nessuno e il pannello lo dice (una cartella generata da ignorare).
+   - **Limiti noti del «quando parte un giro»**, che si legge da quello che
+     si digita: un prompt ripreso dalla cronologia (↑ e Invio) non apre un
+     giro, perché ↑ e Invio servono anche nei menu dei permessi; le risposte
+     ai menu («1», «y») e le bozze abbandonate con Ctrl+C non contano. Il
+     segnale esatto arriverebbe dagli hook di Claude (`UserPromptSubmit`),
+     cioè l'idea «Segnale esatto» di idee.md: quando si fa, questo passa di lì.
 
-## Come (con le scelte consigliate)
+## Come
 
 ### `lib/git-changes.js` — puro + `runGit`
 
-- `readChanges(cwd, { run })`: `git status --porcelain=v2 -z
-  --untracked-files=all` + `git diff --numstat -z HEAD` → elenco
-  `{ path, oldPath?, status: 'M'|'A'|'D'|'R'|'?', added, removed, binary }`.
-  I file nuovi non tracciati non compaiono in `--numstat`: le righe si
-  contano leggendo il file (con tetto di dimensione).
-- `readFileDiff(cwd, path, { run })`: `git diff --no-color --no-ext-diff
-  HEAD -- <path>` (per un file nuovo: `--no-index /dev/null <path>`, o il
-  contenuto letto e formattato come aggiunta). Tetto di dimensione:
-  un diff enorme si tronca e lo dice.
+- `readChanges(cwd, { base, run })` → `{ ok, against: 'HEAD'|<sha>, baseName?,
+  files: [{ path, oldPath?, status: 'M'|'A'|'D'|'R'|'?', added, removed,
+  binary }], totals: { files, added, removed } }`.
+  - contro `HEAD`: `git status --porcelain=v2 -z --untracked-files=all` +
+    `git diff --numstat -z HEAD`;
+  - con `base`: `git merge-base <base> HEAD`, poi `git diff --numstat -z
+    --find-renames <sha>` + lo status per i non tracciati;
+  - i file non tracciati non compaiono in numstat: le righe si contano
+    leggendo il file (tetto di dimensione, oltre → «grande», niente numero);
+  - repository senza commit (`HEAD` non esiste): tutto è «nuovo», niente
+    errore;
+  - non è un repository → `{ ok: false, reason: 'not-a-repo' }`, e la
+    linguetta non compare.
+- `readFileDiff(cwd, path, { against, run })`: `git diff --no-color
+  --no-ext-diff <against> -- <path>`; per un file non tracciato, il contenuto
+  letto e formattato come aggiunta. **Tetto**: oltre N righe il diff si tronca
+  e lo dice. Binario → «file binario», niente righe.
 - `parseStatus`, `parseNumstat`, `parseUnifiedDiff` puri → blocchi
-  (`@@ … @@`) e righe `{ kind: 'add'|'del'|'ctx', oldNo, newNo, text }`,
+  (`@@ … @@`) e righe `{ kind: 'add'|'del'|'ctx'|'note', oldNo, newNo, text }`,
   testati su fixture in `tests/fixtures/`.
-- Opzioni fisse: `-c core.quotepath=off` (nomi con accenti leggibili),
-  `--no-ext-diff`, `--no-color`, `--` prima dei percorsi.
+- Opzioni fisse: `-c core.quotepath=off`, `--no-ext-diff`, `--no-color`,
+  `--` prima dei percorsi.
 - **Il percorso chiesto dal renderer va validato**: si accetta solo un
-  percorso presente nell'ultimo elenco di `readChanges` per quel repository,
-  risolto dentro la radice (niente `..`, niente assoluti). Il renderer non
-  deve poter far leggere un file qualsiasi.
-- Windows: separatori `[\\/]`, `platform` come parametro, casi provati in
+  percorso presente nell'ultimo `readChanges` per quella cartella, risolto
+  dentro la radice (niente `..`, niente assoluti). Il renderer non deve poter
+  far leggere un file qualsiasi. Anche `base` va validato: deve essere un
+  branch esistente (`refs/heads/<base>`), mai passato a git come opzione.
+- Windows: separatori `[\\/]`, `platform` come parametro, casi in
   `tests/windows.test.js` (regole di `CLAUDE.md`).
 
 ### IPC
 
 `git-changes` e `git-file-diff` in `main.js` (solo cablaggio: c'è un test sul
 tetto di righe, se lo alzi spiega il perché nel commit), metodi nel
-`preload.js`.
+`preload.js`. La base di un worktree la conosce già il renderer
+(`worktree-cache.js`); il main la ricontrolla comunque (validazione sopra).
 
 ### Renderer
 
-- `renderer/git-changes-view.js`, **modulo UMD testabile** come
-  `sidebar.js` / `search-results.js`: lista file (icona di stato, percorso
-  relativo, `+N −M` colorati), clic → diff del file sotto o accanto, stato
-  vuoto «Nessuna modifica rispetto all'ultimo commit», errori.
-- Il testo dei diff è **arbitrario**: righe costruite con `textContent`,
-  **mai** `innerHTML` interpolato (regola di sicurezza di `CLAUDE.md`).
-- Terza voce nel selettore di `git-graph-view.js`; il polling si ferma
-  quando la vista o la scheda non sono visibili.
-- Pulsante sulla card (se scelta A): passa da una callback in
-  `renderer/sidebar.js` (modello `onRename` / `onClose`) a
-  `session-list.js`, che trova o crea la scheda git del `projectRoot`.
-- Il renderer è diviso in script classici che condividono lo scope: un file
-  nuovo va in `index.html` **e** in `tests/renderer-source.js`, nell'ordine
-  giusto (`tests/renderer-load.test.js` lo verifica).
-- Colori: `--state-ok` / `--state-error` di `tokens.css` per aggiunte e
-  rimozioni, come il resto dell'app.
+- `renderer/changes-model.js` — **UMD puro**: dato il bersaglio e l'ultima
+  lettura, cosa mostrare (testo della linguetta, intestazione, stato vuoto,
+  file aperti); decide quando rileggere il diff del file aperto. Testato
+  senza DOM.
+- `renderer/changes-view.js` — **UMD**, il pannello su `fake-dom`: linguetta,
+  intestazione, fisarmonica dei file, righe del diff, modalità «stai per
+  unire» con i due pulsanti, errori. Il testo dei diff è **arbitrario**: righe
+  con `textContent`, **mai** `innerHTML` interpolato.
+- `renderer/changes-panel.js` — script dell'app che cuce: un solo pannello
+  sopra l'area dei terminali, **fuori** da `inner` (o assoluto senza
+  influirne la misura: il `ResizeObserver` di `tabs.js` non deve scattare),
+  polling della sessione attiva, scorciatoia dal menu, apertura da Unisci.
+- `renderer/worktree-section.js`: contatore `+N −M` sulla riga, dai dati
+  della cache delle modifiche (stesso schema di `worktree-cache.js`: oggetto
+  nuovo a ogni cambio, `onChange` solo se cambia davvero).
+- `renderer/worktree-actions.js`: per `merge`, al posto di `bubble.ask` la
+  conferma arriva dal pannello (dipendenza iniettata, i test esistenti
+  restano sul flusso).
+- `renderer/signals.js`: `flagAttention` avvisa anche la cache delle
+  modifiche (solo se la scheda sta in un worktree).
+- File nuovi in `index.html` **e** in `tests/renderer-source.js`, nell'ordine
+  giusto (`tests/renderer-load.test.js`). CSP: niente da cambiare, nessuno
+  script inline.
+- Colori: `--state-ok` / `--state-error` di `tokens.css`; stile dei controlli
+  come il resto dell'app, nessun controllo nativo.
 
 ## Test
 
-- `tests/git-changes.test.js`: parsing di status (modificati, rinominati,
-  cancellati, non tracciati, nomi con spazi e accenti), numstat (binari),
-  diff unificato (più blocchi, «\ No newline at end of file»), troncamento,
-  **rifiuto di un percorso fuori dall'elenco o fuori dalla radice**.
-- Vista su DOM finto (`tests/fake-dom.js`): lista, selezione, stato vuoto, e
-  che un diff con `<script>` nel testo resti testo.
-- Caso con git vero in `tests/integration.test.js` (`t.skip` senza git):
-  repo temporaneo, una modifica, un file nuovo, un rename → elenco e diff.
+- `tests/git-changes.test.js`: status (modificati, rinominati, cancellati, non
+  tracciati, nomi con spazi e accenti), numstat (binari), diff unificato (più
+  blocchi, «\ No newline at end of file»), troncamento, merge-base, repository
+  senza commit, **rifiuto di un percorso fuori dall'elenco o fuori dalla
+  radice, e di una base che non è un branch o inizia con `-`**.
+- `tests/changes-model.test.js`: testo della linguetta, quale bersaglio per
+  cartella principale / worktree con base / senza base, quando rileggere.
+- `tests/changes-view.test.js` su `fake-dom`: fisarmonica, stato vuoto,
+  modalità Unisci, un diff con `<script>` nel testo resta testo.
+- `tests/worktree-actions.test.js`: Unisci passa dalla conferma del pannello;
+  Annulla non tocca niente.
+- Caso con git vero in `tests/integration.test.js` (`t.skip` senza git): repo
+  temporaneo, una modifica, un file nuovo, un rename; worktree con commit +
+  modifica non committata contro la base.
 - `npm run test:unit` verde.
 
 ## Commit previsti
 
 1. `docs:` questo piano (+ riga nel README dei piani, spunte in idee.md)
 2. `feat:` `lib/git-changes.js` + test
-3. `feat:` IPC + vista Modifiche nella scheda git
-4. `feat:` pulsante «vedi modifiche» sulla card (se scelta A)
+3. `feat:` IPC + pannello con linguetta (momenti 1 e 2)
+4. `feat:` contatore sulla riga del worktree
+5. `feat:` Unisci passa dal pannello (momento 3)
+6. `feat:` fotografia di un tree e confronto con una fotografia (lib + IPC)
+7. `feat:` fotografia all'invio del prompt, ricordata in tmux
+8. `feat:` selettore «Ultimo giro» nel pannello
 
 Eventuali spostamenti di codice esistente in commit `refactor:` separati.
 
@@ -145,18 +256,17 @@ Eventuali spostamenti di codice esistente in commit `refactor:` separati.
 
 - **Niente `npm start`**: l'app installata è aperta e condivide socket tmux
   (`aisession`) e cartella dati. Lo smoke test lo fa l'utente; a fine lavoro
-  dargli la lista di cosa provare (repo con modifiche, file nuovo, rename,
-  binario, diff enorme, repo pulito, directory che non è un repository).
-- Se l'utente sta lavorando nella cartella principale, lavorare in un
-  worktree accanto (`git worktree add -b feat/pannello-modifiche
-  ../PizzaManager-modifiche origin/main`, `node_modules` in symlink).
+  dargli la lista di cosa provare: repo con modifiche, file nuovo, rename,
+  binario, diff enorme, repo pulito, cartella che non è un repository,
+  worktree con commit + modifiche, Unisci → Annulla, Unisci → conferma,
+  pannello aperto mentre l'agente scrive (il terminale non si ridimensiona).
 - Chiedere all'utente prima di pushare e aprire la PR.
 
 ## Fuori
 
 - Azioni sul diff (stage, scarta, commit).
 - Evidenziazione della sintassi e vista affiancata (side-by-side).
+- «Chiedi all'agente» da una riga del diff.
 - Diff di un commit della timeline (clic su un commit): annotato nel piano 25,
   userebbe `readFileDiff` con un intervallo di commit.
-- Worktree per agente ([piano 36](36-sessione-worktree.md)): il pannello
-  mostrerà il branch contro la base salvata in `branch.<nome>.pizzaBase`.
+- Contatori su tutte le card e sulle sessioni della cartella principale.

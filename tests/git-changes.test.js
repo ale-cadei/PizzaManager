@@ -389,3 +389,38 @@ ok('changes: readFileDiff non rilegge tutti i file nuovi per trovarne uno', asyn
   const ls = calls.filter((c) => c.args.includes('ls-files')).map((c) => c.args);
   assert.ok(ls.every((a) => a.includes('--literal-pathspecs') && a[a.length - 1] === 'uno.txt'), 'ls-files senza il percorso');
 });
+
+ok('changes: con since confronta la fotografia con una di adesso, senza leggere il disco', async () => {
+  const calls = [];
+  const SINCE = '1'.repeat(40);
+  const NOW = '2'.repeat(40);
+  const run = fakeGit({
+    'rev-parse --show-toplevel': `${ROOT}\n`,
+    'rev-parse --git-path': '.git/index\n',
+    'write-tree': `${NOW}\n`,
+    'diff --name-status': z('M', 'app.js', 'A', 'nuovo.txt'),
+    'diff --numstat': '1\t1\tapp.js' + NUL + '3\t0\tnuovo.txt' + NUL,
+    'ls-files': '',
+    add: '',
+  }, calls);
+  const fsp = { ...fs.promises, copyFile: async () => {} };
+  const r = await readChanges({ cwd: ROOT, since: SINCE, run, fsp });
+  assert.strictEqual(r.ok, true, r.error);
+  assert.strictEqual(r.since, true);
+  assert.strictEqual(r.uncommitted, null);
+  assert.deepStrictEqual(r.files.map((f) => [f.path, f.status, f.added]), [['app.js', 'M', 1], ['nuovo.txt', 'A', 3]]);
+  const diff = calls.find((c) => c.args.includes('--numstat')).args;
+  assert.deepStrictEqual(diff.slice(-2), [SINCE, NOW]);
+});
+
+ok('changes: un since che non è una fotografia si rifiuta senza chiamare git', async () => {
+  for (const since of ['HEAD', '--output=/tmp/x', 'a'.repeat(39), 42]) {
+    const calls = [];
+    const r = await readChanges({ cwd: ROOT, since, run: fakeGit(repoAnswers(), calls) });
+    assert.strictEqual(r.ok, false, String(since));
+    assert.strictEqual(calls.length, 0);
+    const d = await readFileDiff({ cwd: ROOT, path: 'app.js', since, run: fakeGit(repoAnswers(), calls) });
+    assert.strictEqual(d.ok, false);
+    assert.strictEqual(calls.length, 0);
+  }
+});

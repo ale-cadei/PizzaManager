@@ -676,3 +676,58 @@ ok('git: readChanges e readFileDiff su modifiche, file nuovi, rinominati e workt
     fs.rmSync(base, { recursive: true, force: true });
   }
 });
+
+// ---------- git: «ultimo giro», fotografia e confronto con git vero (piano 32) ----------
+ok('git: la fotografia non tocca l\'indice e il confronto vede solo quello che è cambiato dopo, con il git installato', async (t) => {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const path = require('path');
+  const { resolveBinary } = require('../lib/binaries');
+  const { snapshotTree } = require('../lib/git-snapshot');
+  const { readChanges, readFileDiff } = require('../lib/git-changes');
+  const bin = resolveBinary('git');
+  if (!bin.path) return t.skip('git non installato su questa macchina');
+  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-giro-')));
+  const git = (...args) => String(execFileSync(bin.path, args, { cwd: root })).trim();
+  const write = (file, text) => fs.writeFileSync(path.join(root, file), text);
+  try {
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.name', 'Prova');
+    git('config', 'user.email', 'p@x');
+    write('a.txt', 'uno\n');
+    write('b.txt', 'bi\n');
+    git('add', '.');
+    git('commit', '-q', '-m', 'primo');
+
+    // Giro precedente: lavoro non committato, una cosa in stage
+    write('a.txt', 'uno\ngiro vecchio\n');
+    write('vecchio-nuovo.txt', 'dal giro prima\n');
+    git('add', 'a.txt');
+    const stagedBefore = git('diff', '--cached', '--name-only');
+    const snap = await snapshotTree({ cwd: root });
+    assert.strictEqual(snap.ok, true, snap.error);
+    assert.strictEqual(git('diff', '--cached', '--name-only'), stagedBefore, 'la fotografia ha toccato l\'indice');
+    assert.strictEqual(git('status', '--porcelain', '--', 'vecchio-nuovo.txt'), '?? vecchio-nuovo.txt', 'il file nuovo è finito nell\'indice');
+
+    // Il giro: una riga in più in a.txt, b.txt toccato, un file nuovo, uno tolto
+    write('a.txt', 'uno\ngiro vecchio\ngiro nuovo\n');
+    write('b.txt', 'BI\n');
+    write('giro.txt', 'nuovo in questo giro\n');
+    fs.rmSync(path.join(root, 'vecchio-nuovo.txt'));
+    const r = await readChanges({ cwd: root, since: snap.tree });
+    assert.strictEqual(r.ok, true, r.error);
+    assert.deepStrictEqual(r.files.map((f) => [f.path, f.status, f.added, f.removed]), [
+      ['a.txt', 'M', 1, 0], ['b.txt', 'M', 1, 1], ['giro.txt', 'A', 1, 0], ['vecchio-nuovo.txt', 'D', 0, 1],
+    ]);
+    const d = await readFileDiff({ cwd: root, path: 'a.txt', since: snap.tree });
+    assert.strictEqual(d.ok, true, d.error);
+    assert.deepStrictEqual(d.hunks[0].lines.filter((l) => l.kind !== 'ctx').map((l) => [l.kind, l.text]), [['add', 'giro nuovo']]);
+    const n = await readFileDiff({ cwd: root, path: 'giro.txt', since: snap.tree });
+    assert.deepStrictEqual(n.hunks[0].lines.map((l) => l.text), ['nuovo in questo giro']);
+    // Dall'ultimo commit invece si vede tutto, giro vecchio compreso
+    const all = await readChanges({ cwd: root });
+    assert.deepStrictEqual(all.files.map((f) => f.path), ['a.txt', 'b.txt', 'giro.txt']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

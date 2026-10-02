@@ -102,7 +102,7 @@ ok('parseSessionList: legge il formato, ignora sessioni altrui e righe rotte, or
   assert.deepStrictEqual(out[0], {
     name: 'ais-claude-b', createdAt: 2000000, attached: true, type: 'claude', cwd: '/b con spazi', label: 'Titolo: due punti',
     profileId: 'claude:default', profileLabel: null, resumeId: 'uuid-1', accountId: null, accountName: null,
-    iconKey: null, iconMode: null,
+    iconKey: null, iconMode: null, turnTree: null, turnAt: null,
   });
   assert.deepStrictEqual(t.parseSessionList(''), []);
   assert.deepStrictEqual(t.parseSessionList(null), []);
@@ -269,4 +269,13 @@ ok('spawnArgs: la sessione nasce gia della misura del client', () => {
     const s = t.spawnArgs({ confPath: conf, name: 'ais-shell-1', cmd: '/bin/zsh', cols: bad, rows: bad });
     assert.ok(!s.includes('-x'), `misura non valida accettata: ${bad}`);
   }
+});
+
+ok('metaArgs e parseSessionList: la fotografia dell\'ultimo giro si salva e torna', () => {
+  const tree = 'a'.repeat(40);
+  const list = t.metaArgs({ confPath: conf, name: 'ais-claude-1', meta: { turn_tree: tree, turn_at: 1700000000000 } });
+  assert.ok(list.some((a) => a.includes('@ais_turn_tree') && a.includes(tree)));
+  const S = t.FIELD_SEP;
+  const line = ['ais-claude-1', '1000', '0', ...t.META_KEYS.map((k) => ({ type: 'claude', turn_tree: tree, turn_at: '1700000000000' })[k] || '')].join(S);
+  assert.deepStrictEqual(t.parseSessionList(line).map((s) => [s.turnTree, s.turnAt]), [[tree, 1700000000000]]);
 });

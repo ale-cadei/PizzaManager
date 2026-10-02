@@ -24,6 +24,8 @@ async function reattachLiveSessions() {
       attachSession: s.name,
       iconKey: s.iconKey || 'shell',
       iconMode: s.iconMode || 'auto',
+      turnTree: s.turnTree || null,
+      turnAt: s.turnAt || null,
       // L'istante di avvio e' quello della sessione tmux, non del riattacco:
       // senza id, la conversazione va cercata da quando e' nata davvero.
       startedAt: s.createdAt || Date.now(),

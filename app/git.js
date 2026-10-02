@@ -4,6 +4,7 @@ const { listBranches, switchBranch, createBranch, deleteBranch } = require('../l
 const { createGitSessionsStore, savedBeforeBoot } = require('../lib/git-sessions');
 const { listWorktrees, worktreeStart, createWorktree, mergeWorktree, removeWorktree } = require('../lib/worktree');
 const { readChanges, readFileDiff } = require('../lib/git-changes');
+const { snapshotTree } = require('../lib/git-snapshot');
 
 /**
  * Canali IPC della sessione di tipo git (docs/plans/25), dei worktree
@@ -45,10 +46,13 @@ function registerGitHandlers(ipcMain, { userDataDir } = {}) {
   ipcMain.handle('worktree-create', guard(({ root, branch, base }) => createWorktree({ root, branch, base })));
   ipcMain.handle('worktree-merge', guard(({ root, path }) => mergeWorktree({ root, path })));
   ipcMain.handle('worktree-remove', guard(({ root, path, branch, force }) => removeWorktree({ root, path, branch, force: force === true })));
-  // Pannello delle modifiche (docs/plans/32): base e percorso li ricontrolla
-  // lib/git-changes.js, il renderer non può far leggere un file qualsiasi.
-  ipcMain.handle('git-changes', guard(({ cwd, base }) => readChanges({ cwd, base })));
-  ipcMain.handle('git-file-diff', guard(({ cwd, base, path }) => readFileDiff({ cwd, base, path })));
+  // Pannello delle modifiche (docs/plans/32): base, fotografia e percorso li
+  // ricontrolla lib/git-changes.js, il renderer non può far leggere un file
+  // qualsiasi né passare opzioni a git.
+  ipcMain.handle('git-changes', guard(({ cwd, base, since }) => readChanges({ cwd, base, since })));
+  ipcMain.handle('git-file-diff', guard(({ cwd, base, path, since }) => readFileDiff({ cwd, base, path, since })));
+  // «Ultimo giro»: la fotografia dei file all'invio di un prompt
+  ipcMain.handle('git-snapshot', guard(({ cwd }) => snapshotTree({ cwd })));
 }
 
 module.exports = { registerGitHandlers };

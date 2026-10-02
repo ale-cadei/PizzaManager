@@ -45,7 +45,7 @@ ok('ipc: un payload mancante o senza radice risponde con un errore, non lancia',
 ok('ipc: il pannello delle modifiche risponde con un errore a un payload vuoto, e rifiuta percorsi fuori', async () => {
   const { handlers, ipcMain } = fakeIpc();
   registerGitHandlers(ipcMain, { userDataDir: () => '/non/usata' });
-  for (const channel of ['git-changes', 'git-file-diff']) {
+  for (const channel of ['git-changes', 'git-file-diff', 'git-snapshot']) {
     for (const payload of [undefined, null, {}]) {
       const r = await handlers.get(channel)({}, payload);
       assert.strictEqual(r.ok, false, `${channel} con ${JSON.stringify(payload)}`);

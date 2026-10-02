@@ -19,14 +19,16 @@
    * @param {{path: string, branch: string|null, base: string|null}|null} worktree
    * `path` è la cartella del worktree (null nella cartella principale): la
    * lettura vale anche per il contatore sulla sua riga in sidebar.
-   * @returns {{cwd: string, base: string|null, branch: string|null, path: string|null, key: string}|null}
+   * `since` è la fotografia dell'ultimo giro, se è quello che si guarda.
+   * @returns {{cwd: string, base: string|null, branch: string|null, path: string|null,
+   *   since: string|null, key: string}|null}
    */
-  function targetFor(tab, worktree) {
+  function targetFor(tab, worktree, { since = null } = {}) {
     if (!tab || tab.type === 'git' || typeof tab.cwd !== 'string' || !tab.cwd) return null;
     const base = (worktree && worktree.base) || null;
     const branch = (worktree && worktree.branch) || null;
     const path = (worktree && worktree.path) || null;
-    return { cwd: tab.cwd, base, branch, path, key: `${tab.cwd}\0${base || ''}` };
+    return { cwd: tab.cwd, base, branch, path, since, key: `${tab.cwd}\0${base || ''}\0${since || ''}` };
   }
 
   const isRepo = (result) => Boolean(result && result.ok);
@@ -45,8 +47,9 @@
     return { visible: true, clean: false, text: `${files} · +${added} −${removed}`, parts: countParts(result.totals) };
   }
 
-  /** Di cosa parla il pannello, sotto la parola «Modifiche» */
-  function headerTitle(target, result) {
+  /** Di cosa parla il pannello, sotto la parola «Modifiche». `turnTime`: ora dell'ultimo prompt */
+  function headerTitle(target, result, { turnTime = null } = {}) {
+    if (result && result.ok && result.since) return turnTime ? `ultimo giro · dalle ${turnTime}` : 'ultimo giro';
     if (result && result.ok && result.against === null) return 'nessun commit ancora';
     const branch = target && target.branch;
     if (result && result.ok && result.base) return `${branch || 'branch'} da ${result.base}`;
@@ -119,5 +122,26 @@
     return f.oldPath ? `${f.oldPath} → ${f.path}` : f.path;
   }
 
-  return { targetFor, tabLabel, headerTitle, summary, summaryParts, fileCounts, signature, diffsToReload, splitPath, displayPath };
+  /**
+   * Il selettore «Dall'ultimo commit | Ultimo giro». Non c'è in modalità
+   * Unisci; «Ultimo giro» è spento, e dice perché, finché la sessione non ha
+   * una fotografia.
+   * @param {{type: string, turnTree?: string|null}|null} tab
+   * @param {'commit'|'turn'} wanted la scelta dell'utente
+   * @returns {{current: 'commit'|'turn', turnAvailable: boolean, turnHint: string}}
+   */
+  function modeChoice(tab, wanted) {
+    const isAgent = Boolean(tab) && tab.type !== 'shell' && tab.type !== 'git';
+    const turnAvailable = isAgent && Boolean(tab.turnTree);
+    const turnHint = !isAgent ? 'L\'ultimo giro c\'è solo nelle sessioni con un agente.'
+      : turnAvailable ? 'Solo quello che è cambiato dopo l\'ultimo prompt inviato.'
+        : 'Ancora nessun prompt inviato da questa sessione.';
+    return { current: wanted === 'turn' && turnAvailable ? 'turn' : 'commit', turnAvailable, turnHint };
+  }
+
+  function emptyText(result) {
+    return result && result.since ? 'Nessuna modifica dall\'ultimo prompt.' : 'Nessuna modifica: tutto come all\'ultimo commit.';
+  }
+
+  return { targetFor, tabLabel, headerTitle, summary, summaryParts, modeChoice, emptyText, fileCounts, signature, diffsToReload, splitPath, displayPath };
 });

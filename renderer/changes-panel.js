@@ -18,6 +18,8 @@
 
 const CHANGES_POLL_MS = 3000;
 const CHANGES_WIDTH_KEY = 'aisess.changesWidth';
+/* «Dall'ultimo commit» o «Ultimo giro»: la scelta del selettore si ricorda */
+const CHANGES_MODE_KEY = 'aisess.changesMode';
 const CHANGES_MIN_WIDTH = 320;
 /* Al terminale resta sempre almeno questo, anche col pannello allargato */
 const CHANGES_MIN_TERMINAL = 160;
@@ -65,8 +67,18 @@ function noteWorktreeSessionDone(t) {
   const w = Groups.worktreeOf(t, worktreeCache.snapshot());
   if (w) changesCache.refresh(w).catch(() => {});
 }
+function readChangesMode() {
+  try {
+    return localStorage.getItem(CHANGES_MODE_KEY) === 'turn' ? 'turn' : 'commit';
+  } catch {
+    return 'commit';
+  }
+}
+
 /* Stato del pannello: si sostituisce per intero, mai modificato sul posto */
-let changesState = { open: false, target: null, result: null, signature: 'none', expanded: {}, seq: 0, merge: null };
+let changesState = {
+  open: false, target: null, result: null, signature: 'none', expanded: {}, seq: 0, merge: null, mode: readChangesMode(),
+};
 
 /* L'ultima richiesta di diff per file: una risposta più vecchia (file chiuso
    e riaperto, due riletture di fila) non deve sovrascrivere quella nuova */
@@ -95,9 +107,21 @@ function mergeFooter(merge, result) {
   return { text: conf.text, confirmLabel: `Unisci in ${worktree.base}`, warning, canConfirm: loaded && !pending };
 }
 
+const activeTab = () => (activeId ? tabs.get(activeId) || null : null);
+
+/** «16:42»: da quando conta l'ultimo giro */
+function turnTimeOf(tab) {
+  if (!tab || !tab.turnAt) return null;
+  try {
+    return new Date(tab.turnAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return null;
+  }
+}
+
 function renderChanges() {
   if (!changesView) return;
-  const { open, target, result, expanded, merge } = changesState;
+  const { open, target, result, expanded, merge, mode } = changesState;
   const ok = Boolean(result && result.ok);
   // Fuori da un repository (o senza sessione) non c'è niente da aprire; un
   // errore di git invece si mostra, se il pannello era aperto. Per «Unisci»
@@ -112,22 +136,35 @@ function renderChanges() {
     // aperto e dice che sta caricando (cambiare scheda non lo fa lampeggiare)
     open: open && Boolean(target) && (readable || Boolean(merge) || !result),
     loading: !result,
-    title: ChangesModel.headerTitle(target, result),
+    title: ChangesModel.headerTitle(target, result, { turnTime: turnTimeOf(activeTab()) }),
     summary: ChangesModel.summaryParts(result),
     error: unreadable,
     files: ok ? result.files : [],
     expanded,
     heading: merge ? 'Stai per unire' : 'Modifiche',
     merge: mergeFooter(merge, result),
+    // In modalità Unisci si guarda il branch contro la base, nient'altro
+    modes: merge ? null : ChangesModel.modeChoice(activeTab(), mode),
+    emptyText: ChangesModel.emptyText(result),
   });
 }
 
 function activeChangesTarget() {
   const { merge } = changesState;
   if (merge) return ChangesModel.targetFor({ type: 'worktree', cwd: merge.worktree.path }, merge.worktree);
-  const t = activeId ? tabs.get(activeId) : null;
+  const t = activeTab();
   const worktree = t ? Groups.worktreeOf(t, worktreeCache.snapshot()) : null;
-  return ChangesModel.targetFor(t, worktree);
+  // L'ultimo giro si guarda solo a pannello aperto: confrontarlo costa una
+  // fotografia di adesso, e la linguetta parla sempre dall'ultimo commit
+  const turn = changesState.open && ChangesModel.modeChoice(t, changesState.mode).current === 'turn';
+  return ChangesModel.targetFor(t, worktree, { since: turn ? t.turnTree : null });
+}
+
+function setChangesMode(mode) {
+  if (mode === changesState.mode) return;
+  try { localStorage.setItem(CHANGES_MODE_KEY, mode); } catch {}
+  setChangesState({ mode });
+  refreshChanges().catch((e) => console.warn('[modifiche]', e));
 }
 
 /** Il giro periodico: salta se la lettura di prima non è ancora tornata. */
@@ -151,13 +188,13 @@ async function refreshChanges() {
   changesState = { ...changesState, seq };
   let result;
   try {
-    result = await window.aisess.gitChanges(target.cwd, target.base);
+    result = await window.aisess.gitChanges(target.cwd, target.base, target.since);
   } catch (e) {
     result = { ok: false, error: String((e && e.message) || e) };
   }
   if (seq !== changesState.seq) return; // nel frattempo è partita una lettura più nuova
   if (result && !result.ok && result.error) console.warn('[modifiche]', result.error);
-  if (target.path) changesCache.put(target.path, result);
+  if (target.path && !target.since) changesCache.put(target.path, result);
   const signature = ChangesModel.signature(result);
   if (signature === changesState.signature) return;
   const prev = changesState.result;
@@ -176,7 +213,7 @@ async function loadFileDiff(path) {
   changesDiffTokens.set(path, token);
   let diff;
   try {
-    diff = await window.aisess.gitFileDiff(target.cwd, target.base, path);
+    diff = await window.aisess.gitFileDiff(target.cwd, target.base, path, target.since);
   } catch (e) {
     diff = { ok: false, error: String((e && e.message) || e) };
   }
@@ -226,9 +263,10 @@ function toggleChangesPanel(force) {
   // Aprendolo il fuoco resta al terminale: si può scrivere all'agente col
   // diff sotto gli occhi. Esc chiude quando il fuoco è nel pannello (un clic
   // su un file); chiudendolo il fuoco torna al terminale.
-  if (open) refreshChanges().catch((e) => console.warn('[modifiche]', e));
+  // Anche chiudendo: la linguetta torna a parlare dall'ultimo commit
+  refreshChanges().catch((e) => console.warn('[modifiche]', e));
   // Il clic sulla linguetta lascerebbe il fuoco su un pulsante che sparisce
-  const t = activeId ? tabs.get(activeId) : null;
+  const t = activeTab();
   if (t && t.term) t.term.focus();
 }
 
@@ -276,6 +314,7 @@ function initChangesPanel() {
     onClose: () => toggleChangesPanel(false),
     onFile: (path) => toggleChangesFile(path),
     onMerge: (confirmed) => finishMerge(confirmed),
+    onMode: (mode) => setChangesMode(mode),
   });
   initChangesResize();
   try { window.aisess.onMenu('menu-changes', () => toggleChangesPanel()); } catch {}

@@ -203,3 +203,24 @@ ok('vista modifiche: dopo un ridisegno il fuoco torna sulla riga del file', () =
   assert.notStrictEqual(rowB, focusDoc.activeElement, 'la riga è nuova');
   assert.strictEqual(rowB.focused, true);
 });
+
+ok('ultimo giro: il selettore dice qual è acceso, e spento dice perché', () => {
+  const picked = [];
+  const { host, view } = setup({ onMode: (m) => picked.push(m) });
+  view.render(baseState({ modes: { current: 'commit', turnAvailable: false, turnHint: 'Ancora nessun prompt inviato da questa sessione.' } }));
+  const commit = one(host, 'changes-mode-commit');
+  const turn = one(host, 'changes-mode-turn');
+  assert.strictEqual(one(host, 'changes-modes').hidden, false);
+  assert.strictEqual(commit.getAttribute('aria-pressed'), 'true');
+  assert.strictEqual(turn.disabled, true);
+  assert.strictEqual(turn.title, 'Ancora nessun prompt inviato da questa sessione.');
+  view.render(baseState({ modes: { current: 'turn', turnAvailable: true, turnHint: 'x' }, files: [], emptyText: 'Nessuna modifica dall\'ultimo prompt.' }));
+  assert.strictEqual(turn.getAttribute('aria-pressed'), 'true');
+  assert.strictEqual(textOf(one(host, 'changes-empty')), 'Nessuna modifica dall\'ultimo prompt.');
+  commit.onclick();
+  turn.onclick();
+  assert.deepStrictEqual(picked, ['commit', 'turn']);
+  // in modalità Unisci (o senza scelta) il selettore non c'è
+  view.render(baseState({ modes: null }));
+  assert.strictEqual(one(host, 'changes-modes').hidden, true);
+});

@@ -104,9 +104,9 @@
   /**
    * @param {{doc: Document, host: Element, shortcut: string,
    *   onToggle: () => void, onClose: () => void, onFile: (path: string) => void,
-   *   onMerge?: (confirmed: boolean) => void}} o
+   *   onMerge?: (confirmed: boolean) => void, onMode?: (mode: 'commit'|'turn') => void}} o
    */
-  function createChangesView({ doc, host, shortcut, onToggle, onClose, onFile, onMerge = () => {} }) {
+  function createChangesView({ doc, host, shortcut, onToggle, onClose, onFile, onMerge = () => {}, onMode = () => {} }) {
     const tab = button(doc, 'changes-tab', '', `Modifiche di questa sessione (${shortcut})`, () => onToggle());
     tab.hidden = true;
     const tabTitle = (text) => `Modifiche di questa sessione: ${text} (${shortcut})`;
@@ -131,6 +131,16 @@
     head.appendChild(heading);
     head.appendChild(summary);
     head.appendChild(button(doc, 'changes-close', '×', `Chiudi (${shortcut} o Esc)`, () => onClose()));
+    // «Dall'ultimo commit | Ultimo giro»: stesso selettore della sidebar
+    const modes = el(doc, 'div', 'seg changes-modes');
+    modes.setAttribute('role', 'group');
+    modes.setAttribute('aria-label', 'Rispetto a cosa');
+    const commitBtn = button(doc, 'seg-btn changes-mode-commit', 'Dall\'ultimo commit',
+      'Tutto quello che non è ancora in un commit', () => onMode('commit'));
+    const turnBtn = button(doc, 'seg-btn changes-mode-turn', 'Ultimo giro', '', () => onMode('turn'));
+    modes.appendChild(commitBtn);
+    modes.appendChild(turnBtn);
+    head.appendChild(modes);
     const body = el(doc, 'div', 'changes-body');
     const foot = el(doc, 'footer', 'changes-foot');
     foot.hidden = true;
@@ -155,7 +165,8 @@
     /**
      * @param {{label: {visible: boolean, clean: boolean, text: string, parts: object[]}, open: boolean,
      *   title: string, summary: Array<{kind: string, text: string}>, error: string|null, files: object[],
-     *   expanded: Object<string, object>, heading?: string, loading?: boolean,
+     *   expanded: Object<string, object>, heading?: string, loading?: boolean, emptyText?: string,
+     *   modes?: {current: 'commit'|'turn', turnAvailable: boolean, turnHint: string}|null,
      *   merge?: {text: string, confirmLabel: string, warning: string|null, canConfirm: boolean}|null}} state
      */
     function render(state) {
@@ -171,12 +182,13 @@
       if (!state.open) return;
       label.textContent = state.heading || 'Modifiche';
       title.textContent = state.title;
+      renderModes(state.modes || null);
       renderFoot(state.merge || null);
       fillParts(doc, summary, state.summary);
       const items = [];
       if (state.loading) items.push(el(doc, 'div', 'changes-empty', 'Carico…'));
       else if (state.error) items.push(el(doc, 'div', 'changes-error', state.error));
-      else if (!state.files.length) items.push(el(doc, 'div', 'changes-empty', 'Nessuna modifica: tutto come all\'ultimo commit.'));
+      else if (!state.files.length) items.push(el(doc, 'div', 'changes-empty', state.emptyText || 'Nessuna modifica: tutto come all\'ultimo commit.'));
       // Proprietà proprie: un file che si chiama `constructor` o `__proto__`
       // non deve trovare quelle di Object.prototype
       const diffOf = (p) => (Object.prototype.hasOwnProperty.call(state.expanded, p) ? state.expanded[p] : null);
@@ -189,6 +201,16 @@
         const row = [...body.querySelectorAll('.changes-file-row')].find((r) => r.dataset.path === focused);
         if (row && row.focus) row.focus();
       }
+    }
+
+    function renderModes(choice) {
+      modes.hidden = !choice;
+      if (!choice) return;
+      commitBtn.setAttribute('aria-pressed', String(choice.current === 'commit'));
+      turnBtn.setAttribute('aria-pressed', String(choice.current === 'turn'));
+      turnBtn.disabled = !choice.turnAvailable;
+      turnBtn.title = choice.turnHint;
+      turnBtn.setAttribute('aria-label', `Ultimo giro: ${choice.turnHint}`);
     }
 
     function renderFoot(merge) {

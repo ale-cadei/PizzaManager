@@ -20,7 +20,11 @@
  *   - la prima raffica di una scheda appena nata o riattaccata è l'avvio
  *     (tmux che ridisegna lo schermo, `--resume` che riscrive la
  *     conversazione): dura secondi, ma non è un lavoro. All'apertura dell'app
- *     accendeva tutte le sessioni ripristinate;
+ *     accendeva tutte le sessioni ripristinate. E non arriva tutto insieme
+ *     (tmux ridisegna, la TUI si riadatta alla misura nuova, `--resume`
+ *     riscrive): con il main occupato a ripristinare le altre schede le pause
+ *     superano l'idle. Vale quindi la prima raffica E tutto quello che
+ *     comincia entro BOOT_MS dalla nascita;
  *   - una card accesa che riprende a lavorare si spegne: il silenzio era una
  *     pausa a metà turno (un tool che gira, l'attesa del modello), e la card
  *     mostrava insieme «sta lavorando» e «ha finito». Si riaccende alla fine.
@@ -41,24 +45,30 @@
   const MUTE_MS = 2000;
   /** Quanto deve durare l'output perché sia un lavoro e non un frammento. */
   const WORK_MS = 1500;
+  /** Dalla nascita della scheda, quanto dura l'avvio (raffiche e bell). */
+  const BOOT_MS = 10000;
 
   function createAttention(opts = {}) {
     const minBytes = opts.minBytes === undefined ? MIN_BYTES : opts.minBytes;
     const muteMs = opts.muteMs === undefined ? MUTE_MS : opts.muteMs;
     const workMs = opts.workMs === undefined ? WORK_MS : opts.workMs;
+    const bootMs = opts.bootMs === undefined ? BOOT_MS : opts.bootMs;
     const now = opts.now || (() => Date.now());
 
-    /** @type {Map<string, {bytes: number, start: number, end: number, muteUntil: number, typed: boolean, flagged: boolean, booting: boolean, working: boolean}>} */
+    /** @type {Map<string, {bytes: number, start: number, end: number, muteUntil: number, typed: boolean, flagged: boolean, booting: boolean, bootUntil: number, working: boolean}>} */
     const state = new Map();
 
     function get(id) {
       if (!state.has(id)) {
-        state.set(id, { bytes: 0, start: 0, end: 0, muteUntil: 0, typed: false, flagged: false, booting: false, working: false });
+        state.set(id, { bytes: 0, start: 0, end: 0, muteUntil: 0, typed: false, flagged: false, booting: false, bootUntil: 0, working: false });
       }
       return state.get(id);
     }
 
     function resetBurst(s) { s.bytes = 0; s.start = 0; s.end = 0; }
+
+    /** Quello che arriva all'istante `t` è ancora l'avvio? L'utente che scrive lo chiude. */
+    function inBoot(s, t) { return !s.typed && (s.booting || t <= s.bootUntil); }
 
     /** Output arrivato su una scheda che non è in primo piano. */
     function data(id, bytes) {
@@ -78,7 +88,7 @@
       const { bytes, start, end } = s;
       resetBurst(s);
       if (s.flagged || bytes < minBytes) return false;
-      if (s.booting && !s.typed) { s.booting = false; return false; }
+      if (inBoot(s, start)) { s.booting = false; return false; }
       // Già vista lavorare (resumed): la coda del turno può essere breve
       if (!s.typed && !s.working) {
         // Coda del ridisegno provocato dalla visita appena finita
@@ -100,7 +110,8 @@
       const s = get(id);
       resetBurst(s);
       if (s.flagged) return false;
-      if (!s.typed && (s.booting || now() <= s.muteUntil)) return false;
+      const t = now();
+      if (inBoot(s, t) || (!s.typed && t <= s.muteUntil)) return false;
       s.flagged = true;
       s.working = false;
       return true;
@@ -112,6 +123,7 @@
       s.typed = true;
       s.muteUntil = 0;
       s.booting = false;
+      s.bootUntil = 0;
     }
 
     /**
@@ -127,9 +139,11 @@
       return true;
     }
 
-    /** Scheda appena nata o riattaccata: la prima raffica è l'avvio. */
+    /** Scheda appena nata o riattaccata: la prima raffica, e quelle entro BOOT_MS, sono l'avvio. */
     function born(id) {
-      get(id).booting = true;
+      const s = get(id);
+      s.booting = true;
+      s.bootUntil = now() + bootMs;
     }
 
     /** L'utente sta guardando la scheda: quello che c'era l'ha visto. */
@@ -176,5 +190,5 @@
     return String(data || '').replace(GENERATED, '').length > 0;
   }
 
-  return { createAttention, isTyping, MIN_BYTES, MUTE_MS, WORK_MS };
+  return { createAttention, isTyping, MIN_BYTES, MUTE_MS, WORK_MS, BOOT_MS };
 });

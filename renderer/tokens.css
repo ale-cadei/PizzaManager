@@ -119,21 +119,22 @@
    Il mix sta in srgb, come actionVars() in type-colors.js: stessa aritmetica
    per --action-soft e per queste superfici.
 
-   Le variabili stanno su #sidebar e non su :root: var(--action) si risolve
-   sull’elemento che dichiara la variabile, e da lì segue il colore scelto
-   (scritto sullo stile di :root, che lo eredita a tutti). L’area terminale e
-   i modali restano sulla palette forno.
+   Le variabili stanno su #sidebar e #main e non su :root: var(--action) si
+   risolve sull’elemento che dichiara la variabile, e da lì segue il colore
+   scelto (scritto sullo stile di :root, che lo eredita a tutti). Modali e
+   menubar restano sulla palette forno.
+
+   #main è l’area delle sessioni: terminali, vista git, pannello modifiche e
+   la barra in fondo (uso dei token, Plugin e skill). Lì --bg è il fondo dei
+   terminali; il tema di xterm lo legge dal CSS (termTheme in app-state.js),
+   quindi segue il principale anche dentro il canvas del terminale.
 
    Testi, accento e stati NON si sovrascrivono: arrivano da :root, uguali a
-   quelli dei modali.
-
-   La barra in fondo (uso dei token, Plugin e skill) prende la stessa
-   palette: corre sotto i terminali accanto alla sidebar e deve sembrarne
-   il seguito, non una striscia di un altro tema. */
+   quelli dei modali. */
 #sidebar,
-.bottombar {
+#main {
   /* superfici */
-  --bg:            color-mix(in srgb, var(--action) 2%, #000000);   /* incassi (selettore segmentato) */
+  --bg:            color-mix(in srgb, var(--action) 2%, #000000);   /* fondo dei terminali; incassi nella sidebar */
   --surface:       color-mix(in srgb, var(--action) 3%, #000000);   /* fondo della sidebar */
   --surface-2:     color-mix(in srgb, var(--action) 8%, #040404);
   --surface-3:     color-mix(in srgb, var(--action) 9%, #121212);

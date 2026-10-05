@@ -1049,10 +1049,10 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 }
 .git-repo { font-family: var(--font-mono); font-size: 13px; color: var(--text-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .git-branch {
-  font-family: var(--font-mono); font-size: 13px; color: var(--type-git); white-space: nowrap;
+  font-family: var(--font-mono); font-size: 13px; color: var(--action-text); white-space: nowrap;
   background: none; border: 1px solid transparent; border-radius: var(--radius); padding: 4px 8px; cursor: pointer;
 }
-.git-branch:hover { border-color: color-mix(in srgb, var(--type-git) 55%, transparent); background: var(--surface-2); }
+.git-branch:hover { border-color: color-mix(in srgb, var(--action) 55%, transparent); background: var(--surface-2); }
 .git-count { margin-right: auto; white-space: nowrap; }
 .git-refresh { padding: 5px 9px; font-size: 11px; line-height: 1.2; white-space: nowrap; }
 .git-view.loading .git-refresh { opacity: .5; }
@@ -1113,11 +1113,11 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .git-switched[hidden] { display: none; }
 .git-switched-from { font-family: var(--font-mono); color: var(--text-2); text-decoration: line-through; }
 .git-switched-arrow { color: var(--text-dim); }
-.git-switched-to { font-family: var(--font-mono); color: var(--type-git); }
-.git-branch--changed { animation: git-branch-pulse 1s ease-out 3; border-color: var(--type-git); }
+.git-switched-to { font-family: var(--font-mono); color: var(--action-text); }
+.git-branch--changed { animation: git-branch-pulse 1s ease-out 3; border-color: var(--action); }
 @keyframes git-switched-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @keyframes git-branch-pulse {
-  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--type-git) 70%, transparent); background: color-mix(in srgb, var(--type-git) 25%, transparent); }
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--action) 70%, transparent); background: color-mix(in srgb, var(--action) 25%, transparent); }
   100% { box-shadow: 0 0 0 10px transparent; background: transparent; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1215,7 +1215,7 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .git-mode { background: none; border: 0; padding: 4px 10px; font: inherit; font-size: 12px; color: var(--text-2); cursor: pointer; }
 .git-mode + .git-mode { border-left: 1px solid var(--border); }
 .git-mode:hover { background: var(--surface-2); }
-.git-mode[aria-pressed="true"] { background: color-mix(in srgb, var(--type-git) 18%, transparent); color: var(--type-git); }
+.git-mode[aria-pressed="true"] { background: color-mix(in srgb, var(--action) 18%, transparent); color: var(--action-text); }
 .git-merged { display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); cursor: pointer; white-space: nowrap; }
 .git-merged[hidden] { display: none; }
 .git-map { position: relative; margin: 0 auto; }

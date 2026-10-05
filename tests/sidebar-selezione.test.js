@@ -62,8 +62,8 @@ ok('selezione: il cartoncino sale di un gradino vero e il testo ci resta sopra',
   const tokens = fs.readFileSync(tokensFiles[0], 'utf8');
   // I valori della sidebar sono quelli veri: lì dentro vivono le card. Quello
   // che la sidebar non ridefinisce (i testi) lo eredita da :root.
-  const sidebar = tokens.slice(tokens.indexOf('#sidebar {'));
-  const root = tokens.slice(0, tokens.indexOf('#sidebar {'));
+  const sidebar = tokens.slice(tokens.indexOf('#sidebar,'));
+  const root = tokens.slice(0, tokens.indexOf('#sidebar,'));
   const val = (name) => {
     const re = new RegExp(`${name}:\\s*(#[0-9A-Fa-f]{6})`);
     const m = sidebar.match(re) || root.match(re);

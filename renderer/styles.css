@@ -1489,8 +1489,8 @@ a, .link { color: var(--action-text); }
 #usagebar {
   display: flex; align-items: center; gap: 0;
   flex: 0 0 auto; height: var(--usagebar-h); padding: 0 12px;
-  background: var(--panel, #14161a);
-  border-top: 1px solid var(--border, #23262d);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
   font-size: 11px; line-height: 1;
   overflow: hidden; white-space: nowrap;
 }
@@ -1500,12 +1500,12 @@ a, .link { color: var(--action-text); }
 .bottombar #usagebar { flex: 1 1 auto; min-width: 0; }
 .bottombar-btn {
   flex: 0 0 auto; height: var(--usagebar-h); padding: 0 12px;
-  background: var(--panel, #14161a); color: var(--muted, #8b909a);
-  border: 0; border-top: 1px solid var(--border, #23262d); border-left: 1px solid var(--border, #23262d);
+  background: var(--surface); color: var(--text-muted);
+  border: 0; border-top: 1px solid var(--border); border-left: 1px solid var(--border);
   font: inherit; font-size: 10px; letter-spacing: .06em; line-height: 1;
   white-space: nowrap; cursor: pointer;
 }
-.bottombar-btn:hover, .bottombar-btn:focus-visible { color: var(--text, #e6e8ec); background: var(--action-soft, #23262d); }
+.bottombar-btn:hover, .bottombar-btn:focus-visible { color: var(--text); background: var(--action-soft); }
 /* "Dove sono": cartella del progetto e nome della chat in primo piano. Prende
    lo spazio che avanza e si tronca per primo: le quote a destra hanno
    larghezza fissa e non devono mai sparire per un nome lungo. */
@@ -1516,31 +1516,31 @@ a, .link { color: var(--action-text); }
 }
 .usage-current-folder {
   flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
-  color: var(--muted, #8b909a);
+  color: var(--text-muted);
 }
 .usage-current-folder::before { content: '📁 '; }
 .usage-current-folder:empty { display: none; }
-.usage-current-folder + .usage-current-name::before { content: '·'; margin-right: 6px; color: var(--muted, #8b909a); }
+.usage-current-folder + .usage-current-name::before { content: '·'; margin-right: 6px; color: var(--text-muted); }
 .usage-current-name {
   flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
-  color: var(--text, #e6e8ec); font-weight: 600;
+  color: var(--text); font-weight: 600;
 }
 .usage-current[hidden] { display: none; }
-.usage-current + .usage-cell { border-left: 1px solid var(--border, #23262d); }
+.usage-current + .usage-cell { border-left: 1px solid var(--border); }
 /* Senza sessioni la prima quota torna a essere la prima della barra. */
 .usage-current[hidden] + .usage-cell { border-left: 0; padding-left: 0; }
 .usage-cell { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 0 14px; }
 /* Divisore fra una metrica e l'altra: sono tre quote diverse, non una riga
    sola. Il bordo sta sulla cella che segue, cosi' la prima resta allineata
    al bordo sinistro della barra. */
-.usage-cell + .usage-cell { border-left: 1px solid var(--border, #23262d); }
+.usage-cell + .usage-cell { border-left: 1px solid var(--border); }
 .usage-cell:first-child { padding-left: 0; }
-.usage-label { color: var(--muted, #8b909a); letter-spacing: .06em; font-size: 10px; }
-.usage-value { color: var(--text, #e6e8ec); font-family: var(--font-mono, monospace); overflow: hidden; text-overflow: ellipsis; }
+.usage-label { color: var(--text-muted); letter-spacing: .06em; font-size: 10px; }
+.usage-value { color: var(--text); font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; }
 /* Riga secondaria del riquadro FINESTRA 5h: di quale assistente parla e fra
    quanto si azzera. Smorzata come l'etichetta: e' contorno, non la misura. */
 .usage-sub {
-  color: var(--muted, #8b909a); font-size: 10px; white-space: nowrap;
+  color: var(--text-muted); font-size: 10px; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis;
 }
 /* Tre barre, tre quote diverse:

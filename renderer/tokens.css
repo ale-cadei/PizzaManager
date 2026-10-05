@@ -104,37 +104,42 @@
 /* --- Palette della sidebar: forno a contrasto alto --------------------------
    Stessa tinta dei modali (neri caldi virati al rosso), ma con lo sfondo che
    scende quasi al nero e le superfici del fascicolo che salgono: fra sidebar e
-   corpo della card ci sono 6 punti di L* invece dei 3.9 della scala forno,
+   corpo della card ci sono 4.7 punti di L* invece dei 3.9 della scala forno,
    così la sidebar diventa un pannello DIETRO le carte. Le luminosità sono
-   quelle della vecchia palette A (neutri freddi) abbassate di 3 L* tutte
-   insieme, perché i gruppi spiccavano troppo: è cambiata solo la tinta.
+   quelle della vecchia palette A (neutri freddi) abbassate di 5.5 L* tutte
+   insieme, perché i gruppi spiccavano troppo; il fondo scende a L* 1.2.
    I tre gradini vanno mossi insieme (cap ≈ +5 L* su group, row ≈ +6,
    border ≈ +11): alzare solo la card appiattisce il fascicolo.
 
    Testi, accento e stati NON si sovrascrivono: arrivano da :root, uguali a
-   quelli dei modali. Il pomodoro (--action) non si tocca. */
-#sidebar {
+   quelli dei modali. Il pomodoro (--action) non si tocca.
+
+   La barra in fondo (uso dei token, Plugin e skill) prende la stessa
+   palette: corre sotto i terminali accanto alla sidebar e deve sembrarne
+   il seguito, non una striscia di un altro tema. */
+#sidebar,
+.bottombar {
   /* superfici */
-  --bg:            #060504;  /* incassi dentro la sidebar (selettore segmentato) */
-  --surface:       #0b0908;  /* fondo della sidebar: L* 2.5 */
-  --surface-2:     #1b1816;
-  --surface-3:     #2a2320;
-  --surface-group: #1b1816;  /* corpo della card (Δ 6 L* dal fondo) */
-  --surface-cap:   #29221f;  /* linguetta e fogli del fascicolo */
-  --surface-row:   #2a2320;  /* riga in hover */
+  --bg:            #030202;  /* incassi dentro la sidebar (selettore segmentato) */
+  --surface:       #050404;  /* fondo della sidebar: L* 1.2 */
+  --surface-2:     #161211;
+  --surface-3:     #241e1c;
+  --surface-group: #161211;  /* corpo della card (Δ 4.7 L* dal fondo) */
+  --surface-cap:   #221d1b;  /* linguetta e fogli del fascicolo */
+  --surface-row:   #241e1c;  /* riga in hover */
   /* Cartoncino della riga selezionata: Δ 7.9 L* sopra il pannello, un gradino
-     pieno. NON alzarlo oltre: i metadati (--text-muted) ci stanno a 6.3:1 e
+     pieno. NON alzarlo oltre: i metadati (--text-muted) ci stanno a 6.8:1 e
      ogni punto di L* in più li avvicina alla soglia di 4.5.
      Il bordo sale di altri 9.5 L* sopra la sua superficie. */
-  --surface-session-card: #2f2724;
-  --border-session-card:  #473a35;
+  --surface-session-card: #28221f;
+  --border-session-card:  #413531;
 
   /* bordi: con lo sfondo a fondo scala l’ombra sotto i fogli non si vede
      (nero su quasi nero) — il confine del fascicolo lo disegnano il salto di
      superficie e questi due token. Non ingrossarli oltre 1px per compensare. */
-  --divider:       #191614;
-  --border:        #372d2a;
-  --border-strong: #4b3e39;
+  --divider:       #13100f;
+  --border:        #312825;
+  --border-strong: #463934;
 
   /* forma: riga 6, linguetta 10, contenitore di gruppo 8 (riga + 2: angoli
      concentrici e allineati ai pulsanti Nuova e Resume) */

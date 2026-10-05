@@ -82,12 +82,33 @@ const TERM_THEME = {
   yellow: '#F2C14E',            // --accent (crosta)
 };
 
+/* Un colore CSS qualsiasi (anche color-mix(), che getComputedStyle restituisce
+   come color(srgb …)) in #rrggbb: xterm vuole un colore che sa leggere. Lo
+   risolve il canvas, che parla la stessa lingua del CSS della pagina. */
+function cssColorToHex(value, fallback) {
+  const ctx = document.createElement('canvas').getContext('2d');
+  if (!ctx || !value) return fallback;
+  ctx.fillStyle = fallback;
+  ctx.fillStyle = value;
+  ctx.fillRect(0, 0, 1, 1);
+  const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+  return '#' + [r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('');
+}
+
 /* Cursore e selezione seguono il colore principale, che si può cambiare dal
-   menu View: si leggono da --action/--action-soft, non si ricopiano qui. */
+   menu View: si leggono da --action/--action-soft, non si ricopiano qui.
+   Anche il fondo: è il --bg di #main (tokens.css), tinto dal principale, così
+   il canvas del terminale non resta un rettangolo di un altro nero. */
 function termTheme() {
   const css = getComputedStyle(document.documentElement);
+  const main = document.getElementById('main');
+  const background = main
+    ? cssColorToHex(getComputedStyle(main).backgroundColor, TERM_THEME.background)
+    : TERM_THEME.background;
   return {
     ...TERM_THEME,
+    background,
+    black: background,
     cursor: css.getPropertyValue('--action').trim(),
     selectionBackground: css.getPropertyValue('--action-soft').trim(),
   };

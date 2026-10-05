@@ -106,6 +106,20 @@ ok('sprites: nessun personaggio ha il contorno scuro attorno alla sagoma (i pacc
   }
 });
 
+ok('sprites: papera e anatroccoli camminano a quattro tempi, e a ogni tempo le zampe cambiano', () => {
+  for (const kind of ['papera', 'anatroccolo']) {
+    const { walk } = SPRITES[kind].frames;
+    const dark = Object.keys(SPRITES[kind].palette).find((ch) => SPRITES[kind].palette[ch] === '#2B2233');
+    // Le zampe: le righe sotto l'ultima con la pancia piena
+    const legs = (frame) => frame.slice(-4).join('\n');
+    assert.strictEqual(walk.length, 4, `${kind}: ${walk.length} tempi`);
+    walk.forEach((frame, i) => {
+      assert.notStrictEqual(legs(frame), legs(walk[(i + 1) % 4]), `${kind}: zampe ferme fra il tempo ${i} e il successivo`);
+      assert.ok(!legs(frame).includes(dark), `${kind}: zampe col bordo scuro al tempo ${i}`);
+    });
+  }
+});
+
 ok('sprites: il gatto dorme sdraiato, basso e lungo quanto in piedi', () => {
   const used = (frame) => frame.filter((row) => /[^.]/.test(row));
   const width = (frame) => {

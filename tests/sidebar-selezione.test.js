@@ -57,28 +57,58 @@ ok('selezione: sotto la card attiva c è un solo filetto, del colore del tipo', 
 
 /* Il cartoncino: una superficie che sale di un gradino pieno sopra il pannello
    del fascicolo, e un bordo che sale sopra di lei. Il gradino ha un tetto: più
-   sale la superficie, meno contrasto ha sopra il testo dei metadati. */
-ok('selezione: il cartoncino sale di un gradino vero e il testo ci resta sopra', () => {
-  const tokens = fs.readFileSync(tokensFiles[0], 'utf8');
-  // I valori della sidebar sono quelli veri: lì dentro vivono le card. Quello
-  // che la sidebar non ridefinisce (i testi) lo eredita da :root.
+   sale la superficie, meno contrasto ha sopra il testo dei metadati.
+   Le superfici della sidebar sono color-mix() col colore principale: vanno
+   provate col pomodoro predefinito e con i principali che l'utente può
+   scegliere da View → Colori…, non solo con uno. */
+const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+const hex = (c) => '#' + c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+
+/** Il valore di un token della sidebar con `action` come colore principale. */
+const sidebarToken = (tokens, name, action) => {
+  // Quello che la sidebar non ridefinisce (i testi) lo eredita da :root.
   const sidebar = tokens.slice(tokens.indexOf('#sidebar,'));
   const root = tokens.slice(0, tokens.indexOf('#sidebar,'));
-  const val = (name) => {
-    const re = new RegExp(`${name}:\\s*(#[0-9A-Fa-f]{6})`);
-    const m = sidebar.match(re) || root.match(re);
-    assert.ok(m, `manca ${name} nella palette della sidebar`);
-    return m[1];
-  };
-  const card = val('--surface-session-card');
-  const bordo = val('--border-session-card');
-  const pannello = val('--surface-group');
-  assert.ok(lstar(card) - lstar(pannello) >= 6,
-    `il cartoncino non si stacca dal pannello: Δ ${(lstar(card) - lstar(pannello)).toFixed(1)} L*`);
-  assert.ok(lstar(bordo) > lstar(card), 'il bordo del cartoncino è più scuro della sua superficie');
-  // I metadati (--text-muted) sono il testo più debole che ci finisce sopra.
-  assert.ok(contrasto(card, val('--text-muted')) >= 4.5,
-    `sul cartoncino i metadati scendono a ${contrasto(card, val('--text-muted')).toFixed(2)}:1`);
+  const mix = sidebar.match(new RegExp(
+    `${name}:\\s*color-mix\\(in srgb, var\\(--action\\) (\\d+)%, (#[0-9A-Fa-f]{6})\\)`));
+  if (mix) {
+    const p = Number(mix[1]) / 100;
+    const [a, b] = [rgb(action), rgb(mix[2])];
+    return hex(a.map((c, i) => c * p + b[i] * (1 - p)));
+  }
+  const re = new RegExp(`${name}:\\s*(#[0-9A-Fa-f]{6})`);
+  const m = sidebar.match(re) || root.match(re);
+  assert.ok(m, `manca ${name} nella palette della sidebar`);
+  return m[1];
+};
+
+ok('selezione: il cartoncino sale di un gradino vero e il testo ci resta sopra', () => {
+  const tokens = fs.readFileSync(tokensFiles[0], 'utf8');
+  const predefinito = tokens.match(/--action:\s*(#[0-9A-Fa-f]{6})/)[1];
+  // pomodoro, blu, verde, bianco: dal più scuro al più chiaro che si sceglie
+  for (const action of [predefinito, '#5AA2FF', '#4ADE80', '#FFFFFF']) {
+    const val = (name) => sidebarToken(tokens, name, action);
+    const card = val('--surface-session-card');
+    const bordo = val('--border-session-card');
+    const pannello = val('--surface-group');
+    assert.ok(lstar(card) - lstar(pannello) >= 6,
+      `${action}: il cartoncino non si stacca dal pannello: Δ ${(lstar(card) - lstar(pannello)).toFixed(1)} L*`);
+    assert.ok(lstar(bordo) > lstar(card), `${action}: il bordo del cartoncino è più scuro della sua superficie`);
+    // I metadati (--text-muted) sono il testo più debole che ci finisce sopra.
+    assert.ok(contrasto(card, val('--text-muted')) >= 4.5,
+      `${action}: sul cartoncino i metadati scendono a ${contrasto(card, val('--text-muted')).toFixed(2)}:1`);
+  }
+});
+
+/* Il colore principale deve arrivare davvero allo sfondo: se la sidebar
+   tornasse a esadecimali fissi, cambiare colore da View → Colori… non la
+   toccherebbe più. */
+ok('sidebar: lo sfondo segue il colore principale', () => {
+  const tokens = fs.readFileSync(tokensFiles[0], 'utf8');
+  for (const name of ['--surface', '--surface-group', '--surface-session-card', '--border']) {
+    assert.notEqual(sidebarToken(tokens, name, '#F04E23'), sidebarToken(tokens, name, '#5AA2FF'),
+      `${name} non cambia col colore principale`);
+  }
 });
 
 /* Le righe a riposo hanno un bordo trasparente della stessa misura: senza, al

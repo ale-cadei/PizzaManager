@@ -101,18 +101,31 @@
   --shadow-modal: 0 24px 60px rgba(0,0,0,0.6);
 }
 
-/* --- Palette della sidebar: forno a contrasto alto --------------------------
-   Stessa tinta dei modali (neri caldi virati al rosso), ma con lo sfondo che
-   scende quasi al nero e le superfici del fascicolo che salgono: fra sidebar e
-   corpo della card ci sono 3.3 punti di L* invece dei 3.9 della scala forno,
-   così la sidebar diventa un pannello DIETRO le carte. Le luminosità sono
-   quelle della vecchia palette A (neutri freddi) abbassate di 7.5 L* tutte
-   insieme, perché i gruppi spiccavano troppo; il fondo scende a L* 0.6.
-   I tre gradini vanno mossi insieme (cap ≈ +5 L* su group, row ≈ +6,
-   border ≈ +11): alzare solo la card appiattisce il fascicolo.
+/* --- Palette della sidebar: nero tinto dal colore principale ----------------
+   Ogni superficie è un grigio scuro con dentro una percentuale del colore
+   principale (--action): cambiandolo da View → Colori… cambia anche la tinta
+   di sidebar, gruppi e barra in fondo. Le percentuali crescono coi gradini
+   (fondo 5%, gruppo 8%, cartoncino 10%, bordi 11-12%): su un nero quasi
+   assoluto il colore si vede poco, su una superficie più chiara di più, e a
+   percentuale uguale il fondo sembrerebbe neutro e le carte sature.
+
+   I grigi sono scelti perché col pomodoro predefinito le luminosità restino
+   quelle tarate: fondo a L* 1.5, corpo della card 3.7, cartoncino 11.7. I tre
+   gradini vanno mossi insieme (cap ≈ +5 L* su group, row ≈ +6, border ≈ +11):
+   alzare solo la card appiattisce il fascicolo. Con un principale chiaro
+   (bianco, verde) le superfici salgono di un paio di punti e i metadati sul
+   cartoncino restano sopra 6:1; con uno nero il cartoncino si stacca meno.
+
+   Il mix sta in srgb, come actionVars() in type-colors.js: stessa aritmetica
+   per --action-soft e per queste superfici.
+
+   Le variabili stanno su #sidebar e non su :root: var(--action) si risolve
+   sull’elemento che dichiara la variabile, e da lì segue il colore scelto
+   (scritto sullo stile di :root, che lo eredita a tutti). L’area terminale e
+   i modali restano sulla palette forno.
 
    Testi, accento e stati NON si sovrascrivono: arrivano da :root, uguali a
-   quelli dei modali. Il pomodoro (--action) non si tocca.
+   quelli dei modali.
 
    La barra in fondo (uso dei token, Plugin e skill) prende la stessa
    palette: corre sotto i terminali accanto alla sidebar e deve sembrarne
@@ -120,26 +133,26 @@
 #sidebar,
 .bottombar {
   /* superfici */
-  --bg:            #010101;  /* incassi dentro la sidebar (selettore segmentato) */
-  --surface:       #030202;  /* fondo della sidebar: L* 0.6 */
-  --surface-2:     #100d0c;
-  --surface-3:     #1f1a19;
-  --surface-group: #100d0c;  /* corpo della card (Δ 3.3 L* dal fondo) */
-  --surface-cap:   #1e1918;  /* linguetta e fogli del fascicolo */
-  --surface-row:   #1f1a19;  /* riga in hover */
+  --bg:            color-mix(in srgb, var(--action) 3%, #000000);   /* incassi (selettore segmentato) */
+  --surface:       color-mix(in srgb, var(--action) 5%, #000000);   /* fondo della sidebar */
+  --surface-2:     color-mix(in srgb, var(--action) 8%, #040404);
+  --surface-3:     color-mix(in srgb, var(--action) 9%, #121212);
+  --surface-group: color-mix(in srgb, var(--action) 8%, #040404);   /* corpo della card */
+  --surface-cap:   color-mix(in srgb, var(--action) 9%, #111111);   /* linguetta e fogli del fascicolo */
+  --surface-row:   color-mix(in srgb, var(--action) 9%, #121212);   /* riga in hover */
   /* Cartoncino della riga selezionata: Δ 7.9 L* sopra il pannello, un gradino
      pieno. NON alzarlo oltre: i metadati (--text-muted) ci stanno a 7.1:1 e
      ogni punto di L* in più li avvicina alla soglia di 4.5.
      Il bordo sale di altri 9.5 L* sopra la sua superficie. */
-  --surface-session-card: #231e1c;
-  --border-session-card:  #3b312d;
+  --surface-session-card: color-mix(in srgb, var(--action) 10%, #151515);
+  --border-session-card:  color-mix(in srgb, var(--action) 12%, #2a2a2a);
 
   /* bordi: con lo sfondo a fondo scala l’ombra sotto i fogli non si vede
      (nero su quasi nero) — il confine del fascicolo lo disegnano il salto di
      superficie e questi due token. Non ingrossarli oltre 1px per compensare. */
-  --divider:       #0d0a0a;
-  --border:        #2b2421;
-  --border-strong: #403430;
+  --divider:       color-mix(in srgb, var(--action) 7%, #030303);
+  --border:        color-mix(in srgb, var(--action) 11%, #1b1b1b);
+  --border-strong: color-mix(in srgb, var(--action) 12%, #2e2e2e);
 
   /* forma: riga 6, linguetta 10, contenitore di gruppo 8 (riga + 2: angoli
      concentrici e allineati ai pulsanti Nuova e Resume) */

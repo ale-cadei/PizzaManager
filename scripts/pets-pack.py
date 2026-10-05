@@ -78,6 +78,34 @@ SPRITELLI_SCALE = 2
 # I PNG Spritelli hanno un contorno di 1 px di questo colore attorno a ogni
 # sagoma: si toglie (unoutlined) prima di ingrandire, come per gli altri.
 SPRITELLI_OUTLINE = '#2B2233'
+# Le zampe di papera e anatroccolo, rifatte: nel pacchetto i due passi
+# spostavano entrambe di un pixel nello stesso verso (scivolavano) e avevano
+# sotto la pancia il bordo scuro, che a 2x diventava una fascia. Passo a
+# quattro tempi come Fizzo: una zampa avanti, l'incrocio con l'altra alzata,
+# l'altra avanti, l'incrocio. La zampa lontana (f, il giallo scuro del
+# pacchetto) è più scura della vicina (c), così si capisce quale va avanti.
+# Righe della cella a 1x, dalla fine della pancia in giù.
+DUCK_LEGS = {
+    'step-1': {13: '.....f..c.......', 14: '....f....c......', 15: '....ff...cc.....'},
+    'pass-1': {13: '......f.c.......', 14: '......ffc.......', 15: '........cc......'},
+    'step-2': {13: '.....c..f.......', 14: '....c....f......', 15: '....cc...ff.....'},
+    'pass-2': {13: '......f.c.......', 14: '......f.cc......', 15: '......ff........'},
+    'stand': {13: '.....f..c.......', 14: '.....f..c.......', 15: '.....ff.cc......'},
+}
+DUCKLING_LEGS = {
+    'step-1': {9: '....f..c...', 10: '...ff...cc.'},
+    'pass-1': {9: '....ff.c...', 10: '.......cc..'},
+    'step-2': {9: '....c..f...', 10: '...cc...ff.'},
+    'pass-2': {9: '....f..cc..', 10: '....ff.....'},
+    'stand': {9: '....f..c...', 10: '....ff.cc..'},
+}
+
+
+def legs(who, base, rows):
+    """I fotogrammi derivati con le zampe nuove: <who>-step-1, <who>-stand…"""
+    return {f'{who}-{name}': (base, r, []) for name, r in rows.items()}
+
+
 SPRITELLI = [
     ('ape', 'ape-fiore',
      {'walk': ['bee-fly-1', 'bee-fly-2'], 'sleep': ['bee-rest'], 'call': ['bee-fly-1', 'bee-rest']},
@@ -92,16 +120,20 @@ SPRITELLI = [
          'snail-sleep': ('snail-sleep-1', {i: '.' * 16 for i in range(5)}, []),
      }),
     ('papera', 'papera-anatroccoli',
-     {'walk': ['duck-walk-1', 'duck-walk-2'], 'sleep': ['duck-sleep'], 'call': ['duck-walk-1', 'duck-quack']},
+     {'walk': ['duck-step-1', 'duck-pass-1', 'duck-step-2', 'duck-pass-2'], 'sleep': ['duck-sleep'],
+      'call': ['duck-stand', 'duck-quack']},
      0.7, 'walk', 'La papera: cammina con gli anatroccoli dietro, e chiama facendo qua qua', {
-         'duck-sleep': ('duck-walk-1', {4: '......abbbdbcca.'}, []),
+         **legs('duck', 'duck-walk-1', DUCK_LEGS),
+         'duck-sleep': ('duck-walk-1', {4: '......abbbdbcca.', **DUCK_LEGS['stand']}, []),
          'duck-quack': ('duck-walk-1', {2: '.......abbbaaa..', 3: '......abbbbbcca.', 4: '......abbbaba...',
-                                        5: '......abbbbbcca.', 6: '.......abbbaaa..'}, []),
+                                        5: '......abbbbbcca.', 6: '.......abbbaaa..', **DUCK_LEGS['stand']}, []),
      }),
     ('anatroccolo', 'papera-anatroccoli',
-     {'walk': ['duckling-walk-1', 'duckling-walk-2'], 'sleep': ['duckling-sleep'], 'call': ['duckling-walk-1']},
+     {'walk': ['duckling-step-1', 'duckling-pass-1', 'duckling-step-2', 'duckling-pass-2'],
+      'sleep': ['duckling-sleep'], 'call': ['duckling-stand']},
      0.7, 'walk', "L'anatroccolo: va dietro alla papera", {
-         'duckling-sleep': ('duckling-walk-1', {2: '...aeeefeca'}, []),
+         **legs('duckling', 'duckling-walk-1', DUCKLING_LEGS),
+         'duckling-sleep': ('duckling-walk-1', {2: '...aeeefeca', **DUCKLING_LEGS['stand']}, []),
      }),
     ('robottino', 'robottino',
      {'walk': ['robot-walk-1-on', 'robot-walk-2-on', 'robot-walk-1-off', 'robot-walk-2-off'],

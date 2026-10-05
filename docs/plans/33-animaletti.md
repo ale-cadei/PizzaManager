@@ -60,7 +60,7 @@ Spento di default. Si accende e si regola da `Vista › Personaggi…`.
 | `medusa` | Medusa | Galleggia ondeggiando (seno sulla y); quando il pescatore è vicino scatta via. Anche da sola, come voce `medusa`: gironzola e chiama solo se non c'è nessun altro |
 | `stella` | Stella | Cammina piano |
 | `lumaca` | Lumaca | Lumaca: lentissimo |
-| `gatto` | Gatto | Cammina |
+| `gatto` | Gatto | Cammina; per dormire si sdraia a pagnotta, con la coda stesa davanti |
 | `pizza` | Peppo, la pizza | Fetta con gambine, dal pacchetto «Sprite pixel-art originale» dell'utente |
 | `rana` | Rana | Salta (`motion: 'hop'`): avanza solo in aria, posa `jump` |
 | `uccellino` | Uccellino | Vola sopra la striscia (`fly`); per dormire o chiamare si posa. Azzurro, pettirosso, canarino o cardinale, a sorte |
@@ -73,7 +73,7 @@ Spento di default. Si accende e si regola da `Vista › Personaggi…`.
 | `fantasmino` | Fantasmino | Fluttua basso (`swim`, come la Morte) col lenzuolo; si posa per dormire e per fare «buu» quando chiama (chi ha l'ombra si posa) |
 | `ape` | Ape | Vola (`fly`); ha un fiore suo in un punto della striscia, e ci vola sopra per dormire e per chiamare |
 | `chiocciola` | Chiocciola | Lentissima; dorme chiusa nel guscio, chiama dondolando le antenne |
-| `papera` | Papera e anatroccoli | La papera gironzola, i due anatroccoli (`anatroccolo`) le vanno dietro in fila; chiama facendo qua qua |
+| `papera` | Papera e anatroccoli | La papera gironzola, i due anatroccoli (`anatroccolo`) le vanno dietro in fila; chiama facendo qua qua. Le zampe sono rifatte (`DUCK_LEGS` nel generatore): passo a quattro tempi, la zampa lontana più scura |
 | `robottino` | Robbo, il robottino | Cammina con l'antenna che lampeggia; chiama con lo schermo giallo |
 | `tazzina` | Tazzi, la tazzina | Cammina come Fizzo (quattro passi) lasciando sbuffi di fumo dietro di sé (`trail`); da fredda dorme e non fuma. Disegnata a mano, al posto di quella del pacchetto Spritelli che saltellava |
 

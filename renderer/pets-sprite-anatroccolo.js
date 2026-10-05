@@ -12,8 +12,8 @@
   if (root) root.AisessPetsPack = Object.assign({}, root.AisessPetsPack, api);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : null, function () {
-  // ---- L'anatroccolo: va dietro alla papera (18×18) ----
-  const ANATROCCOLO_DUCKLING_WALK_1 = [
+  // ---- L'anatroccolo: va dietro alla papera (18×20) ----
+  const ANATROCCOLO_DUCKLING_STEP_1 = [
     '.........aaaa.....',
     '.......aaaaaaaa...',
     '.......aaaaabbaacc',
@@ -30,10 +30,12 @@
     '.addddddddaaaaaaa.',
     '.aaaaaaaaaaaaaaaa.',
     '...aaaaaaaaaaaa...',
-    '......cc....cc....',
-    '......cc....cc....',
+    '......dd....cc....',
+    '.....ddd....ccc...',
+    '....dddd.....ccccc',
+    '....ddd.......cccc',
   ];
-  const ANATROCCOLO_DUCKLING_WALK_2 = [
+  const ANATROCCOLO_DUCKLING_PASS_1 = [
     '.........aaaa.....',
     '.......aaaaaaaa...',
     '.......aaaaabbaacc',
@@ -50,8 +52,54 @@
     '.addddddddaaaaaaa.',
     '.aaaaaaaaaaaaaaaa.',
     '...aaaaaaaaaaaa...',
-    '........cccc......',
-    '.........cc.......',
+    '......dddd..cc....',
+    '.......dd...ccc...',
+    '............cccc..',
+    '.............ccc..',
+  ];
+  const ANATROCCOLO_DUCKLING_STEP_2 = [
+    '.........aaaa.....',
+    '.......aaaaaaaa...',
+    '.......aaaaabbaacc',
+    '......aaaaaabbaacc',
+    '......aaaaaaaaaa..',
+    '.......aaaaaaaa...',
+    '........aaaaaa....',
+    '........aaaaaa....',
+    'aa.....aaaaaaaa...',
+    'aaa..aaaaaaaaaaaa.',
+    'aaaaaaaaaaaaaaaaa.',
+    'aaaaaaaaaaaaaaaaaa',
+    'aaddddddddaaaaaaaa',
+    '.addddddddaaaaaaa.',
+    '.aaaaaaaaaaaaaaaa.',
+    '...aaaaaaaaaaaa...',
+    '......cc....dd....',
+    '.....ccc....ddd...',
+    '....cccc.....ddddd',
+    '....ccc.......dddd',
+  ];
+  const ANATROCCOLO_DUCKLING_PASS_2 = [
+    '.........aaaa.....',
+    '.......aaaaaaaa...',
+    '.......aaaaabbaacc',
+    '......aaaaaabbaacc',
+    '......aaaaaaaaaa..',
+    '.......aaaaaaaa...',
+    '........aaaaaa....',
+    '........aaaaaa....',
+    'aa.....aaaaaaaa...',
+    'aaa..aaaaaaaaaaaa.',
+    'aaaaaaaaaaaaaaaaa.',
+    'aaaaaaaaaaaaaaaaaa',
+    'aaddddddddaaaaaaaa',
+    '.addddddddaaaaaaa.',
+    '.aaaaaaaaaaaaaaaa.',
+    '...aaaaaaaaaaaaa..',
+    '......dd....cccc..',
+    '......ddd....cc...',
+    '......dddd........',
+    '.......ddd........',
   ];
   const ANATROCCOLO_DUCKLING_SLEEP = [
     '.........aaaa.....',
@@ -70,20 +118,44 @@
     '.addddddddaaaaaaa.',
     '.aaaaaaaaaaaaaaaa.',
     '...aaaaaaaaaaaa...',
-    '......cc....cc....',
-    '......cc....cc....',
+    '......dd....cc....',
+    '......ddd...ccc...',
+    '......dddd..cccc..',
+    '.......ddd...ccc..',
+  ];
+  const ANATROCCOLO_DUCKLING_STAND = [
+    '.........aaaa.....',
+    '.......aaaaaaaa...',
+    '.......aaaaabbaacc',
+    '......aaaaaabbaacc',
+    '......aaaaaaaaaa..',
+    '.......aaaaaaaa...',
+    '........aaaaaa....',
+    '........aaaaaa....',
+    'aa.....aaaaaaaa...',
+    'aaa..aaaaaaaaaaaa.',
+    'aaaaaaaaaaaaaaaaa.',
+    'aaaaaaaaaaaaaaaaaa',
+    'aaddddddddaaaaaaaa',
+    '.addddddddaaaaaaa.',
+    '.aaaaaaaaaaaaaaaa.',
+    '...aaaaaaaaaaaa...',
+    '......dd....cc....',
+    '......ddd...ccc...',
+    '......dddd..cccc..',
+    '.......ddd...ccc..',
   ];
 
   return {
     anatroccolo: {
       speed: 0.7,
       motion: 'walk',
-      height: 0.562,
+      height: 0.625,
       palette: { a: '#FFD447', b: '#2B2233', c: '#F39A36', d: '#E3A92C' },
       frames: {
-        walk: [ANATROCCOLO_DUCKLING_WALK_1, ANATROCCOLO_DUCKLING_WALK_2],
+        walk: [ANATROCCOLO_DUCKLING_STEP_1, ANATROCCOLO_DUCKLING_PASS_1, ANATROCCOLO_DUCKLING_STEP_2, ANATROCCOLO_DUCKLING_PASS_2],
         sleep: [ANATROCCOLO_DUCKLING_SLEEP],
-        call: [ANATROCCOLO_DUCKLING_WALK_1],
+        call: [ANATROCCOLO_DUCKLING_STAND],
       },
     },
   };

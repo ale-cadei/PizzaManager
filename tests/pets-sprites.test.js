@@ -106,6 +106,33 @@ ok('sprites: nessun personaggio ha il contorno scuro attorno alla sagoma (i pacc
   }
 });
 
+ok('sprites: papera e anatroccoli camminano a quattro tempi, e a ogni tempo le zampe cambiano', () => {
+  for (const kind of ['papera', 'anatroccolo']) {
+    const { walk } = SPRITES[kind].frames;
+    const dark = Object.keys(SPRITES[kind].palette).find((ch) => SPRITES[kind].palette[ch] === '#2B2233');
+    // Le zampe: le righe sotto l'ultima con la pancia piena
+    const legs = (frame) => frame.slice(-4).join('\n');
+    assert.strictEqual(walk.length, 4, `${kind}: ${walk.length} tempi`);
+    walk.forEach((frame, i) => {
+      assert.notStrictEqual(legs(frame), legs(walk[(i + 1) % 4]), `${kind}: zampe ferme fra il tempo ${i} e il successivo`);
+      assert.ok(!legs(frame).includes(dark), `${kind}: zampe col bordo scuro al tempo ${i}`);
+    });
+  }
+});
+
+ok('sprites: il gatto dorme sdraiato, basso e lungo quanto in piedi', () => {
+  const used = (frame) => frame.filter((row) => /[^.]/.test(row));
+  const width = (frame) => {
+    const cols = frame.flatMap((row) => [...row].map((c, i) => (c === '.' ? -1 : i))).filter((i) => i >= 0);
+    return Math.max(...cols) - Math.min(...cols) + 1;
+  };
+  const [standing] = SPRITES.gatto.frames.walk;
+  const [asleep] = SPRITES.gatto.frames.sleep;
+  assert.ok(used(asleep).length <= used(standing).length / 2, `alto ${used(asleep).length} righe su ${used(standing).length}`);
+  assert.ok(width(asleep) >= width(standing), 'sdraiato è lungo almeno quanto in piedi');
+  assert.ok(/[^.]/.test(asleep[asleep.length - 1]), 'sdraiato sta a terra');
+});
+
 ok('sprites: il pesce è quello del pacchetto Spritelli, coi suoi colori a scelta', () => {
   assert.deepStrictEqual(dims('pesce'), { cols: 32, rows: 20 });
   assert.strictEqual(SPRITES.pesce.motion, 'swim');

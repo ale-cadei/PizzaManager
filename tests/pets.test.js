@@ -500,6 +500,20 @@ ok('pets: arrivato dietro a chi segue, l anatroccolo si ferma col suo verso e no
   assert.strictEqual(settled.anim, first.anim, 'zampetta fermo');
 });
 
+ok('pets: dietro alla papera che cammina, l anatroccolo le tiene il passo zampettando', () => {
+  const base = onStage(['papera']);
+  const duck = { ...base.pets[0], x: 400, dir: 1 };
+  const gap = center(duck) - Pets.LINE_GAP * SIZE;
+  // La papera ha fatto il suo passetto nel fotogramma prima (16 ms): lui è indietro di tanto
+  const stride = require('../renderer/pets-sprites').SPRITES.papera.speed * SIZE * 0.016;
+  const first = { ...base.pets[1], x: gap - petWidth('anatroccolo', SIZE) / 2 - stride, dir: 1, anim: 500 };
+  const next = step({ ...base, pets: [duck, first] }, { dt: 16, width: WIDTH, random: never });
+  const walking = next.pets[1];
+  assert.ok(walking.x > first.x, 'non le va dietro');
+  assert.strictEqual(walking.pose, 'walk');
+  assert.ok(walking.anim > first.anim, 'scivola con le zampe ferme');
+});
+
 ok('pets: a chiamare è la papera, mai un anatroccolo', () => {
   const base = onStage(['papera']);
   const [duck, first, second] = base.pets;

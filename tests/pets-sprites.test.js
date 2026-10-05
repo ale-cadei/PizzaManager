@@ -120,6 +120,19 @@ ok('sprites: papera e anatroccoli camminano a quattro tempi, e a ogni tempo le z
   }
 });
 
+ok('sprites: gli anatroccoli hanno le zampe lunghe quanto quelle della papera', () => {
+  // Righe in fondo con solo zampe: nessun colore della pancia
+  const legRows = (kind) => {
+    const { palette, frames } = SPRITES[kind];
+    const leg = new Set(Object.keys(palette).filter((ch) => ['#F39A36', '#E3A92C'].includes(palette[ch])));
+    const [frame] = frames.walk;
+    let n = 0;
+    while ([...frame[frame.length - 1 - n]].every((ch) => ch === '.' || leg.has(ch))) n += 1;
+    return n;
+  };
+  assert.ok(legRows('anatroccolo') >= legRows('papera'), `anatroccolo ${legRows('anatroccolo')} righe di zampe, papera ${legRows('papera')}`);
+});
+
 ok('sprites: il gatto dorme sdraiato, basso e lungo quanto in piedi', () => {
   const used = (frame) => frame.filter((row) => /[^.]/.test(row));
   const width = (frame) => {

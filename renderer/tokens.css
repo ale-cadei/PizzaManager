@@ -19,7 +19,7 @@
      linguetta/fogli sono materiali DIVERSI — è quello che tiene insieme il
      pezzo invece di farlo sembrare una card con due decorazioni. Fuori dalla
      sidebar valgono gli alias della scala forno; dentro li sovrascrive la
-     palette A (vedi il blocco #sidebar in fondo al file). */
+     palette della sidebar (vedi il blocco #sidebar in fondo al file). */
   --surface-group: var(--surface-2);  /* pannello del gruppo */
   --surface-cap:   var(--surface-3);  /* linguetta e fogli */
   --surface-row:   var(--surface-3);  /* riga in hover dentro il pannello */
@@ -101,52 +101,39 @@
   --shadow-modal: 0 24px 60px rgba(0,0,0,0.6);
 }
 
-/* --- Palette A «Affonda lo sfondo» — solo sidebar e fascicoli ---------------
-   Lo sfondo del pannello scende quasi al nero e le superfici del fascicolo
-   salgono: fra sidebar e corpo della card ci sono 8.9 punti di L* invece dei
-   3.9 della scala forno, così la sidebar diventa un pannello DIETRO le carte.
+/* --- Palette della sidebar: forno a contrasto alto --------------------------
+   Stessa tinta dei modali (neri caldi virati al rosso), ma con lo sfondo che
+   scende quasi al nero e le superfici del fascicolo che salgono: fra sidebar e
+   corpo della card ci sono ~9 punti di L* invece dei 3.9 della scala forno,
+   così la sidebar diventa un pannello DIETRO le carte. Le luminosità sono
+   quelle della vecchia palette A (neutri freddi): è cambiata solo la tinta.
    I tre gradini vanno mossi insieme (cap ≈ +5 L* su group, row ≈ +6,
    border ≈ +11): alzare solo la card appiattisce il fascicolo.
 
-   Le variabili stanno su #sidebar e non su :root: l'area terminale, i modali e
-   i pulsanti d'azione restano sulla palette forno. Il pomodoro (--action) non
-   si tocca — qui cambiano solo materiali, bordi e neutri. */
+   Testi, accento e stati NON si sovrascrivono: arrivano da :root, uguali a
+   quelli dei modali. Il pomodoro (--action) non si tocca. */
 #sidebar {
   /* superfici */
-  --bg:            #050507;  /* incassi dentro la sidebar (selettore segmentato) */
-  --surface:       #09090b;  /* fondo della sidebar: L* 2.5 */
-  --surface-2:     #1e1e22;
-  --surface-3:     #2a2a31;
-  --surface-group: #1e1e22;  /* corpo della card (Δ 8.9 L* dal fondo) */
-  --surface-cap:   #292930;  /* linguetta e fogli del fascicolo */
-  --surface-row:   #2a2a31;  /* riga in hover */
-  /* Cartoncino della riga selezionata: Δ 7.8 L* sopra il pannello, un gradino
-     pieno. NON alzarlo oltre: già a #32323a i percorsi (--text-muted) scendono
-     a 4.56:1 e sopra crollano sotto la soglia di 4.5. Qui stanno a 4.83:1.
+  --bg:            #060504;  /* incassi dentro la sidebar (selettore segmentato) */
+  --surface:       #0b0908;  /* fondo della sidebar: L* 2.5 */
+  --surface-2:     #231d1b;
+  --surface-3:     #312926;
+  --surface-group: #231d1b;  /* corpo della card (Δ 8.9 L* dal fondo) */
+  --surface-cap:   #302825;  /* linguetta e fogli del fascicolo */
+  --surface-row:   #312926;  /* riga in hover */
+  /* Cartoncino della riga selezionata: Δ 7.9 L* sopra il pannello, un gradino
+     pieno. NON alzarlo oltre: i metadati (--text-muted) ci stanno a 5.8:1 e
+     ogni punto di L* in più li avvicina alla soglia di 4.5.
      Il bordo sale di altri 9.5 L* sopra la sua superficie. */
-  --surface-session-card: #2e2e36;
-  --border-session-card:  #43434c;
+  --surface-session-card: #362d29;
+  --border-session-card:  #4e413c;
 
-  /* bordi: con lo sfondo a fondo scala l'ombra sotto i fogli non si vede
+  /* bordi: con lo sfondo a fondo scala l’ombra sotto i fogli non si vede
      (nero su quasi nero) — il confine del fascicolo lo disegnano il salto di
      superficie e questi due token. Non ingrossarli oltre 1px per compensare. */
-  --divider:       #1c1c22;
-  --border:        #35353e;
-  --border-strong: #474751;
-
-  /* neutri freddi, coerenti con superfici neutre. --text-faint sta a 3.4:1:
-     icone e comandi che schiariscono al passaggio del mouse, mai testo. */
-  --text:          #ece9e6;  /* 13.7:1 su --surface-group */
-  --text-2:        #c8c8d1;
-  --text-muted:    #9a9aa4;  /* 6.0:1 */
-  --text-dim:      #8a8a95;
-  --text-faint:    #70707a;  /* 3.4:1 — non testuale */
-
-  /* accenti con significati distinti. I colori per tipo arrivano da :root
-     (stanno tutti sopra 5:1 anche su queste superfici neutre): qui si
-     ritoccano solo quelli che hanno un significato proprio nella sidebar. */
-  --state-ok:      #74c46a;  /* agente attivo     — 7.8:1 */
-  --accent:        #e0a33e;  /* cartella/progetto — 7.5:1 */
+  --divider:       #201b1a;
+  --border:        #3f332f;
+  --border-strong: #524540;
 
   /* forma: riga 6, linguetta 10, contenitore di gruppo 14 */
   --radius:        6px;

@@ -210,3 +210,35 @@ test('dopo la ripresa, anche una coda breve del lavoro chiude il turno', () => {
   att.resumed('a');
   assert.equal(raffica(att, 'a', c, { bytes: 500, durata: 400 }), true);
 });
+
+test('il riattacco a più riprese: anche la seconda raffica dell\'avvio non accende', () => {
+  // Al riattacco l'output non arriva tutto insieme: tmux ridisegna, poi la TUI
+  // si ridisegna di nuovo alla misura nuova, `--resume` riscrive la
+  // conversazione. Con il main occupato a ripristinare le altre schede le
+  // pause superano l'idle, e la seconda raffica passava per un lavoro finito.
+  const c = clock();
+  const att = createAttention({ now: c.now });
+  att.born('a');
+  assert.equal(raffica(att, 'a', c, { bytes: 3000, durata: 500 }), false);
+  c.avanza(1000);
+  assert.equal(raffica(att, 'a', c, { bytes: 8000, durata: 2500 }), false);
+  assert.equal(att.isFlagged('a'), false);
+});
+
+test('il bell poco dopo il riattacco non accende', () => {
+  const c = clock();
+  const att = createAttention({ now: c.now });
+  att.born('a');
+  raffica(att, 'a', c, { bytes: 3000, durata: 500 });
+  c.avanza(1000);
+  assert.equal(att.bell('a'), false);
+});
+
+test('finito l\'avvio, il bell torna a valere', () => {
+  const c = clock();
+  const att = createAttention({ now: c.now });
+  att.born('a');
+  raffica(att, 'a', c, { bytes: 3000, durata: 500 });
+  c.avanza(20000);
+  assert.equal(att.bell('a'), true);
+});

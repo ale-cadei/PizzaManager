@@ -60,7 +60,7 @@ Spento di default. Si accende e si regola da `Vista › Personaggi…`.
 | `medusa` | Medusa | Galleggia ondeggiando (seno sulla y); quando il pescatore è vicino scatta via. Anche da sola, come voce `medusa`: gironzola e chiama solo se non c'è nessun altro |
 | `stella` | Stella | Cammina piano |
 | `lumaca` | Lumaca | Lumaca: lentissimo |
-| `gatto` | Gatto | Cammina |
+| `gatto` | Gatto | Cammina; per dormire si sdraia a pagnotta, con la coda stesa davanti |
 | `pizza` | Peppo, la pizza | Fetta con gambine, dal pacchetto «Sprite pixel-art originale» dell'utente |
 | `rana` | Rana | Salta (`motion: 'hop'`): avanza solo in aria, posa `jump` |
 | `uccellino` | Uccellino | Vola sopra la striscia (`fly`); per dormire o chiamare si posa. Azzurro, pettirosso, canarino o cardinale, a sorte |

@@ -1049,10 +1049,10 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 }
 .git-repo { font-family: var(--font-mono); font-size: 13px; color: var(--text-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .git-branch {
-  font-family: var(--font-mono); font-size: 13px; color: var(--type-git); white-space: nowrap;
+  font-family: var(--font-mono); font-size: 13px; color: var(--action-text); white-space: nowrap;
   background: none; border: 1px solid transparent; border-radius: var(--radius); padding: 4px 8px; cursor: pointer;
 }
-.git-branch:hover { border-color: color-mix(in srgb, var(--type-git) 55%, transparent); background: var(--surface-2); }
+.git-branch:hover { border-color: color-mix(in srgb, var(--action) 55%, transparent); background: var(--surface-2); }
 .git-count { margin-right: auto; white-space: nowrap; }
 .git-refresh { padding: 5px 9px; font-size: 11px; line-height: 1.2; white-space: nowrap; }
 .git-view.loading .git-refresh { opacity: .5; }
@@ -1113,11 +1113,11 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .git-switched[hidden] { display: none; }
 .git-switched-from { font-family: var(--font-mono); color: var(--text-2); text-decoration: line-through; }
 .git-switched-arrow { color: var(--text-dim); }
-.git-switched-to { font-family: var(--font-mono); color: var(--type-git); }
-.git-branch--changed { animation: git-branch-pulse 1s ease-out 3; border-color: var(--type-git); }
+.git-switched-to { font-family: var(--font-mono); color: var(--action-text); }
+.git-branch--changed { animation: git-branch-pulse 1s ease-out 3; border-color: var(--action); }
 @keyframes git-switched-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @keyframes git-branch-pulse {
-  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--type-git) 70%, transparent); background: color-mix(in srgb, var(--type-git) 25%, transparent); }
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--action) 70%, transparent); background: color-mix(in srgb, var(--action) 25%, transparent); }
   100% { box-shadow: 0 0 0 10px transparent; background: transparent; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1215,7 +1215,7 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .git-mode { background: none; border: 0; padding: 4px 10px; font: inherit; font-size: 12px; color: var(--text-2); cursor: pointer; }
 .git-mode + .git-mode { border-left: 1px solid var(--border); }
 .git-mode:hover { background: var(--surface-2); }
-.git-mode[aria-pressed="true"] { background: color-mix(in srgb, var(--type-git) 18%, transparent); color: var(--type-git); }
+.git-mode[aria-pressed="true"] { background: color-mix(in srgb, var(--action) 18%, transparent); color: var(--action-text); }
 .git-merged { display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); cursor: pointer; white-space: nowrap; }
 .git-merged[hidden] { display: none; }
 .git-map { position: relative; margin: 0 auto; }
@@ -1489,8 +1489,8 @@ a, .link { color: var(--action-text); }
 #usagebar {
   display: flex; align-items: center; gap: 0;
   flex: 0 0 auto; height: var(--usagebar-h); padding: 0 12px;
-  background: var(--panel, #14161a);
-  border-top: 1px solid var(--border, #23262d);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
   font-size: 11px; line-height: 1;
   overflow: hidden; white-space: nowrap;
 }
@@ -1500,12 +1500,12 @@ a, .link { color: var(--action-text); }
 .bottombar #usagebar { flex: 1 1 auto; min-width: 0; }
 .bottombar-btn {
   flex: 0 0 auto; height: var(--usagebar-h); padding: 0 12px;
-  background: var(--panel, #14161a); color: var(--muted, #8b909a);
-  border: 0; border-top: 1px solid var(--border, #23262d); border-left: 1px solid var(--border, #23262d);
+  background: var(--surface); color: var(--text-muted);
+  border: 0; border-top: 1px solid var(--border); border-left: 1px solid var(--border);
   font: inherit; font-size: 10px; letter-spacing: .06em; line-height: 1;
   white-space: nowrap; cursor: pointer;
 }
-.bottombar-btn:hover, .bottombar-btn:focus-visible { color: var(--text, #e6e8ec); background: var(--action-soft, #23262d); }
+.bottombar-btn:hover, .bottombar-btn:focus-visible { color: var(--text); background: var(--action-soft); }
 /* "Dove sono": cartella del progetto e nome della chat in primo piano. Prende
    lo spazio che avanza e si tronca per primo: le quote a destra hanno
    larghezza fissa e non devono mai sparire per un nome lungo. */
@@ -1516,31 +1516,31 @@ a, .link { color: var(--action-text); }
 }
 .usage-current-folder {
   flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
-  color: var(--muted, #8b909a);
+  color: var(--text-muted);
 }
 .usage-current-folder::before { content: '📁 '; }
 .usage-current-folder:empty { display: none; }
-.usage-current-folder + .usage-current-name::before { content: '·'; margin-right: 6px; color: var(--muted, #8b909a); }
+.usage-current-folder + .usage-current-name::before { content: '·'; margin-right: 6px; color: var(--text-muted); }
 .usage-current-name {
   flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
-  color: var(--text, #e6e8ec); font-weight: 600;
+  color: var(--text); font-weight: 600;
 }
 .usage-current[hidden] { display: none; }
-.usage-current + .usage-cell { border-left: 1px solid var(--border, #23262d); }
+.usage-current + .usage-cell { border-left: 1px solid var(--border); }
 /* Senza sessioni la prima quota torna a essere la prima della barra. */
 .usage-current[hidden] + .usage-cell { border-left: 0; padding-left: 0; }
 .usage-cell { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 0 14px; }
 /* Divisore fra una metrica e l'altra: sono tre quote diverse, non una riga
    sola. Il bordo sta sulla cella che segue, cosi' la prima resta allineata
    al bordo sinistro della barra. */
-.usage-cell + .usage-cell { border-left: 1px solid var(--border, #23262d); }
+.usage-cell + .usage-cell { border-left: 1px solid var(--border); }
 .usage-cell:first-child { padding-left: 0; }
-.usage-label { color: var(--muted, #8b909a); letter-spacing: .06em; font-size: 10px; }
-.usage-value { color: var(--text, #e6e8ec); font-family: var(--font-mono, monospace); overflow: hidden; text-overflow: ellipsis; }
+.usage-label { color: var(--text-muted); letter-spacing: .06em; font-size: 10px; }
+.usage-value { color: var(--text); font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; }
 /* Riga secondaria del riquadro FINESTRA 5h: di quale assistente parla e fra
    quanto si azzera. Smorzata come l'etichetta: e' contorno, non la misura. */
 .usage-sub {
-  color: var(--muted, #8b909a); font-size: 10px; white-space: nowrap;
+  color: var(--text-muted); font-size: 10px; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis;
 }
 /* Tre barre, tre quote diverse:

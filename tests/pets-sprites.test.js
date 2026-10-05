@@ -106,6 +106,19 @@ ok('sprites: nessun personaggio ha il contorno scuro attorno alla sagoma (i pacc
   }
 });
 
+ok('sprites: il gatto dorme sdraiato, basso e lungo quanto in piedi', () => {
+  const used = (frame) => frame.filter((row) => /[^.]/.test(row));
+  const width = (frame) => {
+    const cols = frame.flatMap((row) => [...row].map((c, i) => (c === '.' ? -1 : i))).filter((i) => i >= 0);
+    return Math.max(...cols) - Math.min(...cols) + 1;
+  };
+  const [standing] = SPRITES.gatto.frames.walk;
+  const [asleep] = SPRITES.gatto.frames.sleep;
+  assert.ok(used(asleep).length <= used(standing).length / 2, `alto ${used(asleep).length} righe su ${used(standing).length}`);
+  assert.ok(width(asleep) >= width(standing), 'sdraiato è lungo almeno quanto in piedi');
+  assert.ok(/[^.]/.test(asleep[asleep.length - 1]), 'sdraiato sta a terra');
+});
+
 ok('sprites: il pesce è quello del pacchetto Spritelli, coi suoi colori a scelta', () => {
   assert.deepStrictEqual(dims('pesce'), { cols: 32, rows: 20 });
   assert.strictEqual(SPRITES.pesce.motion, 'swim');

@@ -311,6 +311,20 @@
     '..o.o....o.o..',
   ];
   const CAT_STEP = patch(CAT, { 8: '...o.o..o.o...', 9: '...o.o..o.o...' });
+  // Per dormire si sdraia come i gatti: a pagnotta, zampe sotto, la testa
+  // un po' su con gli occhi chiusi e la coda stesa davanti, a terra
+  const CAT_SLEEP = [
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '.........o...o',
+    '.........ooooo',
+    '...ooooo.odood',
+    '.oodooddoooopo',
+    'dddddddooooooo',
+  ];
 
   // ---- Rana: seduta, e in salto con le zampe distese dietro ----
   const FROG = [
@@ -428,7 +442,7 @@
       palette: { o: '#E8963C', d: '#A85E1E', g: '#7BC25A', p: '#F4A3B5' },
       frames: {
         walk: [CAT, CAT_STEP],
-        sleep: [patch(CAT, { 2: '.d.......odood' })],
+        sleep: [CAT_SLEEP],
         call: [CAT],
       },
     },

@@ -66,6 +66,8 @@
   /** In fila: distanza fra i centri (misure) e quanto più svelto recupera chi segue. */
   const LINE_GAP = 0.9;
   const CATCH_UP = 1.6;
+  /** Sotto questo spostamento (misure) chi segue è fermo: zampetta solo se si muove davvero. */
+  const STILL = 0.001;
   /** Rana: salti al secondo e altezza in misure. Sta in aria metà del tempo. */
   const HOP_HZ = 1.2;
   const HOP_HEIGHT = 0.6;
@@ -290,7 +292,11 @@
     const dx = target - centerOf(pet, ctx.size);
     const reach = spriteOf(pet.kind).speed * CATCH_UP * ctx.size * ctx.mult * ctx.s;
     const limit = maxX(pet.kind, ctx.size, ctx.width);
-    if (Math.abs(dx) <= reach) return standing({ ...pet, x: clamp(pet.x + dx, 0, limit) }, lead.dir, ctx);
+    if (Math.abs(dx) <= reach) {
+      // Lead in cammino si sposta un po' ogni fotogramma: chi gli sta dietro lo segue zampettando
+      const kept = { ...pet, x: clamp(pet.x + dx, 0, limit), dir: lead.dir, pose: 'walk' };
+      return Math.abs(dx) > STILL * ctx.size ? kept : standing(kept, lead.dir, ctx);
+    }
     const dir = Math.sign(dx);
     return { ...pet, x: clamp(pet.x + dir * reach, 0, limit), dir, pose: 'walk' };
   }

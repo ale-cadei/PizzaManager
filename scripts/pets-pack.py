@@ -84,7 +84,8 @@ SPRITELLI_OUTLINE = '#2B2233'
 # quattro tempi come Fizzo: una zampa avanti, l'incrocio con l'altra alzata,
 # l'altra avanti, l'incrocio. La zampa lontana (f, il giallo scuro del
 # pacchetto) è più scura della vicina (c), così si capisce quale va avanti.
-# Righe della cella a 1x, dalla fine della pancia in giù.
+# Righe della cella a 1x, dalla fine della pancia in giù. Gli anatroccoli
+# hanno zampe di tre righe come la papera: la loro cella cresce di una riga.
 DUCK_LEGS = {
     'step-1': {13: '.....f..c.......', 14: '....f....c......', 15: '....ff...cc.....'},
     'pass-1': {13: '......f.c.......', 14: '......ffc.......', 15: '........cc......'},
@@ -93,11 +94,11 @@ DUCK_LEGS = {
     'stand': {13: '.....f..c.......', 14: '.....f..c.......', 15: '.....ff.cc......'},
 }
 DUCKLING_LEGS = {
-    'step-1': {9: '....f..c...', 10: '...ff...cc.'},
-    'pass-1': {9: '....ff.c...', 10: '.......cc..'},
-    'step-2': {9: '....c..f...', 10: '...cc...ff.'},
-    'pass-2': {9: '....f..cc..', 10: '....ff.....'},
-    'stand': {9: '....f..c...', 10: '....ff.cc..'},
+    'step-1': {9: '....f..c...', 10: '...f....c..', 11: '...ff...cc.'},
+    'pass-1': {9: '.....f.c...', 10: '.....ffc...', 11: '.......cc..'},
+    'step-2': {9: '....c..f...', 10: '...c....f..', 11: '...cc...ff.'},
+    'pass-2': {9: '.....f.c...', 10: '.....f.cc..', 11: '.....ff....'},
+    'stand': {9: '....f..c...', 10: '....f..c...', 11: '....ff.cc..'},
 }
 
 
@@ -298,8 +299,12 @@ def spritelli_frames(folder):
 
 
 def derive(frames, base, rows, over):
-    """Un fotogramma nuovo: righe ritoccate, poi altri fotogrammi sopra (i '.' non coprono)."""
-    out = [rows.get(i, r) for i, r in enumerate(frames[base])]
+    """Un fotogramma nuovo: righe ritoccate, poi altri fotogrammi sopra (i '.' non coprono).
+    Una riga ritoccata oltre la fine allunga la cella in giù (le zampe degli anatroccoli)."""
+    src = frames[base]
+    height = max([len(src), *(i + 1 for i in rows)])
+    padded = [*src, *['.' * len(src[0])] * (height - len(src))]
+    out = [rows.get(i, r) for i, r in enumerate(padded)]
     for name, ox, oy in over:
         width = max(len(out[0]), ox + len(frames[name][0]))
         out = [r.ljust(width, '.') for r in out]
@@ -310,7 +315,7 @@ def derive(frames, base, rows, over):
                     line[ox + x] = ch
             out[oy + y] = ''.join(line)
     widths = {len(r) for r in out}
-    assert len(widths) == 1 and len(out) == len(frames[base]), f'{base}: ritocco fuori misura'
+    assert len(widths) == 1 and len(out) == height, f'{base}: ritocco fuori misura'
     return out
 
 

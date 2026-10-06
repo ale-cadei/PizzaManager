@@ -11,7 +11,7 @@ pulsante resta acceso.
 
 Il dialogo View → Colori… chiede di scegliere sette colori uno per uno. Sopra
 i selettori ora ci sono dei temi pronti (Forno — il predefinito —, Mare di
-notte, Bosco, Lavanda, Neon, Ambra, Ghiaccio): un click riempie tutti i selettori, con anteprima dal vivo.
+notte, Bosco, Lavanda, Neon, Ambra, Bianco e nero, Ghiaccio): un click riempie tutti i selettori, con anteprima dal vivo.
 
 ## Scelte
 

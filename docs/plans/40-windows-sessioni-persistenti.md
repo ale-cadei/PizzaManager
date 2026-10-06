@@ -1,4 +1,4 @@
-# 39 — Sessioni persistenti su Windows
+# 40 — Sessioni persistenti su Windows
 
 Branch: `spike/psmux` per la fase 1 (codice usa-e-getta; da lì si mergia solo
 questo piano e i risultati), poi il branch della fase 2 · Dipende da: 6, 8,
@@ -167,10 +167,10 @@ l'app → modal «Ripristinare le sessioni di prima?», Claude riparte con
 
 ### Consegna della fase 1
 
-`docs/plans/39-risultati.md`, sul modello di `05-risultati.md`: ambiente
+`docs/plans/40-risultati.md`, sul modello di `05-risultati.md`: ambiente
 (Windows, psmux e da quale repo, Node, Electron), **verdetto in testa** (sì /
 sì con rinunce / no), una sezione per domanda con comandi e output, la tabella
-di Q1 compilata. Aggiornare la riga 39 di `README.md`.
+di Q1 compilata. Aggiornare la riga 40 di `README.md`.
 
 ---
 

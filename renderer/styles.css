@@ -1283,6 +1283,24 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 /* il colore principale apre l'elenco, staccato dai tipi: vale per tutta l'app */
 .modal label.type-color-row--action { margin-bottom: 8px; }
 .type-colors-reset { margin-right: auto; }
+/* Temi pronti (renderer/type-color-themes.js): i colori del tema in fila, poi il nome */
+.color-themes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+.color-theme {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  padding: 8px 10px; border-radius: var(--radius); cursor: pointer;
+  background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); font-family: var(--font-ui); font-size: 12px; text-align: left;
+}
+.color-theme:hover { border-color: var(--action); }
+.color-theme:focus-visible { outline: 2px solid var(--action); outline-offset: 2px; }
+.color-theme[aria-pressed="true"] {
+  border-color: var(--action); background: var(--action-soft);
+  box-shadow: 0 0 0 3px var(--action-ring);
+}
+.color-theme-swatches { display: flex; gap: 3px; }
+.color-theme-swatch { width: 12px; height: 12px; border-radius: 3px; }
+/* il primo è il colore principale: un po' più largo, come la sua riga sotto */
+.color-theme-swatch:first-child { width: 20px; margin-right: 3px; }
 
 /* Tabs: gruppo su fondo nero con padding 5px; attivo pomodoro tenue + bordo pomodoro */
 .tabs {

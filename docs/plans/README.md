@@ -47,7 +47,8 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 36 | [`feat/sessione-worktree`](36-sessione-worktree.md) | 8, 25, 27 | ~1½ g | fatto, provato nell'app |
 | 37 | [`fix/collassi-al-riavvio`](37-collassi-al-riavvio.md) | 8, 6 | ~1h | fatto, da provare nell'app |
 | 38 | [`feat/notifiche-sistema`](38-notifiche-sistema.md) — macOS e Linux | — | ~½ g | fatto, provato nell'app su macOS; da provare su Linux |
-| 39 | [`spike/psmux`](39-windows-sessioni-persistenti.md) → fase 2 — Windows | 6, 8, 24, 26 | ~½ g + ~1 g | proposto, da fare sul fisso Windows |
+| 39 | [`feat/temi-colori`](39-temi-colori.md) — temi pronti nel dialogo Colori | — | ~¼ g | fatto, provato nell'app |
+| 40 | [`spike/psmux`](40-windows-sessioni-persistenti.md) → fase 2 — Windows | 6, 8, 24, 26 | ~½ g + ~1 g | proposto, da fare sul fisso Windows |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

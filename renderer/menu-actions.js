@@ -15,6 +15,8 @@ function typeColorsDialog() {
       doc: document,
       backdrop: $('#modal-type-colors'),
       list: $('#type-color-list'),
+      themesEl: $('#color-themes'),
+      themes: window.AisessColorThemes.THEMES,
       saveBtn: $('#type-colors-save'),
       cancelBtn: $('#type-colors-cancel'),
       resetBtn: $('#type-colors-reset'),

@@ -46,6 +46,11 @@
       colors: { action: '#e0a030', shell: '#f4d58d', git: '#e07a3f', opencode: '#a8d672', claude: '#f2a65a', codex: '#7fb3d5', antigravity: '#e57373' },
     },
     {
+      // Grigi soli: i tipi si distinguono per chiarezza, dal più chiaro al più scuro.
+      id: 'bianco-nero', name: 'Bianco e nero',
+      colors: { action: '#e6e6e6', shell: '#d6d6d6', git: '#808080', opencode: '#adadad', claude: '#f2f2f2', codex: '#969696', antigravity: '#c4c4c4' },
+    },
+    {
       id: 'ghiaccio', name: 'Ghiaccio',
       colors: { action: '#7fb8e6', shell: '#ebd98a', git: '#f08a6c', opencode: '#8fe3c4', claude: '#f5b98a', codex: '#9cc9ff', antigravity: '#d9a6f5' },
     },

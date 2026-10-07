@@ -3,64 +3,30 @@ const path = require('node:path');
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
 
-/* Selezione «scheda sollevata» (tokens-selezione-scheda.css, adattata ai nomi e
-   alla palette dell'app). La riga attiva diventa un cartoncino: superficie
-   propria, bordo, e sotto un filetto pieno — dentro un fascicolo è il foglio
-   tirato fuori dalla cartellina. Tre segnali e non uno di più; il filetto non è
-   il viola del file originale ma il colore del tipo della sessione
-   (--type-color), così la selezione alza l'identità che la card ha già. */
+/* Selezione: la riga attiva prende un contorno del colore del tipo della
+   sessione (--type-color), e basta — niente superficie propria né ombra. Così
+   la selezione alza l'identità che la card ha già. */
 
-/* Luminanza relativa e L* (CIE): servono a verificare che i gradini di
-   superficie siano veri gradini e che il testo ci resti leggibile sopra. */
-const lin = (c) => (c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-const lum = (hex) => {
-  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-};
-const lstar = (hex) => { const y = lum(hex); return y > 0.008856 ? 116 * y ** (1 / 3) - 16 : y * 903.3; };
-const contrasto = (a, b) => {
-  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
-  return (hi + 0.05) / (lo + 0.05);
-};
 const styles = () => fs.readFileSync(path.join(__dirname, '..', 'renderer', 'styles.css'), 'utf8');
 const tokensFiles = ['renderer/tokens.css', 'aisessionmanager-tokens.css']
   .map((p) => path.join(__dirname, '..', p));
 
-const strati = (value) => {
-  // Gli strati si separano sulle virgole di primo livello: dentro color-mix()
-  // ce ne sono altre che non dividono niente.
-  const out = [];
-  let depth = 0, start = 0;
-  for (let i = 0; i < value.length; i++) {
-    if (value[i] === '(') depth++;
-    else if (value[i] === ')') depth--;
-    else if (value[i] === ',' && depth === 0) { out.push(value.slice(start, i)); start = i + 1; }
-  }
-  out.push(value.slice(start));
-  return out.map((s) => s.trim());
-};
-
-ok('selezione: sotto la card attiva c è un solo filetto, del colore del tipo', () => {
+ok('selezione: la card attiva ha solo il contorno del colore del tipo', () => {
   const css = styles();
-  const m = css.match(/--shadow-session:\s*([^;]+);/);
-  assert.ok(m, 'manca --shadow-session in styles.css');
-  const layers = strati(m[1].replace(/\s+/g, ' ').trim());
-  // Il cartoncino porta già superficie e bordo: un alone sfocato sarebbe il
-  // quarto segnale sulla stessa riga, e quattro non si sommano, si annullano.
-  assert.equal(layers.length, 1, `il rilievo ha più di un filetto: ${m[1]}`);
-  assert.ok(/^0 \d+px 0 /.test(layers[0]), `il filetto è sfocato o spostato: ${layers[0]}`);
-  assert.ok(/var\(--type-color/.test(layers[0]),
-    `il filetto non è del colore della sessione: ${layers[0]}`);
-  // Smorzato, non pieno: col cartoncino sotto, un colore a piena forza urla.
-  assert.ok(/color-mix/.test(layers[0]), `il filetto è a piena forza: ${layers[0]}`);
+  const active = css.match(/\n\.session-item\.active \{[^}]*\}/);
+  assert.ok(active, 'manca la regola .session-item.active');
+  assert.ok(/border-color:\s*var\(--type-color/.test(active[0]),
+    'il contorno della card attiva non è del colore della sessione: ' + active[0]);
+  // Il contorno è il segnale: un fondo o un'ombra in più tornerebbero al rilievo.
+  assert.ok(!/background|box-shadow/.test(active[0]),
+    'la card attiva ha ancora un rilievo oltre al contorno: ' + active[0]);
+  // --type-color deve essere definito sulla card stessa, non ereditato: se
+  // arrivasse dal gruppo, in modalità progetto non arriverebbe affatto.
+  assert.ok(/\.type-\w+\s*\{\s*--type-color/.test(css), 'il tipo non è definito sulla card');
 });
 
-/* Il cartoncino: una superficie che sale di un gradino pieno sopra il pannello
-   del fascicolo, e un bordo che sale sopra di lei. Il gradino ha un tetto: più
-   sale la superficie, meno contrasto ha sopra il testo dei metadati.
-   Le superfici della sidebar sono color-mix() col colore principale: vanno
-   provate col pomodoro predefinito e con i principali che l'utente può
-   scegliere da View → Colori…, non solo con uno. */
+/* Le superfici della sidebar sono color-mix() col colore principale scelto da
+   View → Colori…: vanno provate con più di un principale. */
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 const hex = (c) => '#' + c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
 
@@ -82,30 +48,12 @@ const sidebarToken = (tokens, name, action) => {
   return m[1];
 };
 
-ok('selezione: il cartoncino sale di un gradino vero e il testo ci resta sopra', () => {
-  const tokens = fs.readFileSync(tokensFiles[0], 'utf8');
-  const predefinito = tokens.match(/--action:\s*(#[0-9A-Fa-f]{6})/)[1];
-  // pomodoro, blu, verde, bianco: dal più scuro al più chiaro che si sceglie
-  for (const action of [predefinito, '#5AA2FF', '#4ADE80', '#FFFFFF']) {
-    const val = (name) => sidebarToken(tokens, name, action);
-    const card = val('--surface-session-card');
-    const bordo = val('--border-session-card');
-    const pannello = val('--surface-group');
-    assert.ok(lstar(card) - lstar(pannello) >= 6,
-      `${action}: il cartoncino non si stacca dal pannello: Δ ${(lstar(card) - lstar(pannello)).toFixed(1)} L*`);
-    assert.ok(lstar(bordo) > lstar(card), `${action}: il bordo del cartoncino è più scuro della sua superficie`);
-    // I metadati (--text-muted) sono il testo più debole che ci finisce sopra.
-    assert.ok(contrasto(card, val('--text-muted')) >= 4.5,
-      `${action}: sul cartoncino i metadati scendono a ${contrasto(card, val('--text-muted')).toFixed(2)}:1`);
-  }
-});
-
 /* Il colore principale deve arrivare davvero allo sfondo: se la sidebar
    tornasse a esadecimali fissi, cambiare colore da View → Colori… non la
    toccherebbe più. */
 ok('sidebar: lo sfondo segue il colore principale', () => {
   const tokens = fs.readFileSync(tokensFiles[0], 'utf8');
-  for (const name of ['--surface', '--surface-group', '--surface-session-card', '--border']) {
+  for (const name of ['--surface', '--surface-group', '--border']) {
     assert.notEqual(sidebarToken(tokens, name, '#F04E23'), sidebarToken(tokens, name, '#5AA2FF'),
       `${name} non cambia col colore principale`);
   }
@@ -113,39 +61,11 @@ ok('sidebar: lo sfondo segue il colore principale', () => {
 
 /* Le righe a riposo hanno un bordo trasparente della stessa misura: senza, al
    cambio di selezione la card cresce di 2px e la lista salta sotto il cursore. */
-ok('selezione: il bordo del cartoncino non fa saltare la lista', () => {
+ok('selezione: il contorno non fa saltare la lista', () => {
   const css = styles();
   const item = css.match(/\n\.session-item \{[^}]*\}/);
   assert.ok(/border:\s*1px solid transparent/.test(item[0]),
     'le righe a riposo non riservano lo spazio del bordo: ' + item[0]);
-  const active = css.match(/\n\.session-item\.active \{[^}]*\}/);
-  assert.ok(/border-color:\s*var\(--border-session-card\)/.test(active[0]),
-    'la card attiva non prende il bordo del cartoncino');
-  assert.ok(/background:\s*var\(--surface-session-card\)/.test(active[0]),
-    'la card attiva non prende la superficie del cartoncino');
-});
-
-/* Una custom property che contiene var() viene sostituita sull'elemento che la
-   DICHIARA, non su quello che la usa: dichiarata in :root, var(--type-color) è
-   già caduta sul fallback (la crosta) e ogni sessione avrebbe l'ombra gialla —
-   è successo. Deve stare sulla card, dove la classe .type-* ha appena definito
-   --type-color sullo stesso elemento. */
-ok('selezione: il rilievo è dichiarato dove il tipo esiste, non in :root', () => {
-  for (const file of tokensFiles) {
-    const css = fs.readFileSync(file, 'utf8');
-    assert.ok(!/--shadow-session:/.test(css),
-      `${path.basename(file)} dichiara --shadow-session fuori dalla card: il colore del tipo non ci arriva`);
-  }
-  const css = styles();
-  const decl = css.match(/([^\n{}]+)\{[^}]*--shadow-session:/);
-  assert.ok(decl, 'nessuno dichiara --shadow-session');
-  const selettore = decl[1].trim();
-  assert.ok(/^\.session-item/.test(selettore),
-    `--shadow-session è dichiarato su "${selettore}": lì --type-color non è ancora quello della card`);
-  // …e il tipo deve essere definito sulla card stessa, non ereditato: se
-  // arrivasse dal gruppo, in modalità progetto non arriverebbe affatto.
-  assert.ok(/\.session-item[^\n{}]*\.type-|\.type-\w+\s*\{\s*--type-color/.test(css),
-    'il tipo non è definito sulla card');
 });
 
 /* La barra del tipo sta DENTRO la card, staccata dal bordo: appoggiata al
@@ -180,25 +100,10 @@ ok('sidebar: le card respirano dentro e il pannello lascia margine attorno', () 
     `il pannello stringe le card: padding ${padPannello}px contro un gap di ${gap}px`);
 });
 
-ok('selezione: lo spazio riservato sotto la riga supera lo spessore del filetto', () => {
-  const tokens = fs.readFileSync(tokensFiles[0], 'utf8');
-  const thickness = Number(styles().match(/--shadow-session:\s*0 (\d+)px 0 /)[1]);
-  const gap = Number(tokens.match(/--space-session-gap:\s*(\d+)px/)[1]);
-  assert.ok(gap > thickness, 'il filetto finisce sotto la riga successiva');
-  // Lo spazio lo tiene il pannello per TUTTE le righe: se lo prendesse solo la
-  // riga attiva, cambiare sessione farebbe saltare la lista di quei pixel.
-  const body = styles().match(/\n\.group-body \{[^}]*\}/);
-  assert.ok(/gap:\s*var\(--space-session-gap\)/.test(body[0]),
-    'il pannello non riserva lo spazio del filetto a ogni riga: la lista salta');
-});
-
-ok('selezione: la card attiva ha il filetto, l hover è solo il fondo', () => {
+ok('selezione: l hover è solo il fondo', () => {
   const css = styles();
-  const active = css.match(/\n\.session-item\.active \{[^}]*\}/);
-  assert.ok(active, 'manca la regola .session-item.active');
-  assert.ok(/box-shadow:\s*var\(--shadow-session\)/.test(active[0]), 'la card attiva non ha il filetto');
-  // L'hover prende SOLO il fondo, e non tocca la riga già attiva: col bordo o
-  // col filetto, passando il mouse sembrerebbe di aver selezionato.
+  // L'hover prende SOLO il fondo, e non tocca la riga già attiva: col bordo,
+  // passando il mouse sembrerebbe di aver selezionato.
   const hover = css.match(/\n\.session-item:hover:not\(\.active\) \{[^}]*\}/);
   assert.ok(hover, "l hover non esclude la riga attiva: gliene cambia il fondo sotto il cursore");
   assert.ok(!/box-shadow|border-color/.test(hover[0]), 'l hover imita la selezione: ' + hover[0]);
@@ -209,27 +114,12 @@ ok('selezione: le righe non attive arretrano, l attiva torna piena', () => {
   const dim = css.match(/\n\.session-item \.name \{[^}]*\}/);
   const full = css.match(/\n\.session-item\.active \.name \{[^}]*\}/);
   assert.ok(dim && /color:\s*var\(--text-muted\)/.test(dim[0]),
-    'i titoli delle righe non attive non arretrano: metà del segnale è questo, non il filetto');
+    'i titoli delle righe non attive non arretrano: metà del segnale è questo, non il contorno');
   assert.ok(full && /color:\s*var\(--text\)/.test(full[0]), 'il titolo della riga attiva non torna pieno');
-  // Anche il percorso risale di un gradino: --text-dim, che sul pannello basta,
-  // sulla superficie chiara del cartoncino scenderebbe sotto 4.5:1.
+  // Anche il percorso risale di un gradino.
   const meta = css.match(/\n\.session-item\.active \.sub \{[^}]*\}/);
   assert.ok(meta && /color:\s*var\(--text-muted\)/.test(meta[0]),
-    'il percorso della riga attiva resta al livello più basso: sul cartoncino non si legge');
-});
-
-ok('selezione: il filetto è solo della card, il fascicolo non lo prende', () => {
-  const css = styles();
-  // Il filetto dice «questa riga è selezionata» e la riga è una: se lo portasse
-  // anche il gruppo, il segnale comparirebbe due volte per la stessa scelta.
-  // Sul fascicolo resta --shadow-stack, che dice un'altra cosa (sta sopra).
-  for (const regola of css.match(/\n\.session-group[^\n{]*\{[^}]*\}/g) || []) {
-    assert.ok(!/var\(--shadow-session\)/.test(regola),
-      'il filetto della selezione è finito sul gruppo: ' + regola.trim());
-  }
-  const active = css.match(/\n\.session-item\.active \{[^}]*\}/);
-  assert.ok(/box-shadow:\s*var\(--shadow-session\)/.test(active[0]),
-    'senza il filetto sulla card la selezione non si vede da nessuna parte');
+    'il percorso della riga attiva resta al livello più basso');
 });
 
 /* Il marker sulla linguetta del gruppo chiuso prende il colore dal tipo della
@@ -268,9 +158,8 @@ ok('selezione: il gruppo dichiara il tipo della sessione attiva che contiene', (
 });
 
 /* Il lampeggio «l'assistente ha finito» parla della SESSIONE: deve essere del
-   suo colore, come la barra laterale e il filetto di selezione. Con un pomodoro
-   uguale per tutte, di sfuggita non si capiva chi stesse chiamando. Stessa
-   trappola del filetto: le tinte vanno dichiarate dove .type-* ha definito
+   suo colore, come la barra laterale e il contorno di selezione. Con un pomodoro
+   uguale per tutte, di sfuggita non si capiva chi stesse chiamando. Le tinte vanno dichiarate dove .type-* ha definito
    --type-color, non in :root. */
 ok('lampeggio: la pulsazione è del colore del tipo, dichiarato dove il tipo esiste', () => {
   const css = styles();

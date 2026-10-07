@@ -219,7 +219,7 @@ img.agent-icon--node { border-radius: 2px; }
    appoggerebbe sui fogli di quello sopra, quando è chiuso. Il padding in basso
    serve allo stesso motivo se il gruppo chiuso è l'ultimo: dorso e fogli
    scendono 24px oltre la linguetta. */
-#session-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-group-stack); padding: 0 16px 24px; }
+#session-list { flex: 1; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: var(--space-group-stack); padding: 0 16px 24px; }
 .session-item {
   position: relative;
   display: flex; align-items: center; gap: var(--gap-sm);
@@ -286,16 +286,27 @@ img.agent-icon--node { border-radius: 2px; }
   .session-item.is-running::before { animation: none; background-image: none; opacity: 1; }
 }
 
-/* L'hover è solo il fondo, e lascia stare la riga già attiva: la selezione è
-   il contorno e basta, un fondo che compare sotto il cursore la confonderebbe. */
+/* L'hover è solo il fondo, e lascia stare la riga già attiva: ha già il suo,
+   un gradino più su, e cambiarglielo sotto il cursore la confonderebbe. */
 .session-item:hover:not(.active) { background: var(--surface-row); }
-/* Selezione: solo il contorno, del colore del tipo della sessione. Niente
-   superficie propria né ombra: la riga resta piatta sul pannello. La geometria
-   non si muove: il bordo se lo riservano anche le righe a riposo (sopra), o il
-   click successivo finirebbe su un bersaglio spostato. */
+/* Selezione «sollevata»: la riga è la stessa card ingrandita di --lift-scale,
+   con un gradino di superficie in più, ombra, filo e un contorno leggero del
+   colore della sessione. Ingrandita davvero (scale): barra, croce, marker
+   e testo crescono insieme e restano alle stesse distanze in proporzione.
+   La scala non occupa spazio nel flusso: --lift-grow è quanto la card cresce
+   sopra e sotto, e il margine glielo riserva o coprirebbe le righe accanto. */
 .session-item.active {
-  border-color: var(--type-color, var(--accent));
+  background: var(--surface-lift);
+  border-color: color-mix(in srgb, var(--type-color, var(--accent)) 45%, transparent);
+  margin: calc(4px + var(--lift-grow)) 0;
+  /* `scale` e non `transform`: il riordino (FLIP, sidebar.js) scrive un
+     transform inline e lo zoom sparirebbe mentre le righe scorrono. */
+  scale: var(--lift-scale);
+  box-shadow: var(--shadow-lift);
+  border-radius: var(--radius-lg);
+  z-index: 1;
 }
+/* La barra resta del colore della sessione, a piena forza. */
 .session-item.active::before { opacity: 1; }
 /* Metà del segnale è l'arretramento delle altre: sulle righe a riposo titolo e
    percorso scendono di un gradino, sulla riga attiva risalgono. */
@@ -306,9 +317,10 @@ img.agent-icon--node { border-radius: 2px; }
    sostituisce: stesso colore del tipo, staccato dalla riga. */
 .session-item:focus-visible { outline: 2px solid var(--type-color, var(--accent)); outline-offset: 2px; }
 @media (prefers-reduced-motion: no-preference) {
-  /* Solo colori, mai la geometria: una riga che si sposta mentre la
-     selezioni fa sbagliare il click successivo. */
-  .session-item { transition: background-color 120ms ease, border-color 120ms ease; }
+  .session-item {
+    transition: scale .15s ease, margin .15s ease, box-shadow .15s ease,
+      background-color .15s ease, border-color .15s ease;
+  }
 }
 
 /* Riordino per trascinamento. La card trascinata sbiadisce; il punto di

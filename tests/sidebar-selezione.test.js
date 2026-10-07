@@ -3,26 +3,80 @@ const path = require('node:path');
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
 
-/* Selezione: la riga attiva prende un contorno del colore del tipo della
-   sessione (--type-color), e basta — niente superficie propria né ombra. Così
-   la selezione alza l'identità che la card ha già. */
+/* Selezione «sollevata»: la riga attiva è la stessa card ingrandita di
+   --lift-scale, con un gradino di superficie in più, ombra, filo e un contorno
+   leggero del colore della sessione. La barra laterale resta del suo colore. */
 
 const styles = () => fs.readFileSync(path.join(__dirname, '..', 'renderer', 'styles.css'), 'utf8');
 const tokensFiles = ['renderer/tokens.css', 'aisessionmanager-tokens.css']
   .map((p) => path.join(__dirname, '..', p));
 
-ok('selezione: la card attiva ha solo il contorno del colore del tipo', () => {
+ok('selezione: la card attiva si solleva ingrandita', () => {
   const css = styles();
   const active = css.match(/\n\.session-item\.active \{[^}]*\}/);
   assert.ok(active, 'manca la regola .session-item.active');
-  assert.ok(/border-color:\s*var\(--type-color/.test(active[0]),
-    'il contorno della card attiva non è del colore della sessione: ' + active[0]);
-  // Il contorno è il segnale: un fondo o un'ombra in più tornerebbero al rilievo.
-  assert.ok(!/background|box-shadow/.test(active[0]),
-    'la card attiva ha ancora un rilievo oltre al contorno: ' + active[0]);
+  assert.ok(/background:\s*var\(--surface-lift\)/.test(active[0]), 'la card attiva non ha il suo fondo: ' + active[0]);
+  assert.ok(/box-shadow:\s*var\(--shadow-lift\)/.test(active[0]), 'la card attiva non ha l ombra: ' + active[0]);
+  // Ingrandimento vero: tutto il contenuto scala insieme, distanze comprese.
+  // `scale` e non `transform`, che il riordino (FLIP) sovrascrive inline.
+  assert.ok(/\n\s*scale:\s*var\(--lift-scale\)/.test(active[0]), 'la card attiva non è ingrandita: ' + active[0]);
+  assert.ok(!/transform:/.test(active[0]), 'lo zoom passa da transform: il riordino lo cancellerebbe');
+  // La scala non occupa spazio: il margine riserva la crescita o copre le righe accanto.
+  assert.ok(/margin:\s*calc\(\d+px \+ var\(--lift-grow\)\)/.test(active[0]), 'la card ingrandita copre le righe accanto');
+  // Contorno leggero del colore della sessione, non un accento fisso.
+  assert.ok(/border-color:\s*color-mix\(in srgb, var\(--type-color/.test(active[0]),
+    'il contorno non è del colore della sessione: ' + active[0]);
   // --type-color deve essere definito sulla card stessa, non ereditato: se
   // arrivasse dal gruppo, in modalità progetto non arriverebbe affatto.
   assert.ok(/\.type-\w+\s*\{\s*--type-color/.test(css), 'il tipo non è definito sulla card');
+});
+
+/* La card ingrandita esce dal pannello: la lista non deve scorrere di lato. */
+ok('selezione: la card ingrandita non apre uno scroll orizzontale', () => {
+  assert.ok(/#session-list \{[^}]*overflow-x:\s*hidden/.test(styles()), 'la lista scorre di lato sotto la card ingrandita');
+});
+
+/* La barra scala con la card (niente spostamenti a mano) e resta del colore
+   della sessione: un colore fisso le farebbe perdere l'identità. */
+ok('selezione: la barra della riga sollevata è del colore della sessione e scala con la card', () => {
+  const css = styles();
+  const activeBar = css.match(/\n\.session-item\.active::before \{[^}]*\}/);
+  assert.ok(activeBar, 'manca la regola della barra attiva');
+  assert.ok(!/\bleft:/.test(activeBar[0]), 'la barra è spostata a mano invece di scalare con la card: ' + activeBar[0]);
+  assert.ok(!/--type-color|background/.test(activeBar[0]), 'la barra attiva cambia colore: ' + activeBar[0]);
+  assert.ok(/opacity:\s*1/.test(activeBar[0]), 'la barra attiva non è piena: ' + activeBar[0]);
+});
+
+/* --shadow-lift contiene var(--border): va dichiarata dove --border è quello
+   della sidebar, non su :root, o il filo prenderebbe il bordo della palette forno. */
+ok('selezione: l ombra della riga sollevata usa il bordo della sidebar', () => {
+  const tokens = fs.readFileSync(tokensFiles[0], 'utf8');
+  const sidebar = tokens.slice(tokens.indexOf('#sidebar,'));
+  assert.ok(/--shadow-lift:[^;]*var\(--border\)/.test(sidebar), '--shadow-lift non è nella palette della sidebar');
+  assert.ok(/--surface-lift:\s*color-mix\(in srgb, var\(--action\)/.test(sidebar),
+    '--surface-lift non segue il colore principale');
+});
+
+ok('selezione: la card attiva mostra il marker ◆', () => {
+  assert.ok(/\.session-item\.active\s*>\s*\.sel-mark\s*\{[^}]*visibility:\s*visible/.test(styles()),
+    'il marker non viene mostrato sulla card attiva');
+  const { installDocument, createElement, descendants, createStorage } = require('./fake-dom');
+  const Groups = require('../renderer/session-groups');
+  const { createSidebar } = require('../renderer/sidebar');
+  const restore = installDocument();
+  try {
+    const list = createElement('div');
+    const sidebar = createSidebar({
+      list, count: createElement('span'), storage: createStorage({}),
+      Icons: { markup: () => '' }, Slice: { markup: () => '' },
+      Groups, escapeHtml: (s) => String(s),
+      onSelect: () => {}, onClose: () => {}, onRename: () => {},
+    });
+    sidebar.render([{ id: 'a', type: 'codex', name: 'a', cwd: '/repo', alive: true }], 'a');
+    const card = descendants(list).find((n) => n.classes.has('session-item'));
+    assert.ok(card, 'nessuna card disegnata');
+    assert.ok(card.innerHTML.includes('class="sel-mark"'), 'la card non disegna il marker ◆');
+  } finally { restore(); }
 });
 
 /* Le superfici della sidebar sono color-mix() col colore principale scelto da

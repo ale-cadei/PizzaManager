@@ -287,24 +287,12 @@ ok('group-body collassato e nascosto anche con display flex', () => {
   assert.ok(rule.test(css), 'manca .group-body[hidden] { display: none } : il gruppo non si collassa');
 });
 
-ok('sessione attiva segnalata dal marker e dal contorno del tipo', () => {
+ok('la card porta la classe del suo tipo', () => {
   const root = path.join(__dirname, '..');
-  // Le card le disegna la sidebar, non renderer.js (branch raggruppamento)
+  // Le card le disegna la sidebar, non renderer.js (branch raggruppamento).
+  // Lo stile della card attiva lo verifica tests/sidebar-selezione.test.js.
   const js = fs.readFileSync(path.join(root, 'renderer', 'sidebar.js'), 'utf8');
-  const css = fs.readFileSync(path.join(root, 'renderer', 'styles.css'), 'utf8');
-  assert.ok(js.includes('class="sel-mark"'), 'il renderer non genera il marker di selezione');
   assert.ok(/session-item type-\$\{t\.type\}/.test(js), 'manca la classe di tipo sulla card');
-  const activeRule = css.match(/\.session-item\.active\s*\{[^}]*\}/);
-  assert.ok(activeRule, 'manca la regola .session-item.active');
-  // Il contorno ammesso è quello del colore del tipo: un accento fisso farebbe
-  // perdere alla selezione l'identità della sessione.
-  const bordo = activeRule[0].match(/border-color:\s*([^;]+);/);
-  assert.ok(bordo && /^var\(--type-color\b/.test(bordo[1].trim()),
-    'la card attiva non ha il contorno del colore del tipo: ' + (bordo && bordo[1]));
-  assert.ok(!/box-shadow/.test(activeRule[0]),
-    'la card attiva porta un ombra oltre al contorno: ' + activeRule[0]);
-  assert.ok(/\.session-item\.active\s*>\s*\.sel-mark\s*\{[^}]*visibility:\s*visible/.test(css),
-    'il marker non viene mostrato sulla card attiva');
 });
 
 ok('ogni tipo di sessione ha un colore identita distinto', () => {

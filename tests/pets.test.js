@@ -180,6 +180,24 @@ ok('pets: il retino non la prende mai (3000 passi, a ogni velocità e larghezza)
   }
 });
 
+ok('pets: Il pescatore si ferma a chiamare e la medusa gli resta vicino, sempre in movimento', () => {
+  const base = onStage(['inseguimento']);
+  const placed = { ...base, pets: base.pets.map((p) => (p.kind === 'pescatore' ? { ...p, x: 100 } : { ...p, x: 600, dir: 1 })) };
+  const random = seeded(9);
+  const leash = Pets.LEASH * SIZE + petWidth('medusa', SIZE);
+  let state = run(placed, 2000, { mood: 'attention', random });
+  const xs = [];
+  for (let i = 0; i < 3000; i += 1) {
+    state = step(state, { dt: 16, width: WIDTH, mood: 'attention', random });
+    const sponge = byKind(state, 'pescatore');
+    const jelly = byKind(state, 'medusa');
+    assert.strictEqual(sponge.pose, 'call');
+    assert.ok(Math.abs(center(jelly) - center(sponge)) <= leash, `passo ${i}: la medusa se ne va a ${center(jelly) - center(sponge)}`);
+    xs.push(jelly.x);
+  }
+  assert.ok(Math.max(...xs) - Math.min(...xs) > SIZE, 'la medusa sta ferma');
+});
+
 ok('pets: la rana salta, e avanza solo mentre è in aria', () => {
   let state = createPets({ cast: ['rana'], width: WIDTH, size: SIZE, random: () => 0.5 });
   let jumps = 0;

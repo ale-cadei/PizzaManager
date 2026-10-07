@@ -86,7 +86,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   tabs.set(id, tab);
   // Quello che la sessione scrive per prima (ridisegno di tmux, conversazione
   // ripresa) è l'avvio, non un lavoro finito: al ripristino le accendeva tutte.
-  if (type !== 'shell') attention.born(id);
+  if (type !== 'shell') attention.born(id, { untilTyped: !attachSession });
   updateEmpty();
   setActive(id, { reveal });
 

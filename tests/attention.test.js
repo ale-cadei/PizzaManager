@@ -171,6 +171,20 @@ test('dopo l\'avvio, un lavoro vero si segnala come sempre', () => {
   assert.equal(raffica(att, 'a', c), true);
 });
 
+test('scheda appena lanciata a PC appena acceso: il --resume lento non la accende', () => {
+  const c = clock();
+  const att = createAttention({ now: c.now });
+  att.born('a', { untilTyped: true });                    // spawn, non riattacco
+  raffica(att, 'a', c, { bytes: 650, durata: 50 });       // tmux che si attacca
+  c.avanza(15000);                                        // claude freddo: lento a partire
+  assert.equal(raffica(att, 'a', c, { bytes: 20000, durata: 4000 }), false);
+  c.avanza(30000);
+  assert.equal(raffica(att, 'a', c), false);              // senza una domanda non lavora
+  assert.equal(att.bell('a'), false);
+  att.typed('a');
+  assert.equal(raffica(att, 'a', c), true);               // la risposta si segnala
+});
+
 test('se l\'utente scrive durante l\'avvio, la risposta si segnala', () => {
   const c = clock();
   const att = createAttention({ now: c.now });

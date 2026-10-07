@@ -23,24 +23,11 @@
   --surface-group: var(--surface-2);  /* pannello del gruppo */
   --surface-cap:   var(--surface-3);  /* linguetta e fogli */
   --surface-row:   var(--surface-3);  /* riga in hover dentro il pannello */
-  /* il cartoncino della riga selezionata: sale di un gradino sopra il pannello
-     e ha un bordo suo. I valori veri stanno nella palette della sidebar, qui
-     sotto: questi servono solo fuori di lì. */
-  --surface-session-card: #2a211e;
-  --border-session-card:  #463630;
   /* l'ombra sta sotto il fascicolo, non sulle singole righe */
   --shadow-stack:  0 14px 28px -16px rgba(0,0,0,0.95);
 
-  /* selezione: il filetto sotto la riga attiva (--shadow-session) NON sta qui.
-     Una custom property che contiene var() viene sostituita sull'elemento che
-     la dichiara: scritta in :root, il suo var(--type-color) cadrebbe subito sul
-     fallback e ogni sessione avrebbe il filetto color crosta. Vive su
-     `.session-item` (styles.css), dove la classe .type-* ha appena dato alla
-     card il colore del suo tipo.
-     Qui resta solo la misura: lo spazio che il filetto si prende sotto la riga,
-     sempre 1px più di lui, o finisce sotto la riga successiva. Lo riserva il
-     pannello a TUTTE le righe (.group-body gap): se lo prendesse solo l'attiva,
-     cambiare sessione farebbe saltare la lista di quei pixel. */
+  /* spazio fra le righe del pannello: lo riserva .group-body a TUTTE le righe,
+     così il contorno della riga attiva non tocca quella accanto. */
   --space-session-gap: 3px;
 
   /* azione (pomodoro) */
@@ -141,12 +128,6 @@
   --surface-group: color-mix(in srgb, var(--action) 8%, #040404);   /* corpo della card */
   --surface-cap:   color-mix(in srgb, var(--action) 9%, #111111);   /* linguetta e fogli del fascicolo */
   --surface-row:   color-mix(in srgb, var(--action) 9%, #121212);   /* riga in hover */
-  /* Cartoncino della riga selezionata: Δ 7.9 L* sopra il pannello, un gradino
-     pieno. NON alzarlo oltre: i metadati (--text-muted) ci stanno a 7.1:1 e
-     ogni punto di L* in più li avvicina alla soglia di 4.5.
-     Il bordo sale di altri 9.5 L* sopra la sua superficie. */
-  --surface-session-card: color-mix(in srgb, var(--action) 10%, #151515);
-  --border-session-card:  color-mix(in srgb, var(--action) 12%, #2a2a2a);
 
   /* bordi: con lo sfondo a fondo scala l’ombra sotto i fogli non si vede
      (nero su quasi nero) — il confine del fascicolo lo disegnano il salto di

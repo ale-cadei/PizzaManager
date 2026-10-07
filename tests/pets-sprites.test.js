@@ -57,20 +57,49 @@ ok('sprites: la tazzina cammina come Fizzo, a quattro passi, disegnata fine quan
   assert.ok(Math.abs(pixel('tazzina', 48) - pixel('fizzo', 48)) < 0.1, 'pixel di un altra misura');
 });
 
-ok('sprites: gli sbuffi di fumo della tazzina stanno a parte, tutti della stessa misura, coi colori in palette, e nascono dentro il disegno', () => {
-  const { trail, palette } = SPRITES.tazzina;
-  assert.ok(trail && trail.frames.length >= 2, 'fumo fermo');
-  const [cols, rows] = [trail.frames[0][0].length, trail.frames[0].length];
-  for (const grid of trail.frames) {
-    assert.strictEqual(grid.length, rows);
-    for (const row of grid) {
-      assert.strictEqual(row.length, cols);
-      for (const ch of row) if (ch !== '.') assert.ok(palette[ch], `${ch} del fumo senza colore`);
+ok('sprites: gli sbuffi di fumo (tazzina e trenino) stanno a parte, tutti della stessa misura, coi colori in palette, e nascono dentro il disegno', () => {
+  const smokers = ['tazzina', 'trenino'];
+  for (const kind of smokers) {
+    const { trail, palette } = SPRITES[kind];
+    assert.ok(trail && trail.frames.length >= 2, `${kind}: fumo fermo`);
+    const [cols, rows] = [trail.frames[0][0].length, trail.frames[0].length];
+    for (const grid of trail.frames) {
+      assert.strictEqual(grid.length, rows);
+      for (const row of grid) {
+        assert.strictEqual(row.length, cols);
+        for (const ch of row) if (ch !== '.') assert.ok(palette[ch], `${kind}: ${ch} del fumo senza colore`);
+      }
     }
+    assert.ok(trail.at.col >= 0 && trail.at.col < dims(kind).cols);
+    assert.ok(trail.at.row >= 0 && trail.at.row < dims(kind).rows);
   }
-  assert.ok(trail.at.col >= 0 && trail.at.col < dims('tazzina').cols);
-  assert.ok(trail.at.row >= 0 && trail.at.row < dims('tazzina').rows);
-  for (const [kind, sprite] of Object.entries(SPRITES)) if (kind !== 'tazzina') assert.strictEqual(sprite.trail, undefined, `${kind} fuma`);
+  for (const [kind, sprite] of Object.entries(SPRITES)) if (!smokers.includes(kind)) assert.strictEqual(sprite.trail, undefined, `${kind} fuma`);
+});
+
+ok('sprites: il trenino è una voce del cast, una locomotiva col vagone, e il fumo esce dal comignolo', () => {
+  assert.deepStrictEqual(CAST.trenino, ['trenino']);
+  assert.strictEqual(CAST_LABELS.trenino, 'Trenino');
+  const { cols, rows } = dims('trenino');
+  assert.ok(cols >= 2.5 * rows, `${cols}×${rows}: troppo corto per locomotiva e vagone`);
+  assert.ok(Math.abs(pixel('trenino', 48) - pixel('tazzina', 48)) < 0.1, 'pixel di un altra misura');
+  const { trail, frames } = SPRITES.trenino;
+  // Il comignolo sta davanti (il disegno guarda a destra) e in alto
+  assert.ok(trail.at.col > cols * 0.75, `fumo dalla colonna ${trail.at.col}`);
+  assert.notStrictEqual(frames.walk[0][trail.at.row][trail.at.col], '.', 'il fumo nasce nel vuoto');
+  assert.ok(frames.walk[0].slice(0, trail.at.row).every((row) => row[trail.at.col] === '.'), 'sopra il comignolo c è dell altro');
+});
+
+ok('sprites: le ruote del trenino girano: a ogni tempo del passo cambiano', () => {
+  const { walk, sleep, call } = SPRITES.trenino.frames;
+  assert.strictEqual(walk.length, 4);
+  const wheels = (grid) => grid.slice(-5).join('\n');
+  walk.forEach((grid, i) => {
+    const next = walk[(i + 1) % walk.length];
+    assert.notStrictEqual(wheels(grid), wheels(next), `tempo ${i}: ruote ferme`);
+  });
+  // Fermo a dormire o a fischiare, le ruote stanno come al primo tempo
+  assert.strictEqual(wheels(sleep[0]), wheels(walk[0]));
+  assert.strictEqual(wheels(call[0]), wheels(walk[0]));
 });
 
 ok('sprites: gli Spritelli sono ingranditi a 2x, coi pixel fini quanto i pacchetti a 32 righe', () => {

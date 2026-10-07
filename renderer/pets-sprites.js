@@ -19,7 +19,7 @@
 (function (root, factory) {
   const api = root
     ? factory(root.AisessPetsPack)
-    : factory(Object.assign({}, ...['pizza', 'fizzo', 'rotolacampo', 'babbo', 'morte', 'zucca', 'fantasmino', 'ape', 'chiocciola', 'papera', 'anatroccolo', 'robottino', 'tazzina', 'pesce'].map((k) => require(`./pets-sprite-${k}`))));
+    : factory(Object.assign({}, ...['pizza', 'fizzo', 'rotolacampo', 'babbo', 'morte', 'zucca', 'fantasmino', 'ape', 'chiocciola', 'papera', 'anatroccolo', 'robottino', 'tazzina', 'pesce', 'trenino'].map((k) => require(`./pets-sprite-${k}`))));
   if (root) root.AisessPetsSprites = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : null, function (pack) {
@@ -387,7 +387,7 @@
    *    e l'altezza in righe a cui si siede (seat). Facoltativo.
    *  bubbles: disegni davanti alla bocca mentre chiama, alti quanto il
    *    personaggio, uno dopo l'altro. Facoltativi.
-   *  trail: scia di sbuffi (la tazzina): i frame di uno sbuffo, dal più
+   *  trail: scia di sbuffi (la tazzina, il trenino): i frame di uno sbuffo, dal più
    *    giovane al più vecchio, e la cella del disegno (at) da cui nascono,
    *    a personaggio girato a destra. Facoltativa. */
   const SPRITES = {
@@ -502,6 +502,7 @@
     papera: ['papera', 'anatroccolo', 'anatroccolo'],
     robottino: ['robottino'],
     tazzina: ['tazzina'],
+    trenino: ['trenino'],
   };
   const CAST_LABELS = {
     inseguimento: 'SpongeBob e la medusa',
@@ -524,6 +525,7 @@
     papera: 'Papera e anatroccoli',
     robottino: 'Robbo, il robottino',
     tazzina: 'Tazzi, la tazzina',
+    trenino: 'Trenino',
   };
 
   /** Quanti aspetti ha un personaggio: la palette di base più le variants. */

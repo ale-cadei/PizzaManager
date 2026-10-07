@@ -54,9 +54,10 @@ Se lavori con più agenti AI da terminale, finisci con dieci finestre aperte, ne
 
 Tutte le versioni: [Releases](https://github.com/ale-cadei/PizzaManager/releases). Le CLI (`claude`, `codex`, `opencode`) vanno installate a parte: l'app lancia quelle che trova nel PATH.
 
-**I pacchetti non sono firmati.** Alla prima apertura:
-- **macOS** dice «PizzaManager è danneggiato» o «di uno sviluppatore non identificato». Vai in *Impostazioni di Sistema → Privacy e sicurezza*, scorri in fondo e premi **Apri comunque** (da macOS 15 il tasto destro → Apri non basta più). In alternativa, da terminale: `xattr -cr /Applications/PizzaManager.app`.
-- **Windows** mostra l'avviso SmartScreen: *Ulteriori informazioni → Esegui comunque*.
+Alla prima apertura:
+- **macOS**: niente da fare. Il `.dmg` è firmato con un Developer ID e notarizzato da Apple, quindi si apre come qualsiasi app scaricata.
+- **Linux**: niente da fare.
+- **Windows**: il pacchetto non è firmato e compare l'avviso SmartScreen — *Ulteriori informazioni → Esegui comunque*.
 
 ### Dal sorgente
 

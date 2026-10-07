@@ -9,7 +9,8 @@
  * L'inseguimento: Il pescatore punta la medusa; lei, quando lo sente vicino,
  * scappa più veloce di lui verso il lato con spazio. Messa all'angolo, o
  * se se lo trova addosso, si alza (lift) e gli passa sopra: il retino non la
- * prende mai, ed è una regola verificata nei test.
+ * prende mai, ed è una regola verificata nei test. Lontana non va per conto
+ * suo: oltre LEASH torna verso di lui, così quando si ferma gli resta vicino.
  *
  * Chi non cammina (MOVES): la rana salta e avanza solo in aria, l'uccellino
  * vola sopra la striscia e si posa per dormire o chiamare, il pesce nuota
@@ -54,6 +55,9 @@
   const FLEE_DIST = 2.2;
   const TOO_CLOSE = 0.8;
   const START_GAP = 3;
+  /** Oltre questa distanza la medusa che gironzola torna verso il pescatore: anche
+   *  quando lui si ferma (a chiamare) gli resta intorno. */
+  const LEASH = 3.5;
   /** Spazio sotto il quale la medusa non può più scappare da quella parte. */
   const CORNER = 0.25;
   const FLEE_FACTOR = 2.6;
@@ -317,7 +321,10 @@
       const past = Math.sign(dx) === jelly.dir && dist > size;
       return float(walk({ ...jelly, pose: 'flee', passing: !past }, speed * FLEE_FACTOR, ctx), ctx);
     }
-    if (dist >= FLEE_DIST * size) return float(wander(jelly, ctx), ctx);
+    if (dist >= FLEE_DIST * size) {
+      const back = -Math.sign(dx);
+      return float(wander(dist > LEASH * size ? { ...jelly, dir: back } : jelly, ctx), ctx);
+    }
     const away = Math.sign(dx) || jelly.dir;
     const limit = maxX('medusa', size, ctx.width);
     const room = away > 0 ? limit - jelly.x : jelly.x;
@@ -414,5 +421,5 @@
     return { ...state, mood, attentionMs, caller: caller ? caller.key : state.caller || null, pets: moved.filter((p) => !p.gone).map((p) => smoke(p, ctx)) };
   }
 
-  return { createPets, recast, step, fit, moodOf, frameIndex, petWidth, FRAME_MS, MAX_DT, SLEEP_AFTER_MS, SAD_AFTER_MS, PAUSE_MS, LINE_GAP, PUFF_LIFE_MS, MAX_PUFFS };
+  return { createPets, recast, step, fit, moodOf, frameIndex, petWidth, FRAME_MS, MAX_DT, SLEEP_AFTER_MS, SAD_AFTER_MS, PAUSE_MS, LINE_GAP, LEASH, PUFF_LIFE_MS, MAX_PUFFS };
 });

@@ -24,7 +24,6 @@ function typeColorsDialog() {
       types: COLOR_KEYS,
       labels: COLOR_LABELS,
       style: root.style,
-      readVar: (name) => getComputedStyle(root).getPropertyValue(name),
       onChange: () => {
         const theme = termTheme();
         for (const tab of tabs.values()) if (tab.term) tab.term.options.theme = theme;

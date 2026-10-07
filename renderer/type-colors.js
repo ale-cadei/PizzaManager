@@ -1,8 +1,9 @@
 /* Colori scelti dall'utente (menu View → Colori…): il colore principale
- * dell'app e quello di ogni tipo di sessione.
+ * dell'app e quello di ogni tipo di sessione. Quali colori, e come si
+ * ricordano per tema, lo decide type-color-themes.js.
  *
  * I predefiniti restano in tokens.css (--action, --type-shell, …): qui si
- * ricordano solo i colori CAMBIATI, e applicarli vuol dire scrivere la
+ * applicano solo i colori CAMBIATI, e applicarli vuol dire scrivere la
  * variabile sullo stile di :root, che vince sul foglio. Togliere la variabile
  * riporta il predefinito, qualunque cosa dica tokens.css in futuro: nessuna
  * seconda copia della palette da tenere allineata.
@@ -19,7 +20,6 @@
   if (root) root.AisessTypeColors = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : null, function () {
-  const STORAGE_KEY = 'aisess.typeColors';
   const HEX = /^#[0-9a-f]{6}$/i;
   /** La chiave del colore principale, accanto a quelle dei tipi. */
   const ACTION = 'action';
@@ -83,30 +83,6 @@
   }
 
   /**
-   * @param {Storage} storage localStorage, o un sostituto nei test
-   * @param {string[]} keys ACTION e/o i tipi di sessione che si possono colorare
-   */
-  function createTypeColorStore(storage, keys) {
-    let overrides = {};
-    try { overrides = normalize(JSON.parse(storage.getItem(STORAGE_KEY) || '{}'), keys); } catch {}
-
-    function save(next) {
-      overrides = normalize(next, keys);
-      try {
-        if (Object.keys(overrides).length) storage.setItem(STORAGE_KEY, JSON.stringify(overrides));
-        else storage.removeItem(STORAGE_KEY);
-      } catch {}
-      return { ...overrides };
-    }
-
-    return {
-      get: () => ({ ...overrides }),
-      save,
-      reset: () => save({}),
-    };
-  }
-
-  /**
    * Scrive i colori cambiati su `style` (quello di :root) e toglie gli altri.
    * @param {{setProperty: Function, removeProperty: Function}} style
    */
@@ -124,13 +100,5 @@
     }
   }
 
-  /** Il valore calcolato di una variabile in forma #rrggbb minuscola, come la vuole <input type="color">. */
-  function toInputColor(value, fallback = '#000000') {
-    const v = String(value || '').trim();
-    if (HEX.test(v)) return v.toLowerCase();
-    const short = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(v);
-    return short ? ('#' + short[1] + short[1] + short[2] + short[2] + short[3] + short[3]).toLowerCase() : fallback;
-  }
-
-  return { STORAGE_KEY, ACTION, ACTION_VARS, cssVar, normalize, actionVars, contrast, createTypeColorStore, applyTypeColors, toInputColor };
+  return { ACTION, ACTION_VARS, cssVar, normalize, actionVars, contrast, applyTypeColors };
 });

@@ -1267,21 +1267,23 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
-/* Colori (menu View): pallino col colore vivo, nome, selettore */
+/* Colori (menu View): pallino col colore vivo, nome, ripristino se ritoccato, selettore */
 .type-color-list { display: flex; flex-direction: column; gap: 6px; }
-.modal label.type-color-row {
-  flex-direction: row; align-items: center; gap: 10px;
+.type-color-row {
+  display: flex; align-items: center; gap: 10px;
   padding: 8px 12px; border-radius: var(--radius);
   background: var(--bg); border: 1px solid var(--border);
   color: var(--text); font-size: 14px;
 }
 .type-color-row .dot { width: 10px; height: 10px; flex: 0 0 auto; }
-.type-color-name { flex: 1; min-width: 0; }
+.modal label.type-color-name { flex: 1; min-width: 0; font-size: inherit; font-weight: inherit; color: inherit; cursor: pointer; }
+.type-color-reset { padding: 4px 10px; font-size: 12px; flex: 0 0 auto; }
+.type-color-reset[hidden], .type-colors-reset[hidden] { display: none; }
 .modal .type-color-row input[type="color"] {
   width: 56px; height: 30px; padding: 2px 4px; flex: 0 0 auto; cursor: pointer;
 }
 /* il colore principale apre l'elenco, staccato dai tipi: vale per tutta l'app */
-.modal label.type-color-row--action { margin-bottom: 8px; }
+.type-color-row--action { margin-bottom: 8px; }
 .type-colors-reset { margin-right: auto; }
 /* Temi pronti (renderer/type-color-themes.js): i colori del tema in fila, poi il nome */
 .color-themes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }

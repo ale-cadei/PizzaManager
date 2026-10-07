@@ -56,12 +56,13 @@ const petsStore = window.AisessPetsConfig.createPetsStore(window.localStorage);
 // Notifiche di sistema accese o spente dal menu View (renderer/notify.js, piano 38)
 const notifyStore = window.AisessNotify.createNotifyStore(window.localStorage);
 
-// Colore principale e colori dei tipi cambiati dal menu View (renderer/type-colors.js):
+// Colore principale e colori dei tipi scelti dal menu View (renderer/type-color-themes.js):
 // si applicano subito, prima che la sidebar disegni la prima card.
 const COLOR_KEYS = [window.AisessTypeColors.ACTION, ...Groups.TYPE_ORDER];
 const COLOR_LABELS = { [window.AisessTypeColors.ACTION]: 'Colore principale', ...Groups.TYPE_LABELS };
-const typeColors = window.AisessTypeColors.createTypeColorStore(window.localStorage, COLOR_KEYS);
-window.AisessTypeColors.applyTypeColors(document.documentElement.style, typeColors.get(), COLOR_KEYS);
+const typeColors = window.AisessColorThemes.createThemeStore(window.localStorage, COLOR_KEYS);
+window.AisessTypeColors.applyTypeColors(document.documentElement.style,
+  window.AisessColorThemes.appliedColors(typeColors.get(), window.AisessColorThemes.THEMES, COLOR_KEYS), COLOR_KEYS);
 
 /* Tema del terminale, allineato ai token (renderer/tokens.css): il fondo e il
    testo sono gli stessi dell'app, e i tre colori "di stato" della palette

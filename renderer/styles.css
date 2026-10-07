@@ -226,24 +226,12 @@ img.agent-icon--node { border-radius: 2px; }
   padding: 9px 7px 9px 17px;
   border-radius: var(--radius);
   background: transparent;
-  /* Bordo trasparente della stessa misura di quello del cartoncino: senza,
+  /* Bordo trasparente della stessa misura del contorno di selezione: senza,
      selezionando una riga la lista crescerebbe di 2px sotto il cursore.
      Il padding è ridotto di 1px per lato: l'altezza resta quella di prima. */
   border: 1px solid transparent;
   cursor: pointer; text-align: left; color: var(--text); width: 100%;
   font-family: var(--font-ui);
-}
-/* Il filetto sotto il cartoncino selezionato. Smorzato e non pieno: superficie
-   e bordo del cartoncino sono già due segnali, un terzo a piena forza urla.
-   Mescolato col pannello e non con `transparent`, così resta un colore pieno e
-   non un velo che si sporca di quello che ha sotto.
-   Sta QUI e non in tokens.css perché una custom property che contiene var()
-   viene sostituita sull'elemento che la dichiara: in :root il suo
-   var(--type-color) cadrebbe sul fallback e ogni sessione avrebbe il filetto
-   color crosta (è successo). Sulla card invece --type-color è quella che la
-   classe .type-* le ha appena dato, qui sotto. */
-.session-item {
-  --shadow-session: 0 2px 0 color-mix(in srgb, var(--type-color, var(--accent)) 72%, var(--surface-group));
 }
 
 /* Colore identità del tipo, ereditato da barra laterale e marker selezione */
@@ -298,24 +286,19 @@ img.agent-icon--node { border-radius: 2px; }
   .session-item.is-running::before { animation: none; background-image: none; opacity: 1; }
 }
 
-/* L'hover è solo il fondo, e lascia stare la riga già attiva: se le cambiasse
-   il fondo sotto il cursore, il cartoncino si smonterebbe al passaggio. */
+/* L'hover è solo il fondo, e lascia stare la riga già attiva: la selezione è
+   il contorno e basta, un fondo che compare sotto il cursore la confonderebbe. */
 .session-item:hover:not(.active) { background: var(--surface-row); }
-/* Selezione «scheda sollevata»: la riga diventa un cartoncino — superficie
-   propria, bordo, e sotto il filetto del colore del tipo. Dentro un fascicolo è
-   il foglio tirato fuori dalla cartellina. La geometria non si muove: il bordo
-   se lo riservano anche le righe a riposo (sopra), o il click successivo
-   finirebbe su un bersaglio spostato. */
+/* Selezione: solo il contorno, del colore del tipo della sessione. Niente
+   superficie propria né ombra: la riga resta piatta sul pannello. La geometria
+   non si muove: il bordo se lo riservano anche le righe a riposo (sopra), o il
+   click successivo finirebbe su un bersaglio spostato. */
 .session-item.active {
-  background: var(--surface-session-card);
-  border-color: var(--border-session-card);
-  box-shadow: var(--shadow-session);
+  border-color: var(--type-color, var(--accent));
 }
 .session-item.active::before { opacity: 1; }
 /* Metà del segnale è l'arretramento delle altre: sulle righe a riposo titolo e
-   percorso scendono di un gradino, sulla riga attiva risalgono — il percorso a
-   --text-muted, perché --text-dim sulla superficie chiara del cartoncino
-   scenderebbe sotto 4.5:1. */
+   percorso scendono di un gradino, sulla riga attiva risalgono. */
 .session-item .name { color: var(--text-muted); }
 .session-item.active .name { color: var(--text); }
 .session-item.active .sub { color: var(--text-muted); }
@@ -323,9 +306,9 @@ img.agent-icon--node { border-radius: 2px; }
    sostituisce: stesso colore del tipo, staccato dalla riga. */
 .session-item:focus-visible { outline: 2px solid var(--type-color, var(--accent)); outline-offset: 2px; }
 @media (prefers-reduced-motion: no-preference) {
-  /* Solo colori e filetto, mai la geometria: una riga che si sposta mentre la
+  /* Solo colori, mai la geometria: una riga che si sposta mentre la
      selezioni fa sbagliare il click successivo. */
-  .session-item { transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease; }
+  .session-item { transition: background-color 120ms ease, border-color 120ms ease; }
 }
 
 /* Riordino per trascinamento. La card trascinata sbiadisce; il punto di
@@ -428,7 +411,8 @@ img.agent-icon--node { border-radius: 2px; }
    Le due tinte si dichiarano QUI, sugli elementi che portano la classe .type-*:
    una custom property che contiene var() viene sostituita sull'elemento che la
    dichiara, quindi in :root il loro var(--type-color) cadrebbe sul fallback e
-   tornerebbero tutte dello stesso colore (stessa trappola di --shadow-session).
+   tornerebbero tutte dello stesso colore (è successo col vecchio filetto di
+   selezione).
    Il fondo si mescola col materiale che ha sotto — non con `transparent` —
    perché resti un colore pieno e non un velo che si sporca. */
 /* Le tinte del lampeggio sono DICHIARATE come colori, non come testo.

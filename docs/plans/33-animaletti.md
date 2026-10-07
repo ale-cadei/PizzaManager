@@ -144,7 +144,9 @@ ha una funzione per ognuno (`MOVES` in `pets.js`).
 e la medusa» (`inseguimento`): sono due personaggi legati. SpongeBob non ha
 una direzione sua: punta la medusa e tiene una distanza minima. La medusa
 fugge verso il lato con più spazio; messa all'angolo si alza e gli passa
-sopra. Il retino non la prende mai.
+sopra. Il retino non la prende mai. Lontana non va per conto suo: oltre
+`LEASH` misure torna verso di lui, così quando SpongeBob si ferma (a
+chiamare) gli gironzola intorno invece di andarsene per la striscia.
 
 **In fila**: una voce con più personaggi che non sia l'inseguimento
 (`papera` = papera + due anatroccoli) nasce in fila. Ognuno ha un `lead`,

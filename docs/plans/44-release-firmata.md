@@ -66,6 +66,29 @@ La chiave è un file `.p8`: nei secret ci va il **contenuto**, e il workflow lo
 scrive in un file temporaneo prima del build, perché `APPLE_API_KEY` vuole un
 percorso.
 
+## La trappola del certificato sbagliato
+
+Provato in locale sul Mac dell'utente (2026-10-07), **prima** di installare il
+Developer ID: electron-builder ha firmato comunque, con l'«Apple Development»
+che era nel keychain, e nei log ha scritto `signing … type=distribution`.
+Sembra tutto a posto. Ma:
+
+```
+spctl -a -vvv -t install dist/mac-arm64/PizzaManager.app
+  → rejected   origin=Apple Development: Giacomo Grieco
+```
+
+Quel certificato serve a far girare l'app sui propri dispositivi: **Gatekeeper
+lo rifiuta su ogni altro Mac**, e la notarizzazione lo rifiuterebbe comunque.
+È peggio di un pacchetto non firmato, perché non si vede dai log.
+
+Per questo il workflow, dopo il build su macOS, **verifica** che l'autorità sia
+`Developer ID Application` e che i `.dmg` siano notarizzati (`stapler
+validate`), e fallisce se no. Gli asset a quel punto sono già caricati, ma la
+Release nasce in bozza e si pubblica a mano: un job rosso è il segnale di non
+pubblicare. Non si pinna `mac.identity` in `package.json` perché bloccherebbe
+anche i build locali di chi non ha quel certificato.
+
 ## Prima in locale, poi sul CI
 
 Ogni giro del workflow costa ~5 minuti e la firma sbaglia in modi che si

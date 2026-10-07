@@ -24,7 +24,9 @@
  *     (tmux ridisegna, la TUI si riadatta alla misura nuova, `--resume`
  *     riscrive): con il main occupato a ripristinare le altre schede le pause
  *     superano l'idle. Vale quindi la prima raffica E tutto quello che
- *     comincia entro BOOT_MS dalla nascita;
+ *     comincia entro BOOT_MS dalla nascita. Un processo appena lanciato (non
+ *     riattaccato) non lavora senza una domanda: per lui l'avvio dura finché
+ *     l'utente non scrive;
  *   - una card accesa che riprende a lavorare si spegne: il silenzio era una
  *     pausa a metà turno (un tool che gira, l'attesa del modello), e la card
  *     mostrava insieme «sta lavorando» e «ha finito». Si riaccende alla fine.
@@ -139,11 +141,19 @@
       return true;
     }
 
-    /** Scheda appena nata o riattaccata: la prima raffica, e quelle entro BOOT_MS, sono l'avvio. */
-    function born(id) {
+    /**
+     * Scheda appena nata o riattaccata: la prima raffica, e quelle entro BOOT_MS, sono l'avvio.
+     * `untilTyped`: processo appena lanciato (non un riattacco). Senza una domanda
+     * dell'utente non ha lavori da finire, quindi l'avvio dura finché non scrive.
+     * Un tempo non basta: a PC appena acceso tmux si attacca subito e
+     * `claude --resume` riscrive la conversazione oltre BOOT_MS.
+     * @param {string} id
+     * @param {{untilTyped?: boolean}} [o]
+     */
+    function born(id, { untilTyped = false } = {}) {
       const s = get(id);
       s.booting = true;
-      s.bootUntil = now() + bootMs;
+      s.bootUntil = untilTyped ? Infinity : now() + bootMs;
     }
 
     /** L'utente sta guardando la scheda: quello che c'era l'ha visto. */

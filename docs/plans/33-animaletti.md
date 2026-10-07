@@ -76,6 +76,7 @@ Spento di default. Si accende e si regola da `Vista › Personaggi…`.
 | `papera` | Papera e anatroccoli | La papera gironzola, i due anatroccoli (`anatroccolo`) le vanno dietro in fila; chiama facendo qua qua. Le zampe sono rifatte (`DUCK_LEGS` nel generatore): passo a quattro tempi, la zampa lontana più scura; gli anatroccoli con zampe lunghe quanto le sue |
 | `robottino` | Robbo, il robottino | Cammina con l'antenna che lampeggia; chiama con lo schermo giallo |
 | `tazzina` | Tazzi, la tazzina | Cammina come Fizzo (quattro passi) lasciando sbuffi di fumo dietro di sé (`trail`); da fredda dorme e non fuma. Disegnata a mano, al posto di quella del pacchetto Spritelli che saltellava |
+| `trenino` | Trenino | Locomotiva a vapore col vagone, disegnata a mano (`pets-sprite-trenino.js`): le ruote girano coi raggi e la biella in quattro tempi, dal comignolo escono sbuffi come dalla tazzina (`trail`). Dorme a luci spente e senza fumo, chiama coi finestrini accesi e un fischio |
 
 Rana, uccellino e pesce aggiunti su richiesta dell'utente dopo il primo
 giro. Pizza, Fizzo, Rotolacampo e Babbo Natale vengono dal pacchetto
@@ -211,7 +212,7 @@ Precedenza: `attention` > `busy` > `sleep` > `idle`.
 }
 ```
 
-- `MAX_CAST = 20` voci del dialogo, una per ognuna; la coppia pescatore e medusa è una voce, la papera con gli anatroccoli pure
+- `MAX_CAST = 21` voci del dialogo, una per ognuna; la coppia pescatore e medusa è una voce, la papera con gli anatroccoli pure
   (contarla due impediva di sceglierne una di ognuna).
 - Voci sconosciute scartate, valori fuori elenco → default, JSON rotto →
   default intero.

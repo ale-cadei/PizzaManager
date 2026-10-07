@@ -49,6 +49,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 38 | [`feat/notifiche-sistema`](38-notifiche-sistema.md) — macOS e Linux | — | ~½ g | fatto, provato nell'app su macOS; da provare su Linux |
 | 39 | [`feat/temi-colori`](39-temi-colori.md) — temi pronti nel dialogo Colori | — | ~¼ g | fatto, provato nell'app |
 | 40 | [`spike/psmux`](40-windows-sessioni-persistenti.md) → fase 2 — Windows | 6, 8, 24, 26 | ~½ g + ~1 g | proposto, da fare sul fisso Windows |
+| 41 | [`fix/temi-personalizzati`](41-temi-personalizzati.md) — i ritocchi restano al loro tema | 39 | ~¼ g | fatto |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

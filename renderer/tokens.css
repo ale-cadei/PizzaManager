@@ -23,6 +23,14 @@
   --surface-group: var(--surface-2);  /* pannello del gruppo */
   --surface-cap:   var(--surface-3);  /* linguetta e fogli */
   --surface-row:   var(--surface-3);  /* riga in hover dentro il pannello */
+  --surface-lift:  var(--surface-3);  /* riga selezionata, sollevata sul pannello */
+  /* ingrandimento della riga selezionata. Tetto 1.12: con la sidebar alla
+     larghezza massima (480px, panels.js) fa uscire la card di ~25px per lato,
+     quanto c'è fra il bordo della card e quello della lista. Oltre, taglia. */
+  --lift-scale:    1.08;
+  /* quanto la card ingrandita cresce sopra e sotto: metà dell'8% di una riga
+     di 48px. Il margine lo riserva, o coprirebbe le righe accanto. */
+  --lift-grow:     2px;
   /* l'ombra sta sotto il fascicolo, non sulle singole righe */
   --shadow-stack:  0 14px 28px -16px rgba(0,0,0,0.95);
 
@@ -128,6 +136,7 @@
   --surface-group: color-mix(in srgb, var(--action) 8%, #040404);   /* corpo della card */
   --surface-cap:   color-mix(in srgb, var(--action) 9%, #111111);   /* linguetta e fogli del fascicolo */
   --surface-row:   color-mix(in srgb, var(--action) 9%, #121212);   /* riga in hover */
+  --surface-lift:  color-mix(in srgb, var(--action) 10%, #1a1a1a);  /* riga selezionata: un gradino sopra l'hover */
 
   /* bordi: con lo sfondo a fondo scala l’ombra sotto i fogli non si vede
      (nero su quasi nero) — il confine del fascicolo lo disegnano il salto di
@@ -135,6 +144,9 @@
   --divider:       color-mix(in srgb, var(--action) 7%, #030303);
   --border:        color-mix(in srgb, var(--action) 11%, #1b1b1b);
   --border-strong: color-mix(in srgb, var(--action) 12%, #2e2e2e);
+  /* ombra della riga selezionata più il filo del bordo del pannello: qui e non
+     su :root, o var(--border) prenderebbe il bordo forno */
+  --shadow-lift:   0 8px 20px rgba(0,0,0,.55), 0 0 0 1px var(--border);
 
   /* forma: riga 6, linguetta 10, contenitore di gruppo 8 (riga + 2: angoli
      concentrici e allineati ai pulsanti Nuova e Resume) */

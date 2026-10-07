@@ -41,6 +41,10 @@ file (dmg ×2, AppImage, deb, exe, zip ×2) e pubblicare.
 
 ## Fuori scope
 
-Firma e notarizzazione macOS, code-signing Windows, aggiornamento automatico
-(`latest-*.yml` viene generato comunque, per quando servirà), build universale
-macOS (arm64 e x64 sono due file).
+Code-signing Windows, aggiornamento automatico (`latest-*.yml` viene generato
+comunque, per quando servirà), build universale macOS (arm64 e x64 sono due
+file).
+
+Firma e notarizzazione macOS erano fuori scope qui perché costavano
+un'iscrizione all'Apple Developer Program: fatte nel
+[piano 42](44-release-firmata.md) quando l'iscrizione è arrivata.

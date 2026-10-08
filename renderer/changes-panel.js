@@ -14,7 +14,11 @@
      pannello se la sessione in primo piano sta in un worktree.
    - «Unisci» di un worktree (worktree-actions.js, `review`) apre lo stesso
      pannello sul diff del branch contro la base, con la conferma in fondo:
-     finché è aperto parla di quel worktree, qualunque sia la scheda attiva. */
+     finché è aperto parla di quel worktree, qualunque sia la scheda attiva.
+   - Commenti sul diff (docs/plans/44): stanno sulla scheda (`tab.reviewNotes`),
+     così sopravvivono al pannello chiuso e al cambio di modo, e se ne vanno
+     con la scheda. «Invia» li incolla nel terminale come un incolla vero
+     (term.paste): l'Invio lo dà l'utente. */
 
 const CHANGES_POLL_MS = 3000;
 const CHANGES_WIDTH_KEY = 'aisess.changesWidth';
@@ -26,6 +30,7 @@ const CHANGES_MIN_WIDTH = 320;
 const CHANGES_MIN_TERMINAL = 160;
 const CHANGES_SHORTCUT = navigator.platform.startsWith('Mac') ? '⌘⇧M' : 'Ctrl+Shift+M';
 const ChangesModel = window.AisessChangesModel;
+const ReviewNotes = window.AisessReviewNotes;
 
 let changesView = null;
 const changesCache = window.AisessChangesCache.createChangesCache({
@@ -88,6 +93,7 @@ function readChangesMode() {
 /* Stato del pannello: si sostituisce per intero, mai modificato sul posto */
 let changesState = {
   open: false, target: null, result: null, signature: 'none', expanded: {}, seq: 0, merge: null, mode: readChangesMode(),
+  reviewError: null,
 };
 
 /* L'ultima richiesta di diff per file: una risposta più vecchia (file chiuso
@@ -158,7 +164,57 @@ function renderChanges() {
     sections: ChangesModel.sections(result),
     emptyText: ChangesModel.emptyText(result),
     notice: ChangesModel.notice(result),
+    review: reviewStateOf(activeTab(), merge),
   });
+}
+
+/* ---------- Commenti sul diff (docs/plans/44) ---------- */
+function reviewStateOf(tab, merge) {
+  if (!ChangesModel.reviewAvailable(tab, Boolean(merge))) return null;
+  return { enabled: true, key: tab.id, notes: tab.reviewNotes || [], error: changesState.reviewError };
+}
+
+function setReviewNotes(tab, notes, reviewError = null) {
+  tab.reviewNotes = notes;
+  setChangesState({ reviewError });
+}
+
+/** Le azioni della vista; per `save`, false se il commento è rifiutato */
+function handleReview(action) {
+  const tab = activeTab();
+  if (!ChangesModel.reviewAvailable(tab, Boolean(changesState.merge))) return false;
+  const notes = tab.reviewNotes || [];
+  if (action.type === 'save') {
+    const res = ReviewNotes.addNote(notes, action.anchor, action.body);
+    setReviewNotes(tab, res.notes, res.ok ? null : res.error);
+    return res.ok;
+  }
+  if (action.type === 'remove') setReviewNotes(tab, ReviewNotes.removeNote(notes, action.id));
+  else if (action.type === 'clear') setReviewNotes(tab, []);
+  else if (action.type === 'send') return sendReview(tab, notes);
+  return true;
+}
+
+/* Come un incolla dell'utente: passa da term.onData (pty, prompt-capture,
+   «Ultimo giro»). Il pannello si chiude e il fuoco torna al terminale. */
+function sendReview(tab, notes) {
+  const bracketed = Boolean(tab.term && tab.term.modes && tab.term.modes.bracketedPasteMode);
+  const res = ReviewNotes.pasteFor(notes, { bracketed });
+  if (!res.ok) {
+    setChangesState({ reviewError: res.error });
+    return false;
+  }
+  try {
+    tab.term.paste(res.text);
+  } catch (e) {
+    console.warn('[modifiche] incolla non riuscito', e);
+    setChangesState({ reviewError: 'Non riesco a incollare nel terminale: i commenti restano qui.' });
+    return false;
+  }
+  tab.reviewNotes = [];
+  changesState = { ...changesState, reviewError: null };
+  toggleChangesPanel(false);
+  return true;
 }
 
 function activeChangesTarget() {
@@ -194,7 +250,7 @@ async function pollChanges() {
 async function refreshChanges() {
   const target = activeChangesTarget();
   const sameTarget = Boolean(target && changesState.target && target.key === changesState.target.key);
-  if (!sameTarget) setChangesState({ target, result: null, signature: 'none', expanded: {} });
+  if (!sameTarget) setChangesState({ target, result: null, signature: 'none', expanded: {}, reviewError: null });
   if (!target) return;
   const seq = changesState.seq + 1;
   changesState = { ...changesState, seq };
@@ -336,6 +392,7 @@ function initChangesPanel() {
     onFile: (id) => toggleChangesFile(id),
     onMerge: (confirmed) => finishMerge(confirmed),
     onMode: (mode) => setChangesMode(mode),
+    onReview: (action) => handleReview(action),
   });
   initChangesResize();
   try { window.aisess.onMenu('menu-changes', () => toggleChangesPanel()); } catch {}

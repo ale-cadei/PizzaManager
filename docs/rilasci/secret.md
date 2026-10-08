@@ -115,9 +115,10 @@ dell'identità di firma.
 
 ## Quando scadono
 
-- il **PAT** ha una scadenza scelta alla creazione: quando scade, il
-  caricamento dei pacchetti fallisce con un errore che non dice il perché.
-  Scadenza impostata: _da annotare qui alla creazione_;
+- il **PAT** (`PUBLIC_RELEASE_TOKEN`) scade il **4 ottobre 2027**. Quando
+  scade, il job `draft` del workflow risponde `404` o `403` e il messaggio non
+  dice «token scaduto»: la procedura per rifarlo, con i sintomi da
+  riconoscere, è in [`rinnovo-token.md`](rinnovo-token.md);
 - il **certificato Developer ID** dura 5 anni;
 - la **chiave di App Store Connect** non scade, ma si revoca e non si può
   modificare dopo la creazione;

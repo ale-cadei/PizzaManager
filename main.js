@@ -13,7 +13,7 @@ const { createProfileStore } = require('./lib/profiles');
 const { createLiveSessionsStore } = require('./lib/live-sessions');
 const { createScrollbackStore } = require('./lib/scrollback');
 const { listClaudeSessions } = require('./lib/claude-sessions');
-const { listOpencodeSessions } = require('./lib/opencode-sessions');
+const { listOpencodeSessionsIn, opencodeHistoryDirs } = require('./lib/opencode-sessions');
 const { listCodexSessions } = require('./lib/codex-sessions');
 const { listAntigravitySessions } = require('./lib/antigravity-sessions');
 const { createSearchWorker } = require('./lib/search-worker');
@@ -188,7 +188,7 @@ ipcMain.handle('reset-command-profiles', async () => {
 });
 
 // ---------- Scoperta sessioni native ----------
-ipcMain.handle('list-opencode-sessions', async (event, { limit } = {}) => listOpencodeSessions(limit));
+ipcMain.handle('list-opencode-sessions', async (event, { limit, dirs } = {}) => listOpencodeSessionsIn(Array.isArray(dirs) ? dirs : opencodeHistoryDirs(history().load()), limit));
 ipcMain.handle('list-codex-sessions', async (event, { limit } = {}) => {
   try { return listCodexSessions(limit); } catch (e) { return { ...fail('', e), sessions: [] }; }
 });

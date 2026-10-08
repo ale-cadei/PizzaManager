@@ -41,7 +41,7 @@ contextBridge.exposeInMainWorld('aisess', {
   worktreeCreate: (root, branch, base) => ipcRenderer.invoke('worktree-create', { root, branch, base }),
   worktreeMerge: (root, path) => ipcRenderer.invoke('worktree-merge', { root, path }),
   worktreeRemove: (root, path, branch, force) => ipcRenderer.invoke('worktree-remove', { root, path, branch, force }),
-  listOpencode: (limit) => ipcRenderer.invoke('list-opencode-sessions', { limit }),
+  listOpencode: (limit, dirs) => ipcRenderer.invoke('list-opencode-sessions', { limit, dirs }),
   listClaude: (limit) => ipcRenderer.invoke('list-claude-sessions', { limit }),
   listCodex: (limit) => ipcRenderer.invoke('list-codex-sessions', { limit }),
   listAntigravity: (limit) => ipcRenderer.invoke('list-antigravity-sessions', { limit }),

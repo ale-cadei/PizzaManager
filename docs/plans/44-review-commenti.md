@@ -28,7 +28,7 @@ i commenti partono tutti insieme come un prompt.
   del file, il contatore 💬.
 - **Ancora**: `{ path, side, no, text, body }`. `side` è `old` solo per le
   righe tolte (`del`, numero `oldNo`), altrimenti `new` (`newNo`). `text` è la
-  riga com'era quando si è scritta la nota. Id = `path:side:no`.
+  riga com'era quando si è scritta la nota. Id = `side:no:path`.
 - **Riga sparita**: se il diff cambia sotto (l'agente lavora) e a quel numero
   non c'è più quella riga, la nota resta e compare in testa al file come «riga
   non più nel diff». Si invia lo stesso: il testo citato basta all'agente.
@@ -37,11 +37,15 @@ i commenti partono tutti insieme come un prompt.
   scheda. Niente su disco.
 - **Dove**: solo nelle schede con un agente (non `shell`, non `git`), come
   «Ultimo giro». In modalità «Unisci» niente commenti.
-- **Invio**: il testo va nel pty come incolla (bracketed paste,
-  `\x1b[200~…\x1b[201~`), **senza Invio**: l'utente rilegge e invia. Se
-  l'agente sta lavorando o è su un menu dei permessi, un Invio automatico
-  finirebbe nel posto sbagliato. Il pannello si chiude e il fuoco torna al
-  terminale.
+- **Invio**: il testo va nel terminale con `term.paste()` di xterm, **senza
+  Invio**: l'utente rilegge e invia. Se l'agente sta lavorando o è su un menu
+  dei permessi, un Invio automatico finirebbe nel posto sbagliato. Passare da
+  `term.paste` e non da `window.aisess.write` vuol dire che l'incolla segue la
+  strada di un tasto premuto (cattura del prompt, «Ultimo giro») e che xterm
+  lo avvolge in `\x1b[200~…\x1b[201~` solo se l'agente ha acceso il bracketed
+  paste. Se è spento ogni a capo diventerebbe un Invio: si rifiuta l'invio con
+  un messaggio nel piè di pagina e le note restano. Il pannello si chiude e il
+  fuoco torna al terminale.
 
 Il testo inviato:
 
@@ -68,22 +72,24 @@ pannello. Limiti in costanti: nota ≤ 2000 caratteri, ≤ 50 note per scheda.
 ## Dove
 
 - `renderer/review-notes.js` (nuovo, UMD puro come `changes-model.js`):
-  `anchorOf(path, line)`, `add/update/remove` (restituiscono un nuovo
-  elenco, niente mutazioni), `placeNotes(notes, diff)` (quali note stanno su
-  una riga, quali sono orfane), `formatPrompt(notes)`, `sanitize(text)`,
-  `pasteSequence(text)`.
+  `anchorOf(path, line)`, `addNote`/`removeNote` (restituiscono un nuovo
+  elenco, niente mutazioni; `addNote` sulla stessa riga riscrive),
+  `notesAt`/`orphansOf` (quali note stanno su una riga, quali sono orfane),
+  `formatPrompt(notes)`, `sanitize(text)`, `pasteFor(notes, { bracketed })`
+  (il testo da incollare, o perché no).
 - `renderer/changes-view.js`: `＋` nel margine, textarea, riquadri delle
   note, note orfane in testa al file, contatore 💬, piè di pagina con Svuota e
   Invia.
-- `renderer/changes-panel.js`: tiene le note per scheda, le passa alla vista,
-  all'invio chiama `window.aisess.write(id, …)` e svuota; alla chiusura della
-  scheda le butta.
+- `renderer/changes-panel.js`: tiene le note sulla scheda (`tab.reviewNotes`,
+  sostituito a ogni modifica), le passa alla vista, all'invio chiama
+  `tab.term.paste(…)` e svuota; con la scheda se ne vanno anche le note.
 - `renderer/changes-model.js`: dice se i commenti sono disponibili
   (scheda agente, non Unisci), accanto a `turnAvailable`.
 - `renderer/index.html`: `review-notes.js` prima di `changes-view.js`.
 - `renderer/styles.css`: margine, textarea, riquadri.
 
-Nessun canale IPC nuovo: `write` c'è già in `preload.js`.
+Nessun canale IPC nuovo: l'incolla passa da xterm, che scrive nel pty come
+per un tasto premuto.
 
 ## Fuori
 
@@ -96,8 +102,8 @@ Nessun canale IPC nuovo: `write` c'è già in `preload.js`.
 - `npm run test:unit` verde: `tests/review-notes.test.js` (aggiungi, modifica,
   togli, ancore `old`/`new`, note orfane, formato, pulizia di ESC e di
   `\x1b[201~`, limiti), vista (`＋` solo con commenti disponibili, riquadri,
-  contatore), pannello (Invia chiama `write` con l'incolla e svuota),
-  ordine degli script (`tests/renderer-load.test.js`).
+  contatore, piè di pagina), rifiuto senza bracketed paste, ordine degli
+  script (`tests/renderer-load.test.js`).
 - Smoke nell'app: in una scheda Claude, tre note su due file (una su una riga
   tolta), Invia → il testo compare nel prompt di Claude senza partire; Invio →
   Claude lavora sui punti.

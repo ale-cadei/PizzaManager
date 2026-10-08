@@ -48,6 +48,7 @@
       "!node_modules/.cache/**/*"
     ],
     "npmRebuild": true,
+    "afterAllArtifactBuild": "scripts/notarize-dmg.js",
     "linux": {
       "target": [
         "deb",

@@ -229,10 +229,10 @@ release su una macchina che non l'ha mai visto.
    sola. ✅ fatta il 2026-10-08 (`A6LD5BA326`), validata, nel portachiavi come
    profilo `pizzamanager-api`.
 3. **Un PAT fine-grained** con `contents: write` su
-   `JackGrieco/PizzaManager-releases` (github.com → Settings → Developer
-   settings → Personal access tokens → Fine-grained). Scadenza annotata qui:
-   quando scade, la release fallisce e il motivo non è ovvio.
-4. **I secret nel repo del codice**, dopo che il locale funziona:
+   `JackGrieco/PizzaManager-releases` ✅ fatto il 2026-10-08, **scade il
+   4 ottobre 2027**: quando scade la release fallisce e il motivo non è ovvio,
+   quindi la procedura sta in [`../rilasci/rinnovo-token.md`](../rilasci/rinnovo-token.md).
+4. **I secret nel repo del codice** ✅ tutti e sei installati il 2026-10-08:
    `PUBLIC_RELEASE_TOKEN`, `MAC_CSC_LINK` (il `.p12` in base64),
    `MAC_CSC_KEY_PASSWORD`, `APPLE_API_KEY_P8`, `APPLE_API_KEY_ID`,
    `APPLE_API_ISSUER`.

@@ -53,6 +53,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 42 | [`fix/opencode-resume-id`](42-opencode-resume-id.md) — le schede opencode tornano dopo un riavvio | 8 | ~2h | fatto, provato nell'app |
 | 43 | [`feat/modifiche-staged`](43-modifiche-staged.md) — «Da committare»: staged e non staged nel pannello | 32 | ~½ g | fatto, provato nell'app (smoke sotto xvfb) |
 | 44 | [`feat/review-attiva`](44-review-commenti.md) — commenti sul diff, inviati all'agente | 32, 43 | ~1 g | fatto, provato nell'app (smoke sotto xvfb, agente finto) |
+| 45 | [`feat/commit-pannello`](45-commit-pannello.md) — stage, unstage e commit dal pannello | 43, 44 | ~1 g | piano |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

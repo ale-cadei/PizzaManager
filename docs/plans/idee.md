@@ -70,7 +70,7 @@ worktree. Quattro pezzi, un piano e un branch ciascuno, in quest'ordine:
 
 - [x] studio — fatto con l'utente il 2026-10-08: ordine sopra; commenti per
       riga, in memoria, solo schede agente
-- [x] piano — 44 (commenti); 45–47 da scrivere
+- [x] piano — 44 (commenti, fatto), 45 (commit); 46–47 da scrivere
 - [ ] fatto
 - [ ] provato
 

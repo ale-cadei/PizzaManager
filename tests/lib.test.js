@@ -174,7 +174,7 @@ ok('i file che non sono .jsonl vengono ignorati', () => {
 });
 
 // ---------- lib/opencode-sessions ----------
-const { listOpencodeSessions } = require('../lib/opencode-sessions');
+const { listOpencodeSessions, listOpencodeSessionsIn, opencodeHistoryDirs, parseSessionOutput } = require('../lib/opencode-sessions');
 // Il binario non viene eseguito (run è finto): basta che non si cerchi nel PATH
 const FAKE_OPENCODE = '/finto/opencode';
 
@@ -211,11 +211,120 @@ ok('un errore di esecuzione di opencode riporta lo stderr', async () => {
   assert.ok(r.error.includes('comando sconosciuto'), r.error);
 });
 
-ok('un elenco valido viene restituito cosi com e', async () => {
+ok('un elenco valido conserva i campi di opencode', async () => {
   const sessioni = [{ id: 'ses_1', title: 'prima' }];
   const r = await listOpencodeSessions(5, { bin: FAKE_OPENCODE, run: (c, a, o, cb) => cb(null, JSON.stringify(sessioni), '') });
   assert.strictEqual(r.ok, true);
-  assert.deepStrictEqual(r.sessions, sessioni);
+  assert.strictEqual(r.sessions[0].id, 'ses_1');
+  assert.strictEqual(r.sessions[0].title, 'prima');
+});
+
+// Forma reale di `opencode session list --format json` (1.18): niente mtime ne cwd
+const OC_REALE = {
+  id: 'ses_eea39d14dffeSqX30d0iGn4Odf',
+  title: 'New session - 2026-10-07T09:51:12.050Z',
+  updated: 1791383680313,
+  created: 1791366672050,
+  projectId: 'a51eca16',
+  directory: '/home/u/segnaPOS',
+};
+
+ok('opencode: updated e directory diventano mtime e cwd, come per claude e codex', async () => {
+  // Senza mtime la scheda nuova non riconosceva mai la sua conversazione:
+  // resumeId restava null e al riavvio opencode ripartiva da zero
+  const r = await listOpencodeSessions(5, { bin: FAKE_OPENCODE, run: (c, a, o, cb) => cb(null, JSON.stringify([OC_REALE]), '') });
+  const s = r.sessions[0];
+  assert.strictEqual(s.mtime, OC_REALE.updated);
+  assert.strictEqual(s.cwd, OC_REALE.directory);
+  assert.strictEqual(s.directory, OC_REALE.directory);
+  assert.strictEqual(s.created, OC_REALE.created);
+});
+
+ok('opencode: senza updated la data e quella di creazione', () => {
+  const { sessions } = parseSessionOutput(JSON.stringify([{ id: 'ses_1', created: 42, directory: '/x' }]));
+  assert.strictEqual(sessions[0].mtime, 42);
+});
+
+ok('opencode: il titolo di default "New session - <data>" non e un titolo vero', () => {
+  const { sessions } = parseSessionOutput(JSON.stringify([OC_REALE, { ...OC_REALE, id: 'ses_2', title: 'Datalake di segnaPOS' }]));
+  assert.strictEqual(sessions[0].titled, false);
+  assert.strictEqual(sessions[1].titled, true);
+});
+
+ok('la sessione reale di opencode viene riconosciuta da pickAutoSession', () => {
+  const titles = require('../renderer/session-titles');
+  const { sessions } = parseSessionOutput(JSON.stringify([OC_REALE]));
+  const s = titles.pickAutoSession(sessions, { cwd: '/home/u/segnaPOS', since: OC_REALE.created - 60000 });
+  assert.strictEqual(s && s.id, OC_REALE.id);
+});
+
+ok('opencode: la cwd arriva a execFile (session list vede solo il progetto della cwd)', async () => {
+  let seen = null;
+  const run = (c, a, o, cb) => { seen = o.cwd; cb(null, '[]', ''); };
+  await listOpencodeSessions(5, { bin: FAKE_OPENCODE, run, cwd: '/home/u/segnaPOS' });
+  assert.strictEqual(seen, '/home/u/segnaPOS');
+});
+
+ok('opencode in piu directory: una chiamata per directory, risultati uniti e ordinati', async () => {
+  const perDir = {
+    '/a': [{ id: 'ses_a', updated: 10, directory: '/a' }, { id: 'ses_c', updated: 30, directory: '/a' }],
+    '/b': [{ id: 'ses_b', updated: 20, directory: '/b' }, { id: 'ses_c', updated: 30, directory: '/a' }],
+  };
+  const calls = [];
+  const run = (c, a, o, cb) => { calls.push(o.cwd); cb(null, JSON.stringify(perDir[o.cwd]), ''); };
+  const r = await listOpencodeSessionsIn(['/a', '/b', '/a/'], 10, { bin: FAKE_OPENCODE, run, exists: () => true });
+  assert.strictEqual(r.ok, true);
+  assert.deepStrictEqual(calls.sort(), ['/a', '/b']);
+  assert.deepStrictEqual(r.sessions.map((s) => s.id), ['ses_c', 'ses_b', 'ses_a']);
+});
+
+ok('opencode in piu directory: il limite vale sul totale', async () => {
+  const run = (c, a, o, cb) => cb(null, JSON.stringify([{ id: `ses_${o.cwd}`, updated: 1 }]), '');
+  const r = await listOpencodeSessionsIn(['/a', '/b', '/c'], 2, { bin: FAKE_OPENCODE, run, exists: () => true });
+  assert.strictEqual(r.sessions.length, 2);
+});
+
+ok('opencode in piu directory: una directory che fallisce non nasconde le altre', async () => {
+  const run = (c, a, o, cb) => (o.cwd === '/rotta'
+    ? cb(new Error('uscita 1'), '', 'boom')
+    : cb(null, JSON.stringify([{ id: 'ses_ok', updated: 1 }]), ''));
+  const r = await listOpencodeSessionsIn(['/rotta', '/buona'], 10, { bin: FAKE_OPENCODE, run, exists: () => true });
+  assert.strictEqual(r.ok, true);
+  assert.deepStrictEqual(r.sessions.map((s) => s.id), ['ses_ok']);
+});
+
+ok('opencode in piu directory: se falliscono tutte e un errore', async () => {
+  const run = (c, a, o, cb) => cb(new Error('uscita 1'), '', 'boom');
+  const r = await listOpencodeSessionsIn(['/a', '/b'], 10, { bin: FAKE_OPENCODE, run, exists: () => true });
+  assert.strictEqual(r.ok, false);
+  assert.ok(r.error.includes('boom'), r.error);
+});
+
+ok('opencode in piu directory: directory inesistenti o relative si saltano', async () => {
+  const calls = [];
+  const run = (c, a, o, cb) => { calls.push(o.cwd); cb(null, '[]', ''); };
+  await listOpencodeSessionsIn(['/sparita', 'relativa', null, '/c'], 10, { bin: FAKE_OPENCODE, run, exists: (p) => p === '/c' });
+  assert.deepStrictEqual(calls, ['/c']);
+});
+
+ok('opencode senza directory: una sola chiamata, come prima', async () => {
+  const calls = [];
+  const run = (c, a, o, cb) => { calls.push(o.cwd); cb(null, '[]', ''); };
+  const r = await listOpencodeSessionsIn([], 10, { bin: FAKE_OPENCODE, run, exists: () => true });
+  assert.strictEqual(r.ok, true);
+  assert.deepStrictEqual(calls, [undefined]);
+});
+
+ok('directory di opencode dalla cronologia: solo le sessioni opencode, piu recenti prima', () => {
+  const history = [
+    { type: 'opencode', cwd: '/home/u/segnaPOS' },
+    { type: 'claude', cwd: '/home/u/altro' },
+    { type: 'opencode', cwd: '/home/u/app/' },
+    { type: 'opencode', cwd: '/home/u/segnaPOS' },
+  ];
+  assert.deepStrictEqual(opencodeHistoryDirs(history, { exists: () => true }), ['/home/u/segnaPOS', '/home/u/app']);
+  assert.deepStrictEqual(opencodeHistoryDirs(history, { exists: (p) => p === '/home/u/app' }), ['/home/u/app']);
+  assert.deepStrictEqual(opencodeHistoryDirs(null), []);
 });
 
 // ---------- lib/login-path: mai bloccare il main ----------

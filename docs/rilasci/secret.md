@@ -2,13 +2,28 @@
 
 Vanno in **`ale-cadei/PizzaManager`** (il repo del codice, dove gira il
 workflow): *Settings → Secrets and variables → Actions → New repository
-secret*.
+secret*. Oppure da riga di comando:
 
-**Li può aggiungere solo `ale-cadei`.** Quel repo è sotto un account
-personale, e lì i ruoli granulari non esistono: un collaboratore ha accesso in
-scrittura, l'unico admin è il proprietario. Admin/Maintain/Triage esistono solo
-per i repo di un'organizzazione — se un giorno il progetto si trasferisce in
-`digitiamosrl`, questo vincolo cade.
+```sh
+gh secret set <NOME> --repo ale-cadei/PizzaManager          # chiede il valore
+gh secret set <NOME> --repo ale-cadei/PizzaManager < file   # dal contenuto di un file
+```
+
+La seconda forma è preferibile per i valori lunghi (il `.p12` in base64, il
+`.p8`): non passano da un incolla a mano e non finiscono nella cronologia
+della shell.
+
+**Li può aggiungere chiunque abbia accesso in scrittura**, non solo il
+proprietario. Verificato il 2026-10-08: le chiamate di lettura dei secret e
+della chiave pubblica che serve a cifrarli rispondono `200` anche per un
+collaboratore. L'`admin: false` che l'API riporta sul repo riguarda il *ruolo*
+— che per i repo di un account personale non esiste in forma granulare — e non
+governa questo permesso.
+
+Conseguenza pratica: **chi firma installa i propri secret da sé**, e il `.p12`,
+la chiave Apple e il PAT non devono passare di mano. Che è anche la risposta
+giusta alla frase di Apple «you may not share authorization credentials with
+anyone outside your team».
 
 Finché non ci sono, il workflow **non fallisce**: costruisce i pacchetti senza
 firmarli e senza notarizzarli (le guardie in `release.yml` sono scritte per
@@ -88,19 +103,15 @@ il comando non è interattivo; con la app-specific password invece chiede la
 password in un prompt, **e va lanciato da un Terminale vero**: da un comando
 senza stdin interattivo manda una password vuota e Apple risponde `401`.
 
-**Come consegnarli ad `ale-cadei`**: un elemento condiviso di un gestore di
-password, o un file cifrato con la password su un canale diverso. Mai in un
-messaggio di chat o in una mail: resterebbero lì per sempre, e con il `.p12`
-chi li ha può firmare applicazioni a nome dell'account Apple che li ha emessi.
-
-Da sapere: la pagina dell'API di App Store Connect dice a chiare lettere «you
-may not share authorization credentials with anyone outside your team», e
-l'accordo di licenza dice lo stesso dell'identità di firma. Se chi incolla i
-secret non è nel team Apple, è un passaggio che va contro quelle condizioni —
-non un problema tecnico, una cosa da sapere. Le alternative, se un giorno pesa:
-trasferire il repo in `digitiamosrl` (dove i ruoli esistono e i secret li mette
-chi fa le release), oppure assemblare la release dal Mac di chi firma, senza
-secret.
+**Non c'è niente da consegnare a nessuno**: li installa chi ha il certificato,
+dal proprio computer. Se un giorno servisse davvero passarli (un secondo
+firmatario, un cambio di mani del progetto), si usa un elemento condiviso di un
+gestore di password o un file cifrato con la password su un canale diverso —
+mai un messaggio di chat o una mail, dove resterebbero per sempre. E va tenuto
+presente che chi ha il `.p12` può firmare applicazioni a nome di quell'account
+Apple: la pagina dell'API dice «you may not share authorization credentials
+with anyone outside your team», e l'accordo di licenza dice lo stesso
+dell'identità di firma.
 
 ## Quando scadono
 

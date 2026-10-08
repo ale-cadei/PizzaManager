@@ -59,6 +59,16 @@ esistano) tenterebbe di firmare e fallirebbe. Si lega al secret stesso:
 
 ### Credenziali: la chiave API, non la password dell'Apple ID
 
+**Cronaca utile, perché costa mezza giornata a chi la rifà.** L'accesso
+all'API di App Store Connect su un account individuale non si crea: si
+*richiede*, e Apple lo concede quando vuole («organization will be given first
+access followed by individuals»). Nemmeno le *Individual Keys* sono una via
+d'uscita: quelle le genera ciascuno dal proprio profilo, non da quella pagina.
+Quindi si era partiti con una app-specific password, e il workflow è stato
+cablato per accettare entrambe. L'accesso è poi arrivato **lo stesso giorno**
+(2026-10-08) e la chiave `A6LD5BA326` è quella in uso. Il ripiego resta
+cablato: serve se la chiave viene revocata e bisogna rilasciare subito.
+
 Per notarizzare electron-builder accetta tre strade; la documentazione
 consiglia la prima e la seguiamo:
 
@@ -209,12 +219,15 @@ release su una macchina che non l'ha mai visto.
 
 ## Cosa serve dall'utente (non si può fare da qui)
 
-1. **Certificato «Developer ID Application»**: Xcode → Settings → Accounts →
+1. **Certificato «Developer ID Application»** ✅ fatto il 2026-10-08
+   (`CBRAP62CDG`): Xcode → Settings → Accounts →
    il team → *Manage Certificates* → **+** → *Developer ID Application*.
    Nel keychain oggi c'è solo un «Apple Development», che serve a far girare
    l'app sui propri dispositivi e **non** vale per distribuire.
 2. **Chiave di App Store Connect** (appstoreconnect.apple.com → Users and
-   Access → Integrations → Keys), ruolo *Developer*: si scarica una volta sola.
+   Access → Integrations → Team Keys), ruolo *Developer*: si scarica una volta
+   sola. ✅ fatta il 2026-10-08 (`A6LD5BA326`), validata, nel portachiavi come
+   profilo `pizzamanager-api`.
 3. **Un PAT fine-grained** con `contents: write` su
    `JackGrieco/PizzaManager-releases` (github.com → Settings → Developer
    settings → Personal access tokens → Fine-grained). Scadenza annotata qui:

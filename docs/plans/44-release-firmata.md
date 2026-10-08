@@ -146,6 +146,43 @@ accettava, e un'eccezione senza motivo leggibile quando rifiutava. Si legge con
 risponde `rejected / no usable signature`, ed e' il caso che e' sfuggito due
 volte. I casi sbagliati sono in `tests/notarize-dmg.test.js`.
 
+## Il portachiavi lo prepara il workflow, non electron-builder
+
+Trovato il 2026-10-08 al primo tag vero, e vale la pena sapere com'è fatto il
+sintomo perché inganna.
+
+Con `CSC_LINK` e `CSC_KEY_PASSWORD` nell'ambiente, electron-builder 26.15.3 fa
+così (`app-builder-lib/out/codeSign/macCodeSign.js`):
+
+```
+create-keychain          -p <casuale, 32 byte>     ← password del portachiavi
+import … -P              <password del .p12>       → «1 identity imported»
+set-key-partition-list … -k <password del .p12>    ← quella SBAGLIATA
+```
+
+Crea il portachiavi con una password casuale e poi prova a sbloccarlo con
+quella del certificato. Su macOS recenti `set-key-partition-list` la valida
+davvero, e il build muore con:
+
+```
+security: SecKeychainUnlock: The user name or passphrase you entered is not correct.
+```
+
+**Sembra una password sbagliata, e invece è giusta**: l'import, la riga prima,
+è riuscito. Ci si perde mezz'ora a rifare secret che erano corretti — e la
+verifica che lo dimostra è `openssl pkcs12 -legacy -in <file> -nokeys`, dove
+`-legacy` serve perché il Portachiavi cifra i `.p12` con RC2-40-CBC e OpenSSL 3
+rifiuta quell'algoritmo se non glielo si chiede (un altro errore che sembra di
+password e non lo è).
+
+Non esiste una versione stabile in cui sia corretto (la 27 è in alpha), quindi
+quella strada si evita: il workflow **prepara il portachiavi da sé** — con la
+password del portachiavi dove va la password del portachiavi — e a
+electron-builder non passa `CSC_LINK`. Con l'identità già installata, la trova
+con l'auto-discovery. Due dettagli necessari: `set-keychain-settings -lut
+21600`, o il portachiavi si richiude prima che la notarizzazione finisca, e
+`list-keychains -d user -s`, o `codesign` non lo guarda nemmeno.
+
 ## Prima in locale, poi sul CI
 
 Ogni giro del workflow costa ~5 minuti e la firma sbaglia in modi che si

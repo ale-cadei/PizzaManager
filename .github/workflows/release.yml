@@ -58,12 +58,27 @@ jobs:
             args: --mac --x64
           - os: ubuntu-latest
             args: --linux
-          # Su Windows node-pty non si ricompila: usa i suoi prebuilds N-API
-          # (vedi scripts/postinstall.js). Resta windows-2022 per prudenza:
-          # windows-latest e' passato a Visual Studio 2026, che node-gyp non
-          # riconosceva ancora.
-          - os: windows-2022
-            args: --win -c.npmRebuild=false
+          # WINDOWS FUORI DALLA RELEASE, dalla v1.1.0.
+          #
+          # `-c.npmRebuild=false` non arriva intero a electron-builder: la shell
+          # dei runner Windows e' pwsh, che spezza l'argomento in `-c` e
+          # `.npmRebuild=false`, e quest'ultimo viene preso per il NOME di un
+          # file di configurazione: «ENOENT … open '.npmRebuild=false'».
+          # Non e' una regressione: quella riga non era mai stata eseguita in
+          # una release (la 1.0.2 aveva solo `--win`), e il difetto e' solo
+          # della shell — yargs legge bene entrambe le forme, e in locale su
+          # Unix l'argomento passa.
+          #
+          # La correzione probabile e' una riga, `shell: bash` sul passo del
+          # build (bash c'e' anche sui runner Windows, e li' l'argomento passa
+          # come su Unix). Non si mette alla cieca: va provata su una macchina
+          # Windows, insieme al resto del piano 40, altrimenti si scopre se
+          # funziona solo bruciando un giro di release.
+          #
+          # Finche' e' commentato, chi usa Windows resta alla 1.0.2 o costruisce
+          # da sorgente con `npm run install:win` (piano 24).
+          # - os: windows-2022
+          #   args: --win -c.npmRebuild=false
     runs-on: ${{ matrix.os }}
     # Un build che non finisce deve fallire, non occupare un runner per ore
     timeout-minutes: 40
@@ -86,6 +101,47 @@ jobs:
       - run: npm ci
       # Niente test qui: girano gia' in ci.yml su ogni push e PR (anche su
       # Windows), e il tag parte da un main verificato.
+      # IL PORTACHIAVI LO PREPARIAMO NOI, e a electron-builder non si passa
+      # CSC_LINK. Il perche': electron-builder 26.15.3 crea un portachiavi
+      # temporaneo con una password CASUALE e poi, subito dopo aver importato
+      # il certificato («1 identity imported»), lancia
+      #   security set-key-partition-list -S … -k <password del .p12>
+      # cioe' prova a sbloccare quel portachiavi con la password del
+      # CERTIFICATO invece che con la sua (app-builder-lib/out/codeSign/
+      # macCodeSign.js). Su macOS recenti quel comando la valida davvero e il
+      # build muore con «SecKeychainUnlock: passphrase not correct»: sembra una
+      # password sbagliata, e invece la password e' giusta — l'import appena
+      # prima e' riuscito. Misurato il 2026-10-08 sulla release 1.1.0.
+      # Non c'e' una versione stabile piu' recente in cui sia corretto (la 27
+      # e' in alpha), quindi si evita quella strada: con l'identita' gia' nel
+      # portachiavi, electron-builder la trova da se' (auto-discovery).
+      - name: Certificato nel portachiavi
+        if: runner.os == 'macOS' && env.HAS_MAC_CERT == 'true'
+        run: |
+          set -eu
+          KEYCHAIN="$RUNNER_TEMP/firma.keychain-db"
+          # La password del portachiavi serve solo dentro questo job: casuale,
+          # e non e' quella del certificato.
+          KPW="$(openssl rand -base64 24)"
+          security create-keychain -p "$KPW" "$KEYCHAIN"
+          # Senza questo il portachiavi si richiude da solo dopo 5 minuti, e la
+          # notarizzazione puo' durare piu' di cosi'.
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KPW" "$KEYCHAIN"
+          printf '%s' "$MAC_CSC_LINK" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$MAC_CSC_KEY_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/productbuild
+          rm -f "$RUNNER_TEMP/cert.p12"
+          # Qui `-k` vuole la password DEL PORTACHIAVI: e' il punto esatto in
+          # cui electron-builder passa quella sbagliata.
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KPW" "$KEYCHAIN" >/dev/null
+          # Il portachiavi va nella lista di ricerca, o codesign non lo guarda.
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          echo "Identita' disponibili per la firma:"
+          security find-identity -v -p codesigning
+        env:
+          MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
       # La chiave di notarizzazione e' un file .p8 e APPLE_API_KEY vuole un
       # PERCORSO, non il contenuto: il secret va scritto su disco prima del
       # build, e in RUNNER_TEMP per non finire dentro al pacchetto.
@@ -103,13 +159,9 @@ jobs:
           # Il repo di destinazione e' in package.json (build.publish).
           GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
           DEBUG: electron-builder
-          # Il certificato Developer ID (.p12 in base64) e la sua password
-          # SOLO su macOS: CSC_LINK su Windows e' il certificato con cui
-          # electron-builder firma l'exe, e proverebbe a usare quello di Apple.
-          CSC_LINK: ${{ runner.os == 'macOS' && secrets.MAC_CSC_LINK || '' }}
-          CSC_KEY_PASSWORD: ${{ runner.os == 'macOS' && secrets.MAC_CSC_KEY_PASSWORD || '' }}
-          # Senza certificato va spento, o electron-builder prova a firmare e
-          # il build fallisce (un fork, o questo branch prima dei secret).
+          # NIENTE CSC_LINK, di proposito: e' cio' che manderebbe
+          # electron-builder sulla strada rotta descritta sopra. L'identita' e'
+          # gia' nel portachiavi del runner, e con l'auto-discovery la trova.
           CSC_IDENTITY_AUTO_DISCOVERY: ${{ runner.os == 'macOS' && secrets.MAC_CSC_LINK != '' }}
           # La notarizzazione in electron-builder 26 e' opt-OUT: parte da se'
           # appena le credenziali ci sono. Senza, firma e non notarizza.

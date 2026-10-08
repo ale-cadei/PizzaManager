@@ -56,5 +56,5 @@ Claude e codex non hanno il problema: le loro schede hanno tutte il `resumeId`.
 - Con l'opencode installato: `listOpencodeSessionsIn(['…/segnaPOS'])` +
   `pickAutoSession` con l'avvio della scheda del 07/10 restituisce
   `ses_eea39d14dffeSqX30d0iGn4Odf`, la conversazione persa.
-- Da provare nell'app: nuova scheda opencode, un prompt, attendere ~20 s,
+- Provato nell'app: nuova scheda opencode, un prompt, attendere ~20 s,
   verificare `resumeId` in `live-sessions.json`.

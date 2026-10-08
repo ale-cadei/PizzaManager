@@ -231,3 +231,46 @@ ok('vista modifiche: un avviso si vede sopra l\'elenco', () => {
   assert.strictEqual(textOf(one(host, 'changes-notice')), 'Troppi file nuovi');
   assert.strictEqual(one(host, 'changes-body').children[0], one(host, 'changes-notice'));
 });
+
+/* ---------- «Da committare» (docs/plans/43) ---------- */
+
+const SECTIONS = [
+  { side: 'staged', title: 'Staged', hint: 'nell\'indice', count: 1 },
+  { side: 'unstaged', title: 'Non staged', hint: 'fuori', count: 2 },
+];
+
+ok('da committare: il terzo pulsante si accende e si sceglie', () => {
+  const picked = [];
+  const { host, view } = setup({ onMode: (m) => picked.push(m) });
+  view.render(baseState({ modes: { current: 'staging', turnAvailable: false, turnHint: 'x' } }));
+  const staging = one(host, 'changes-mode-staging');
+  assert.strictEqual(staging.getAttribute('aria-pressed'), 'true');
+  assert.strictEqual(one(host, 'changes-mode-commit').getAttribute('aria-pressed'), 'false');
+  assert.ok(!staging.disabled, '«Da committare» non si spegne mai');
+  staging.onclick();
+  assert.deepStrictEqual(picked, ['staging']);
+});
+
+ok('da committare: le righe stanno sotto la loro sezione, un file a metà in tutte e due', () => {
+  const { host, view } = setup();
+  const files = [file('a.js', { side: 'staged' }), file('a.js', { side: 'unstaged', added: 7 }), file('n.md', { side: 'unstaged', status: '?' })];
+  view.render(baseState({ files, sections: SECTIONS }));
+  const body = one(host, 'changes-body');
+  const order = body.children.map((c) => (c.classes.has('changes-section') ? `# ${textOf(c)}` : c.children[0].dataset.item));
+  assert.deepStrictEqual(order, ['# Staged1', 'staged:a.js', '# Non staged2', 'unstaged:a.js', 'unstaged:n.md']);
+  assert.strictEqual(one(host, 'changes-section').title, 'nell\'indice');
+});
+
+ok('da committare: una sezione vuota lo dice, e i diff aperti sono per sezione', () => {
+  const { host, view, calls } = setup();
+  const diff = { ok: true, binary: false, truncated: false, hunks: [{ header: '@@ -1 +1 @@', lines: [{ kind: 'add', oldNo: null, newNo: 1, text: 'fuori stage' }] }] };
+  view.render(baseState({
+    files: [file('a.js', { side: 'unstaged' })],
+    sections: [{ ...SECTIONS[0], count: 0 }, { ...SECTIONS[1], count: 1 }],
+    expanded: { 'unstaged:a.js': diff },
+  }));
+  assert.strictEqual(textOf(one(host, 'changes-section-empty')), 'Nessun file');
+  assert.strictEqual(textOf(one(host, 'changes-diff')).includes('fuori stage'), true);
+  one(host, 'changes-file-row').onclick();
+  assert.deepStrictEqual(calls.files, ['unstaged:a.js']);
+});

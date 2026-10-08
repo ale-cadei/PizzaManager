@@ -13,10 +13,10 @@ const result = (files, extra = {}) => ({
 const file = (path, added = 1, removed = 0, status = 'M') => ({ path, status, added, removed, binary: false });
 
 ok('modifiche: il bersaglio è la cartella della sessione, con la base se sta in un worktree', () => {
-  assert.deepStrictEqual(M.targetFor({ type: 'claude', cwd: '/r' }, null), { cwd: '/r', base: null, branch: null, path: null, since: null, key: '/r\0\0' });
+  assert.deepStrictEqual(M.targetFor({ type: 'claude', cwd: '/r' }, null), { cwd: '/r', base: null, branch: null, path: null, since: null, staging: false, key: '/r\0\0' });
   const wt = { path: '/r.worktrees/feat-x', branch: 'feat/x', base: 'main' };
   assert.deepStrictEqual(M.targetFor({ type: 'shell', cwd: '/r.worktrees/feat-x' }, wt),
-    { cwd: '/r.worktrees/feat-x', base: 'main', branch: 'feat/x', path: '/r.worktrees/feat-x', since: null, key: '/r.worktrees/feat-x\0main\0' });
+    { cwd: '/r.worktrees/feat-x', base: 'main', branch: 'feat/x', path: '/r.worktrees/feat-x', since: null, staging: false, key: '/r.worktrees/feat-x\0main\0' });
   // worktree senza base: contro HEAD, ma il branch si mostra
   assert.strictEqual(M.targetFor({ type: 'shell', cwd: '/w' }, { path: '/w', branch: 'x', base: null }).base, null);
 });
@@ -136,4 +136,63 @@ ok('ultimo giro: una fotografia senza i file nuovi lo dice', () => {
   assert.match(M.notice(result([], { since: true, partial: true })), /gitignore/);
   assert.strictEqual(M.notice(result([], { since: true, partial: false })), null);
   assert.strictEqual(M.notice(null), null);
+});
+
+/* ---------- «Da committare» (docs/plans/43) ---------- */
+
+const staged = (path, extra = {}) => ({ ...file(path), side: 'staged', ...extra });
+const unstaged = (path, extra = {}) => ({ ...file(path), side: 'unstaged', ...extra });
+const stagingResult = (files, counts) => result(files, {
+  staging: true, since: false,
+  totals: { files: new Set(files.map((f) => f.path)).size, added: files.length, removed: 0, ...counts },
+});
+
+ok('da committare: il bersaglio ha una chiave sua, e niente fotografia', () => {
+  const tab = { type: 'claude', cwd: '/r' };
+  const s = M.targetFor(tab, null, { staging: true, since: 'f'.repeat(40) });
+  assert.deepStrictEqual([s.staging, s.since], [true, null]);
+  assert.notStrictEqual(s.key, M.targetFor(tab, null).key);
+  assert.strictEqual(M.targetFor(tab, null).staging, false);
+});
+
+ok('da committare: il selettore lo offre a ogni sessione, anche senza prompt', () => {
+  assert.strictEqual(M.modeChoice({ type: 'shell' }, 'staging').current, 'staging');
+  assert.strictEqual(M.modeChoice({ type: 'claude', turnTree: null }, 'staging').current, 'staging');
+  assert.strictEqual(M.modeChoice({ type: 'claude' }, 'altro').current, 'commit');
+});
+
+ok('da committare: titolo, riepilogo e messaggio vuoto lo dicono', () => {
+  const r = stagingResult([staged('a.js'), unstaged('a.js'), unstaged('b.js')], { staged: 1, unstaged: 2 });
+  assert.strictEqual(M.headerTitle({ branch: 'feat/x' }, r), 'feat/x · da committare');
+  assert.strictEqual(M.headerTitle({}, stagingResult([], { against: null })), 'da committare');
+  assert.deepStrictEqual(M.summaryParts(r).map((p) => p.text), ['1 staged · 2 non staged', '+3', '−0']);
+  assert.strictEqual(M.summary(r), '1 staged · 2 non staged · +3 −0');
+  assert.match(M.emptyText(stagingResult([], { staged: 0, unstaged: 0 })), /Niente da committare/);
+});
+
+ok('da committare: le sezioni coi loro numeri, solo se c\'è qualcosa', () => {
+  const r = stagingResult([unstaged('b.js')], { staged: 0, unstaged: 1 });
+  assert.deepStrictEqual(M.sections(r).map((s) => [s.side, s.title, s.count]), [['staged', 'Staged', 0], ['unstaged', 'Non staged', 1]]);
+  assert.deepStrictEqual(M.sections(stagingResult([], { staged: 0, unstaged: 0 })), []);
+  assert.deepStrictEqual(M.sections(result([file('a')])), []);
+});
+
+ok('da committare: un file a metà ha due righe distinte, e i diff aperti restano separati', () => {
+  assert.strictEqual(M.itemId(staged('a.js')), 'staged:a.js');
+  assert.strictEqual(M.itemId(file('a.js')), 'a.js');
+  const target = M.targetFor({ type: 'claude', cwd: '/r' }, null, { staging: true });
+  assert.deepStrictEqual(M.splitItemId(target, 'unstaged:dir/con:due.js'), { side: 'unstaged', path: 'dir/con:due.js' });
+  assert.deepStrictEqual(M.splitItemId(M.targetFor({ type: 'claude', cwd: '/r' }, null), 'x:y'), { side: null, path: 'x:y' });
+  // cambia solo la parte non staged: si rilegge solo quel diff
+  const before = [staged('a.js'), unstaged('a.js')];
+  const after = [staged('a.js'), unstaged('a.js', { added: 5 })];
+  assert.deepStrictEqual(M.diffsToReload(before, after, ['staged:a.js', 'unstaged:a.js']), { reload: ['unstaged:a.js'], drop: [] });
+  // tutto aggiunto con git add: sparisce dai non staged
+  assert.deepStrictEqual(M.diffsToReload(before, [staged('a.js')], ['unstaged:a.js']).drop, ['unstaged:a.js']);
+});
+
+ok('da committare: spostare un file da una sezione all\'altra cambia la firma', () => {
+  const a = stagingResult([unstaged('a.js')], { staged: 0, unstaged: 1 });
+  const b = stagingResult([staged('a.js')], { staged: 1, unstaged: 0 });
+  assert.notStrictEqual(M.signature(a), M.signature(b));
 });

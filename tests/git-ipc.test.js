@@ -45,7 +45,7 @@ ok('ipc: un payload mancante o senza radice risponde con un errore, non lancia',
 ok('ipc: il pannello delle modifiche risponde con un errore a un payload vuoto, e rifiuta percorsi fuori', async () => {
   const { handlers, ipcMain } = fakeIpc();
   registerGitHandlers(ipcMain, { userDataDir: () => '/non/usata' });
-  for (const channel of ['git-changes', 'git-file-diff', 'git-snapshot']) {
+  for (const channel of ['git-changes', 'git-file-diff', 'git-snapshot', 'git-staging', 'git-staging-diff']) {
     for (const payload of [undefined, null, {}]) {
       const r = await handlers.get(channel)({}, payload);
       assert.strictEqual(r.ok, false, `${channel} con ${JSON.stringify(payload)}`);
@@ -54,6 +54,10 @@ ok('ipc: il pannello delle modifiche risponde con un errore a un payload vuoto, 
   }
   const outside = await handlers.get('git-file-diff')({}, { cwd: __dirname, path: '../../etc/passwd' });
   assert.deepStrictEqual(outside, { ok: false, error: 'Percorso non valido.' });
+  const stagingOutside = await handlers.get('git-staging-diff')({}, { cwd: __dirname, path: '../../etc/passwd', side: 'unstaged' });
+  assert.deepStrictEqual(stagingOutside, { ok: false, error: 'Percorso non valido.' });
+  const badSide = await handlers.get('git-staging-diff')({}, { cwd: __dirname, path: 'a.js', side: '--output=/tmp/x' });
+  assert.deepStrictEqual(badSide, { ok: false, error: 'Sezione non valida.' });
   const badBase = await handlers.get('git-changes')({}, { cwd: __dirname, base: '--output=/tmp/x' });
   assert.strictEqual(badBase.ok, false);
 });

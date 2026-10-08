@@ -36,6 +36,8 @@ contextBridge.exposeInMainWorld('aisess', {
   gitChanges: (cwd, base, since) => ipcRenderer.invoke('git-changes', { cwd, base, since }),
   gitFileDiff: (cwd, base, path, since) => ipcRenderer.invoke('git-file-diff', { cwd, base, path, since }),
   gitSnapshot: (cwd) => ipcRenderer.invoke('git-snapshot', { cwd }),
+  gitStaging: (cwd) => ipcRenderer.invoke('git-staging', { cwd }),
+  gitStagingDiff: (cwd, path, side) => ipcRenderer.invoke('git-staging-diff', { cwd, path, side }),
   worktreeList: (root) => ipcRenderer.invoke('worktree-list', { root }),
   worktreeStart: (root) => ipcRenderer.invoke('worktree-start', { root }),
   worktreeCreate: (root, branch, base) => ipcRenderer.invoke('worktree-create', { root, branch, base }),

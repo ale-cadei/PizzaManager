@@ -5,6 +5,7 @@ const { createGitSessionsStore, savedBeforeBoot } = require('../lib/git-sessions
 const { listWorktrees, worktreeStart, createWorktree, mergeWorktree, removeWorktree } = require('../lib/worktree');
 const { readChanges, readFileDiff } = require('../lib/git-changes');
 const { snapshotTree } = require('../lib/git-snapshot');
+const { readStaging, readStagingDiff } = require('../lib/git-staging');
 
 /**
  * Canali IPC della sessione di tipo git (docs/plans/25), dei worktree
@@ -53,6 +54,9 @@ function registerGitHandlers(ipcMain, { userDataDir } = {}) {
   ipcMain.handle('git-file-diff', guard(({ cwd, base, path, since }) => readFileDiff({ cwd, base, path, since })));
   // «Ultimo giro»: la fotografia dei file all'invio di un prompt
   ipcMain.handle('git-snapshot', guard(({ cwd }) => snapshotTree({ cwd })));
+  // «Da committare» (docs/plans/43): sezione e percorso li ricontrolla lib/git-staging.js
+  ipcMain.handle('git-staging', guard(({ cwd }) => readStaging({ cwd })));
+  ipcMain.handle('git-staging-diff', guard(({ cwd, path, side }) => readStagingDiff({ cwd, path, side })));
 }
 
 module.exports = { registerGitHandlers };

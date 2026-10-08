@@ -94,6 +94,48 @@ Release nasce in bozza e si pubblica a mano: un job rosso è il segnale di non
 pubblicare. Non si pinna `mac.identity` in `package.json` perché bloccherebbe
 anche i build locali di chi non ha quel certificato.
 
+## Il .dmg non eredita niente dall'app
+
+Misurato il 2026-10-08, e scoperto per gradi perche' ogni passo *sembrava*
+aver funzionato:
+
+| Oggetto | `syspolicy_check distribution` |
+|---|---|
+| `PizzaManager.app` firmato e notarizzato | **ready for distribution** |
+| `.dmg` appena costruito | fallito, *fatal*: «File is not signed at all» |
+| `.dmg` notarizzato, firma adhoc | fallito: «adhoc signed … not suitable for distribution» |
+| `.dmg` firmato Developer ID, notarizzato, timbrato | **ready for distribution** |
+
+`mac.notarize` notarizza il `.app`; il `.dmg` viene costruito **dopo** e nasce
+con la firma adhoc che gli mette `hdiutil`, senza ticket. Ma chi scarica
+riceve il `.dmg`, ed e' il primo oggetto che macOS valuta: con l'app dentro
+perfetta, `spctl` lo rifiutava comunque con «no usable signature».
+
+**L'ordine conta**: firmare invalida un francobollo gia' attaccato, perche' il
+ticket e' legato all'impronta del file. Quindi **firma → notarizza → timbra**,
+e vale per entrambi gli oggetti.
+
+La documentazione di electron-builder sconsiglia `dmg.sign` («will lead to
+unwanted errors in combination with notarization requirements»). Qui si fa il
+contrario di quel consiglio, in cognizione di causa: senza firma Gatekeeper non
+ha un'identita' da verificare e rifiuta anche col francobollo attaccato, e sono
+due strumenti di Apple a dirlo. Il sospetto e' che quel consiglio riguardi
+l'ordine sbagliato. Per questo la firma del `.dmg` sta in
+`scripts/notarize-dmg.js` e non in quell'opzione: cosi' resta accanto
+all'invio, nella sequenza giusta.
+
+### Il controllo che non controllava
+
+Il gancio verifica con `spctl` e fallisce se il verdetto non e' accettato. La
+prima versione approvava sempre: `spctl` scrive il verdetto su **stderr** (non
+su stdout) ed **esce con codice diverso da zero quando rifiuta** — quindi
+leggendo solo stdout con `execFileSync` si otteneva una stringa vuota quando
+accettava, e un'eccezione senza motivo leggibile quando rifiutava. Si legge con
+`spawnSync` unendo i due flussi, e `isAccepted` pretende sia `: accepted` sia
+`source=Notarized Developer ID` — perche' «firmato ma senza francobollo»
+risponde `rejected / no usable signature`, ed e' il caso che e' sfuggito due
+volte. I casi sbagliati sono in `tests/notarize-dmg.test.js`.
+
 ## Prima in locale, poi sul CI
 
 Ogni giro del workflow costa ~5 minuti e la firma sbaglia in modi che si
@@ -142,6 +184,12 @@ per chiunque non sia noi due. Ora vanno alla pagina pubblica.
 - **`README.md`** — la nota «I pacchetti non sono firmati» diventa vera: su
   macOS non serve più niente, su Windows l'avviso resta. I link di download e
   il badge della versione puntano al repo pubblico.
+- **`scripts/notarize-dmg.js`** + `build.afterAllArtifactBuild` — firma,
+  notarizza e timbra i `.dmg` dopo il build, e verifica il risultato. Accetta
+  le tre forme di credenziali nella precedenza di electron-builder (chiave API,
+  app-specific password, profilo del portachiavi), cosi' in locale e sul CI
+  gira **la stessa procedura**: nessuna coppia di sequenze da tenere allineata.
+  Non fa niente, senza fallire, fuori da macOS o senza materiale di firma.
 - **`app/menu.js`** — il link di *Help* alla pagina pubblica, e
   *Informazioni su PizzaManager* con la versione: da quando l'app si scarica
   invece di ricostruirla, «che versione hai?» non aveva risposta in nessun
@@ -154,9 +202,10 @@ per chiunque non sia noi due. Ora vanno alla pagina pubblica.
 - **`docs/plans/13-release-build.md`** — la riga «fuori scope: firma» non vale
   più: rimanda qui.
 
-Niente test: non c'è codice. La verifica è la lista qui sopra più il download
-del `.dmg` dalla release su una macchina (o da un utente) che non l'ha mai
-visto.
+I test coprono il controllo sul verdetto e la scelta delle credenziali
+(`tests/notarize-dmg.test.js`); il giro vero si prova costruendo, e l'esito è
+la tabella qui sopra. Resta la verifica finale: scaricare il `.dmg` dalla
+release su una macchina che non l'ha mai visto.
 
 ## Cosa serve dall'utente (non si può fare da qui)
 

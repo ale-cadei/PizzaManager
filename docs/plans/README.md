@@ -51,6 +51,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 40 | [`spike/psmux`](40-windows-sessioni-persistenti.md) → fase 2 — Windows | 6, 8, 24, 26 | ~½ g + ~1 g | proposto, da fare sul fisso Windows |
 | 41 | [`fix/temi-personalizzati`](41-temi-personalizzati.md) — i ritocchi restano al loro tema | 39 | ~¼ g | fatto |
 | 42 | [`fix/opencode-resume-id`](42-opencode-resume-id.md) — le schede opencode tornano dopo un riavvio | 8 | ~2h | fatto, provato nell'app |
+| 43 | [`feat/modifiche-staged`](43-modifiche-staged.md) — «Da committare»: staged e non staged nel pannello | 32 | ~½ g | fatto, provato nell'app (smoke sotto xvfb) |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

@@ -18,8 +18,9 @@
 
 const CHANGES_POLL_MS = 3000;
 const CHANGES_WIDTH_KEY = 'aisess.changesWidth';
-/* «Dall'ultimo commit» o «Ultimo giro»: la scelta del selettore si ricorda */
+/* «Dall'ultimo commit», «Ultimo giro» o «Da committare»: la scelta del selettore si ricorda */
 const CHANGES_MODE_KEY = 'aisess.changesMode';
+const CHANGES_MODES = ['commit', 'turn', 'staging'];
 const CHANGES_MIN_WIDTH = 320;
 /* Al terminale resta sempre almeno questo, anche col pannello allargato */
 const CHANGES_MIN_TERMINAL = 160;
@@ -77,7 +78,8 @@ function noteWorktreeSessionDone(t) {
 }
 function readChangesMode() {
   try {
-    return localStorage.getItem(CHANGES_MODE_KEY) === 'turn' ? 'turn' : 'commit';
+    const saved = localStorage.getItem(CHANGES_MODE_KEY);
+    return CHANGES_MODES.includes(saved) ? saved : 'commit';
   } catch {
     return 'commit';
   }
@@ -153,6 +155,7 @@ function renderChanges() {
     merge: mergeFooter(merge, result),
     // In modalità Unisci si guarda il branch contro la base, nient'altro
     modes: merge ? null : ChangesModel.modeChoice(activeTab(), mode),
+    sections: ChangesModel.sections(result),
     emptyText: ChangesModel.emptyText(result),
     notice: ChangesModel.notice(result),
   });
@@ -163,14 +166,14 @@ function activeChangesTarget() {
   if (merge) return ChangesModel.targetFor({ type: 'worktree', cwd: merge.worktree.path }, merge.worktree);
   const t = activeTab();
   const worktree = t ? Groups.worktreeOf(t, worktreeCache.snapshot()) : null;
-  // L'ultimo giro si guarda solo a pannello aperto: confrontarlo costa una
-  // fotografia di adesso, e la linguetta parla sempre dall'ultimo commit
-  const turn = changesState.open && ChangesModel.modeChoice(t, changesState.mode).current === 'turn';
-  return ChangesModel.targetFor(t, worktree, { since: turn ? t.turnTree : null });
+  // Ultimo giro e Da committare si guardano solo a pannello aperto: il primo
+  // costa una fotografia di adesso, e la linguetta parla sempre dall'ultimo commit
+  const current = changesState.open ? ChangesModel.modeChoice(t, changesState.mode).current : 'commit';
+  return ChangesModel.targetFor(t, worktree, { since: current === 'turn' ? t.turnTree : null, staging: current === 'staging' });
 }
 
 function setChangesMode(mode) {
-  if (mode === changesState.mode) return;
+  if (mode === changesState.mode || !CHANGES_MODES.includes(mode)) return;
   try { localStorage.setItem(CHANGES_MODE_KEY, mode); } catch {}
   setChangesState({ mode });
   refreshChanges().catch((e) => console.warn('[modifiche]', e));
@@ -197,13 +200,15 @@ async function refreshChanges() {
   changesState = { ...changesState, seq };
   let result;
   try {
-    result = await window.aisess.gitChanges(target.cwd, target.base, target.since);
+    result = target.staging
+      ? await window.aisess.gitStaging(target.cwd)
+      : await window.aisess.gitChanges(target.cwd, target.base, target.since);
   } catch (e) {
     result = { ok: false, error: String((e && e.message) || e) };
   }
   if (seq !== changesState.seq) return; // nel frattempo è partita una lettura più nuova
   if (result && !result.ok && result.error) console.warn('[modifiche]', result.error);
-  if (target.path && !target.since) changesCache.put(target.path, result);
+  if (target.path && !target.since && !target.staging) changesCache.put(target.path, result);
   const signature = ChangesModel.signature(result);
   if (signature === changesState.signature) return;
   const prev = changesState.result;
@@ -215,31 +220,38 @@ async function refreshChanges() {
   for (const p of reload) loadFileDiff(p);
 }
 
-async function loadFileDiff(path) {
+/* `id` è il percorso, o «sezione:percorso» in «Da committare» (changes-model.js, itemId) */
+function readFileDiffOf(target, id) {
+  if (!target.staging) return window.aisess.gitFileDiff(target.cwd, target.base, id, target.since);
+  const { side, path } = ChangesModel.splitItemId(target, id);
+  return window.aisess.gitStagingDiff(target.cwd, path, side);
+}
+
+async function loadFileDiff(id) {
   const target = changesState.target;
   if (!target) return;
-  const token = (changesDiffTokens.get(path) || 0) + 1;
-  changesDiffTokens.set(path, token);
+  const token = (changesDiffTokens.get(id) || 0) + 1;
+  changesDiffTokens.set(id, token);
   let diff;
   try {
-    diff = await window.aisess.gitFileDiff(target.cwd, target.base, path, target.since);
+    diff = await readFileDiffOf(target, id);
   } catch (e) {
     diff = { ok: false, error: String((e && e.message) || e) };
   }
   // Scheda cambiata, file richiuso o riletto nel frattempo: la risposta non serve più
-  if (changesDiffTokens.get(path) !== token) return;
-  if (!changesState.target || changesState.target.key !== target.key || !isExpanded(path)) return;
-  setChangesState({ expanded: { ...changesState.expanded, [path]: diff } });
+  if (changesDiffTokens.get(id) !== token) return;
+  if (!changesState.target || changesState.target.key !== target.key || !isExpanded(id)) return;
+  setChangesState({ expanded: { ...changesState.expanded, [id]: diff } });
 }
 
-function toggleChangesFile(path) {
-  if (isExpanded(path)) {
-    const rest = Object.fromEntries(Object.entries(changesState.expanded).filter(([p]) => p !== path));
+function toggleChangesFile(id) {
+  if (isExpanded(id)) {
+    const rest = Object.fromEntries(Object.entries(changesState.expanded).filter(([p]) => p !== id));
     setChangesState({ expanded: rest });
     return;
   }
-  setChangesState({ expanded: { ...changesState.expanded, [path]: { loading: true } } });
-  loadFileDiff(path);
+  setChangesState({ expanded: { ...changesState.expanded, [id]: { loading: true } } });
+  loadFileDiff(id);
 }
 
 /**
@@ -321,7 +333,7 @@ function initChangesPanel() {
     shortcut: CHANGES_SHORTCUT,
     onToggle: () => toggleChangesPanel(),
     onClose: () => toggleChangesPanel(false),
-    onFile: (path) => toggleChangesFile(path),
+    onFile: (id) => toggleChangesFile(id),
     onMerge: (confirmed) => finishMerge(confirmed),
     onMode: (mode) => setChangesMode(mode),
   });

@@ -254,17 +254,74 @@ I test coprono il controllo sul verdetto e la scelta delle credenziali
 la tabella qui sopra. Resta la verifica finale: scaricare il `.dmg` dalla
 release su una macchina che non l'ha mai visto.
 
+## Il gancio giusto: `artifactBuildCompleted`, non `afterAllArtifactBuild`
+
+Il secondo giro di release e' uscito **verde con i `.dmg` non firmati**, ed e'
+il difetto piu' insidioso incontrato in questo lavoro.
+
+Nel log del runner tutto sembrava perfetto: app notarizzata, poi
+`dmg: firma` → `dmg: invio ad Apple` → `dmg: accettato da Gatekeeper`. Ma il
+`.dmg` scaricato *dalla Release* rispondeva `rejected / no usable signature`.
+I timestamp spiegano:
+
+```
+15:53:46.70   uploading  file=PizzaManager-mac-arm64.dmg.blockmap
+15:53:46.75   dmg: firma …                                   ← 50 ms DOPO
+```
+
+`--publish always` **carica gli artefatti mentre li produce**, e
+`afterAllArtifactBuild` gira dopo: il gancio firmava un file che era gia'
+partito. Il lavoro c'era, non arrivava a destinazione.
+
+La soluzione sta nel codice di electron-builder
+(`app-builder-lib/out/packager.js`):
+
+```js
+async emitArtifactBuildCompleted(event) {
+  await this.eventEmitter.emit("artifactBuildCompleted", event);  // gancio utente, ATTESO
+  await this.emitArtifactCreated(event);                          // qui il publisher carica
+}
+```
+
+`artifactBuildCompleted` viene **atteso prima** dell'evento su cui il
+PublishManager carica. Spostato lì, il file parte firmato. Differenza d'uso:
+quel gancio riceve **un artefatto per volta** (`event.file`), non l'elenco,
+quindi filtra sui `.dmg` e ignora il resto.
+
+Effetto collaterale accettato: il `.dmg.blockmap` viene calcolato prima della
+firma, quindi non corrisponde al file finale. Non importa — su macOS
+`electron-updater` aggiorna dallo **zip**, non dal `.dmg`.
+
+### E il controllo guardava il file sbagliato
+
+Il passo di verifica nel workflow era passato, perche' controllava il `.dmg`
+in `dist/` — quello che il gancio aveva sistemato. Un controllo che non puo'
+vedere il difetto che deve intercettare non e' un controllo: ora **riscarica
+l'asset dalla Release** e verifica quello. E' l'unica cosa che conta, perche'
+e' il file che la gente scarichera'.
+
 ## Stato al 2026-10-08, sera
 
 Tag `v1.1.0` spinto (su `013c35d`), **bozza di Release creata** sul repo
 pubblico, secret tutti e sei installati, certificato e chiave di
 notarizzazione a posto.
 
-Il primo giro è fallito su due fronti, entrambi corretti o messi da parte nel
-commit che segue: il portachiavi della firma (vedi sopra) e il pacchetto
-Windows (vedi [piano 40](40-windows-sessioni-persistenti.md)). Il secondo giro
-è stato lanciato a mano con `gh workflow run release.yml --ref main` — non
-serve ri-taggare, il workflow carica sulla stessa bozza.
+Tre giri, e ognuno ha trovato una cosa:
+
+1. **primo giro**: i due macOS morti sul portachiavi (vedi sopra) e Windows
+   sull'argomento spezzato da `pwsh` (vedi
+   [piano 40](40-windows-sessioni-persistenti.md));
+2. **secondo giro**: tutti e tre i job verdi, ma i `.dmg` sulla Release **non
+   firmati** — gancio sbagliato (vedi sopra). Scoperto solo scaricando l'asset
+   dalla Release: nel log del runner sembrava tutto a posto;
+3. **terzo giro**: da lanciare, con gancio e controllo corretti.
+
+Si rilancia a mano con `gh workflow run release.yml --ref main` — non serve
+ri-taggare, il workflow carica sulla stessa bozza e sovrascrive gli asset.
+
+⚠️ **La bozza adesso contiene due `.dmg` non firmati**: non va pubblicata
+finche' il terzo giro non e' verde e il controllo sull'asset riscaricato non
+passa.
 
 **Cosa resta da fare, in ordine:**
 

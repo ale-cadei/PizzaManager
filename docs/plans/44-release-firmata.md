@@ -254,6 +254,44 @@ I test coprono il controllo sul verdetto e la scelta delle credenziali
 la tabella qui sopra. Resta la verifica finale: scaricare il `.dmg` dalla
 release su una macchina che non l'ha mai visto.
 
+## Stato al 2026-10-08, sera
+
+Tag `v1.1.0` spinto (su `013c35d`), **bozza di Release creata** sul repo
+pubblico, secret tutti e sei installati, certificato e chiave di
+notarizzazione a posto.
+
+Il primo giro è fallito su due fronti, entrambi corretti o messi da parte nel
+commit che segue: il portachiavi della firma (vedi sopra) e il pacchetto
+Windows (vedi [piano 40](40-windows-sessioni-persistenti.md)). Il secondo giro
+è stato lanciato a mano con `gh workflow run release.yml --ref main` — non
+serve ri-taggare, il workflow carica sulla stessa bozza.
+
+**Cosa resta da fare, in ordine:**
+
+1. guardare com'è andata l'ultima corsa:
+   `gh run list --workflow=release.yml --limit 1`
+   e, se è rossa, `gh run view <id> --log-failed`;
+2. contare i file sulla bozza — devono essere **sette** senza Windows (2 dmg,
+   2 zip e 2 blockmap per i due Mac più `latest-mac.yml`, oltre ai tre file
+   Linux già caricati):
+   `gh release view v1.1.0 --repo JackGrieco/PizzaManager-releases`;
+3. **la verifica che conta**: scaricare il `.dmg` *dalla release* (non quello
+   costruito in locale) e passargli i tre controlli:
+   ```sh
+   spctl -a -vvv -t open --context context:primary-signature <dmg>   # accepted, Notarized Developer ID
+   syspolicy_check distribution <dmg>                                 # ready for distribution
+   xcrun stapler validate <dmg>                                       # The validate action worked!
+   ```
+4. solo allora **pubblicare la bozza**, incollando
+   [`../rilasci/v1.1.0.md`](../rilasci/v1.1.0.md) nelle note. Finché è bozza
+   non esiste per nessuno: i link di download non funzionano e nessuno può
+   scaricare mezza release.
+
+Da fare dopo, a release pubblicata: il documento di processo per chi rilascia
+(in `docs/rilasci/`), e l'aggiornamento automatico — secondo branch del
+[piano 18](18-aggiornamento-automatico.md), ora possibile perché i
+`latest-*.yml` finiscono già nel repo pubblico.
+
 ## Cosa serve dall'utente (non si può fare da qui)
 
 1. **Certificato «Developer ID Application»** ✅ fatto il 2026-10-08

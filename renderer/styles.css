@@ -848,6 +848,45 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .changes-warning[hidden] { display: none; }
 .changes-foot-actions { display: flex; justify-content: flex-end; gap: var(--gap-sm); }
 .changes-confirm[disabled] { opacity: .45; cursor: not-allowed; }
+/* Commenti sul diff (docs/plans/44): il ＋ compare passando sulla riga; note
+   e textarea restano ferme a sinistra anche col diff scorso in orizzontale */
+.changes-note-add, .changes-note-gap { flex: 0 0 2.4ch; user-select: none; }
+.changes-note-add {
+  padding: 0; border: 0; background: none; cursor: pointer;
+  font: 600 12px/1.45 var(--font-ui); color: var(--action-text); opacity: 0;
+}
+.changes-line:hover .changes-note-add, .changes-note-add:focus-visible { opacity: 1; }
+.changes-comment, .changes-comment-editor, .changes-orphan {
+  position: sticky; left: 0; box-sizing: border-box; width: 100%;
+  margin: 2px 0 4px; padding: 6px 10px 6px 12px;
+  font: 400 12px/1.45 var(--font-ui); background: var(--surface-2);
+  border-left: 3px solid var(--action-text);
+}
+.changes-comment { display: flex; align-items: flex-start; gap: var(--gap-sm); }
+.changes-comment-body { flex: 1; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); }
+.changes-comment-edit, .changes-comment-remove {
+  padding: 0 4px; border: 0; background: none; cursor: pointer; color: var(--text-faint); font-size: 12px;
+}
+.changes-comment-edit:hover, .changes-comment-remove:hover { color: var(--text); }
+.changes-comment-input {
+  box-sizing: border-box; width: 100%; min-height: 4.5em; resize: vertical;
+  font: 400 12px/1.45 var(--font-ui); color: var(--text); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px;
+}
+.changes-comment-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--gap-sm); margin-top: 6px; }
+.changes-comment-hint { margin-right: auto; font-size: 11px; color: var(--text-faint); }
+.changes-orphan-title { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+.changes-orphan .changes-comment, .changes-orphan .changes-comment-editor { position: static; margin: 2px 0 6px; padding-left: 0; border-left: 0; }
+.changes-comment-quote { font: 400 12px/1.45 var(--font-mono); color: var(--text-faint); white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+.changes-comments { font-size: 11px; color: var(--action-text); }
+.changes-review-foot {
+  display: flex; flex-direction: column; gap: var(--gap-sm);
+  padding: 10px 14px; border-top: 1px solid var(--border); background: var(--surface-2);
+}
+.changes-review-foot[hidden], .changes-review-error[hidden] { display: none; }
+.changes-review-count { margin-right: auto; align-self: center; font-size: 12px; color: var(--text-muted); }
+.changes-review-error { margin: 0; font-size: 12px; color: var(--accent); white-space: pre-wrap; }
+.changes-review-foot .btn[disabled] { opacity: .45; cursor: not-allowed; }
 
 /* ---------- Animaletti (renderer/pets-view.js, piano 33) ----------
    Striscia sotto il terminale: ne ruba l'altezza invece di coprirne l'ultima

@@ -4,7 +4,7 @@
   "version": "1.1.0",
   "description": "Gestore unificato di terminali, sessioni OpenCode e Claude Code in un'unica finestra",
   "main": "main.js",
-  "homepage": "https://github.com/ale-cadei/PizzaManager",
+  "homepage": "https://github.com/JackGrieco/PizzaManager-releases",
   "author": "PizzaManager <support@example.com>",
   "license": "MIT",
   "scripts": {
@@ -75,6 +75,8 @@
     "artifactName": "${productName}-${os}-${arch}.${ext}",
     "publish": {
       "provider": "github",
+      "owner": "JackGrieco",
+      "repo": "PizzaManager-releases",
       "releaseType": "draft"
     },
     "win": {

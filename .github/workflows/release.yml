@@ -3,6 +3,10 @@
 # electron-builder carica i file su una GitHub Release con lo stesso nome del
 # tag, creata in bozza se non esiste: si pubblica a mano dopo un'occhiata.
 #
+# I pacchetti finiscono su JackGrieco/PizzaManager-releases, repo PUBBLICO che
+# contiene solo le Release: il codice resta qui, privato, e i link di download
+# funzionano per chiunque (docs/plans/44-release-firmata.md).
+#
 # macOS e' firmato e notarizzato quando i secret ci sono (vedi sotto): il .dmg
 # si apre senza avvisi. Windows resta non firmato e mostra SmartScreen: serve
 # un certificato a parte, che non abbiamo (docs/plans/44-release-firmata.md).
@@ -20,15 +24,26 @@ jobs:
   # "trova la bozza, altrimenti creala" senza alcun lock: quattro job che
   # finiscono insieme creavano quattro bozze con lo stesso tag (successo con
   # v1.0.2, unite a mano). Con la bozza gia' esistente, tutti la trovano.
+  #
+  # La Release vive nel repo PUBBLICO: il codice resta privato, i pacchetti
+  # sono release asset e non file di quel repo. Serve quindi un PAT con
+  # contents:write la', perche' il GITHUB_TOKEN di questo repo non scrive da
+  # nessun'altra parte.
+  #
+  # Niente --target: il tag non esiste nel repo pubblico e GITHUB_SHA e' un
+  # commit di QUESTO repo, che la' non c'e'. Senza, la bozza si appoggia al
+  # branch di default del repo pubblico.
   draft:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: |
           TAG="v$(node -p "require('./package.json').version")"
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --draft --title "$TAG" --notes "" --target "$GITHUB_SHA"
+          gh release view "$TAG" --repo "$RELEASES_REPO" >/dev/null 2>&1 \
+            || gh release create "$TAG" --repo "$RELEASES_REPO" --draft --title "$TAG" --notes ""
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASES_REPO: JackGrieco/PizzaManager-releases
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
   build:
     needs: draft
     strategy:
@@ -80,7 +95,8 @@ jobs:
           APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
       - run: npx electron-builder ${{ matrix.args }} --publish always
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Il repo di destinazione e' in package.json (build.publish).
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
           DEBUG: electron-builder
           # Il certificato Developer ID (.p12 in base64) e la sua password
           # SOLO su macOS: CSC_LINK su Windows e' il certificato con cui

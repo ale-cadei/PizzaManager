@@ -14,11 +14,16 @@ Linux e Windows aggiornati nello stesso giro. L'utente ha preso l'Apple
 Developer Program: la firma, che il piano 13 aveva lasciato fuori per questo,
 ora si può fare.
 
-**Si resta sul repo privato** (scelta dell'utente, 2026-10-07): tu e il collega
-scaricate da loggati. I link `releases/latest/download/…` del README continuano
-quindi a non funzionare per chi non ha accesso, e l'aggiornamento automatico
-resta fuori — vedi [18](18-aggiornamento-automatico.md), che richiede un
-indirizzo pubblico.
+**Il codice resta privato, le versioni vanno in chiaro** (decisione del
+2026-10-08): `JackGrieco/PizzaManager-releases` è pubblico e contiene **solo**
+le Release. I pacchetti sono *release asset*, non file di quel repo: là non
+finisce una riga di sorgente, e non si pusha niente da un repo all'altro — è
+il workflow che, al tag, carica i file dall'altra parte.
+
+È il primo dei tre branch del [piano 18](18-aggiornamento-automatico.md)
+(`chore/release-pubblica`), fatto qui insieme alla firma perché sono lo stesso
+giro di release. Con questo in piedi, l'aggiornamento automatico diventa
+possibile: resta da fare, ed è il secondo branch di quel piano.
 
 ## Cosa cambia la firma
 
@@ -104,14 +109,48 @@ xcrun stapler validate "dist/PizzaManager-mac-arm64.dmg"     # The validate acti
 
 Solo quando questi tre passano si esportano il `.p12` e i secret e si tagga.
 
+## Il repo pubblico
+
+Creato il 2026-10-08: `JackGrieco/PizzaManager-releases`, un commit solo (il
+README con la tabella di download e la nota sulla prima apertura). Sta
+sull'account personale e non sotto `ale-cadei` perché quello è l'account del
+collega, e là l'utente non può creare niente.
+
+Tre cose non ovvie:
+
+- **Serve un PAT**, `PUBLIC_RELEASE_TOKEN`: il `GITHUB_TOKEN` di un workflow
+  vale solo per il repo che lo esegue, e non scrive nel repo pubblico.
+  Fine-grained, `contents: write` **solo** su quel repo.
+- **Niente `--target` quando si crea la bozza**: il tag non esiste nel repo
+  pubblico, e `GITHUB_SHA` è un commit di questo repo, che là non c'è. Senza,
+  la bozza si appoggia al branch di default.
+- **I link del repo pubblico sono relativi** (`../../releases/latest/download/…`):
+  così restano giusti anche se il repo cambia nome o proprietario.
+
+Cambia anche cosa vede chi usa l'app: `homepage` (che finisce nei metadati del
+`.deb`) e il link del menu *Help* puntavano al repo del codice, cioè a un 404
+per chiunque non sia noi due. Ora vanno alla pagina pubblica.
+
 ## Pezzi
 
-- **`package.json`** — `version: 1.1.0`.
+- **`package.json`** — `version: 1.1.0`, `build.publish` con `owner`/`repo`
+  del repo pubblico, `homepage` alla pagina pubblica. `repository` resta il
+  repo del **codice**: serve a npm e al changelog, non alla pubblicazione.
 - **`.github/workflows/release.yml`** — i secret di firma e notarizzazione nel
   job di build, `CSC_IDENTITY_AUTO_DISCOVERY` legato alla presenza del
   certificato, il `.p8` scritto su file prima del build.
 - **`README.md`** — la nota «I pacchetti non sono firmati» diventa vera: su
-  macOS non serve più niente, su Windows l'avviso resta.
+  macOS non serve più niente, su Windows l'avviso resta. I link di download e
+  il badge della versione puntano al repo pubblico.
+- **`app/menu.js`** — il link di *Help* alla pagina pubblica, e
+  *Informazioni su PizzaManager* con la versione: da quando l'app si scarica
+  invece di ricostruirla, «che versione hai?» non aveva risposta in nessun
+  punto dell'interfaccia. `role: 'about'` + `setAboutPanelOptions`.
+- **`docs/rilasci/v1.1.0.md`** — le note della Release. Su un repo pubblico
+  la pagina della Release è la pagina del prodotto: vuota sembra abbandonata.
+  Non si possono generare da sole — `gh release --generate-notes` legge i
+  commit del repo in cui crea la Release, e là ci sono solo quelli del README:
+  si scrivono a mano e si conservano qui.
 - **`docs/plans/13-release-build.md`** — la riga «fuori scope: firma» non vale
   più: rimanda qui.
 
@@ -127,14 +166,21 @@ visto.
    l'app sui propri dispositivi e **non** vale per distribuire.
 2. **Chiave di App Store Connect** (appstoreconnect.apple.com → Users and
    Access → Integrations → Keys), ruolo *Developer*: si scarica una volta sola.
-3. **I secret nel repo**, dopo che il locale funziona: `MAC_CSC_LINK` (il
-   `.p12` in base64), `MAC_CSC_KEY_PASSWORD`, `APPLE_API_KEY_P8`,
-   `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`.
+3. **Un PAT fine-grained** con `contents: write` su
+   `JackGrieco/PizzaManager-releases` (github.com → Settings → Developer
+   settings → Personal access tokens → Fine-grained). Scadenza annotata qui:
+   quando scade, la release fallisce e il motivo non è ovvio.
+4. **I secret nel repo del codice**, dopo che il locale funziona:
+   `PUBLIC_RELEASE_TOKEN`, `MAC_CSC_LINK` (il `.p12` in base64),
+   `MAC_CSC_KEY_PASSWORD`, `APPLE_API_KEY_P8`, `APPLE_API_KEY_ID`,
+   `APPLE_API_ISSUER`.
 
 ## Fuori scope
 
 - **Firma Windows**: altro certificato, altra spesa, e SmartScreen resta
   scettico finché non accumula reputazione.
-- **Repo pubblico e aggiornamento automatico**: piano 18, quando si decide.
+- **Aggiornamento automatico**: il secondo branch del piano 18. Ora è
+  possibile (i `latest-*.yml` finiscono già nel repo pubblico a ogni release),
+  ma è un'altra cosa: `electron-updater` nell'app e il banner «Riavvia».
 - **Il dominio**: non serve a niente di tutto questo. Se arriva, il sito può
   linkare gli asset o si passa a `provider: generic`; la firma vale comunque.

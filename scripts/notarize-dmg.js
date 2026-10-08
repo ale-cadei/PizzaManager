@@ -2,7 +2,7 @@
 const { execFileSync, spawnSync } = require('child_process');
 
 /**
- * Firma, notarizza e timbra i .dmg, dopo che electron-builder li ha costruiti.
+ * Firma, notarizza e timbra un .dmg appena costruito, PRIMA che venga caricato.
  *
  * Perche' serve: `mac.notarize` notarizza il .app, e il .dmg viene costruito
  * DOPO — quindi nasce senza ticket e con la firma adhoc che gli mette hdiutil.
@@ -13,6 +13,16 @@ const { execFileSync, spawnSync } = require('child_process');
  *
  * L'ORDINE conta: firmare invalida un francobollo gia' attaccato, perche' il
  * ticket e' legato all'impronta del file. Quindi firma, poi invia, poi timbra.
+ *
+ * E CONTA QUALE GANCIO. Con `afterAllArtifactBuild` il lavoro non arrivava mai
+ * alla release: `--publish always` carica gli artefatti mentre li produce, e
+ * quel gancio gira dopo — nel log del 2026-10-08 il caricamento del .dmg e la
+ * sua firma distano 50 millisecondi, nell'ordine sbagliato. Il job restava
+ * verde e l'asset pubblicato era non firmato. `artifactBuildCompleted` invece
+ * viene ATTESO prima di `artifactCreated`, che e' l'evento su cui il
+ * PublishManager carica (app-builder-lib/out/packager.js,
+ * emitArtifactBuildCompleted): qui dentro si fa il lavoro e il file parte
+ * firmato.
  *
  * La documentazione di electron-builder sconsiglia `dmg.sign` («will lead to
  * unwanted errors in combination with notarization requirements»): per questo
@@ -76,10 +86,11 @@ function isAccepted(verdict) {
   return /: accepted\b/.test(verdict) && /source=Notarized Developer ID/.test(verdict);
 }
 
-exports.default = async function notarizeDmg(context) {
+/** Il gancio riceve UN artefatto per volta: `event.file` e' il suo percorso. */
+exports.default = async function notarizeDmg(event) {
   if (process.platform !== 'darwin') return;
-  const dmgs = (context.artifactPaths || []).filter((p) => p.endsWith('.dmg'));
-  if (!dmgs.length) return;
+  const dmg = event && event.file;
+  if (typeof dmg !== 'string' || !dmg.endsWith('.dmg')) return;
 
   const identity = signingIdentity();
   const notary = notaryArgs(process.env);
@@ -88,19 +99,17 @@ exports.default = async function notarizeDmg(context) {
     return;
   }
 
-  for (const dmg of dmgs) {
-    console.log(`  • dmg: firma ${dmg}`);
-    run('codesign', ['--force', '--sign', identity, '--timestamp', dmg]);
-    console.log('  • dmg: invio ad Apple, puo\' richiedere qualche minuto');
-    run('xcrun', ['notarytool', 'submit', dmg, ...notary, '--wait']);
-    console.log('  • dmg: francobollo');
-    run('xcrun', ['stapler', 'staple', dmg]);
-    // La prova del nove: se Gatekeeper non lo accetta, il build deve fallire
-    // qui e non alla prima segnalazione di chi ha scaricato.
-    const verdict = gatekeeperVerdict(dmg);
-    if (!isAccepted(verdict)) throw new Error(`dmg non accettato da Gatekeeper:\n${verdict}`);
-    console.log('  • dmg: accettato da Gatekeeper, notarizzato');
-  }
+  console.log(`  • dmg: firma ${dmg}`);
+  run('codesign', ['--force', '--sign', identity, '--timestamp', dmg]);
+  console.log('  • dmg: invio ad Apple, puo\' richiedere qualche minuto');
+  run('xcrun', ['notarytool', 'submit', dmg, ...notary, '--wait']);
+  console.log('  • dmg: francobollo');
+  run('xcrun', ['stapler', 'staple', dmg]);
+  // La prova del nove: se Gatekeeper non lo accetta, il build deve fallire
+  // qui e non alla prima segnalazione di chi ha scaricato.
+  const verdict = gatekeeperVerdict(dmg);
+  if (!isAccepted(verdict)) throw new Error(`dmg non accettato da Gatekeeper:\n${verdict}`);
+  console.log('  • dmg: accettato da Gatekeeper, notarizzato');
 };
 
 // Esportati per i test e per poter verificare un .dmg gia' costruito senza

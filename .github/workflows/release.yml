@@ -174,14 +174,20 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      # Un certificato sbagliato NON fa fallire il build: electron-builder
+      # Si verifica il file CARICATO, riscaricandolo dalla Release, non quello
+      # rimasto in dist/. Il 2026-10-08 i due differivano: il gancio firmava il
+      # .dmg 50 ms DOPO che era stato spedito (gancio sbagliato, vedi
+      # scripts/notarize-dmg.js), il job restava verde e l'asset pubblicato era
+      # non firmato. Un controllo sul file locale non puo' vedere quel difetto:
+      # l'unica cosa che conta e' cio' che scarichera' la gente.
+      #
+      # Un certificato sbagliato, poi, NON fa fallire il build: electron-builder
       # firma con quello che trova nel keychain — un «Apple Development» basta
       # a far dire "signing" nei log — e Gatekeeper lo rifiuta su ogni altro
-      # Mac (provato in locale: `spctl -a` risponde "rejected"). Qui la
-      # release si ferma, invece di uscire rotta e sembrare a posto.
+      # Mac. Qui la release si ferma, invece di uscire rotta e sembrare a posto.
       # Gli asset sono gia' caricati a questo punto, ma la Release nasce in
       # BOZZA e si pubblica a mano: un job rosso e' il segnale di non farlo.
-      - name: La firma e' una Developer ID, e il dmg e' notarizzato
+      - name: Il dmg sulla Release e firmato e notarizzato
         if: runner.os == 'macOS' && env.HAS_MAC_CERT == 'true'
         run: |
           set -eu
@@ -195,6 +201,21 @@ jobs:
             echo "::warning::firmato ma non notarizzato: manca la chiave di App Store Connect"
             exit 0
           fi
+          TAG="v$(node -p "require('./package.json').version")"
+          DEST="$RUNNER_TEMP/verifica"
+          mkdir -p "$DEST"
           for dmg in dist/*.dmg; do
-            xcrun stapler validate "$dmg" || { echo "::error::$dmg non e' notarizzato"; exit 1; }
+            NAME=$(basename "$dmg")
+            echo "Riscarico $NAME dalla Release e lo verifico"
+            gh release download "$TAG" --repo "$RELEASES_REPO" --pattern "$NAME" --dir "$DEST" --clobber
+            VERDETTO=$(spctl -a -vvv -t open --context context:primary-signature "$DEST/$NAME" 2>&1 || true)
+            echo "$VERDETTO"
+            case "$VERDETTO" in
+              *": accepted"*"Notarized Developer ID"*) ;;
+              *) echo "::error::$NAME sulla Release non e' accettato da Gatekeeper"; exit 1 ;;
+            esac
+            xcrun stapler validate "$DEST/$NAME" || { echo "::error::$NAME sulla Release non ha il francobollo"; exit 1; }
           done
+        env:
+          RELEASES_REPO: JackGrieco/PizzaManager-releases
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}

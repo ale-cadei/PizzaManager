@@ -3,10 +3,13 @@
 # electron-builder carica i file su una GitHub Release con lo stesso nome del
 # tag, creata in bozza se non esiste: si pubblica a mano dopo un'occhiata.
 #
-# Non firmati: su macOS chi scarica deve autorizzare l'app in Impostazioni →
-# Privacy e sicurezza (o `xattr -cr`); su Windows compare l'avviso SmartScreen.
-# Firmare richiede Apple Developer Program / un certificato code-signing:
-# quando ci saranno, electron-builder li usa da variabili d'ambiente.
+# I pacchetti finiscono su JackGrieco/PizzaManager-releases, repo PUBBLICO che
+# contiene solo le Release: il codice resta qui, privato, e i link di download
+# funzionano per chiunque (docs/plans/44-release-firmata.md).
+#
+# macOS e' firmato e notarizzato quando i secret ci sono (vedi sotto): il .dmg
+# si apre senza avvisi. Windows resta non firmato e mostra SmartScreen: serve
+# un certificato a parte, che non abbiamo (docs/plans/44-release-firmata.md).
 name: release
 on:
   push:
@@ -21,15 +24,26 @@ jobs:
   # "trova la bozza, altrimenti creala" senza alcun lock: quattro job che
   # finiscono insieme creavano quattro bozze con lo stesso tag (successo con
   # v1.0.2, unite a mano). Con la bozza gia' esistente, tutti la trovano.
+  #
+  # La Release vive nel repo PUBBLICO: il codice resta privato, i pacchetti
+  # sono release asset e non file di quel repo. Serve quindi un PAT con
+  # contents:write la', perche' il GITHUB_TOKEN di questo repo non scrive da
+  # nessun'altra parte.
+  #
+  # Niente --target: il tag non esiste nel repo pubblico e GITHUB_SHA e' un
+  # commit di QUESTO repo, che la' non c'e'. Senza, la bozza si appoggia al
+  # branch di default del repo pubblico.
   draft:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: |
           TAG="v$(node -p "require('./package.json').version")"
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --draft --title "$TAG" --notes "" --target "$GITHUB_SHA"
+          gh release view "$TAG" --repo "$RELEASES_REPO" >/dev/null 2>&1 \
+            || gh release create "$TAG" --repo "$RELEASES_REPO" --draft --title "$TAG" --notes ""
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASES_REPO: JackGrieco/PizzaManager-releases
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
   build:
     needs: draft
     strategy:
@@ -53,6 +67,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     # Un build che non finisce deve fallire, non occupare un runner per ore
     timeout-minutes: 40
+    # Solo per i `if` dei passi: dicono SE il materiale di firma c'e', senza
+    # esporne il valore. I valori veri si passano al build, scoped a macOS.
+    env:
+      HAS_MAC_CERT: ${{ secrets.MAC_CSC_LINK != '' }}
+      # Due strade per notarizzare, e basta una delle due. La chiave API e'
+      # quella consigliata, ma su un account individuale va RICHIESTA e Apple
+      # la approva quando vuole: fino ad allora si usa la app-specific
+      # password, che si crea da appleid.apple.com in due clic.
+      HAS_API_KEY: ${{ secrets.APPLE_API_KEY_P8 != '' }}
+      HAS_NOTARY_KEY: ${{ secrets.APPLE_API_KEY_P8 != '' || secrets.APPLE_APP_SPECIFIC_PASSWORD != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -62,9 +86,63 @@ jobs:
       - run: npm ci
       # Niente test qui: girano gia' in ci.yml su ogni push e PR (anche su
       # Windows), e il tag parte da un main verificato.
+      # La chiave di notarizzazione e' un file .p8 e APPLE_API_KEY vuole un
+      # PERCORSO, non il contenuto: il secret va scritto su disco prima del
+      # build, e in RUNNER_TEMP per non finire dentro al pacchetto.
+      # Il `if` guarda env e non secrets: nel contesto di un passo i secret
+      # non si possono interrogare direttamente.
+      - name: Chiave di notarizzazione su file
+        if: runner.os == 'macOS' && env.HAS_API_KEY == 'true'
+        run: |
+          printf '%s' "$APPLE_API_KEY_P8" > "$RUNNER_TEMP/apple-api-key.p8"
+          chmod 600 "$RUNNER_TEMP/apple-api-key.p8"
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
       - run: npx electron-builder ${{ matrix.args }} --publish always
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Il repo di destinazione e' in package.json (build.publish).
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
           DEBUG: electron-builder
-          # Senza certificato electron-builder firma ad hoc e va avanti
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+          # Il certificato Developer ID (.p12 in base64) e la sua password
+          # SOLO su macOS: CSC_LINK su Windows e' il certificato con cui
+          # electron-builder firma l'exe, e proverebbe a usare quello di Apple.
+          CSC_LINK: ${{ runner.os == 'macOS' && secrets.MAC_CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ runner.os == 'macOS' && secrets.MAC_CSC_KEY_PASSWORD || '' }}
+          # Senza certificato va spento, o electron-builder prova a firmare e
+          # il build fallisce (un fork, o questo branch prima dei secret).
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ runner.os == 'macOS' && secrets.MAC_CSC_LINK != '' }}
+          # La notarizzazione in electron-builder 26 e' opt-OUT: parte da se'
+          # appena le credenziali ci sono. Senza, firma e non notarizza.
+          # Prima strada: la chiave API (quando Apple avra' concesso l'accesso).
+          APPLE_API_KEY: ${{ (runner.os == 'macOS' && secrets.APPLE_API_KEY_P8 != '') && format('{0}/apple-api-key.p8', runner.temp) || '' }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          # Seconda strada, usata se la prima non c'e': app-specific password.
+          # electron-builder guarda prima APPLE_API_KEY, poi questi.
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      # Un certificato sbagliato NON fa fallire il build: electron-builder
+      # firma con quello che trova nel keychain — un «Apple Development» basta
+      # a far dire "signing" nei log — e Gatekeeper lo rifiuta su ogni altro
+      # Mac (provato in locale: `spctl -a` risponde "rejected"). Qui la
+      # release si ferma, invece di uscire rotta e sembrare a posto.
+      # Gli asset sono gia' caricati a questo punto, ma la Release nasce in
+      # BOZZA e si pubblica a mano: un job rosso e' il segnale di non farlo.
+      - name: La firma e' una Developer ID, e il dmg e' notarizzato
+        if: runner.os == 'macOS' && env.HAS_MAC_CERT == 'true'
+        run: |
+          set -eu
+          app=$(ls -d dist/mac*/PizzaManager.app | head -1)
+          if ! codesign -dv --verbose=2 "$app" 2>&1 | grep -q 'Authority=Developer ID Application'; then
+            echo "::error::firmato con un certificato che non e' Developer ID Application"
+            codesign -dv --verbose=2 "$app" 2>&1 | grep Authority || true
+            exit 1
+          fi
+          if [ "$HAS_NOTARY_KEY" != 'true' ]; then
+            echo "::warning::firmato ma non notarizzato: manca la chiave di App Store Connect"
+            exit 0
+          fi
+          for dmg in dist/*.dmg; do
+            xcrun stapler validate "$dmg" || { echo "::error::$dmg non e' notarizzato"; exit 1; }
+          done

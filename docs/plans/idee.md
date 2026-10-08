@@ -177,7 +177,8 @@ Già pianificato: [18-aggiornamento-automatico.md](18-aggiornamento-automatico.m
 (repo pubblico solo per le release, `electron-updater`, banner «Riavvia»).
 Tre branch:
 
-- [ ] `chore/release-pubblica`
+- [x] `chore/release-pubblica` — fatto nel [piano 44](44-release-firmata.md):
+      `JackGrieco/PizzaManager-releases`, pubblico, solo Release
 - [ ] `feat/auto-update`
 - [ ] `chore/firma-mac` (facoltativo)
 - [ ] provato su macOS

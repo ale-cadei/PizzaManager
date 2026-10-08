@@ -7,8 +7,9 @@
 const AUTO_TITLE_MS = 20000;
 let autoTitleTimer = null;
 
-function listSessionsFor(type) {
-  if (type === 'opencode') return window.aisess.listOpencode(100);
+function listSessionsFor(type, targets = []) {
+  // opencode elenca solo il progetto della cwd: si chiede in quelle delle schede
+  if (type === 'opencode') return window.aisess.listOpencode(100, [...new Set(targets.map((t) => t.cwd).filter(Boolean))]);
   if (type === 'claude') return window.aisess.listClaude(100);
   if (type === 'codex') return window.aisess.listCodex(100);
   if (type === 'antigravity') return window.aisess.listAntigravity(100);
@@ -56,7 +57,7 @@ async function refreshAutoTitles() {
   const targets = [...tabs.values()].filter(Titles.needsAutoRefresh);
   if (!targets.length) return;
   const byType = new Map();
-  for (const t of targets) if (!byType.has(t.type)) byType.set(t.type, listSessionsFor(t.type));
+  for (const t of targets) if (!byType.has(t.type)) byType.set(t.type, listSessionsFor(t.type, targets.filter((x) => x.type === t.type)));
   let changed = false;
   let discoveredId = false;
   for (const [type, promise] of byType) {

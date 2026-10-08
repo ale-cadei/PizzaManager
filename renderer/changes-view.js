@@ -81,14 +81,16 @@
     return box;
   }
 
+  /* `id` è il percorso, o «sezione:percorso» in «Da committare» (changes-model.js, itemId) */
   function fileRow(doc, f, diff, onFile) {
+    const id = M.itemId(f);
     const item = el(doc, 'div', 'changes-file');
     const row = el(doc, 'button', 'changes-file-row');
     row.type = 'button';
     row.title = M.displayPath(f);
-    row.dataset.path = f.path;
+    row.dataset.item = id;
     row.setAttribute('aria-expanded', diff ? 'true' : 'false');
-    row.onclick = () => onFile(f.path);
+    row.onclick = () => onFile(id);
     row.appendChild(el(doc, 'span', 'changes-chevron', diff ? '▾' : '▸'));
     row.appendChild(el(doc, 'span', `changes-status s-${f.status === '?' ? 'new' : f.status}`, f.status));
     row.appendChild(el(doc, 'span', 'changes-path', M.displayPath(f)));
@@ -101,10 +103,31 @@
     return item;
   }
 
+  /** L'intestazione di una sezione di «Da committare»: «STAGED · 2» */
+  function sectionHead(doc, section) {
+    const head = el(doc, 'div', `changes-section s-${section.side}`);
+    head.title = section.hint;
+    head.appendChild(el(doc, 'span', 'changes-section-title', section.title));
+    head.appendChild(el(doc, 'span', 'changes-section-count', String(section.count)));
+    return head;
+  }
+
+  /* Le righe, divise per sezione se ce ne sono; una sezione vuota lo dice */
+  function fileItems(doc, state, diffOf, onFile) {
+    const row = (f) => fileRow(doc, f, diffOf(M.itemId(f)), onFile);
+    const heads = state.sections || [];
+    if (!heads.length) return state.files.map(row);
+    return heads.flatMap((section) => {
+      const own = state.files.filter((f) => f.side === section.side);
+      const rows = own.length ? own.map(row) : [el(doc, 'div', 'changes-section-empty', 'Nessun file')];
+      return [sectionHead(doc, section), ...rows];
+    });
+  }
+
   /**
    * @param {{doc: Document, host: Element, shortcut: string,
    *   onToggle: () => void, onClose: () => void, onFile: (path: string) => void,
-   *   onMerge?: (confirmed: boolean) => void, onMode?: (mode: 'commit'|'turn') => void}} o
+   *   onMerge?: (confirmed: boolean) => void, onMode?: (mode: 'commit'|'turn'|'staging') => void}} o
    */
   function createChangesView({ doc, host, shortcut, onToggle, onClose, onFile, onMerge = () => {}, onMode = () => {} }) {
     const tab = button(doc, 'changes-tab', '', `Modifiche di questa sessione (${shortcut})`, () => onToggle());
@@ -131,15 +154,18 @@
     head.appendChild(heading);
     head.appendChild(summary);
     head.appendChild(button(doc, 'changes-close', '×', `Chiudi (${shortcut} o Esc)`, () => onClose()));
-    // «Dall'ultimo commit | Ultimo giro»: stesso selettore della sidebar
+    // «Dall'ultimo commit | Ultimo giro | Da committare»: stesso selettore della sidebar
     const modes = el(doc, 'div', 'seg changes-modes');
     modes.setAttribute('role', 'group');
     modes.setAttribute('aria-label', 'Rispetto a cosa');
     const commitBtn = button(doc, 'seg-btn changes-mode-commit', 'Dall\'ultimo commit',
       'Tutto quello che non è ancora in un commit', () => onMode('commit'));
     const turnBtn = button(doc, 'seg-btn changes-mode-turn', 'Ultimo giro', '', () => onMode('turn'));
+    const stagingBtn = button(doc, 'seg-btn changes-mode-staging', 'Da committare',
+      'Il non committato diviso fra staged (già con git add) e non staged', () => onMode('staging'));
     modes.appendChild(commitBtn);
     modes.appendChild(turnBtn);
+    modes.appendChild(stagingBtn);
     head.appendChild(modes);
     const body = el(doc, 'div', 'changes-body');
     const foot = el(doc, 'footer', 'changes-foot');
@@ -166,7 +192,8 @@
      * @param {{label: {visible: boolean, clean: boolean, text: string, parts: object[]}, open: boolean,
      *   title: string, summary: Array<{kind: string, text: string}>, error: string|null, files: object[],
      *   expanded: Object<string, object>, heading?: string, loading?: boolean, emptyText?: string, notice?: string|null,
-     *   modes?: {current: 'commit'|'turn', turnAvailable: boolean, turnHint: string}|null,
+     *   modes?: {current: 'commit'|'turn'|'staging', turnAvailable: boolean, turnHint: string}|null,
+     *   sections?: Array<{side: string, title: string, hint: string, count: number}>,
      *   merge?: {text: string, confirmLabel: string, warning: string|null, canConfirm: boolean}|null}} state
      */
     function render(state) {
@@ -193,13 +220,13 @@
       // Proprietà proprie: un file che si chiama `constructor` o `__proto__`
       // non deve trovare quelle di Object.prototype
       const diffOf = (p) => (Object.prototype.hasOwnProperty.call(state.expanded, p) ? state.expanded[p] : null);
-      const focused = focusedPath();
-      for (const f of state.files) items.push(fileRow(doc, f, diffOf(f.path), onFile));
+      const focused = focusedItem();
+      if (state.files.length) items.push(...fileItems(doc, state, diffOf, onFile));
       body.replaceChildren(...items);
       // Il ridisegno sostituisce le righe: il fuoco torna su quella di prima,
       // o finirebbe sul body (e Esc non chiuderebbe più)
       if (focused !== null) {
-        const row = [...body.querySelectorAll('.changes-file-row')].find((r) => r.dataset.path === focused);
+        const row = [...body.querySelectorAll('.changes-file-row')].find((r) => r.dataset.item === focused);
         if (row && row.focus) row.focus();
       }
     }
@@ -209,6 +236,7 @@
       if (!choice) return;
       commitBtn.setAttribute('aria-pressed', String(choice.current === 'commit'));
       turnBtn.setAttribute('aria-pressed', String(choice.current === 'turn'));
+      stagingBtn.setAttribute('aria-pressed', String(choice.current === 'staging'));
       turnBtn.disabled = !choice.turnAvailable;
       turnBtn.title = choice.turnHint;
       turnBtn.setAttribute('aria-label', `Ultimo giro: ${choice.turnHint}`);
@@ -227,10 +255,10 @@
       confirm.disabled = !merge.canConfirm;
     }
 
-    function focusedPath() {
+    function focusedItem() {
       const active = doc.activeElement;
-      if (!active || !active.dataset || typeof active.dataset.path !== 'string') return null;
-      return active.classList && active.classList.contains('changes-file-row') ? active.dataset.path : null;
+      if (!active || !active.dataset || typeof active.dataset.item !== 'string') return null;
+      return active.classList && active.classList.contains('changes-file-row') ? active.dataset.item : null;
     }
 
     function setWidth(px) {

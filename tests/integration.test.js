@@ -733,3 +733,69 @@ ok('git: la fotografia non tocca l\'indice e il confronto vede solo quello che �
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+// ---------- git: «Da committare», staged e non staged con git vero (piano 43) ----------
+ok('git: readStaging divide indice e cartella, e i diff di ogni sezione, con il git installato', async (t) => {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const path = require('path');
+  const { resolveBinary } = require('../lib/binaries');
+  const { readStaging, readStagingDiff } = require('../lib/git-staging');
+  const bin = resolveBinary('git');
+  if (!bin.path) return t.skip('git non installato su questa macchina');
+  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-staging-')));
+  const git = (...args) => String(execFileSync(bin.path, args, { cwd: root })).trim();
+  const write = (file, text) => fs.writeFileSync(path.join(root, file), text);
+  const rows = (r) => r.files.map((f) => [f.side, f.status, f.path]);
+  try {
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.name', 'Prova');
+    git('config', 'user.email', 'p@x');
+
+    // Senza commit: quello che è nell'indice è staged, il resto no
+    write('a.txt', 'uno\n');
+    write('fuori.txt', 'non aggiunto\n');
+    git('add', 'a.txt');
+    const unborn = await readStaging({ cwd: root });
+    assert.strictEqual(unborn.ok, true, unborn.error);
+    assert.strictEqual(unborn.against, null);
+    assert.deepStrictEqual(rows(unborn), [['staged', 'A', 'a.txt'], ['unstaged', '?', 'fuori.txt']]);
+
+    write('vecchio.txt', 'resto uguale\nper il rename\ne ancora\n');
+    write('via.txt', 'da cancellare\n');
+    git('add', '.');
+    git('commit', '-q', '-m', 'primo');
+    assert.deepStrictEqual((await readStaging({ cwd: root })).files, []);
+
+    // a.txt a metà: una riga in stage, una no. Un rename in stage, una
+    // cancellazione non staged, un file nuovo non tracciato.
+    write('a.txt', 'uno\nin stage\n');
+    git('add', 'a.txt');
+    write('a.txt', 'uno\nin stage\nfuori stage\n');
+    git('mv', 'vecchio.txt', 'nuovo.txt');
+    fs.rmSync(path.join(root, 'via.txt'));
+    write('appunti.md', '<b>x</b>\n');
+    const indexBefore = git('diff', '--cached', '--name-only');
+    const r = await readStaging({ cwd: root });
+    assert.strictEqual(r.ok, true, r.error);
+    assert.deepStrictEqual(rows(r), [
+      ['staged', 'M', 'a.txt'], ['staged', 'R', 'nuovo.txt'],
+      ['unstaged', 'M', 'a.txt'], ['unstaged', '?', 'appunti.md'], ['unstaged', 'D', 'via.txt'],
+    ]);
+    assert.deepStrictEqual([r.totals.staged, r.totals.unstaged, r.totals.files], [2, 3, 4]);
+
+    const changed = (d) => d.hunks[0].lines.filter((l) => l.kind !== 'ctx').map((l) => [l.kind, l.text]);
+    const staged = await readStagingDiff({ cwd: root, path: 'a.txt', side: 'staged' });
+    assert.strictEqual(staged.ok, true, staged.error);
+    assert.deepStrictEqual(changed(staged), [['add', 'in stage']]);
+    const unstaged = await readStagingDiff({ cwd: root, path: 'a.txt', side: 'unstaged' });
+    assert.deepStrictEqual(changed(unstaged), [['add', 'fuori stage']]);
+    const fresh = await readStagingDiff({ cwd: root, path: 'appunti.md', side: 'unstaged' });
+    assert.deepStrictEqual(changed(fresh), [['add', '<b>x</b>']]);
+    assert.strictEqual((await readStagingDiff({ cwd: root, path: 'appunti.md', side: 'staged' })).ok, false);
+    assert.strictEqual((await readStagingDiff({ cwd: root, path: 'nuovo.txt', side: 'staged' })).status, 'R');
+    assert.strictEqual(git('diff', '--cached', '--name-only'), indexBefore, 'la lettura ha toccato l\'indice');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

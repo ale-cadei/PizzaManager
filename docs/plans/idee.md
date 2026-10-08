@@ -57,6 +57,23 @@ contro `main`.
 - [ ] fatto
 - [ ] provato
 
+### Review attiva: commenti, commit, PR e merge dall'app
+Il pannello delle modifiche è in sola lettura e «Unisci» vale solo per i
+worktree. Quattro pezzi, un piano e un branch ciascuno, in quest'ordine:
+1. commenti sulle righe del diff, inviati all'agente come prompt (incollati,
+   l'Invio lo dà l'utente) — [44-review-commenti.md](44-review-commenti.md);
+2. commit dal pannello: stage/unstage per file e messaggio (prima scrittura
+   del pannello: lock, agente che lavora nello stesso momento);
+3. merge di un branch qualsiasi, non solo worktree → base;
+4. PR: push e apertura. Serve `gh` o un token GitHub, oggi non c'è nessuno
+   dei due.
+
+- [x] studio — fatto con l'utente il 2026-10-08: ordine sopra; commenti per
+      riga, in memoria, solo schede agente
+- [x] piano — 44 (commenti); 45–47 da scrivere
+- [ ] fatto
+- [ ] provato
+
 ### Segnale esatto «ha finito / ti sta chiedendo qualcosa»
 Oggi il lampeggio c'è, ma è **dedotto dall'output** (`renderer/attention.js`:
 soglie di byte e di tempo) e si vede solo dentro l'app. L'idea:

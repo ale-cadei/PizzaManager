@@ -274,3 +274,147 @@ ok('da committare: una sezione vuota lo dice, e i diff aperti sono per sezione',
   one(host, 'changes-file-row').onclick();
   assert.deepStrictEqual(calls.files, ['unstaged:a.js']);
 });
+
+/* Commenti sul diff (docs/plans/44) */
+const R = require('../renderer/review-notes');
+const reviewDiff = () => ({ ok: true, binary: false, truncated: false, hunks: [{ header: '@@ -1,2 +1,2 @@', lines: [
+  { kind: 'ctx', oldNo: 1, newNo: 1, text: 'uno' },
+  { kind: 'del', oldNo: 2, newNo: null, text: 'due' },
+  { kind: 'add', oldNo: null, newNo: 2, text: 'tre' },
+  { kind: 'note', oldNo: null, newNo: null, text: 'No newline at end of file' },
+] }] });
+const noteOn = (notes, line, body, path = 'a.js') => R.addNote(notes, R.anchorOf(path, line), body).notes;
+const reviewState = (review, over = {}) => baseState({ files: [file('a.js')], expanded: { 'a.js': reviewDiff() }, review, ...over });
+
+ok('commenti: senza commenti disponibili nessun ＋ e nessun piè di pagina', () => {
+  const { host, view } = setup();
+  view.render(reviewState(null));
+  assert.strictEqual(byClass(host, 'changes-note-add').length, 0);
+  assert.strictEqual(one(host, 'changes-review-foot').hidden, true);
+  view.render(reviewState({ enabled: false, notes: [], error: null }));
+  assert.strictEqual(byClass(host, 'changes-note-add').length, 0);
+});
+
+ok('commenti: ＋ su ogni riga con un numero; si scrive, Ctrl+Invio salva', () => {
+  const actions = [];
+  const { host, view } = setup({ onReview: (a) => { actions.push(a); return true; } });
+  view.render(reviewState({ enabled: true, notes: [], error: null }));
+  const plus = byClass(host, 'changes-note-add');
+  assert.strictEqual(plus.length, 3, 'la riga «No newline» non si commenta');
+  plus[2].onclick();
+  const input = one(host, 'changes-comment-input');
+  assert.ok(input, 'la textarea non si apre');
+  assert.strictEqual(input.focused, true);
+  input.value = 'manca il controllo';
+  fire(input, 'input');
+  const e = fire(input, 'keydown', { key: 'Enter', ctrlKey: true });
+  assert.ok(e.defaultPrevented);
+  assert.deepStrictEqual(actions, [{ type: 'save', anchor: { path: 'a.js', side: 'new', no: 2, text: 'tre' }, body: 'manca il controllo' }]);
+  assert.strictEqual(byClass(host, 'changes-comment-input').length, 0, 'salvata, la textarea si chiude');
+});
+
+ok('commenti: Esc nella textarea annulla senza chiudere il pannello', () => {
+  const { host, view, calls } = setup({ onReview: () => true });
+  view.render(reviewState({ enabled: true, notes: [], error: null }));
+  byClass(host, 'changes-note-add')[0].onclick();
+  const e = fire(one(host, 'changes-comment-input'), 'keydown', { key: 'Escape' });
+  assert.ok(e.propagationStopped);
+  assert.strictEqual(byClass(host, 'changes-comment-input').length, 0);
+  assert.strictEqual(calls.close, 0);
+});
+
+ok('commenti: quello che si sta scrivendo sopravvive a un ridisegno', () => {
+  const { host, view } = setup({ onReview: () => true });
+  const state = reviewState({ enabled: true, notes: [], error: null });
+  view.render(state);
+  byClass(host, 'changes-note-add')[0].onclick();
+  const input = one(host, 'changes-comment-input');
+  input.value = 'a metà';
+  fire(input, 'input');
+  view.render(state);
+  assert.strictEqual(one(host, 'changes-comment-input').value, 'a metà');
+});
+
+ok('commenti: mentre si scrive, un ridisegno (l\'agente cambia file) non toglie fuoco e cursore', () => {
+  const focusDoc = { createElement, activeElement: null };
+  const host = createElement('div');
+  const view = createChangesView({ doc: focusDoc, host, shortcut: 'x', onToggle() {}, onClose() {}, onFile() {}, onReview: () => true });
+  const state = reviewState({ enabled: true, key: 't1', notes: [], error: null });
+  view.render(state);
+  byClass(host, 'changes-note-add')[0].onclick();
+  const input = one(host, 'changes-comment-input');
+  input.value = 'a metà';
+  fire(input, 'input');
+  Object.assign(input, { selectionStart: 2, selectionEnd: 4 });
+  focusDoc.activeElement = input;
+  view.render(state);
+  const again = one(host, 'changes-comment-input');
+  assert.notStrictEqual(again, input, 'la textarea è nuova');
+  assert.strictEqual(again.focused, true);
+  assert.deepStrictEqual([again.selectionStart, again.selectionEnd], [2, 4]);
+  // senza fuoco sulla textarea, il ridisegno non glielo dà (lo ruberebbe al terminale)
+  focusDoc.activeElement = null;
+  view.render(state);
+  assert.strictEqual(one(host, 'changes-comment-input').focused, undefined);
+});
+
+ok('commenti: cambiando scheda il commento a metà non segue, né si salva sull\'altra', () => {
+  const actions = [];
+  const { host, view } = setup({ onReview: (a) => { actions.push(a); return true; } });
+  view.render(reviewState({ enabled: true, key: 't1', notes: [], error: null }));
+  byClass(host, 'changes-note-add')[0].onclick();
+  view.render(reviewState({ enabled: true, key: 't2', notes: [], error: null }));
+  assert.strictEqual(byClass(host, 'changes-comment-input').length, 0);
+  view.render(reviewState({ enabled: true, key: 't1', notes: [], error: null }));
+  assert.strictEqual(byClass(host, 'changes-comment-input').length, 0, 'scartato, non solo nascosto');
+  assert.deepStrictEqual(actions, []);
+});
+
+ok('commenti: la nota sotto la sua riga, ✎ riapre, ✕ toglie; contatore sul file', () => {
+  const actions = [];
+  const { host, view } = setup({ onReview: (a) => { actions.push(a); return true; } });
+  const line = reviewDiff().hunks[0].lines[1];
+  const notes = noteOn([], line, '<b>perché?</b>');
+  view.render(reviewState({ enabled: true, notes, error: null }));
+  const box = one(host, 'changes-comment');
+  assert.strictEqual(textOf(one(box, 'changes-comment-body')), '<b>perché?</b>');
+  const lines = byClass(host, 'changes-diff')[0].children;
+  assert.strictEqual(lines.indexOf(box), lines.findIndex((l) => l.classes.has('del')) + 1, 'la nota non è sotto la riga tolta');
+  assert.strictEqual(textOf(one(host, 'changes-comments')), '💬1');
+  one(box, 'changes-comment-edit').onclick();
+  assert.strictEqual(one(host, 'changes-comment-input').value, '<b>perché?</b>');
+  fire(one(host, 'changes-comment-input'), 'keydown', { key: 'Escape' });
+  one(host, 'changes-comment-remove').onclick();
+  assert.deepStrictEqual(actions, [{ type: 'remove', id: notes[0].id }]);
+  assert.ok(descendants(host).every((n) => !n.html));
+});
+
+ok('commenti: una nota la cui riga non c\'è più sta in testa al file', () => {
+  const { host, view } = setup({ onReview: () => true });
+  const notes = noteOn([], { kind: 'add', oldNo: null, newNo: 30, text: 'sparita' }, 'dove sei?');
+  view.render(reviewState({ enabled: true, notes, error: null }));
+  const orphan = one(host, 'changes-orphan');
+  assert.ok(textOf(orphan).includes('non più nel diff'));
+  assert.ok(textOf(orphan).includes('dove sei?'));
+  assert.ok(textOf(orphan).includes('sparita'));
+});
+
+ok('commenti: piè di pagina con conteggio, Svuota e Invia; l\'errore si vede', () => {
+  const actions = [];
+  const { host, view } = setup({ onReview: (a) => { actions.push(a); return true; } });
+  const [l1, l2] = reviewDiff().hunks[0].lines;
+  const notes = noteOn(noteOn([], l1, 'uno'), l2, 'due');
+  view.render(reviewState({ enabled: true, notes, error: 'Al massimo 50 commenti' }));
+  const foot = one(host, 'changes-review-foot');
+  assert.strictEqual(foot.hidden, false);
+  assert.strictEqual(textOf(one(foot, 'changes-review-count')), '2 commenti');
+  assert.strictEqual(textOf(one(foot, 'changes-review-error')), 'Al massimo 50 commenti');
+  one(foot, 'changes-review-clear').onclick();
+  one(foot, 'changes-review-send').onclick();
+  assert.deepStrictEqual(actions, [{ type: 'clear' }, { type: 'send' }]);
+  view.render(reviewState({ enabled: true, notes: noteOn([], l1, 'uno'), error: null }));
+  assert.strictEqual(textOf(one(foot, 'changes-review-count')), '1 commento');
+  assert.strictEqual(one(foot, 'changes-review-error').hidden, true);
+  view.render(reviewState({ enabled: true, notes: [], error: null }));
+  assert.strictEqual(foot.hidden, true);
+});

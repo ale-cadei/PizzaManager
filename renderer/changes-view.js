@@ -23,11 +23,12 @@
  * Wrapper UMD come worktree-section.js: globale nella pagina e module.exports
  * sotto Node. */
 (function (root, factory) {
-  const api = factory(root && root.AisessChangesModel);
+  const api = factory(root && root.AisessChangesModel, root && root.AisessReviewNotes);
   if (root) root.AisessChangesView = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-})(typeof window !== 'undefined' ? window : null, function (Model) {
+})(typeof window !== 'undefined' ? window : null, function (Model, Review) {
   const M = Model || require('./changes-model');
+  const R = Review || require('./review-notes');
   const SIGN = { add: '+', del: '-', ctx: ' ', note: '\\' };
   const DIFF_NOTES = {
     loading: 'Carico…',
@@ -57,8 +58,16 @@
     box.replaceChildren(...parts.map((p) => el(doc, 'span', `changes-n-${p.kind}`, p.text)));
   }
 
-  function diffLine(doc, line) {
+  /* `rc` sono i commenti del file (docs/plans/44), null se non si commenta:
+     { path, notes, editing, open(anchor, draft), draft(text), save(), cancel(), remove(id) } */
+  function diffLine(doc, line, rc) {
     const row = el(doc, 'div', `changes-line ${line.kind}`);
+    if (rc) {
+      const anchor = R.anchorOf(rc.path, line);
+      row.appendChild(anchor
+        ? button(doc, 'changes-note-add', '＋', 'Commenta questa riga', () => rc.open(anchor, ''))
+        : el(doc, 'span', 'changes-note-gap'));
+    }
     const no = line.kind === 'del' ? line.oldNo : line.newNo;
     row.appendChild(el(doc, 'span', 'changes-ln', no === null || no === undefined ? '' : String(no)));
     row.appendChild(el(doc, 'span', 'changes-sign', SIGN[line.kind] || ' '));
@@ -66,23 +75,80 @@
     return row;
   }
 
-  function diffBody(doc, diff) {
+  function commentBox(doc, n, rc) {
+    const box = el(doc, 'div', 'changes-comment');
+    box.appendChild(el(doc, 'span', 'changes-comment-body', n.body));
+    box.appendChild(button(doc, 'changes-comment-edit', '✎', 'Modifica il commento', () => rc.open(n, n.body)));
+    box.appendChild(button(doc, 'changes-comment-remove', '✕', 'Togli il commento', () => rc.remove(n.id)));
+    return box;
+  }
+
+  /* Ctrl+Invio (⌘+Invio) salva, Esc annulla: Esc non arriva al pannello, che si chiuderebbe */
+  function commentEditor(doc, rc) {
+    const box = el(doc, 'div', 'changes-comment-editor');
+    const input = el(doc, 'textarea', 'changes-comment-input');
+    input.value = rc.editing.draft;
+    input.setAttribute('aria-label', 'Commento per l\'agente');
+    input.placeholder = 'Cosa deve correggere l\'agente qui?';
+    input.addEventListener('input', () => rc.draft(input.value));
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); rc.save(); }
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); rc.cancel(); }
+    });
+    const actions = el(doc, 'div', 'changes-comment-actions');
+    actions.appendChild(el(doc, 'span', 'changes-comment-hint', 'Ctrl+Invio salva · Esc annulla'));
+    actions.appendChild(button(doc, 'btn btn--ghost changes-comment-cancel', 'Annulla', 'Annulla', () => rc.cancel()));
+    actions.appendChild(button(doc, 'btn btn--primary changes-comment-save', 'Salva', 'Salva il commento', () => rc.save()));
+    box.appendChild(input);
+    box.appendChild(actions);
+    return box;
+  }
+
+  const isEditing = (rc, id) => Boolean(rc && rc.editing && rc.editing.id === id);
+
+  /* Le note di una riga, o la textarea se la si sta commentando */
+  function lineComments(doc, line, rc) {
+    if (!rc) return [];
+    const anchor = R.anchorOf(rc.path, line);
+    if (!anchor) return [];
+    const notes = R.notesAt(rc.notes, rc.path, line).filter((n) => !isEditing(rc, n.id));
+    const editing = isEditing(rc, R.noteId(anchor)) && rc.editing.anchor.text === anchor.text;
+    return [...notes.map((n) => commentBox(doc, n, rc)), ...(editing ? [commentEditor(doc, rc)] : [])];
+  }
+
+  /* Note la cui riga non c'è più: l'agente ha cambiato il file sotto */
+  function orphanBox(doc, orphans, rc) {
+    const box = el(doc, 'div', 'changes-orphan');
+    box.appendChild(el(doc, 'div', 'changes-orphan-title', 'Righe non più nel diff'));
+    for (const n of orphans) {
+      box.appendChild(el(doc, 'div', 'changes-comment-quote', `${n.side === 'old' ? '−' : '+'}${n.no}  ${n.text}`));
+      box.appendChild(isEditing(rc, n.id) ? commentEditor(doc, rc) : commentBox(doc, n, rc));
+    }
+    return box;
+  }
+
+  function diffBody(doc, diff, rc) {
     const box = el(doc, 'div', 'changes-diff');
     const note = (text) => box.appendChild(el(doc, 'div', 'changes-diff-note', text));
     if (diff.loading) { note(DIFF_NOTES.loading); return box; }
     if (diff.ok === false) { note(diff.error || 'Diff non disponibile.'); return box; }
+    const orphans = rc ? R.orphansOf(rc.notes, rc.path, diff) : [];
+    if (orphans.length) box.appendChild(orphanBox(doc, orphans, rc));
     if (diff.binary) { note(DIFF_NOTES.binary); return box; }
     if (!diff.hunks.length) { note(DIFF_NOTES.empty); return box; }
     for (const hunk of diff.hunks) {
       box.appendChild(el(doc, 'div', 'changes-hunk', hunk.header));
-      for (const line of hunk.lines) box.appendChild(diffLine(doc, line));
+      for (const line of hunk.lines) {
+        box.appendChild(diffLine(doc, line, rc));
+        for (const c of lineComments(doc, line, rc)) box.appendChild(c);
+      }
     }
     if (diff.truncated) note(DIFF_NOTES.truncated);
     return box;
   }
 
   /* `id` è il percorso, o «sezione:percorso» in «Da committare» (changes-model.js, itemId) */
-  function fileRow(doc, f, diff, onFile) {
+  function fileRow(doc, f, diff, onFile, rc) {
     const id = M.itemId(f);
     const item = el(doc, 'div', 'changes-file');
     const row = el(doc, 'button', 'changes-file-row');
@@ -98,8 +164,10 @@
     if (counts.added) row.appendChild(el(doc, 'span', 'changes-add', counts.added));
     if (counts.removed) row.appendChild(el(doc, 'span', 'changes-del', counts.removed));
     if (counts.note) row.appendChild(el(doc, 'span', 'changes-note', counts.note));
+    const comments = rc ? R.countFor(rc.notes, f.path) : 0;
+    if (comments) row.appendChild(el(doc, 'span', 'changes-comments', `💬${comments}`));
     item.appendChild(row);
-    if (diff) item.appendChild(diffBody(doc, diff));
+    if (diff) item.appendChild(diffBody(doc, diff, rc));
     return item;
   }
 
@@ -113,8 +181,8 @@
   }
 
   /* Le righe, divise per sezione se ce ne sono; una sezione vuota lo dice */
-  function fileItems(doc, state, diffOf, onFile) {
-    const row = (f) => fileRow(doc, f, diffOf(M.itemId(f)), onFile);
+  function fileItems(doc, state, diffOf, onFile, reviewOf) {
+    const row = (f) => fileRow(doc, f, diffOf(M.itemId(f)), onFile, reviewOf(f.path));
     const heads = state.sections || [];
     if (!heads.length) return state.files.map(row);
     return heads.flatMap((section) => {
@@ -127,9 +195,13 @@
   /**
    * @param {{doc: Document, host: Element, shortcut: string,
    *   onToggle: () => void, onClose: () => void, onFile: (path: string) => void,
-   *   onMerge?: (confirmed: boolean) => void, onMode?: (mode: 'commit'|'turn'|'staging') => void}} o
+   *   onMerge?: (confirmed: boolean) => void, onMode?: (mode: 'commit'|'turn'|'staging') => void,
+   *   onReview?: (action: {type: 'save', anchor: object, body: string}|{type: 'remove', id: string}
+   *     |{type: 'clear'}|{type: 'send'}) => boolean|void}} o
+   *   `onReview` dei commenti (docs/plans/44): per `save`, false se il commento
+   *   è stato rifiutato (la textarea resta aperta)
    */
-  function createChangesView({ doc, host, shortcut, onToggle, onClose, onFile, onMerge = () => {}, onMode = () => {} }) {
+  function createChangesView({ doc, host, shortcut, onToggle, onClose, onFile, onMerge = () => {}, onMode = () => {}, onReview = () => {} }) {
     const tab = button(doc, 'changes-tab', '', `Modifiche di questa sessione (${shortcut})`, () => onToggle());
     tab.hidden = true;
     const tabTitle = (text) => `Modifiche di questa sessione: ${text} (${shortcut})`;
@@ -181,10 +253,56 @@
     foot.appendChild(footText);
     foot.appendChild(warning);
     foot.appendChild(actions);
+    // «3 commenti · Svuota · Invia all'agente» (docs/plans/44)
+    const reviewFoot = el(doc, 'footer', 'changes-review-foot');
+    reviewFoot.hidden = true;
+    const reviewCount = el(doc, 'span', 'changes-review-count');
+    const reviewError = el(doc, 'p', 'changes-review-error');
+    reviewError.setAttribute('role', 'alert');
+    const reviewActions = el(doc, 'div', 'changes-foot-actions');
+    reviewActions.appendChild(reviewCount);
+    const clearBtn = button(doc, 'btn btn--ghost changes-review-clear', 'Svuota', 'Togli tutti i commenti',
+      () => onReview({ type: 'clear' }));
+    const sendBtn = button(doc, 'btn btn--primary changes-review-send', 'Invia all\'agente',
+      'Incolla i commenti nel prompt dell\'agente: rileggi e premi Invio', () => onReview({ type: 'send' }));
+    reviewActions.appendChild(clearBtn);
+    reviewActions.appendChild(sendBtn);
+    reviewFoot.appendChild(reviewError);
+    reviewFoot.appendChild(reviewActions);
     panel.appendChild(resizer);
     panel.appendChild(head);
     panel.appendChild(body);
+    panel.appendChild(reviewFoot);
     panel.appendChild(foot);
+
+    /* Il commento che si sta scrivendo è solo della vista: sopravvive ai
+       ridisegni (il pannello si rilegge ogni pochi secondi) finché non si
+       salva o si annulla. È della scheda in cui si è aperto (`key`): su
+       un'altra si butta, o Ctrl+Invio lo salverebbe lì */
+    let last = null;
+    let editing = null;
+    let focusEditor = false;
+    const redraw = () => { if (last) render(last); };
+    const review = {
+      open: (anchor, draft) => {
+        const key = last && last.review ? last.review.key : null;
+        editing = { key, id: R.noteId(anchor), anchor, draft };
+        focusEditor = true;
+        redraw();
+      },
+      draft: (text) => { editing = editing && { ...editing, draft: text }; },
+      save: () => {
+        if (!editing) return;
+        const saved = onReview({ type: 'save', anchor: editing.anchor, body: editing.draft });
+        if (saved !== false) editing = null;
+        redraw();
+      },
+      cancel: () => { editing = null; redraw(); },
+      remove: (id) => onReview({ type: 'remove', id }),
+    };
+    const reviewOf = (state) => (path) => (state.review && state.review.enabled
+      ? { ...review, path, notes: state.review.notes, editing }
+      : null);
     host.appendChild(tab);
     host.appendChild(panel);
 
@@ -194,9 +312,11 @@
      *   expanded: Object<string, object>, heading?: string, loading?: boolean, emptyText?: string, notice?: string|null,
      *   modes?: {current: 'commit'|'turn'|'staging', turnAvailable: boolean, turnHint: string}|null,
      *   sections?: Array<{side: string, title: string, hint: string, count: number}>,
-     *   merge?: {text: string, confirmLabel: string, warning: string|null, canConfirm: boolean}|null}} state
+     *   merge?: {text: string, confirmLabel: string, warning: string|null, canConfirm: boolean}|null,
+     *   review?: {enabled: boolean, key: string, notes: object[], error: string|null}|null}} state
      */
     function render(state) {
+      last = state;
       tab.hidden = state.open || !state.label.visible;
       fillParts(doc, tab, state.label.parts);
       tab.title = tabTitle(state.label.text);
@@ -211,6 +331,7 @@
       title.textContent = state.title;
       renderModes(state.modes || null);
       renderFoot(state.merge || null);
+      renderReviewFoot(state.review || null);
       fillParts(doc, summary, state.summary);
       const items = [];
       if (state.notice) items.push(el(doc, 'div', 'changes-notice', state.notice));
@@ -220,9 +341,21 @@
       // Proprietà proprie: un file che si chiama `constructor` o `__proto__`
       // non deve trovare quelle di Object.prototype
       const diffOf = (p) => (Object.prototype.hasOwnProperty.call(state.expanded, p) ? state.expanded[p] : null);
+      if (editing && state.review && state.review.key !== editing.key) editing = null;
       const focused = focusedItem();
-      if (state.files.length) items.push(...fileItems(doc, state, diffOf, onFile));
+      const typing = typingAt();
+      if (state.files.length) items.push(...fileItems(doc, state, diffOf, onFile, reviewOf(state)));
       body.replaceChildren(...items);
+      // La textarea prende il fuoco appena aperta, o se l'aveva (si stava
+      // scrivendo e l'agente ha cambiato un file); un ridisegno qualsiasi no,
+      // o il giro periodico lo ruberebbe al terminale
+      const input = editing && (focusEditor || typing) ? body.querySelectorAll('.changes-comment-input')[0] : null;
+      if (input) {
+        focusEditor = false;
+        input.focus();
+        if (typing) Object.assign(input, typing);
+        return;
+      }
       // Il ridisegno sostituisce le righe: il fuoco torna su quella di prima,
       // o finirebbe sul body (e Esc non chiuderebbe più)
       if (focused !== null) {
@@ -255,10 +388,28 @@
       confirm.disabled = !merge.canConfirm;
     }
 
+    function renderReviewFoot(state) {
+      const notes = state && state.enabled ? state.notes : [];
+      const error = state && state.enabled ? state.error : null;
+      reviewFoot.hidden = !notes.length && !error;
+      reviewCount.textContent = notes.length === 1 ? '1 commento' : `${notes.length} commenti`;
+      reviewError.hidden = !error;
+      reviewError.textContent = error || '';
+      clearBtn.disabled = !notes.length;
+      sendBtn.disabled = !notes.length;
+    }
+
     function focusedItem() {
       const active = doc.activeElement;
       if (!active || !active.dataset || typeof active.dataset.item !== 'string') return null;
       return active.classList && active.classList.contains('changes-file-row') ? active.dataset.item : null;
+    }
+
+    /** Dov'era il cursore, se il fuoco è sulla textarea del commento */
+    function typingAt() {
+      const active = doc.activeElement;
+      if (!editing || !active || !active.classList || !active.classList.contains('changes-comment-input')) return null;
+      return { selectionStart: active.selectionStart, selectionEnd: active.selectionEnd };
     }
 
     function setWidth(px) {

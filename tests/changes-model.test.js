@@ -196,3 +196,12 @@ ok('da committare: spostare un file da una sezione all\'altra cambia la firma', 
   const b = stagingResult([staged('a.js')], { staged: 1, unstaged: 0 });
   assert.notStrictEqual(M.signature(a), M.signature(b));
 });
+
+ok('commenti: solo nelle sessioni con un agente, e non in modalità Unisci', () => {
+  assert.strictEqual(M.reviewAvailable({ type: 'claude' }, false), true);
+  assert.strictEqual(M.reviewAvailable({ type: 'codex' }, false), true);
+  assert.strictEqual(M.reviewAvailable({ type: 'claude' }, true), false);
+  assert.strictEqual(M.reviewAvailable({ type: 'shell' }, false), false);
+  assert.strictEqual(M.reviewAvailable({ type: 'git' }, false), false);
+  assert.strictEqual(M.reviewAvailable(null, false), false);
+});

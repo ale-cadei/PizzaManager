@@ -1,5 +1,4 @@
 // renderer/feedback-view.js sul DOM finto: cosa si vede nella bacheca.
-// Le regole di ordinamento e filtro stanno in lib/feedback-source.js.
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
 const { installDocument, createElement, descendants, fire } = require('./fake-dom');
@@ -16,11 +15,11 @@ const voce = (n, extra = {}) => ({
 function monta(voci, extra = {}) {
   const uninstall = installDocument();
   const root = createElement('div');
-  const votati = [];
-  renderFeedback(root, { voci, onVote: (n) => votati.push(n), ...extra });
+  const aperte = [];
+  renderFeedback(root, { voci, onOpen: (n) => aperte.push(n), ...extra });
   const testo = () => descendants(root).map((e) => e.textContent).filter(Boolean).join(' | ');
   const bottoni = () => descendants(root).filter((e) => e.tag === 'button');
-  return { root, testo, bottoni, votati, uninstall };
+  return { root, testo, bottoni, aperte, uninstall };
 }
 
 ok('bacheca: ogni voce mostra titolo, voti e autore', () => {
@@ -45,7 +44,7 @@ ok('bacheca: il voto chiama chi apre la issue, col numero giusto', () => {
   const b = t.bottoni().find((x) => x.attrs['data-numero'] === '9');
   assert.ok(b, 'manca il pulsante di voto');
   fire(b, 'click');
-  assert.deepStrictEqual(t.votati, [9]);
+  assert.deepStrictEqual(t.aperte, [9]);
   t.uninstall();
 });
 
@@ -55,6 +54,41 @@ ok('bacheca: il voto dice che apre GitHub, non finge di votare', () => {
   const t = monta([voce(1)]);
   const b = t.bottoni().find((x) => x.attrs['data-numero'] === '1');
   assert.match(String(b.title || ''), /GitHub/i, 'il titolo del pulsante deve dirlo');
+  t.uninstall();
+});
+
+ok('bacheca: anche il titolo apre la issue, non solo il riquadro del voto', () => {
+  // Chi vuole leggere una segnalazione non deve premere «vota» (piano 50).
+  const t = monta([voce(5), voce(9)]);
+  const corpo = t.bottoni().filter((x) => x.className.includes('fb-corpo'));
+  assert.strictEqual(corpo.length, 2, 'il corpo della riga non è cliccabile');
+  fire(corpo.find((x) => x.attrs['data-numero'] === '9'), 'click');
+  assert.deepStrictEqual(t.aperte, [9], 'porta alla issue sbagliata');
+  assert.match(String(corpo[0].title || ''), /GitHub/i);
+  t.uninstall();
+});
+
+ok('bacheca: la riga dice se è un problema o una richiesta', () => {
+  // Il tipo arriva fin qui dall'etichetta della issue: se non finisce nel
+  // DOM, il filo colorato non può esistere.
+  const t = monta([voce(1, { tipo: 'segnalazione' }), voce(2, { tipo: 'richiesta' })]);
+  const righe = descendants(t.root).filter((e) => e.className.includes('fb-voce'));
+  assert.deepStrictEqual(righe.map((r) => r.className.includes('tipo-segnalazione')), [true, false]);
+  assert.deepStrictEqual(righe.map((r) => r.className.includes('tipo-richiesta')), [false, true]);
+  t.uninstall();
+});
+
+ok('bacheca: ogni stato che il feed puo portare ha il suo badge', () => {
+  // Uno stato senza etichetta qui sparirebbe dalla riga: la cosa resterebbe
+  // «aperta» a raccogliere voti anche dopo che e' stata decisa (piano 50).
+  const { STATI } = require('../lib/feedback-source');
+  const t = monta(STATI.map((stato, i) => voce(i + 1, { stato })));
+  for (const stato of STATI.filter((s) => s !== 'aperta')) {
+    const riga = descendants(t.root).find((e) => e.className.includes(`stato-${stato}`));
+    assert.ok(riga, `lo stato ${stato} non si vede sulla riga`);
+    assert.ok(riga.textContent.trim(), `il badge di ${stato} e vuoto`);
+  }
+  assert.match(t.testo(), /Non lo faremo/);
   t.uninstall();
 });
 
@@ -110,7 +144,22 @@ ok('pianificato e rilasciate mostrano solo il loro stato', () => {
   const tutte = [voce(1), voce(2, { stato: 'pianificato' }), voce(3, { stato: 'in-corso' }), voce(4, { stato: 'completato' })];
   assert.deepStrictEqual(filterBy(tutte, 'pianificato').map((v) => v.numero), [2, 3], 'in corso e gia pianificato');
   assert.deepStrictEqual(filterBy(tutte, 'rilasciate').map((v) => v.numero), [4]);
-  assert.deepStrictEqual(filterBy(tutte, 'tendenza').map((v) => v.numero).sort(), [1, 2, 3, 4]);
+  assert.deepStrictEqual(filterBy(tutte, 'tendenza').map((v) => v.numero).sort(), [1, 2, 3], 'il completato non sta fra le cose da votare');
+});
+
+ok('di tendenza: quello che e gia stato deciso non ci sta', () => {
+  // Una riga chiusa con tanti voti resterebbe in cima per sempre, e la
+  // linguetta risponde a «cosa c'e' ancora sul tavolo». Si ritrova in
+  // «Recenti», e il completato anche in «Rilasciate» (piano 50).
+  const tutte = [
+    voce(1, { voti: 1 }),
+    voce(2, { voti: 99, stato: 'completato' }),
+    voce(3, { voti: 50, stato: 'non-lo-faremo' }),
+    voce(4, { voti: 2, stato: 'in-corso' }),
+  ];
+  assert.deepStrictEqual(filterBy(tutte, 'tendenza').map((v) => v.numero), [4, 1]);
+  assert.deepStrictEqual(filterBy(tutte, 'recenti').map((v) => v.numero).sort(), [1, 2, 3, 4], 'in Recenti c e tutto');
+  assert.deepStrictEqual(filterBy(tutte, 'rilasciate').map((v) => v.numero), [2]);
 });
 
 ok('una linguetta sconosciuta non nasconde tutto', () => {

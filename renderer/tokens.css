@@ -172,6 +172,9 @@
                   background: var(--bg); border: 1px solid var(--border-strong); color: var(--text);
                   font-family: var(--font-mono); font-size: 13px; outline: none; }
 .input:focus    { border-color: var(--action); }
+/* Niente maniglia di ridimensionamento: trascinata sfonda il dialogo che
+   la contiene, e la finestra non si rimette a posto da sola. */
+textarea.input  { resize: none; }
 
 .card           { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); }
 .card--selected { background: var(--surface-3); border-color: var(--action); box-shadow: 0 0 0 3px var(--action-ring); }

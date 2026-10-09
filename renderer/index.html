@@ -166,6 +166,7 @@
     <div class="bottombar">
       <footer id="usagebar" aria-label="Consumo di token: sessione, finestra 5 ore, settimana"></footer>
       <button type="button" class="bottombar-btn" id="extensions-open" title="Plugin e skill installati in Claude Code, Codex e opencode">🧩 PLUGIN E SKILL</button>
+      <button type="button" class="bottombar-btn" id="feedback-open" title="Segnalazioni e richieste di funzionalità">📣 SEGNALAZIONI</button>
     </div>
   </main>
 </div>
@@ -330,6 +331,38 @@
   </div>
 </div>
 
+<!-- Segnalazioni (docs/plans/48-segnalazioni.md): le voci le scarica il main
+     (la CSP qui ha connect-src 'none'), disegna feedback-view.js. Il modulo
+     per aprirne una nuova sta dentro; l'invio finale avviene su GitHub. -->
+<div class="modal-backdrop" id="modal-feedback" hidden>
+  <div class="modal wide">
+    <h2>📣 Segnalazioni</h2>
+    <p class="muted small">Problemi e richieste di funzionalità. Vota quelle che ti servono: le più votate le guardiamo prima.</p>
+    <div class="fb-barra">
+      <div class="tabs" role="tablist" id="fb-tabs"></div>
+      <button class="btn btn--ghost" id="fb-reload" title="Rileggi la bacheca">⟳</button>
+      <button class="btn" id="fb-new">＋ Nuova</button>
+    </div>
+    <div id="fb-form" hidden>
+      <label>Tipo<select class="input" id="fb-tipo">
+        <option value="richiesta">Richiesta di funzionalità</option>
+        <option value="segnalazione">Problema</option>
+      </select></label>
+      <label>Titolo<input class="input" id="fb-titolo" maxlength="120" placeholder="In poche parole" /></label>
+      <label>Descrizione<textarea class="input" id="fb-corpo" rows="4" placeholder="Cosa ti aspettavi, cosa succede invece"></textarea></label>
+      <p class="muted small">Si apre GitHub con tutto già compilato, compresi versione e sistema: l'invio lo confermi lì.</p>
+      <div class="modal-actions">
+        <button class="btn btn--ghost" id="fb-form-cancel">Annulla</button>
+        <button class="btn" id="fb-form-send">Continua su GitHub</button>
+      </div>
+    </div>
+    <div id="fb-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn--ghost" id="fb-close">Chiudi</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal rinomina sessione: window.prompt() non è supportato in Electron -->
 <div class="modal-backdrop" id="modal-rename" hidden>
   <div class="modal">
@@ -448,6 +481,7 @@
 <script src="changes-view.js"></script>
 <script src="changes-cache.js"></script>
 <script src="extensions-view.js"></script>
+<script src="feedback-view.js"></script>
 <script src="pets-sprite-pizza.js"></script>
 <script src="pets-sprite-fizzo.js"></script>
 <script src="pets-sprite-rotolacampo.js"></script>
@@ -486,6 +520,7 @@
 <script src="menu-actions.js"></script>
 <script src="panels.js"></script>
 <script src="extensions-panel.js"></script>
+<script src="feedback-panel.js"></script>
 <script src="changes-panel.js"></script>
 <script src="renderer.js"></script>
 </body>

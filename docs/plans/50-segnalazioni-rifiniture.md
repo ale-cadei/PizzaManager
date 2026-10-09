@@ -159,6 +159,40 @@ DOM finto non ha un foglio di stile — lo guarda il test degli `[hidden]` in
 `ui.test.js`. E il difetto 4 (il parametro che GitHub ignorava) non si vede
 da nessun test: lì serviva aprire l'indirizzo.
 
+## 8. La nuova segnalazione è un dialogo a sé
+
+Il modulo era un riquadro **dentro** la bacheca: mentre scrivevi, sotto
+restava l'elenco delle altre segnalazioni. Brutto e confuso — due cose che
+chiedono attenzione nello stesso posto.
+
+Ora `＋ Nuova` apre `#modal-fb-new`, un modale suo di larghezza normale
+(la bacheca è `.modal.wide`, 980px: un modulo di tre campi là dentro si
+perde), e **chiude la bacheca**: una schermata alla volta. «Annulla» e
+«Continua su GitHub» riportano indietro alla bacheca, da dove si era
+arrivati; `closeFeedback` spegne `feedback.aperto` prima di chiudere il
+modulo, così non riapre la bacheca che sta chiudendo.
+
+Effetto collaterale buono: il modulo non ha più una regola CSS di id, quindi
+la trappola del punto 6 sparisce invece di essere corretta — lo nasconde
+`.modal-backdrop[hidden]`, come ogni altro dialogo dell'app.
+
+Esc non chiude nessuno dei due, ma non chiudeva nemmeno la bacheca prima:
+nell'app lo fa solo `command-config.js`, che se l'è scritto da sé. Se si
+aggiunge, si aggiunge a tutti i modali insieme, non solo a questo.
+
+## Le etichette su GitHub, verificate
+
+Chiesto di controllare che l'etichetta arrivi davvero. Aperti i due indirizzi
+che l'app produce:
+
+| Modulo | Etichetta applicata | `tipoDa()` ne ricava |
+|---|---|---|
+| `segnalazione.yml` | `bug` | `segnalazione` → filo `--accent` |
+| `richiesta.yml` | `enhancement` | `richiesta` |
+
+Le etichette dei moduli sopravvivono al `title=` passato nell'indirizzo, che
+era il dubbio: il titolo del template viene sostituito, le `labels` no.
+
 ## Commenti da correggere, gratis
 
 Tre intestazioni dicono che i filtri stanno in `lib/feedback-source.js`:

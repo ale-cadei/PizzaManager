@@ -69,27 +69,38 @@ function openFeedback() {
 }
 
 function closeFeedback() {
-  const back = $('#modal-feedback');
-  if (back) back.hidden = true;
+  // Prima si spegne `aperto`, poi si chiude il modulo: così non riapre la
+  // bacheca che stiamo chiudendo.
   feedback.aperto = false;
   closeFeedbackForm();
+  const back = $('#modal-feedback');
+  if (back) back.hidden = true;
 }
 
-/* Il modulo per aprirne una nuova: il testo si scrive qui dentro, l'invio
-   finale avviene su GitHub con la issue già compilata — compresa la riga di
-   diagnostica, che altrimenti andrebbe chiesta a mano a ogni scambio. */
+/* Il modulo per aprirne una nuova sta in un dialogo suo, e mentre è aperto la
+   bacheca si chiude: una schermata alla volta, invece dell'elenco delle altre
+   segnalazioni sotto a quello che stai scrivendo (piano 50).
+   L'invio finale avviene su GitHub con la issue già compilata — compresa la
+   riga di diagnostica, che altrimenti andrebbe chiesta a mano a ogni scambio. */
 function openFeedbackForm() {
-  const f = $('#fb-form');
+  const f = $('#modal-fb-new');
   if (!f) return;
-  f.hidden = false;
   $('#fb-titolo').value = '';
   $('#fb-corpo').value = '';
+  const back = $('#modal-feedback');
+  if (back) back.hidden = true;
+  f.hidden = false;
   $('#fb-titolo').focus();
 }
 
+/* Chiuso il modulo si torna da dove si era arrivati, cioè la bacheca — a meno
+   che nel frattempo non l'abbia chiusa «Chiudi», che azzera feedback.aperto
+   prima di passare di qui. */
 function closeFeedbackForm() {
-  const f = $('#fb-form');
+  const f = $('#modal-fb-new');
   if (f) f.hidden = true;
+  const back = $('#modal-feedback');
+  if (back && feedback.aperto) back.hidden = false;
 }
 
 async function submitFeedbackForm() {

@@ -2,7 +2,7 @@
 // indirizzi per aprirla su GitHub. Nessuna rete: il feed arriva come testo.
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
-const { parseFeed, createUrl, voteUrl, REPO } = require('../lib/feedback-source');
+const { parseFeed, createUrl, issueUrl, REPO } = require('../lib/feedback-source');
 
 const voce = (n, extra = {}) => ({
   numero: n, titolo: `voce ${n}`, autore: 'tizio', voti: 0,
@@ -56,6 +56,6 @@ ok('il tipo sceglie il modulo giusto', () => {
 });
 
 ok('il voto porta alla issue: da un link non si puo reagire', () => {
-  assert.strictEqual(voteUrl(12), `https://github.com/${REPO}/issues/12`);
-  assert.strictEqual(voteUrl(null), null, 'senza numero non c e dove andare');
+  assert.strictEqual(issueUrl(12), `https://github.com/${REPO}/issues/12`);
+  assert.strictEqual(issueUrl(null), null, 'senza numero non c e dove andare');
 });

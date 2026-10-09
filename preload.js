@@ -21,6 +21,11 @@ contextBridge.exposeInMainWorld('aisess', {
   terminateSession: (session) => ipcRenderer.invoke('terminate-session', { session }),
   onData: (cb) => ipcRenderer.on('pty-data', (_e, v) => cb(v)),
   onExit: (cb) => ipcRenderer.on('pty-exit', (_e, v) => cb(v)),
+  // Aggiornamento automatico (app/updater.js): stato, applica, rimanda
+  updateState: () => ipcRenderer.invoke('update-state'),
+  applyUpdate: () => ipcRenderer.invoke('update-apply'),
+  dismissUpdate: () => ipcRenderer.invoke('update-dismiss'),
+  onUpdateState: (cb) => ipcRenderer.on('update-state', (_e, v) => cb(v)),
   getDefaults: () => ipcRenderer.invoke('get-defaults'),
   checkDeps: () => ipcRenderer.invoke('check-deps'),
   getHistory: () => ipcRenderer.invoke('get-history'),

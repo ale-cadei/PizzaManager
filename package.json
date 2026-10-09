@@ -1,7 +1,7 @@
 {
   "name": "aisessionmanager",
   "productName": "PizzaManager",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Gestore unificato di terminali, sessioni OpenCode e Claude Code in un'unica finestra",
   "main": "main.js",
   "homepage": "https://github.com/JackGrieco/PizzaManager-releases",

@@ -89,7 +89,46 @@ Nessun codice dell'app: solo distribuzione.
   modo di accorgersi se il repo o il token sono sbagliati: da loggati funziona
   comunque.
 
-## Branch 2 — `feat/auto-update`
+## Branch 2 — `feat/auto-update` ✅ fatto il 2026-10-09
+
+Scelte dell'utente: **scarica da sé** in background, e il banner compare
+**quando il pacchetto è già pronto** — così «Riavvia ora» costa due secondi
+invece di 100 MB di attesa. Controllo 10 secondi dopo l'avvio e poi ogni
+4 ore.
+
+Com'è venuto, file per file:
+
+- **`lib/update-policy.js`** (puro) — `updateMode` decide `off` / `auto` /
+  `manual`, e `bannerText` compone il messaggio e dice quale tasto mostrare.
+  Qui vive anche `DOWNLOAD_URL`, che prima era duplicato in `app/menu.js`:
+  ora quello lo importa da qui.
+- **`app/updater.js`** — `registerUpdateHandlers(ipcMain, …)`, nella forma
+  degli altri moduli di `app/`. Richiede `electron-updater` **in modo pigro**,
+  dentro la funzione: quel pacchetto costruisce `autoUpdater` al primo accesso
+  e vuole `app.getVersion()`, quindi importarlo in testa al file lo renderebbe
+  non caricabile sotto Node e porterebbe giù i test.
+- **`renderer/update-banner.js`** — disegna e non decide: riceve testo e tasto
+  già pronti. `textContent`, mai `innerHTML`: nel messaggio finiscono la
+  versione e (in prospettiva) le note scritte su GitHub, cioè dati esterni.
+- **`renderer/panels.js`** — `initUpdateBanner()`: si abbona all'evento **e**
+  chiede lo stato corrente all'avvio, perché l'evento può essere passato prima
+  che la pagina esistesse o dopo un ricaricamento.
+- **`main.js`** — due righe, tetto alzato da 225 a 227 con il perché nel test.
+
+### Perché `off` in sviluppo
+
+Con `npm start` manca `app-update.yml` — il file che electron-builder scrive
+**dentro il pacchetto** con l'indirizzo da cui scaricare — e il codice è già
+quello corrente. Senza la guardia, ogni avvio darebbe un errore in console.
+
+### Perché `manual` sul `.deb`
+
+Lì gli aggiornamenti li fa `apt`, e `electron-updater` non saprebbe dove
+scrivere. Si dice che c'è una versione nuova e si apre la pagina dei download.
+La distinzione si fa sulla variabile `APPIMAGE`, che è il formato stesso a
+mettere nell'ambiente quando l'app parte.
+
+## Branch 2 — com'era pianificato
 
 - **`electron-updater`** in `dependencies` (non dev: finisce nel pacchetto).
 - **`lib/update-policy.js`** — puro, testabile senza Electron: decide *cosa

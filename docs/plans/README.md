@@ -25,7 +25,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 15 | [`feat/quota-token-5h`](15-quota-token-5h.md) | 14 | ~½ g | ✅ fatto |
 | 16 | [`spike/quota-claude`](16-spike-quota-claude.md) | 15 | ~3h | ✅ risposto ([risultati](16-risultati.md)) |
 | 17 | [`feat/quota-endpoint-claude`](17-quota-endpoint-claude.md) | 15, 16 | ~2h | ✅ fatto |
-| 18 | [aggiornamento automatico](18-aggiornamento-automatico.md) — 3 branch | 13 | ~1 g | proposto |
+| 18 | [aggiornamento automatico](18-aggiornamento-automatico.md) — 3 branch | 13 | ~1 g | ✅ 1 e 2 fatti (44, `feat/auto-update`); firma mac fatta nel 44 |
 | 19 | [`feat/sposta-progetti-e-chat-corrente`](19-sposta-progetti-e-chat-corrente.md) | 8, 9, 14 | ~2h | fatto, da provare nell'app |
 | 20 | [`feat/onboarding`](20-onboarding.md) | — | ~1 g | fatto, da provare nell'app |
 | 21 | [`refactor/split-renderer`](21-split-renderer.md) | — | ~2h | ✅ fatto (PR #30) |

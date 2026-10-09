@@ -131,6 +131,22 @@ async function refreshUsage() {
   }
 }
 
+/* Banner dell'aggiornamento (renderer/update-banner.js). Il main decide tutto:
+   qui si disegna lo stato che arriva e si rimandano indietro i due tasti.
+   Si chiede anche lo stato corrente all'avvio, perche' l'evento puo' essere
+   passato prima che la pagina esistesse (o dopo un ricaricamento). */
+function initUpdateBanner() {
+  const host = $('#update-banner-host');
+  if (!host || !window.AisessUpdateBanner) return;
+  const banner = window.AisessUpdateBanner.createUpdateBanner({
+    host,
+    onApply: () => window.aisess.applyUpdate().catch((e) => console.warn('aggiornamento non applicato', e)),
+    onDismiss: () => window.aisess.dismissUpdate().catch(() => {}),
+  });
+  window.aisess.onUpdateState((state) => banner.render(state));
+  window.aisess.updateState().then((state) => banner.render(state)).catch(() => {});
+}
+
 function initUsageBar() {
   const root = $('#usagebar');
   if (!root || !window.AisessUsageBar) return;

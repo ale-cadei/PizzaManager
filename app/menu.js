@@ -4,8 +4,10 @@ const { isPlatformSupported } = require('../lib/notifications');
 const { MENU_ITEM_ID: NOTIFICATIONS_ID } = require('./notify');
 
 // La pagina pubblica dei download, non il repo del codice (privato): questo
-// link lo apre chi usa l'app, e su un repo privato vedrebbe un 404.
-const REPO_URL = 'https://github.com/JackGrieco/PizzaManager-releases';
+// link lo apre chi usa l'app, e su un repo privato vedrebbe un 404. L'indirizzo
+// e' lo stesso che usa l'aggiornamento automatico quando non puo' installare
+// da se', quindi la fonte e' una sola.
+const { DOWNLOAD_URL: REPO_URL } = require('../lib/update-policy');
 
 /**
  * Menu applicativo nativo.

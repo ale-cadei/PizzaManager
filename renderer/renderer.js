@@ -36,6 +36,7 @@ async function init() {
 
   initSidebarResize();
   initUsageBar();
+  initUpdateBanner();
   initExtensions();
   initPets();
   initNotifications().catch((e) => console.warn('notifiche non inizializzate', e));

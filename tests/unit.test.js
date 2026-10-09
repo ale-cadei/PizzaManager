@@ -391,5 +391,34 @@ ok('main.js e solo cablaggio: nessuna funzione di logica definita al suo interno
   // su main in parallelo — anche quello solo cablaggio.
   // 225: altre 5 per le notifiche di sistema (piano 38): un require e la
   // registrazione; la logica sta in lib/notifications.js e app/notify.js.
-  assert.ok(main.split('\n').length < 225, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
+  // 227: altre 2 per l'aggiornamento automatico (piano 18), stesso schema —
+  // le regole stanno in lib/update-policy.js, i fatti in app/updater.js.
+  assert.ok(main.split('\n').length < 227, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
+});
+
+/* I file che un PROGRAMMA ESTERNO deve aprire non bastano dentro app.asar:
+   solo Electron sa leggere quell'archivio. Vanno sia in `files` (o finiscono
+   fuori dal pacchetto) sia in `asarUnpack` (o restano dentro l'archivio, e
+   `Help → Licenza` aprirebbe il vuoto). È già successo con app/tmux.conf:
+   barra verde e Ctrl+B attivi nel .deb perché tmux non leggeva la config. */
+ok('i file legali viaggiano nel pacchetto e fuori dall archivio', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  for (const f of ['LICENSE', 'THIRD-PARTY-NOTICES.md']) {
+    assert.ok(fs.existsSync(path.join(__dirname, '..', f)), `${f} non esiste nel repo`);
+    assert.ok(pkg.build.files.includes(f), `${f} non e in build.files: resterebbe fuori dal pacchetto`);
+    assert.ok(pkg.build.asarUnpack.includes(f), `${f} non e in build.asarUnpack: Help → Licenza aprirebbe il vuoto`);
+  }
+  // Lo stesso vale per la config di tmux, che la legge tmux e non Electron.
+  assert.ok(pkg.build.asarUnpack.includes('app/tmux.conf'));
+});
+
+ok('la licenza dichiarata e quella dei termini scritti, non una standard', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  // MIT concederebbe a chiunque riceva il software di rivenderlo: con il
+  // codice privato era una contraddizione nelle intenzioni.
+  assert.strictEqual(pkg.license, 'UNLICENSED', 'npm usa UNLICENSED per «proprietario»');
+  const testo = fs.readFileSync(path.join(__dirname, '..', 'LICENSE'), 'utf8');
+  assert.match(testo, /Giacomo Grieco and Alessandro Cadei/, 'manca la nota di copyright');
+  assert.match(testo, /NO WARRANTY/, 'la clausola che protegge gli autori non c e');
+  assert.match(testo, /THIRD-PARTY-NOTICES\.md/, 'il rimando alle note di terze parti non c e');
 });

@@ -81,7 +81,7 @@ cast vuoto; il default diventa `['pizza']` — Peppo, che è il personaggio
 dell'app — e gli animaletti sono spenti di default, quindi nessuno se ne
 accorge per sorpresa.
 
-`MAX_CAST` scende da 21 a 19: è «quante voci ci sono», non un limite scelto.
+`MAX_CAST` scende da 21 a 18: è «quante voci ci sono», non un limite scelto.
 
 ## Le release già pubblicate
 
@@ -101,7 +101,7 @@ Alessandro per i suoi, e da scrivere nelle note.
 
 ## Prove
 
-- `npm run test:unit` verde: cadono i test dell'inseguimento (erano 8), restano
+- `npm run test:unit` verde: cadono i test dell'inseguimento (erano 6), restano
   quelli della medusa da sola, che diventano il caso normale.
 - Un test verifica che nel catalogo non ci sia nessuno dei tre id e nessuna
   etichetta che li nomini: se qualcuno li rimette per sbaglio, diventa rosso.

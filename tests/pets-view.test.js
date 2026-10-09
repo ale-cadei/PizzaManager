@@ -41,7 +41,7 @@ function setup({ reduced = false, reducedMotion = () => reduced, signals = { run
   return { view, strip, doc, docListeners, winListeners, frames, cancelled, tick, current, resize };
 }
 
-const ON = { enabled: true, cast: ['inseguimento', 'gary'], size: 'm', speed: 'normale' };
+const ON = { enabled: true, cast: ['medusa', 'gatto', 'pizza'], size: 'm', speed: 'normale' };
 const visibleFrames = (petEl) => descendants(petEl).filter((n) => n.tag === 'g' && n.getAttribute('display') !== 'none');
 const classOf = (el) => el.getAttribute('class') || '';
 

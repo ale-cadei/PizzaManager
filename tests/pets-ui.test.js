@@ -31,9 +31,9 @@ ok('pets-ui: si apre coi valori salvati, una riga per voce del cast', () => {
   assert.strictEqual(s.field('enabled').checked, false);
   assert.strictEqual(s.field('size').value, 'm');
   assert.strictEqual(s.field('speed').value, 'normale');
-  assert.strictEqual(s.count('inseguimento'), '1');
-  assert.strictEqual(s.count('gary'), '0');
-  assert.strictEqual(descendants(s.row('inseguimento')).some((n) => n.textContent === 'SpongeBob e la medusa'), true);
+  assert.strictEqual(s.count('pizza'), '1');
+  assert.strictEqual(s.count('medusa'), '0');
+  assert.strictEqual(descendants(s.row('pizza')).some((n) => n.textContent === 'Peppo, la pizza'), true);
 });
 
 ok('pets-ui: ogni ritocco si vede subito nella striscia', () => {
@@ -42,14 +42,14 @@ ok('pets-ui: ogni ritocco si vede subito nella striscia', () => {
   s.field('enabled').checked = true;
   fire(s.field('enabled'), 'change', {});
   assert.strictEqual(s.last().enabled, true);
-  fire(s.stepBtn('gary', 1), 'click', {});
-  assert.deepStrictEqual(s.last().cast, ['inseguimento', 'gary']);
-  assert.strictEqual(s.count('gary'), '1');
+  fire(s.stepBtn('medusa', 1), 'click', {});
+  assert.deepStrictEqual(s.last().cast, ['medusa', 'pizza']);
+  assert.strictEqual(s.count('medusa'), '1');
   s.field('size').value = 'l';
   fire(s.field('size'), 'change', {});
   assert.strictEqual(s.last().size, 'l');
-  fire(s.stepBtn('inseguimento', -1), 'click', {});
-  assert.deepStrictEqual(s.last().cast, ['gary']);
+  fire(s.stepBtn('pizza', -1), 'click', {});
+  assert.deepStrictEqual(s.last().cast, ['medusa']);
 });
 
 ok('pets-ui: il + si spegne quando non c è più posto', () => {
@@ -63,8 +63,8 @@ ok('pets-ui: il + si spegne quando non c è più posto', () => {
   assert.ok(ids.every((id) => s.stepBtn(id, 1).disabled), 'pieno: tutti i + spenti');
   fire(s.stepBtn('gatto', 1), 'click', {});
   assert.strictEqual(s.last().cast.length, MAX_CAST, 'oltre MAX_CAST non si va');
-  fire(s.stepBtn('gary', -1), 'click', {});
-  assert.strictEqual(s.stepBtn('inseguimento', 1).disabled, false, 'tolta una voce, anche la coppia rientra');
+  fire(s.stepBtn('medusa', -1), 'click', {});
+  assert.strictEqual(s.stepBtn('papera', 1).disabled, false, 'tolta una voce, anche un gruppetto rientra');
   assert.ok(descendants(s.els.body).some((n) => n.textContent === `Scelti: ${MAX_CAST - 1} su ${MAX_CAST}`));
 });
 

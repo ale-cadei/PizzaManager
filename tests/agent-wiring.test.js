@@ -22,7 +22,7 @@ function fakeAgent(dir) {
   const script = path.join(dir, 'fake-agent.js');
   fs.writeFileSync(script, `
     const fs = require('fs');
-    fs.writeFileSync(${JSON.stringify(path.join(dir, 'argv.json'))}, JSON.stringify({ argv: process.argv.slice(2), env: process.env.OPENCODE_CONFIG_CONTENT || null }));
+    fs.writeFileSync(${JSON.stringify(path.join(dir, 'argv.json'))}, JSON.stringify({ argv: process.argv.slice(2), env: process.env.OPENCODE_CONFIG_CONTENT || null, signal: process.env.AISESS_SIGNAL_FILE || null }));
     if (process.env.AISESS_SIGNAL_FILE) fs.writeFileSync(process.env.AISESS_SIGNAL_FILE, 'permission');
     setTimeout(() => {}, 1500);
   `);
@@ -95,5 +95,33 @@ test('chiusura senza tmux: il file del segnale se ne va con la sessione', async 
     assert.ok(await until(() => fs.existsSync(file)));
     s.mgr.close('tab4');
     assert.strictEqual(fs.existsSync(file), false);
+  } finally { s.stop(); s.mgr.closeAll(); }
+});
+
+/* Una sessione persa e ripristinata nasce con un nome nuovo: il file di
+   quella vecchia non lo raggiungerebbe più nessuno, se ne va subito. */
+test('ripristino: il file della sessione precedente se ne va', async (t) => {
+  const s = setup(t, 'claude');
+  if (!s) return;
+  try {
+    const old = s.store.pathFor('ais-claude-vecchia');
+    s.store.ensureDir();
+    fs.writeFileSync(old, 'permission');
+    const r = await s.mgr.spawn({ id: 'tab5', type: 'claude', cwd: s.dir, commandProfileId: 'claude:t', cols: 80, rows: 24, previousSession: 'ais-claude-vecchia' });
+    assert.strictEqual(r.ok, true, r.error);
+    assert.strictEqual(fs.existsSync(old), false);
+  } finally { s.stop(); s.mgr.closeAll(); }
+});
+
+/* Codex parla con OSC 9 nel terminale: il file non lo scriverebbe nessuno. */
+test('codex: gli args delle notifiche sì, il file del segnale no', async (t) => {
+  const s = setup(t, 'codex');
+  if (!s) return;
+  try {
+    const r = await s.mgr.spawn({ id: 'tab6', type: 'codex', cwd: s.dir, commandProfileId: 'codex:t', cols: 80, rows: 24 });
+    assert.strictEqual(r.ok, true, r.error);
+    assert.ok(await until(() => fs.existsSync(path.join(s.dir, 'argv.json'))));
+    assert.ok(s.argv().argv.includes('tui.notification_method=osc9'), s.argv().argv.join(' '));
+    assert.strictEqual(s.argv().signal, null);
   } finally { s.stop(); s.mgr.closeAll(); }
 });

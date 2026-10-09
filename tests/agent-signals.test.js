@@ -91,3 +91,33 @@ test('permessi: cartelle 0700, plugin 0600 anche se esisteva già', { skip: proc
   assert.equal(mode(hooks), 0o700, 'una cartella già esistente resta scrivibile da altri');
   assert.equal(mode(path.join(dir, 'signals')), 0o700);
 });
+
+/* fs.watch può morire (EMFILE, ENOSPC, filesystem senza inotify): le
+   sessioni già esatte resterebbero ferme sull'ultimo stato. Si riparte. */
+test('watch: se l osservazione muore riparte da sola, stop la ferma davvero', async () => {
+  const { EventEmitter } = require('events');
+  const watchers = [];
+  const fakeWatch = (_dir, cb) => {
+    const w = new EventEmitter();
+    w.cb = cb; w.closed = false; w.close = () => { w.closed = true; };
+    watchers.push(w);
+    return w;
+  };
+  const store = S.createAgentSignalStore({ dir: tmp(), fsWatch: fakeWatch, retryMs: 5 });
+  const got = [];
+  const stop = store.watch((k, v) => got.push([k, v]));
+  const err = console.error; console.error = () => {};
+  try {
+    watchers[0].emit('error', new Error('EMFILE'));
+    assert.ok(watchers[0].closed, 'il watcher morto va chiuso');
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(watchers.length, 2, 'non è ripartito');
+    fs.writeFileSync(store.pathFor('k1'), 'waiting');
+    watchers[1].cb('change', 'k1');
+    assert.deepStrictEqual(got, [['k1', 'waiting']]);
+    watchers[1].emit('error', new Error('EMFILE'));
+    stop();
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(watchers.length, 2, 'dopo stop non deve ripartire');
+  } finally { console.error = err; }
+});

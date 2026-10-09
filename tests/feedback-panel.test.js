@@ -57,6 +57,27 @@ ok('bacheca: il voto dice che apre GitHub, non finge di votare', () => {
   t.uninstall();
 });
 
+ok('bacheca: anche il titolo apre la issue, non solo il riquadro del voto', () => {
+  // Chi vuole leggere una segnalazione non deve premere «vota» (piano 50).
+  const t = monta([voce(5), voce(9)]);
+  const corpo = t.bottoni().filter((x) => x.className.includes('fb-corpo'));
+  assert.strictEqual(corpo.length, 2, 'il corpo della riga non è cliccabile');
+  fire(corpo.find((x) => x.attrs['data-numero'] === '9'), 'click');
+  assert.deepStrictEqual(t.aperte, [9], 'porta alla issue sbagliata');
+  assert.match(String(corpo[0].title || ''), /GitHub/i);
+  t.uninstall();
+});
+
+ok('bacheca: la riga dice se è un problema o una richiesta', () => {
+  // Il tipo arriva fin qui dall'etichetta della issue: se non finisce nel
+  // DOM, il filo colorato non può esistere.
+  const t = monta([voce(1, { tipo: 'segnalazione' }), voce(2, { tipo: 'richiesta' })]);
+  const righe = descendants(t.root).filter((e) => e.className.includes('fb-voce'));
+  assert.deepStrictEqual(righe.map((r) => r.className.includes('tipo-segnalazione')), [true, false]);
+  assert.deepStrictEqual(righe.map((r) => r.className.includes('tipo-richiesta')), [false, true]);
+  t.uninstall();
+});
+
 ok('bacheca vuota: lo dice invece di restare bianca', () => {
   const t = monta([]);
   assert.ok(t.testo().length > 0, 'una finestra vuota sembra rotta');

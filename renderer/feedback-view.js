@@ -78,7 +78,15 @@
       voto.addEventListener('click', () => { if (onOpen) onOpen(v.numero); });
       riga.appendChild(voto);
 
-      const corpo = el('div', 'fb-corpo');
+      // Anche il corpo apre la issue: cercare di leggerne una premendo un
+      // pulsante che dice «vota» era il contrario di quello che uno si
+      // aspetta (piano 50). Fratello del riquadro, non dentro: un <button>
+      // dentro un <button> non è HTML valido.
+      const corpo = el('button', 'fb-corpo');
+      corpo.type = 'button';
+      corpo.title = 'Apri la segnalazione su GitHub';
+      corpo.setAttribute('data-numero', String(v.numero));
+      corpo.addEventListener('click', () => { if (onOpen) onOpen(v.numero); });
       corpo.appendChild(el('span', 'fb-titolo', v.titolo));
       const sotto = el('span', 'fb-sotto');
       if (ETICHETTE[v.stato]) sotto.appendChild(el('span', `fb-stato stato-${v.stato}`, ETICHETTE[v.stato]));

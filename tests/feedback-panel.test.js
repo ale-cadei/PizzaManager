@@ -1,5 +1,4 @@
 // renderer/feedback-view.js sul DOM finto: cosa si vede nella bacheca.
-// Le regole di ordinamento e filtro stanno in lib/feedback-source.js.
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
 const { installDocument, createElement, descendants, fire } = require('./fake-dom');
@@ -16,11 +15,11 @@ const voce = (n, extra = {}) => ({
 function monta(voci, extra = {}) {
   const uninstall = installDocument();
   const root = createElement('div');
-  const votati = [];
-  renderFeedback(root, { voci, onVote: (n) => votati.push(n), ...extra });
+  const aperte = [];
+  renderFeedback(root, { voci, onOpen: (n) => aperte.push(n), ...extra });
   const testo = () => descendants(root).map((e) => e.textContent).filter(Boolean).join(' | ');
   const bottoni = () => descendants(root).filter((e) => e.tag === 'button');
-  return { root, testo, bottoni, votati, uninstall };
+  return { root, testo, bottoni, aperte, uninstall };
 }
 
 ok('bacheca: ogni voce mostra titolo, voti e autore', () => {
@@ -45,7 +44,7 @@ ok('bacheca: il voto chiama chi apre la issue, col numero giusto', () => {
   const b = t.bottoni().find((x) => x.attrs['data-numero'] === '9');
   assert.ok(b, 'manca il pulsante di voto');
   fire(b, 'click');
-  assert.deepStrictEqual(t.votati, [9]);
+  assert.deepStrictEqual(t.aperte, [9]);
   t.uninstall();
 });
 

@@ -2,8 +2,9 @@
    fondo a destra accanto a «Plugin e skill».
 
    Il pannello non decide: le voci arrivano dal main (che le scarica e le
-   tiene in cache), i filtri li applica lib/feedback-source.js, il disegno lo
-   fa feedback-view.js. Qui c'è solo il collegamento fra le tre cose. */
+   tiene in cache), filtri e disegno li fa feedback-view.js — anche i filtri,
+   perché la pagina gira sandboxed e non può importare da lib/ (il perché è
+   scritto in lib/feedback-source.js). Qui c'è solo il collegamento. */
 
 const feedback = { dati: null, linguetta: 'tendenza', aperto: false };
 
@@ -37,7 +38,7 @@ function renderFeedbackBody() {
   window.AisessFeedbackView.renderFeedback(body, {
     voci,
     errore: dati.errore,
-    onVote: (numero) => window.aisess.feedbackVote(numero).catch(() => {}),
+    onOpen: (numero) => window.aisess.feedbackOpenIssue(numero).catch(() => {}),
   });
 }
 

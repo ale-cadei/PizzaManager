@@ -1,5 +1,5 @@
 'use strict';
-const { parseFeed, createUrl, voteUrl, FEED_URL } = require('../lib/feedback-source');
+const { parseFeed, createUrl, issueUrl, FEED_URL } = require('../lib/feedback-source');
 const { diagnosticLine, collectDeps } = require('../lib/diagnostics');
 const { checkDeps, AGENTS } = require('../lib/setup-check');
 
@@ -76,10 +76,11 @@ function registerFeedbackHandlers(ipcMain, {
     return { ok: true };
   });
 
-  // Da un link non si puo' aggiungere una reazione: si apre la issue e la
-  // persona preme 👍 li'. Il pannello lo dice, non finge.
-  ipcMain.handle('feedback-vote', async (event, { numero } = {}) => {
-    const url = voteUrl(numero);
+  // Ci arrivano i due pulsanti di una riga: il riquadro del voto e il corpo.
+  // Da un link non si puo' aggiungere una reazione, quindi si apre la issue e
+  // la persona preme 👍 li'. Il pannello lo dice, non finge.
+  ipcMain.handle('feedback-open-issue', async (event, { numero } = {}) => {
+    const url = issueUrl(numero);
     if (!url) return { ok: false };
     await shell.openExternal(url);
     return { ok: true };

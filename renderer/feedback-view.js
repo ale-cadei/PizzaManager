@@ -1,8 +1,10 @@
 /* Disegna la bacheca delle segnalazioni (docs/plans/48-segnalazioni.md).
  *
- * Solo disegno: l'ordinamento e i filtri stanno in lib/feedback-source.js, e
- * la rete nel main (la CSP della pagina ha connect-src 'none'). Qui arrivano
- * voci già pronte.
+ * Disegno e filtri (`filterBy`): la rete invece la fa il main, perché la CSP
+ * della pagina ha connect-src 'none'. Qui arrivano voci già pronte.
+ * I filtri stanno qui e non in lib/feedback-source.js perché il renderer gira
+ * sandboxed e non può importare da lib/ (regola di CLAUDE.md, come
+ * session-groups.js): il perché per esteso è in lib/feedback-source.js.
  *
  * `textContent`, mai `innerHTML`: titoli, descrizioni e nomi li scrivono
  * estranei che aprono una issue.
@@ -44,8 +46,8 @@
     return e;
   }
 
-  /** @param host dove disegnare · voci già filtrate · onVote(numero) */
-  function renderFeedback(host, { voci, errore, onVote } = {}) {
+  /** @param host dove disegnare · voci già filtrate · onOpen(numero) */
+  function renderFeedback(host, { voci, errore, onOpen } = {}) {
     if (!host) return;
     while (host.children.length) host.removeChild(host.children[0]);
 
@@ -73,7 +75,7 @@
       voto.title = 'Apre la segnalazione su GitHub, dove puoi mettere 👍';
       voto.appendChild(el('span', 'fb-freccia', '▲'));
       voto.appendChild(el('span', 'fb-voti', v.voti));
-      voto.addEventListener('click', () => { if (onVote) onVote(v.numero); });
+      voto.addEventListener('click', () => { if (onOpen) onOpen(v.numero); });
       riga.appendChild(voto);
 
       const corpo = el('div', 'fb-corpo');

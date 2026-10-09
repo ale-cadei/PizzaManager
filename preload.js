@@ -27,7 +27,7 @@ contextBridge.exposeInMainWorld('aisess', {
   feedbackList: (ricarica) => ipcRenderer.invoke('feedback-list', { ricarica }),
   feedbackDiagnostics: () => ipcRenderer.invoke('feedback-diagnostics'),
   feedbackCreate: (opts) => ipcRenderer.invoke('feedback-create', opts),
-  feedbackVote: (numero) => ipcRenderer.invoke('feedback-vote', { numero }),
+  feedbackOpenIssue: (numero) => ipcRenderer.invoke('feedback-open-issue', { numero }),
   // Aggiornamento automatico (app/updater.js): stato, applica, rimanda
   updateState: () => ipcRenderer.invoke('update-state'),
   applyUpdate: () => ipcRenderer.invoke('update-apply'),

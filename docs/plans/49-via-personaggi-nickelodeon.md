@@ -89,11 +89,21 @@ Dalla 1.1.0 alla 1.4.0 contengono i tre personaggi dentro `app.asar`. Gli
 animaletti sono **spenti di default**, quindi per vederli bisogna accenderli
 dalle impostazioni, ma il codice c'è.
 
-**Si lasciano** (decisione dell'utente, 9 ottobre 2026): spariscono con la
-prossima versione. Chi ha l'app installata si aggiorna da sé, e nel frattempo
-quei personaggi non si vedono se non si accendono a mano. Resta vero che le
-vecchie release restano scaricabili dalla pagina pubblica finché non si
-cancellano gli asset: se un giorno servisse, si fa da lì.
+**Gli asset si tolgono** (decisione dell'utente, 9 ottobre 2026). Fatto il 9
+ottobre per **1.1.0, 1.2.0, 1.2.1 e 1.3.0**: 48 file via, le release restano
+con le loro note e il loro tag, ma non c'è più niente da scaricare.
+
+La **1.4.0 no, non ancora**: è la release corrente. È lei che la pagina offre a
+chi arriva, ed è il suo `latest-mac.yml` che l'aggiornamento automatico legge
+per sapere cosa scaricare. Toglierle gli asset vorrebbe dire lasciare la pagina
+pubblica senza niente da installare e rompere l'aggiornamento per chi sta su una
+versione vecchia. Si fa **appena esce la 1.5.0**, che i personaggi non li ha
+più: a quel punto la 1.4.0 è una vecchia come le altre.
+
+Effetto collaterale, piccolo: `electron-updater` scarica la differenza fra due
+versioni usando il `.blockmap` della vecchia. Senza quei file ricade sullo
+scaricamento intero, che è quello che faceva comunque per chi salta più
+versioni. I pacchetti sono rifacibili dai tag, se mai servissero.
 
 ## Da dove vengono gli altri disegni
 

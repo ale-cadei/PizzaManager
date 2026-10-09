@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('aisess', {
   terminateSession: (session) => ipcRenderer.invoke('terminate-session', { session }),
   onData: (cb) => ipcRenderer.on('pty-data', (_e, v) => cb(v)),
   onExit: (cb) => ipcRenderer.on('pty-exit', (_e, v) => cb(v)),
+  onAgentSignal: (cb) => ipcRenderer.on('agent-signal', (_e, v) => cb(v)),
   getDefaults: () => ipcRenderer.invoke('get-defaults'),
   checkDeps: () => ipcRenderer.invoke('check-deps'),
   getHistory: () => ipcRenderer.invoke('get-history'),

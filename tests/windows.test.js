@@ -336,3 +336,23 @@ ok('win: un opencode.cmd vero risponde, niente spawn EINVAL', { skip: process.pl
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
+
+/* Il JSON vero degli hook ha `|` nel matcher e virgolette ovunque: cmd.exe
+   deve ricevere --settings come un solo argomento, intatto. */
+ok('win: il JSON vero di claudeSettings passa intatto nella riga di cmd.exe', () => {
+  const { claudeSettings } = require('../lib/agent-hooks');
+  const json = claudeSettings({ platform: 'win32' });
+  const resolve = () => ({ path: 'C:\\Users\\jack\\AppData\\Roaming\\npm\\claude.cmd', via: 'PATH:npm' });
+  const inject = () => ({ args: ['--settings', json], env: {} });
+  const r = buildCommand('claude', null, null, { profiles: winProfiles(), home: HOME, env: ENV, platform: 'win32', resolve, inject });
+  // Ogni metacarattere di cmd.exe fuori dalle virgolette va preceduto da ^
+  const inner = r.commandLine.slice('/d /s /c "'.length, -1);
+  let quoted = false;
+  for (let i = 0; i < inner.length; i++) {
+    const c = inner[i];
+    if (c === '^') { i++; continue; }
+    if (c === '"') { quoted = !quoted; continue; }
+    if (!quoted) assert.ok(!'|&<>()%!'.includes(c), `${c} nudo in posizione ${i}: ${r.commandLine}`);
+  }
+  assert.ok(r.commandLine.includes('permission_prompt'), r.commandLine);
+});

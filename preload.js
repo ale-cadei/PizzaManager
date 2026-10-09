@@ -22,6 +22,12 @@ contextBridge.exposeInMainWorld('aisess', {
   onData: (cb) => ipcRenderer.on('pty-data', (_e, v) => cb(v)),
   onExit: (cb) => ipcRenderer.on('pty-exit', (_e, v) => cb(v)),
   onAgentSignal: (cb) => ipcRenderer.on('agent-signal', (_e, v) => cb(v)),
+  // Bacheca delle segnalazioni (app/feedback.js): la rete la fa il main,
+  // perche' la CSP della pagina ha connect-src 'none'
+  feedbackList: (ricarica) => ipcRenderer.invoke('feedback-list', { ricarica }),
+  feedbackDiagnostics: () => ipcRenderer.invoke('feedback-diagnostics'),
+  feedbackCreate: (opts) => ipcRenderer.invoke('feedback-create', opts),
+  feedbackVote: (numero) => ipcRenderer.invoke('feedback-vote', { numero }),
   // Aggiornamento automatico (app/updater.js): stato, applica, rimanda
   updateState: () => ipcRenderer.invoke('update-state'),
   applyUpdate: () => ipcRenderer.invoke('update-apply'),

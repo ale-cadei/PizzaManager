@@ -158,9 +158,11 @@ Nel **repo pubblico** (non qui):
 - **Moderazione**: le issue si chiudono da GitHub, come sempre.
 - **Notifiche** quando una richiesta cambia stato.
 
-## Scelte che spettano all'utente
+## Scelte prese (utente, 2026-10-09)
 
-1. **Dove sta il pannello**: accanto a «Plugin e skill» in fondo a destra
-   (consigliato: è lo stesso tipo di finestra), oppure una voce di menu.
-2. **Il nome**: «Segnalazioni» copre sia i problemi sia le richieste;
-   «Richieste» è più invitante ma non dice dove si segnala un difetto.
+- **Voti veri**, letti dalle reazioni 👍: il contatore è condiviso e
+  attendibile. Il pulsante apre la issue per votare — scartata l'ipotesi del
+  voto locale, perché un numero che sembra di tutti e invece è tuo mente.
+- **Il pannello sta accanto a «Plugin e skill»**, in fondo a destra: è lo
+  stesso tipo di finestra ed è dove uno lo cerca.
+- **Si chiama «Segnalazioni»**: copre sia i problemi sia le richieste.

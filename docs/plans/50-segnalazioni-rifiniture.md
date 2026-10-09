@@ -48,10 +48,20 @@ Erano state create provando il giro e si sono perse con la issue di prova
 cancellata. Senza di loro `statoDa()` risponde sempre `'aperta'`: nessuna
 riga mostra il badge e la linguetta «Pianificato» resta vuota per sempre.
 
-Si ricreano su `JackGrieco/PizzaManager-releases` — `stato:pianificato`,
-`stato:in-corso`, `stato:completato` — con i colori dei badge del pannello.
-Non è codice: è configurazione del repo pubblico, si fa con `gh label create`
-e si annota qui perché la prossima volta si sappia dove guardare.
+Ricreate il 9 ottobre 2026 su `JackGrieco/PizzaManager-releases`, coi colori
+dei badge del pannello:
+
+| Etichetta | Colore | Descrizione |
+|---|---|---|
+| `stato:pianificato` | `#FF9B6F` (`--action-text`) | Lo faremo |
+| `stato:in-corso` | `#F04E23` (`--action`) | Ci stiamo lavorando |
+| `stato:completato` | `#7EE2A8` (il verde del badge) | Fatto, in una versione rilasciata |
+
+Non è codice, è configurazione del repo pubblico: si rifà con
+`gh label create "stato:…" --repo JackGrieco/PizzaManager-releases --color …`.
+È annotato qui perché la prossima volta si sappia dove guardare — si erano
+perse con la issue di prova cancellata, e nessuno se ne accorge finché non
+manca il badge.
 
 ## Commenti da correggere, gratis
 

@@ -8,6 +8,7 @@ const { snapshotTree } = require('../lib/git-snapshot');
 const { readStaging, readStagingDiff } = require('../lib/git-staging');
 const { stagePaths, unstagePaths, stageAll, unstageAll, commitStaged } = require('../lib/git-commit');
 const { mergeBranch } = require('../lib/git-merge');
+const { pushBranch } = require('../lib/git-push');
 
 /**
  * Canali IPC della sessione di tipo git (docs/plans/25), dei worktree
@@ -67,6 +68,8 @@ function registerGitHandlers(ipcMain, { userDataDir } = {}) {
   // Unire un branch nel corrente (docs/plans/46): nome, tipo e controlli li
   // rifà lib/git-merge.js; `expect` è la punta che la conferma ha mostrato.
   ipcMain.handle('git-merge', guard(({ cwd, name, kind, expect }) => mergeBranch({ cwd, name, kind, expect: typeof expect === 'string' ? expect : null })));
+  // Push di un branch locale (docs/plans/47): upstream o `-u`, mai forzato
+  ipcMain.handle('git-push', guard(({ cwd, name }) => pushBranch({ cwd, name })));
 }
 
 module.exports = { registerGitHandlers };

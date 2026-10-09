@@ -1267,6 +1267,13 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .git-picker-merge { font-size: 15px; line-height: 1; }
 .git-picker-row:hover .git-picker-merge, .git-picker-merge:focus-visible { opacity: 1; }
 .git-picker-merge:hover, .git-picker-merge:focus-visible { color: var(--action-text); background: color-mix(in srgb, var(--action-text) 14%, transparent); }
+.git-picker-push {
+  flex: 0 0 auto; min-width: 28px; height: 28px; padding: 0 6px; background: none; border: 0;
+  border-radius: var(--radius); cursor: pointer; font: inherit; font-size: 12px; font-variant-numeric: tabular-nums;
+  color: var(--action-text); transition: background-color .12s ease;
+}
+/* ⇡ push (docs/plans/47): sempre visibile, dice che ci sono commit da mandare */
+.git-picker-push:hover, .git-picker-push:focus-visible { background: color-mix(in srgb, var(--action-text) 14%, transparent); }
 .git-picker-delete:hover, .git-picker-delete:focus-visible { color: var(--state-error); background: color-mix(in srgb, var(--state-error) 14%, transparent); }
 .git-picker-confirm {
   padding: 6px 8px; border-radius: var(--radius); font-size: 12px; gap: 8px;
@@ -1282,7 +1289,7 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .git-picker-confirm-yes { background: var(--state-error); border-color: var(--state-error); color: #fff; font-weight: 600; }
 .git-picker-confirm-no:hover { background: var(--surface-3); }
 .git-picker-confirm-yes:hover { filter: brightness(1.1); }
-@media (prefers-reduced-motion: reduce) { .git-picker-delete, .git-picker-merge { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .git-picker-delete, .git-picker-merge, .git-picker-push { transition: none; } }
 .git-picker-item--current { cursor: default; color: var(--type-git); }
 .git-picker-item--current:hover { background: none; }
 .git-picker-item--create { color: var(--action-text); }

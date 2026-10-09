@@ -940,3 +940,87 @@ ok('git: unire un branch nel corrente, fast-forward, merge e conflitti, con il g
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+ok('git: push di un branch su un remoto bare, nuovo upstream, push dopo, rifiuto senza force', async (t) => {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const path = require('path');
+  const { resolveBinary } = require('../lib/binaries');
+  const { pushBranch } = require('../lib/git-push');
+  const { listBranches } = require('../lib/git-branches');
+  const bin = resolveBinary('git');
+  if (!bin.path) return t.skip('git non installato su questa macchina');
+  const dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-push-')));
+  const remote = path.join(dir, 'remoto.git');
+  const root = path.join(dir, 'w');
+  const other = path.join(dir, 'altro');
+  const gitIn = (cwd) => (...args) => String(execFileSync(bin.path, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] })).trim();
+  const setup = (git) => {
+    git('config', 'user.name', 'Prova');
+    git('config', 'user.email', 'p@x');
+    git('config', 'core.hooksPath', '.git/hooks');
+    git('config', 'commit.gpgsign', 'false');
+  };
+  const commit = (cwd, git, file, msg) => { fs.writeFileSync(path.join(cwd, file), msg); git('add', file); git('commit', '-q', '-m', msg); };
+  const local = async (name) => (await listBranches({ cwd: root })).local.find((b) => b.name === name);
+  try {
+    fs.mkdirSync(root);
+    gitIn(dir)('init', '-q', '--bare', remote);
+    const git = gitIn(root);
+    git('init', '-q', '-b', 'main');
+    setup(git);
+    git('remote', 'add', 'origin', remote);
+    commit(root, git, 'a.txt', 'init');
+
+    // Nessun upstream: si pubblica con -u e il branch poi segue il remoto
+    git('switch', '-q', '-c', 'feat/x');
+    commit(root, git, 'b.txt', 'b');
+    assert.strictEqual((await local('feat/x')).upstream, '');
+    const first = await pushBranch({ cwd: root, name: 'feat/x' });
+    assert.deepStrictEqual(first, { ok: true, branch: 'feat/x', remote: 'origin', upstream: 'origin/feat/x', created: true });
+    assert.strictEqual(gitIn(dir)('--git-dir', remote, 'rev-parse', 'refs/heads/feat/x'), git('rev-parse', 'feat/x'));
+    assert.strictEqual(git('rev-parse', '--abbrev-ref', 'feat/x@{upstream}'), 'origin/feat/x');
+    assert.deepStrictEqual((({ ahead, behind }) => ({ ahead, behind }))(await local('feat/x')), { ahead: 0, behind: 0 });
+
+    // Un commit in più: ⇡1, poi il push normale sull'upstream
+    commit(root, git, 'c.txt', 'c');
+    assert.strictEqual((await local('feat/x')).ahead, 1);
+    const second = await pushBranch({ cwd: root, name: 'feat/x' });
+    assert.strictEqual(second.ok, true, second.error);
+    assert.strictEqual(second.created, false);
+    assert.strictEqual(gitIn(dir)('--git-dir', remote, 'rev-parse', 'refs/heads/feat/x'), git('rev-parse', 'feat/x'));
+    assert.strictEqual((await local('feat/x')).ahead, 0);
+
+    // Qualcun altro pusha prima: rifiutato, il remoto resta com'era (niente force)
+    gitIn(dir)('clone', '-q', '-b', 'feat/x', remote, other);
+    const git2 = gitIn(other);
+    setup(git2);
+    commit(other, git2, 'd.txt', 'd da altro');
+    git2('push', '-q', 'origin', 'feat/x');
+    const theirs = git2('rev-parse', 'HEAD');
+    commit(root, git, 'e.txt', 'e mio');
+    const refused = await pushBranch({ cwd: root, name: 'feat/x' });
+    assert.strictEqual(refused.ok, false);
+    assert.strictEqual(refused.rejected, true, refused.error);
+    assert.match(refused.error, /pull o rebase/);
+    assert.strictEqual(gitIn(dir)('--git-dir', remote, 'rev-parse', 'refs/heads/feat/x'), theirs);
+
+    // Un branch che non è quello estratto si pusha lo stesso, HEAD non conta
+    git('branch', 'feat/altro', 'main');
+    const other2 = await pushBranch({ cwd: root, name: 'feat/altro' });
+    assert.strictEqual(other2.ok, true, other2.error);
+    assert.strictEqual(gitIn(dir)('--git-dir', remote, 'rev-parse', 'refs/heads/feat/altro'), git('rev-parse', 'main'));
+    assert.strictEqual(git('rev-parse', '--abbrev-ref', 'HEAD'), 'feat/x');
+
+    // Un hook pre-push che rifiuta ferma il push e il suo messaggio arriva
+    git('switch', '-q', '-c', 'feat/hook');
+    const hook = path.join(root, '.git', 'hooks', 'pre-push');
+    fs.writeFileSync(hook, '#!/bin/sh\necho "pre-push: no grazie" >&2\nexit 1\n', { mode: 0o755 });
+    const hooked = await pushBranch({ cwd: root, name: 'feat/hook' });
+    assert.strictEqual(hooked.ok, false);
+    assert.match(hooked.error, /no grazie/);
+    assert.throws(() => gitIn(dir)('--git-dir', remote, 'rev-parse', '--verify', '--quiet', 'refs/heads/feat/hook'));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

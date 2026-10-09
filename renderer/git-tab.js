@@ -41,6 +41,14 @@ async function afterBranchChange(tab, request) {
   return r;
 }
 
+/* ⇡ nel selettore (docs/plans/47): la timeline si rilegge, i ref del remoto
+   si spostano */
+async function pushFromPicker(tab, name) {
+  const r = await afterBranchChange(tab, window.aisess.gitPush(tab.cwd, name));
+  if (!r || !r.ok) return r;
+  return { ok: true, text: r.created ? `${r.branch} pubblicato su ${r.upstream} (nuovo upstream).` : `${r.branch} pushato su ${r.upstream}.` };
+}
+
 /* ⤵ nel selettore (docs/plans/46): il pannello delle modifiche mostra cosa
    porta il branch e chiede conferma; il merge ricontrolla che la punta sia
    ancora quella guardata. Il testo dell'esito lo mostra il selettore. */
@@ -114,6 +122,7 @@ async function createGitTab({ name, cwd, startedAt = Date.now(), restoring = fal
     onCreate: (name) => afterBranchChange(tab, window.aisess.gitCreateBranch(tab.cwd, name)),
     onDelete: (name, force) => afterBranchChange(tab, window.aisess.gitDeleteBranch(tab.cwd, name, force)),
     onMerge: (name, kind, into) => mergeIntoCurrent(tab, name, kind, into),
+    onPush: (name) => pushFromPicker(tab, name),
   });
   tab.git = { view, picker, pending: null };
   tabs.set(id, tab);

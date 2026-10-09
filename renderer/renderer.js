@@ -38,6 +38,7 @@ async function init() {
   initUsageBar();
   initUpdateBanner();
   initExtensions();
+  initFeedback();
   initPets();
   initNotifications().catch((e) => console.warn('notifiche non inizializzate', e));
   watchWindowFocus();

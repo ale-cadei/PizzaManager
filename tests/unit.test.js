@@ -393,7 +393,9 @@ ok('main.js e solo cablaggio: nessuna funzione di logica definita al suo interno
   // registrazione; la logica sta in lib/notifications.js e app/notify.js.
   // 227: altre 2 per l'aggiornamento automatico (piano 18), stesso schema —
   // le regole stanno in lib/update-policy.js, i fatti in app/updater.js.
-  assert.ok(main.split('\n').length < 227, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
+  // 230: altre 3 per il segnale esatto degli agenti (piano 46): require, store
+  // e avvio; la logica sta in lib/agent-signals.js e app/pty.js.
+  assert.ok(main.split('\n').length < 230, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
 });
 
 /* I file che un PROGRAMMA ESTERNO deve aprire non bastano dentro app.asar:

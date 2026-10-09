@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('aisess', {
   terminateSession: (session) => ipcRenderer.invoke('terminate-session', { session }),
   onData: (cb) => ipcRenderer.on('pty-data', (_e, v) => cb(v)),
   onExit: (cb) => ipcRenderer.on('pty-exit', (_e, v) => cb(v)),
+  onAgentSignal: (cb) => ipcRenderer.on('agent-signal', (_e, v) => cb(v)),
   // Aggiornamento automatico (app/updater.js): stato, applica, rimanda
   updateState: () => ipcRenderer.invoke('update-state'),
   applyUpdate: () => ipcRenderer.invoke('update-apply'),

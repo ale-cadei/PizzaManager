@@ -53,7 +53,7 @@ ok('notifiche: le voci dal renderer si validano, quelle sporche si scartano', ()
   for (const bad of [null, undefined, 42, 'x', [], {}, { id: '' }, { id: 7 }]) {
     assert.strictEqual(N.validateItem(bad), null, `accettata ${JSON.stringify(bad)}`);
   }
-  assert.deepStrictEqual(N.validateItem({ id: 'a' }), { id: 'a', name: '', typeLabel: 'Sessione', where: '' });
+  assert.deepStrictEqual(N.validateItem({ id: 'a' }), { id: 'a', name: '', typeLabel: 'Sessione', where: '', kind: 'done' });
   const huge = N.validateItem({ id: 'a', name: 'x'.repeat(5000), typeLabel: 3, where: { p: 1 } });
   assert.ok(huge.name.length <= N.MAX_FIELD, 'testo accorciato');
   assert.strictEqual(huge.typeLabel, 'Sessione', 'un tipo non stringa torna al default');
@@ -129,4 +129,22 @@ ok('raggruppa: dispose butta quello che aspettava', () => {
   clock.advance(5000);
   assert.deepStrictEqual(flushed, []);
   assert.strictEqual(clock.pending(), 0);
+});
+
+// ---------- piano 46: il permesso ----------
+ok('notifiche: un permesso ha il suo titolo', () => {
+  const n = N.composeNotification([N.validateItem(item('a', { kind: 'permission' }))]);
+  assert.strictEqual(n.title, 'Claude chiede un permesso');
+});
+
+ok('notifiche: kind ignoto vale «ha finito»', () => {
+  assert.strictEqual(N.validateItem(item('a', { kind: 'boh' })).kind, 'done');
+  assert.strictEqual(N.validateItem(item('a')).kind, 'done');
+});
+
+ok('notifiche: più sessioni e almeno un permesso → «ti aspettano»', () => {
+  const n = N.composeNotification([N.validateItem(item('a')), N.validateItem(item('b', { kind: 'permission' }))]);
+  assert.strictEqual(n.title, '2 sessioni ti aspettano');
+  const m = N.composeNotification([N.validateItem(item('a')), N.validateItem(item('b'))]);
+  assert.strictEqual(m.title, '2 sessioni hanno finito', 'senza permessi il testo di prima');
 });

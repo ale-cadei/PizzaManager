@@ -131,11 +131,13 @@ async function init() {
     noteActivity(t, data ? data.length : 0);
     noteRunning(t);
   });
+  window.aisess.onAgentSignal(({ id, state }) => applyAgentSignal(tabs.get(id), state));
   window.aisess.onExit(({ id, exitCode }) => {
     const t = tabs.get(id);
     if (t) {
       t.alive = false;
       clearAttention(id);
+      agentState.forget(id);
       // Il processo è morto: l'ultimo output non deve lasciare la card che corre
       clearTimeout(t.runTimer);
       running.forget(id);

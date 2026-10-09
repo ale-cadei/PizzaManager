@@ -475,6 +475,11 @@ img.agent-icon--node { border-radius: 2px; }
 .group-header.needs-attention {
   animation: attention-pulse-cap 2.4s ease-in-out infinite;
 }
+/* Chiede un permesso (piano 46): stessa pulsazione e stesso colore della
+   sessione, ritmo più che doppio. Il colore resta quello del tipo: la
+   differenza si legge nel ritmo, non in un rosso che direbbe «errore». */
+.session-item.needs-attention.needs-permission,
+.group-header.needs-attention.needs-permission { animation-duration: .9s; }
 /* Barra di tipo piena: la card si fa notare anche senza percepire l'animazione */
 .session-item.needs-attention::before { opacity: .85; }
 @media (prefers-reduced-motion: reduce) {

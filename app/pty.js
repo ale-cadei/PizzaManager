@@ -7,6 +7,7 @@ const tmuxLib = require('../lib/tmux');
 const { shouldCapture } = require('../lib/scrollback');
 const { replayCommand } = require('../lib/scrollback-command');
 const { isTreeId } = require('../lib/git-snapshot');
+const { injectFor, opencodePluginSource, SIGNAL_ENV } = require('../lib/agent-hooks');
 
 let pty = null;
 try {
@@ -37,8 +38,9 @@ const CAPTURE_EVERY_MS = 30000;
  */
 /* `systemLocale` (es. `it-IT`, da app.getLocale(), anche come funzione) serve
    a scegliere LANG per i processi quando l'app, avviata dal Finder, non ce
-   l'ha (lib/locale.js). */
-function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = null, liveStore = null, systemLocale = null, scrollbackStore = null }) {
+   l'ha (lib/locale.js). `signalStore` (lib/agent-signals.js) accende il
+   segnale esatto degli agenti (docs/plans/46); senza, resta l'euristica. */
+function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = null, liveStore = null, systemLocale = null, scrollbackStore = null, signalStore = null }) {
   const localeOpts = () => {
     const v = typeof systemLocale === 'function' ? systemLocale() : systemLocale;
     return v ? { systemLocale: v } : {};
@@ -92,6 +94,54 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     return tmux.control.list().then((live) => { liveStore().write(live); }).catch(() => {});
   }
 
+  let pluginPath = null;
+  /** Il plugin opencode si riscrive al primo uso di ogni avvio: segue la versione dell'app. */
+  function ensurePlugin() {
+    if (pluginPath) return pluginPath;
+    try {
+      pluginPath = signalStore().writePlugin(opencodePluginSource());
+    } catch (e) {
+      console.error('[agent-signals] plugin opencode non scritto:', e.message);
+    }
+    return pluginPath;
+  }
+
+  /** Chiave del file di stato: il nome tmux (stabile ai riavvii), o la scheda. */
+  const signalKey = (id, session) => session || `tab-${String(id).replace(/[^A-Za-z0-9_-]/g, '')}`;
+
+  /**
+   * Args ed env in più per il segnale esatto (docs/plans/46). Lo stato vecchio
+   * si cancella: non deve accendere la sessione nuova. Un errore qui non
+   * blocca la sessione, la lascia sull'euristica.
+   */
+  function signalInjection({ id, session, type, args, profileEnv }) {
+    if (!signalStore) return { args: [], env: {} };
+    try {
+      const inj = injectFor(type, { pluginPath: type === 'opencode' ? ensurePlugin() : null, args, env: profileEnv });
+      if (!inj.exact) return { args: [], env: {} };
+      // Codex parla con OSC 9 nel terminale: un file non lo scriverebbe nessuno
+      if (type === 'codex') return { args: inj.args, env: inj.env };
+      const store = signalStore();
+      const key = signalKey(id, session);
+      store.ensureDir();
+      store.remove(key);
+      return { args: inj.args, env: { ...inj.env, [SIGNAL_ENV]: store.pathFor(key) } };
+    } catch (e) {
+      console.error('[agent-signals] iniezione non riuscita:', e.message);
+      return { args: [], env: {} };
+    }
+  }
+
+  /** Lo stato scritto da un hook arriva alla scheda che mostra quella sessione. */
+  function onSignal(key, state) {
+    for (const [id, c] of clients) if (c.signalKey === key) sendToRenderer('agent-signal', { id, state });
+  }
+
+  function dropSignal(key) {
+    if (!signalStore || !key) return;
+    try { signalStore().remove(key); } catch (e) { console.error('[agent-signals] file non rimosso:', e.message); }
+  }
+
   /** Le variabili di locale presenti nell'env, da passare a tmux con `-e`. */
   function localeVars(env) {
     const out = {};
@@ -100,8 +150,11 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
   }
 
   function track(id, p, session, type) {
-    const c = { p, session, type, dirty: false };
+    const c = { p, session, type, dirty: false, signalKey: signalKey(id, session) };
     clients.set(id, c);
+    // Uno stato scritto mentre l'app era chiusa (un permesso chiesto nel frattempo)
+    const pending = signalStore ? signalStore().read(c.signalKey) : null;
+    if (pending) sendToRenderer('agent-signal', { id, state: pending });
     p.onData((data) => {
       // Il segnale per la cattura periodica: senza output non c'e' niente di
       // nuovo da salvare.
@@ -137,7 +190,9 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     // `moved` torna alla scheda, che lo dice
     const where = describeWorkdir(cwd);
     const workdir = where.dir;
-    const { cmd, args, commandLine, profileEnv, missing, searchedPath, error, profile } = buildCommand(type, resumeId, commandProfileId, { profiles });
+    const session = viaTmux ? tmuxLib.sessionName(type) : null;
+    const inject = (a, pEnv) => signalInjection({ id, session, type, args: a, profileEnv: pEnv });
+    const { cmd, args, baseArgs, wrapped, commandLine, profileEnv, injectedEnv, missing, searchedPath, error, profile } = buildCommand(type, resumeId, commandProfileId, { profiles, inject });
     if (!cmd) {
       if (error) return { ok: false, error };
       return {
@@ -151,15 +206,14 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
 
     // Le variabili del profilo vengono per ultime: sono la scelta esplicita
     // dell'utente (es. CLAUDE_CONFIG_DIR) e devono vincere sui default.
-    const env = { ...augmentedEnv([cmd], identity.vars, process.env, localeOpts()), ...(profileEnv || {}) };
-    const session = viaTmux ? tmuxLib.sessionName(type) : null;
+    const env = { ...augmentedEnv([cmd], identity.vars, process.env, localeOpts()), ...(profileEnv || {}), ...injectedEnv };
 
     try {
       let p;
       if (viaTmux) {
         // Al processo dentro tmux arrivano esplicitamente le variabili che
         // contano; il resto lo eredita dal server (vedi lib/tmux.js, spawnArgs).
-        const sessionEnv = { PATH: env.PATH, COLORTERM: env.COLORTERM, ...localeVars(env), ...identity.vars, ...(profileEnv || {}) };
+        const sessionEnv = { PATH: env.PATH, COLORTERM: env.COLORTERM, ...localeVars(env), ...identity.vars, ...(profileEnv || {}), ...injectedEnv };
         // Ripristino dopo un riavvio: la sessione stampa il testo di prima e
         // poi DIVENTA la shell (exec). Il testo finisce cosi' nella history di
         // tmux, che e' quella con cui scorre la rotella.
@@ -196,6 +250,8 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
       // Consumato: il file di prima ha fatto il suo mestiere e puo' contenere
       // segreti. Da qui in avanti si salva sotto il nome della sessione nuova.
       if (previousSession && scrollbackStore) scrollbackStore().remove(previousSession);
+      // Anche il suo segnale: quella sessione non c'è più, nessuno lo leggerebbe
+      if (previousSession && previousSession !== session) dropSignal(previousSession);
       if (session) syncSnapshot();
       history().append({
         type,
@@ -206,7 +262,8 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
         commandProfileId: (profile && profile.id) || null,
         commandProfileLabel: (profile && profile.label) || null,
         tmuxSession: session,
-        cmd: [...Object.entries(profileEnv || {}).map(([k, v]) => `${k}=${v}`), cmd, ...args].join(' '),
+        // Il comando dell'utente, senza gli hook iniettati né il guscio di cmd.exe
+        cmd: [...Object.entries(profileEnv || {}).map(([k, v]) => `${k}=${v}`), wrapped || cmd, ...baseArgs].join(' '),
       });
       // La directory risolta torna alla scheda: e' quella su cui il titolo
       // automatico cerca la conversazione, non quella digitata dall'utente.
@@ -414,6 +471,8 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     if (c) {
       try { c.p.kill(); } catch {}
       clients.delete(id);
+      // Senza tmux il processo muore con il pty: il suo stato non serve più
+      if (!c.session) dropSignal(c.signalKey);
     }
     return { ok: true, detached: Boolean(c && c.session) };
   }
@@ -465,6 +524,31 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
    */
   function forget(session) {
     if (session && scrollbackStore) scrollbackStore().remove(session);
+    if (session) dropSignal(session);
+  }
+
+  /**
+   * I file di stato di sessioni che non esistono più. Senza tmux nessuna
+   * sopravvive all'app: si cancellano tutti.
+   */
+  async function sweepSignals() {
+    if (!signalStore) return;
+    try {
+      const live = viaTmux ? (await tmux.control.list()).map((s) => s.name) : [];
+      signalStore().sweep(live);
+    } catch (e) { console.error('[agent-signals] pulizia non riuscita:', e.message); }
+  }
+
+  let stopSignals = null;
+  /** All'avvio: via i file orfani, poi si ascoltano gli hook. */
+  function startSignals() {
+    if (stopSignals || !signalStore) return;
+    sweepSignals();
+    try {
+      stopSignals = signalStore().watch(onSignal);
+    } catch (e) {
+      console.error('[agent-signals] osservazione non avviata, resta l euristica:', e.message);
+    }
   }
 
   /** Alla chiusura dell'ultima finestra: stacca tutti i client. Con tmux le sessioni sopravvivono. */
@@ -477,7 +561,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
 
   return {
     spawn, attach, listLive, setLabel, setMeta, restorable, discardRestorable, write, scroll, captureShell, resize, close, terminate, terminateSession, closeAll,
-    startCapture, stopCapture, captureDirty, sweepScrollback,
+    startCapture, stopCapture, captureDirty, sweepScrollback, onSignal, sweepSignals, startSignals,
     get viaTmux() { return viaTmux; },
     get size() { return clients.size; },
     // compatibilita' con il nome precedente

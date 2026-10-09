@@ -53,6 +53,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 42 | [`fix/opencode-resume-id`](42-opencode-resume-id.md) — le schede opencode tornano dopo un riavvio | 8 | ~2h | fatto, provato nell'app |
 | 43 | [`feat/modifiche-staged`](43-modifiche-staged.md) — «Da committare»: staged e non staged nel pannello | 32 | ~½ g | fatto, provato nell'app (smoke sotto xvfb) |
 | 44 | [`chore/release-firmata`](44-release-firmata.md) — 1.1.0 firmata, notarizzata, su repo pubblico | 13 | ~½ g | in corso |
+| 44 | [`feat/review-attiva`](44-review-commenti.md) — commenti sul diff, inviati all'agente | 32, 43 | ~1 g | fatto, provato nell'app (smoke sotto xvfb, agente finto) |
 | 46 | [`feat/hooks-esatti`](46-hook-esatti.md) — lavora / ha finito / chiede un permesso, dagli hook di Claude, opencode e Codex | 38 | ~1½ g | fatto, smoke da fare |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.

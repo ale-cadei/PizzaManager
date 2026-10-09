@@ -7,7 +7,26 @@ const { MENU_ITEM_ID: NOTIFICATIONS_ID } = require('./notify');
 // link lo apre chi usa l'app, e su un repo privato vedrebbe un 404. L'indirizzo
 // e' lo stesso che usa l'aggiornamento automatico quando non puo' installare
 // da se', quindi la fonte e' una sola.
+const path = require('path');
 const { DOWNLOAD_URL: REPO_URL } = require('../lib/update-policy');
+// Stesso problema di app/tmux.conf: un file che deve aprire un PROGRAMMA
+// ESTERNO (qui l'editor di sistema) dentro app.asar non e' raggiungibile, e
+// `externalPath` punta alla copia che electron-builder tiene accanto
+// all'archivio. Vanno elencati in build.asarUnpack (regola di CLAUDE.md).
+const { externalPath } = require('../lib/tmux');
+
+/** I due file legali, accanto a package.json nella radice del pacchetto. */
+const LEGAL_FILES = { license: 'LICENSE', notices: 'THIRD-PARTY-NOTICES.md' };
+
+/**
+ * Apre uno dei due file legali con l'applicazione di sistema. In sviluppo
+ * `getAppPath()` e' la radice del progetto e `externalPath` non cambia nulla.
+ */
+function openLegalFile(which) {
+  const name = LEGAL_FILES[which];
+  if (!name) return;
+  return electronShell.openPath(externalPath(path.join(app.getAppPath(), name)));
+}
 
 /**
  * Menu applicativo nativo.
@@ -94,6 +113,12 @@ function buildAppMenu({ sendToRenderer, platform = process.platform } = {}) {
         // setAboutPanelOptions (sotto): su macOS e' il posto che l'utente
         // cerca per abitudine.
         { role: 'about', label: 'Informazioni su PizzaManager' },
+        { type: 'separator' },
+        // Le licenze dei componenti impacchettati chiedono che le loro note
+        // di copyright siano conservate: tenerle nel pacchetto senza un modo
+        // di leggerle sarebbe conservarle a meta'.
+        { label: 'Licenza', click: () => openLegalFile('license') },
+        { label: 'Note di terze parti', click: () => openLegalFile('notices') },
         { type: 'separator' },
         { label: 'PizzaManager: download e versioni', click: () => electronShell.openExternal(REPO_URL) },
       ],

@@ -189,6 +189,11 @@
     return { current, turnAvailable, turnHint };
   }
 
+  /** I commenti sul diff (docs/plans/44) vanno a un agente: non a shell e git, non durante Unisci */
+  function reviewAvailable(tab, merging) {
+    return Boolean(tab) && tab.type !== 'shell' && tab.type !== 'git' && !merging;
+  }
+
   function emptyText(result) {
     if (result && result.staging) return 'Niente da committare: indice e cartella come all\'ultimo commit.';
     return result && result.since ? 'Nessuna modifica dall\'ultimo prompt.' : 'Nessuna modifica: tutto come all\'ultimo commit.';
@@ -196,6 +201,6 @@
 
   return {
     targetFor, tabLabel, headerTitle, summary, summaryParts, notice, modeChoice, emptyText, fileCounts, signature,
-    diffsToReload, splitPath, displayPath, itemId, splitItemId, sections,
+    diffsToReload, splitPath, displayPath, itemId, splitItemId, sections, reviewAvailable,
   };
 });

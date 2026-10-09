@@ -23,7 +23,7 @@
   <a href="https://github.com/ale-cadei/PizzaManager/actions/workflows/ci.yml"><img src="https://github.com/ale-cadei/PizzaManager/actions/workflows/ci.yml/badge.svg" alt="Test"></a>
   <img src="https://img.shields.io/badge/macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-black" alt="macOS, Linux e Windows">
   <img src="https://img.shields.io/badge/Electron-33-47848F?logo=electron&logoColor=white" alt="Electron 33">
-  <img src="https://img.shields.io/badge/licenza-MIT-green" alt="Licenza MIT">
+  <img src="https://img.shields.io/badge/licenza-proprietaria-lightgrey" alt="Software proprietario">
 </p>
 
 <p align="center">
@@ -216,4 +216,10 @@ I test importano il codice vero e girano anche i casi Windows da macOS/Linux, in
 
 ## Licenza
 
-MIT.
+Software **proprietario**: si può installare e usare liberamente, non
+ridistribuire né modificare. Il testo sta in [`LICENSE`](LICENSE), e i
+componenti di terze parti che l'app impacchetta — con le loro licenze, tutte
+permissive — in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md), generato
+dalle dipendenze reali.
+
+Copyright © 2026 Giacomo Grieco e Alessandro Cadei.

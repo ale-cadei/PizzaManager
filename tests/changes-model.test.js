@@ -316,3 +316,23 @@ ok('unisci branch: un branch già contenuto nel corrente non si unisce', () => {
   assert.strictEqual(f.canConfirm, false);
   assert.match(f.warning, /già contenuto/);
 });
+
+ok('modifiche: lo scarto chiede conferma, poi offre l\'Annulla (piano 48)', () => {
+  assert.strictEqual(M.discardFooter(null, true), null);
+  const ask = M.discardFooter({ phase: 'confirm', path: 'lib/a.js', untracked: false }, true);
+  assert.match(ask.text, /Scartare le modifiche non staged a lib\/a\.js\?/);
+  assert.match(ask.text, /staged resta/);
+  assert.deepStrictEqual([ask.confirmLabel, ask.undoLabel, ask.canAct], ['Scarta', null, true]);
+  const askNew = M.discardFooter({ phase: 'confirm', path: 'nuovo.txt', untracked: true }, true);
+  assert.match(askNew.text, /Cancellare nuovo\.txt\? Non è in git/);
+  assert.strictEqual(askNew.confirmLabel, 'Cancella');
+  assert.strictEqual(M.discardFooter({ phase: 'confirm', path: 'a', untracked: false }, false).canAct, false, 'mentre si scrive, o con l\'agente al lavoro');
+
+  const undo = { path: 'lib/a.js', blob: 'a'.repeat(40), mode: 0o644, after: null };
+  const done = M.discardFooter({ phase: 'done', path: 'lib/a.js', untracked: false, undo }, true);
+  assert.deepStrictEqual([done.text, done.confirmLabel, done.undoLabel], ['Scartate le modifiche a lib/a.js.', null, 'Annulla lo scarto']);
+  assert.strictEqual(M.discardFooter({ phase: 'done', path: 'n.txt', untracked: true, undo }, true).text, 'Cancellato n.txt.');
+  const link = M.discardFooter({ phase: 'done', path: 'l', untracked: false, undo: null }, true);
+  assert.strictEqual(link.undoLabel, null);
+  assert.match(link.text, /non si può annullare/);
+});

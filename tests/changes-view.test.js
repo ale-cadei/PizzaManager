@@ -515,3 +515,49 @@ ok('commit: cambiando scheda il messaggio è quello della scheda, non quello di 
   view.render(stagingView(commitOf({ key: 't2', message: '' })));
   assert.strictEqual(input.value, '');
 });
+
+/* ---------- Scartare un file (docs/plans/48) ---------- */
+
+ok('scarta: ↶ solo sulle righe non staged, accanto a ＋, e chiede conferma al pannello', () => {
+  const actions = [];
+  const { host, view } = setup({ onCommit: (a) => { actions.push(a); } });
+  view.render(stagingView(commitOf()));
+  const discard = byClass(host, 'changes-discard');
+  assert.strictEqual(discard.length, 2, 'le due righe non staged');
+  assert.ok(byClass(host, 'changes-file-row').every((r) => !descendants(r).some((n) => n.tag === 'button')), 'niente pulsanti dentro un pulsante');
+  assert.strictEqual(discard[0].getAttribute('aria-label'), 'Scarta le modifiche non staged a a.js');
+  assert.strictEqual(discard[1].getAttribute('aria-label'), 'Cancella n.md (non è in git)');
+  discard[0].onclick();
+  discard[1].onclick();
+  assert.deepStrictEqual(actions, [
+    { type: 'discard-ask', path: 'a.js', untracked: false }, { type: 'discard-ask', path: 'n.md', untracked: true },
+  ]);
+  view.render(stagingView(commitOf({ canWrite: false, reason: 'La sessione sta lavorando.' })));
+  assert.ok(byClass(host, 'changes-discard').every((b) => b.disabled && b.title === 'La sessione sta lavorando.'));
+  view.render(baseState({ files: [file('a.js')] }));
+  assert.strictEqual(byClass(host, 'changes-discard').length, 0, 'fuori da «Da committare» niente ↶');
+});
+
+ok('scarta: il piè di pagina conferma o annulla, poi offre «Annulla lo scarto»', () => {
+  const actions = [];
+  const { host, view } = setup({ onCommit: (a) => { actions.push(a); } });
+  view.render(stagingView(commitOf()));
+  const foot = one(host, 'changes-discard-foot');
+  assert.strictEqual(foot.hidden, true);
+  const ask = { text: 'Scartare <b>a.js</b>?', confirmLabel: 'Scarta', undoLabel: null, canAct: true };
+  view.render(stagingView(commitOf(), { discard: ask }));
+  assert.strictEqual(foot.hidden, false);
+  assert.strictEqual(textOf(one(foot, 'changes-discard-text')), 'Scartare <b>a.js</b>?', 'resta testo');
+  assert.strictEqual(one(foot, 'changes-discard-undo').hidden, true);
+  one(foot, 'changes-discard-cancel').onclick();
+  one(foot, 'changes-discard-confirm').onclick();
+  view.render(stagingView(commitOf(), { discard: { ...ask, canAct: false } }));
+  assert.strictEqual(one(foot, 'changes-discard-confirm').disabled, true);
+
+  view.render(stagingView(commitOf(), { discard: { text: 'Scartate le modifiche a a.js.', confirmLabel: null, undoLabel: 'Annulla lo scarto', canAct: true } }));
+  assert.strictEqual(one(foot, 'changes-discard-confirm').hidden, true);
+  assert.strictEqual(textOf(one(foot, 'changes-discard-undo')), 'Annulla lo scarto');
+  one(foot, 'changes-discard-undo').onclick();
+  one(foot, 'changes-discard-cancel').onclick();
+  assert.deepStrictEqual(actions.map((a) => a.type), ['discard-cancel', 'discard', 'discard-undo', 'discard-cancel']);
+});

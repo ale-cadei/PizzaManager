@@ -160,14 +160,22 @@
     return b;
   }
 
-  /* ＋ su una riga non staged, − su una staged (docs/plans/45); `cc` è null fuori da «Da committare» */
-  function stageButton(doc, f, cc) {
-    if (!cc || !f.side) return null;
-    return f.side === 'staged'
-      ? writeButton(doc, 'changes-file-act changes-unstage', '−', `Togli ${f.path} dallo stage`, cc.commit,
-        () => cc.act({ type: 'unstage', paths: [f.path] }))
-      : writeButton(doc, 'changes-file-act changes-stage', '＋', `Aggiungi ${f.path} allo stage`, cc.commit,
-        () => cc.act({ type: 'stage', paths: [f.path] }));
+  /* ＋ su una riga non staged, − su una staged (docs/plans/45), e ↶ per
+     scartare il non staged (docs/plans/48); `cc` è null fuori da «Da committare» */
+  function rowActions(doc, f, cc) {
+    if (!cc || !f.side) return [];
+    if (f.side === 'staged') {
+      return [writeButton(doc, 'changes-file-act changes-unstage', '−', `Togli ${f.path} dallo stage`, cc.commit,
+        () => cc.act({ type: 'unstage', paths: [f.path] }))];
+    }
+    const untracked = f.status === '?';
+    return [
+      writeButton(doc, 'changes-file-act changes-discard', '↶',
+        untracked ? `Cancella ${f.path} (non è in git)` : `Scarta le modifiche non staged a ${f.path}`, cc.commit,
+        () => cc.act({ type: 'discard-ask', path: f.path, untracked })),
+      writeButton(doc, 'changes-file-act changes-stage', '＋', `Aggiungi ${f.path} allo stage`, cc.commit,
+        () => cc.act({ type: 'stage', paths: [f.path] })),
+    ];
   }
 
   /* `id` è il percorso, o «sezione:percorso» in «Da committare» (changes-model.js, itemId) */
@@ -192,8 +200,7 @@
     if (comments) row.appendChild(el(doc, 'span', 'changes-comments', `💬${comments}`));
     // Il pulsante sta accanto alla riga, non dentro: un pulsante non ne contiene un altro
     head.appendChild(row);
-    const act = stageButton(doc, f, cc);
-    if (act) head.appendChild(act);
+    for (const act of rowActions(doc, f, cc)) head.appendChild(act);
     item.appendChild(head);
     if (diff) item.appendChild(diffBody(doc, diff, rc));
     return item;
@@ -234,7 +241,8 @@
    *   onReview?: (action: {type: 'save', anchor: object, body: string}|{type: 'remove', id: string}
    *     |{type: 'clear'}|{type: 'send'}) => boolean|void,
    *   onCommit?: (action: {type: 'stage'|'unstage', paths: string[]}|{type: 'stage-all'|'unstage-all'|'commit'}
-   *     |{type: 'message', text: string}) => void}} o
+   *     |{type: 'message', text: string}|{type: 'discard-ask', path: string, untracked: boolean}
+   *     |{type: 'discard'|'discard-cancel'|'discard-undo'}) => void}} o
    *   `onReview` dei commenti (docs/plans/44): per `save`, false se il commento
    *   è stato rifiutato (la textarea resta aperta). `onCommit` di stage e
    *   commit (docs/plans/45): `message` a ogni carattere, il pannello lo tiene
@@ -311,9 +319,11 @@
     reviewFoot.appendChild(reviewError);
     reviewFoot.appendChild(reviewActions);
     const commitBox = createCommitBox(doc, onCommit);
+    const discardFoot = createDiscardFoot(doc, onCommit);
     panel.appendChild(resizer);
     panel.appendChild(head);
     panel.appendChild(body);
+    panel.appendChild(discardFoot.foot);
     panel.appendChild(commitBox.foot);
     panel.appendChild(reviewFoot);
     panel.appendChild(foot);
@@ -358,7 +368,8 @@
      *   merge?: {text: string, confirmLabel: string, warning: string|null, canConfirm: boolean}|null,
      *   review?: {enabled: boolean, key: string, notes: object[], error: string|null}|null,
      *   commit?: {message: string, canWrite: boolean, reason: string|null, canCommit: boolean,
-     *     commitReason: string|null, commitLabel: string, outcome: {ok: boolean, text: string}|null}|null}} state
+     *     commitReason: string|null, commitLabel: string, outcome: {ok: boolean, text: string}|null}|null,
+     *   discard?: {text: string, confirmLabel: string|null, undoLabel: string|null, canAct: boolean}|null}} state
      */
     function render(state) {
       last = state;
@@ -378,6 +389,7 @@
       renderFoot(state.merge || null);
       renderReviewFoot(state.review || null);
       commitBox.render(state.commit || null);
+      discardFoot.render(state.discard || null);
       fillParts(doc, summary, state.summary);
       const items = [];
       if (state.notice) items.push(el(doc, 'div', 'changes-notice', state.notice));
@@ -515,6 +527,44 @@
       outcome.hidden = !state.outcome;
       outcome.textContent = state.outcome ? state.outcome.text : '';
       outcome.classList.toggle('is-error', Boolean(state.outcome && !state.outcome.ok));
+    }
+    return { foot, render };
+  }
+
+  /**
+   * Conferma dello scarto di un file e, dopo, «Annulla lo scarto»
+   * (docs/plans/48). I testi li sceglie changes-model.js (discardFooter).
+   */
+  function createDiscardFoot(doc, onCommit) {
+    const foot = el(doc, 'footer', 'changes-discard-foot');
+    foot.hidden = true;
+    const text = el(doc, 'p', 'changes-discard-text');
+    text.setAttribute('role', 'status');
+    const actions = el(doc, 'div', 'changes-foot-actions');
+    const cancel = button(doc, 'btn btn--ghost changes-discard-cancel', '', '', () => onCommit({ type: 'discard-cancel' }));
+    const undo = button(doc, 'btn btn--ghost changes-discard-undo', '', 'Rimette il file com\'era prima dello scarto',
+      () => onCommit({ type: 'discard-undo' }));
+    const confirm = button(doc, 'btn btn--danger changes-discard-confirm', '', '', () => onCommit({ type: 'discard' }));
+    actions.appendChild(cancel);
+    actions.appendChild(undo);
+    actions.appendChild(confirm);
+    foot.appendChild(text);
+    foot.appendChild(actions);
+
+    function render(state) {
+      foot.hidden = !state;
+      if (!state) return;
+      text.textContent = state.text;
+      const asking = Boolean(state.confirmLabel);
+      cancel.textContent = asking ? 'Lascia stare' : 'Chiudi';
+      cancel.title = asking ? 'Non scartare niente' : 'Chiudi questo avviso';
+      confirm.hidden = !asking;
+      confirm.textContent = state.confirmLabel || '';
+      confirm.title = state.confirmLabel || '';
+      confirm.disabled = !state.canAct;
+      undo.hidden = !state.undoLabel;
+      undo.textContent = state.undoLabel || '';
+      undo.disabled = !state.canAct;
     }
     return { foot, render };
   }

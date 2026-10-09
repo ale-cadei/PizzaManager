@@ -3,13 +3,28 @@ const assert = require('node:assert');
 const { test: ok } = require('node:test');
 const { updateMode, bannerText, DOWNLOAD_URL, CHECK_EVERY_MS } = require('../lib/update-policy');
 
-const pacchetto = (extra = {}) => ({ isPackaged: true, ...extra });
+// Un pacchetto che viene da una release: e' il marcatore che il workflow
+// scrive al build (`extraMetadata.buildFrom`).
+const pacchetto = (extra = {}) => ({ isPackaged: true, buildFrom: 'release', ...extra });
 
 ok('in sviluppo non si aggiorna niente', () => {
   // Con `npm start` il codice E' gia' quello corrente, e manca app-update.yml:
   // provarci darebbe solo errori nella console a ogni avvio.
   assert.strictEqual(updateMode({ platform: 'darwin', isPackaged: false }), 'off');
   assert.strictEqual(updateMode({ platform: 'linux', isPackaged: false, appImage: '/x.AppImage' }), 'off');
+});
+
+ok('una build fatta a mano non si aggiorna da se', () => {
+  // `npm run install:mac` produce un'app installata come le altre: isPackaged
+  // e' true e non basta a distinguerla. Senza il marcatore del workflow,
+  // l'aggiornamento sostituirebbe la build che si sta provando con l'ultima
+  // pubblicata — e `autoInstallOnAppQuit` lo farebbe alla chiusura, anche
+  // dopo aver premuto «Più tardi».
+  assert.strictEqual(updateMode({ platform: 'darwin', isPackaged: true }), 'off');
+  assert.strictEqual(updateMode({ platform: 'darwin', isPackaged: true, buildFrom: 'locale' }), 'off');
+  assert.strictEqual(updateMode({ platform: 'linux', isPackaged: true, appImage: '/x.AppImage' }), 'off');
+  // Il marcatore vale solo esatto: un valore qualsiasi non apre la porta.
+  assert.strictEqual(updateMode({ platform: 'darwin', isPackaged: true, buildFrom: 'Release' }), 'off');
 });
 
 ok('macOS e Windows si aggiornano da se', () => {

@@ -87,17 +87,33 @@ accorge per sorpresa.
 
 Dalla 1.1.0 alla 1.4.0 contengono i tre personaggi dentro `app.asar`. Gli
 animaletti sono **spenti di default**, quindi per vederli bisogna accenderli
-dalle impostazioni, ma il codice c'è. Da decidere a parte (non in questo
-branch): lasciarle e far sparire i personaggi con la prossima versione, o
-ritirare gli asset delle vecchie.
+dalle impostazioni, ma il codice c'è.
 
-## Da chiarire col collega (non in questo branch)
+**Si lasciano** (decisione dell'utente, 9 ottobre 2026): spariscono con la
+prossima versione. Chi ha l'app installata si aggiorna da sé, e nel frattempo
+quei personaggi non si vedono se non si accendono a mano. Resta vero che le
+vecchie release restano scaricabili dalla pagina pubblica finché non si
+cancellano gli asset: se un giorno servisse, si fa da lì.
+
+## Da dove vengono gli altri disegni
+
+Chiesto e risposto (utente, 9 ottobre 2026): **i pacchetti di sprite sono stati
+fatti con Claude Design**, cioè generati qui. Non sono roba di terzi comprata o
+scaricata, quindi non c'è nessuna licenza altrui da rispettare e niente da
+elencare fra i componenti di terze parti.
 
 `THIRD-PARTY-NOTICES.md` elenca i **componenti software** (le dipendenze npm) e
-non dice niente dei disegni. Dei pacchetti di sprite non sappiamo scritto da
-nessuna parte provenienza e licenza: se sono acquistati o CC0 va bene, ma va
-annotato lì, perché finiscono dentro un programma distribuito. Da chiedere ad
-Alessandro per i suoi, e da scrivere nelle note.
+dei disegni non diceva niente: ora lo dice, perché quel file si apre dall'app
+(`Aiuto → Note di terze parti`) e chi legge non deve chiedersi da dove vengano
+i personaggi.
+
+Scrivendola è saltato fuori che una riga secca («i disegni sono nostri») sarebbe
+stata **falsa**: `build.files` impacchetta `assets/**/*`, e lì dentro ci sono i
+logo di Docker, GitHub, Node.js e Python (`assets/shell-icons/`) più quelli di
+Claude Code e Antigravity, da cui le icone nella pagina sono ricalcate
+(`renderer/agent-icons.js`). Sono marchi di altri. È l'uso normale e accettato
+— servono a dire *quale* strumento è quello, come fa qualunque IDE — ma va
+detto, e adesso le note lo dicono: l'eccezione è elencata per nome.
 
 ## Prove
 

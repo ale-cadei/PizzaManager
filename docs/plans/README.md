@@ -55,6 +55,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 44 | [`chore/release-firmata`](44-release-firmata.md) — 1.1.0 firmata, notarizzata, su repo pubblico | 13 | ~½ g | in corso |
 | 44 | [`feat/review-attiva`](44-review-commenti.md) — commenti sul diff, inviati all'agente | 32, 43 | ~1 g | fatto, provato nell'app (smoke sotto xvfb, agente finto) |
 | 46 | [`feat/hooks-esatti`](46-hook-esatti.md) — lavora / ha finito / chiede un permesso, dagli hook di Claude, opencode e Codex | 38 | ~1½ g | fatto, smoke da fare |
+| 49 | [`chore/via-personaggi-nickelodeon`](49-via-personaggi-nickelodeon.md) — SpongeBob, Patrick e Gary fuori dal catalogo degli animaletti | 33 | ~2h | in corso |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

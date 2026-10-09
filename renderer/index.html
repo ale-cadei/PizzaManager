@@ -44,6 +44,11 @@
 <!-- Menubar scura in-app: sostituisce la menubar nativa (nascosta su
      Linux/Windows perché il tema GTK la disegnerebbe chiara). Su macOS il
      menu nativo resta e questa barra viene rimossa (vedi initMenubar). -->
+<!-- Banner dell'aggiornamento: vuoto nell'HTML, lo riempie
+     renderer/update-banner.js quando il main dice che c'e' una versione nuova
+     (app/updater.js). Sta in cima perche' riguarda tutta la finestra, ma non
+     e' un modal: si rimanda e il lavoro sotto continua. -->
+<div id="update-banner-host" role="status" aria-live="polite"></div>
 <nav id="menubar" aria-label="Menu applicazione">
   <div class="mb-menu" data-menu>
     <button class="mb-label" tabindex="0">File</button>
@@ -429,6 +434,7 @@
 <script src="type-colors-ui.js"></script>
 <script src="command-config.js"></script>
 <script src="usage-bar.js"></script>
+<script src="update-banner.js"></script>
 <script src="welcome.js"></script>
 <script src="hints.js"></script>
 <script src="search-results.js"></script>

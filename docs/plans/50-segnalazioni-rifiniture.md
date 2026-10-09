@@ -128,6 +128,37 @@ anche `#id[hidden]`. Provato togliendo la correzione: diventa rosso e dice
 quale id. Guarda solo gli id — una regola `#id` si applica di sicuro a
 quell'elemento, mentre per le classi servirebbe un vero motore di selettori.
 
+## 7. Il buco sotto tutti gli altri: il pannello non era montato da nessuno
+
+Due difetti (5 e 6) sono arrivati fino a una versione pubblicata perché
+**nessun test monta il pannello**. `tests/feedback-panel.test.js`, malgrado il
+nome, prova solo `renderFeedback` e `filterBy`: che `initFeedback` colleghi i
+pulsanti non lo guardava nessuno. Le correzioni di sopra non impediscono al
+prossimo pulsante di nascere scollegato.
+
+`tests/feedback-wiring.test.js` esegue il file vero e preme i pulsanti.
+
+- **Il DOM non si scrive a mano**: tag, id e attributo `hidden` si leggono da
+  `index.html`. Un id che il JS cerca e la pagina non dichiara — o che
+  qualcuno rinomina da una parte sola — fa cadere il test, invece di lasciare
+  un pulsante morto.
+- `feedback-panel.js` è uno script classico senza esportazioni: si esegue
+  dentro una `new Function('$', 'window', 'document', sorgente + 'return …')`.
+  Nessuna modifica al file per renderlo testabile.
+- `fire()` in `tests/fake-dom.js` ora chiama anche gli handler messi come
+  proprietà (`el.onclick = …`), non solo quelli di `addEventListener`: nel
+  browser i due modi sono equivalenti e metà del renderer usa il secondo.
+- Sette prove: ogni pulsante è collegato; 📣 apre e legge dalla cache; «Nuova»
+  apre e «Annulla» chiude; «Chiudi» chiude anche il modulo rimasto aperto; il
+  ⟳ forza la rilettura; «Continua su GitHub» manda tipo, titolo, testo e
+  diagnostica; senza titolo non manda niente e rimette il cursore nel campo.
+
+Provato togliendo `bind('#fb-new', …)`: diventano rossi due test su sette e
+dicono quale pulsante. **Quello che non prova**: il difetto 6 era CSS, e un
+DOM finto non ha un foglio di stile — lo guarda il test degli `[hidden]` in
+`ui.test.js`. E il difetto 4 (il parametro che GitHub ignorava) non si vede
+da nessun test: lì serviva aprire l'indirizzo.
+
 ## Commenti da correggere, gratis
 
 Tre intestazioni dicono che i filtri stanno in `lib/feedback-source.js`:

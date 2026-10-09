@@ -284,6 +284,30 @@
     return { ...base, warning, canConfirm: !pending && !block };
   }
 
+  /**
+   * Il piè di pagina dello scarto di un file (docs/plans/48): prima la
+   * conferma, poi l'Annulla dell'ultimo scarto, finché il pannello è aperto.
+   * @param {{phase: 'confirm'|'done', path: string, untracked: boolean, undo?: object|null}|null} discard
+   * @param {boolean} canWrite si può scrivere adesso (commitChoice)
+   * @returns {{text: string, confirmLabel: string|null, undoLabel: string|null, canAct: boolean}|null}
+   */
+  function discardFooter(discard, canWrite) {
+    if (!discard) return null;
+    const { path, untracked } = discard;
+    if (discard.phase === 'confirm') {
+      const text = untracked
+        ? `Cancellare ${path}? Non è in git.`
+        : `Scartare le modifiche non staged a ${path}? Torna com'è nello stage: quello già staged resta.`;
+      return {
+        text: `${text} Subito dopo si può annullare, finché il pannello resta aperto.`,
+        confirmLabel: untracked ? 'Cancella' : 'Scarta', undoLabel: null, canAct: canWrite,
+      };
+    }
+    const text = untracked ? `Cancellato ${path}.` : `Scartate le modifiche a ${path}.`;
+    if (!discard.undo) return { text: `${text} Era un collegamento: non si può annullare.`, confirmLabel: null, undoLabel: null, canAct: canWrite };
+    return { text, confirmLabel: null, undoLabel: 'Annulla lo scarto', canAct: canWrite };
+  }
+
   function emptyText(result) {
     if (result && result.incoming) return 'Nessun file cambiato.';
     if (result && result.staging) return 'Niente da committare: indice e cartella come all\'ultimo commit.';
@@ -293,6 +317,6 @@
   return {
     targetFor, tabLabel, headerTitle, summary, summaryParts, notice, modeChoice, emptyText, fileCounts, signature,
     diffsToReload, splitPath, displayPath, itemId, splitItemId, sections, reviewAvailable, commitChoice,
-    incomingTarget, branchMergeFooter,
+    incomingTarget, branchMergeFooter, discardFooter,
   };
 });

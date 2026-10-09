@@ -98,7 +98,7 @@ function readChangesMode() {
 /* Stato del pannello: si sostituisce per intero, mai modificato sul posto */
 let changesState = {
   open: false, target: null, result: null, signature: 'none', expanded: {}, seq: 0, merge: null, mode: readChangesMode(),
-  reviewError: null, writing: false, commitOutcome: null,
+  reviewError: null, writing: false, commitOutcome: null, discard: null,
 };
 
 /* L'ultima richiesta di diff per file: una risposta più vecchia (file chiuso
@@ -172,6 +172,7 @@ function renderChanges() {
     notice: ChangesModel.notice(result),
     review: reviewStateOf(activeTab(), merge),
     commit: commitStateOf(activeTab(), merge),
+    discard: merge ? null : discardStateOf(activeTab()),
   });
 }
 
@@ -205,6 +206,10 @@ function handleCommit(action) {
     changesView.renderCommit(commitStateOf(tab, changesState.merge));
     return;
   }
+  if (Object.prototype.hasOwnProperty.call(DISCARD_ACTIONS, action.type)) {
+    DISCARD_ACTIONS[action.type](tab, action);
+    return;
+  }
   if (!Object.prototype.hasOwnProperty.call(COMMIT_CALLS, action.type)) return;
   runCommitAction(tab, action).catch((e) => console.warn('[modifiche] scrittura', e));
 }
@@ -234,6 +239,58 @@ async function runCommitAction(tab, action) {
   setChangesState({ writing: false, commitOutcome: same ? commitOutcomeOf(action, res) : null });
   await refreshChanges();
 }
+
+/* ---------- Scartare un file (docs/plans/48) ---------- */
+function discardStateOf(tab) {
+  const choice = tab && commitStateOf(tab, null);
+  return choice ? ChangesModel.discardFooter(changesState.discard, choice.canWrite) : null;
+}
+
+const canWriteNow = (tab) => {
+  const choice = commitStateOf(tab, changesState.merge);
+  return Boolean(choice && choice.canWrite && changesState.target);
+};
+
+function askDiscard(tab, action) {
+  if (!canWriteNow(tab) || typeof action.path !== 'string') return;
+  setChangesState({ discard: { phase: 'confirm', path: action.path, untracked: Boolean(action.untracked) }, commitOutcome: null });
+}
+
+function discardOutcomeOf(undo, discard, res) {
+  if (!res || !res.ok) return { ok: false, text: (res && res.error) || 'git ha rifiutato l\'operazione.' };
+  return undo ? { ok: true, text: `${discard.path} è tornato com'era.` } : null;
+}
+
+/* Scarto e Annulla: come runCommitAction, una scrittura alla volta e
+   ricontrollando che la sessione non sia ripartita fra disegno e clic */
+async function runDiscard(tab, undo) {
+  const d = changesState.discard;
+  const ready = d && (undo ? d.phase === 'done' && d.undo : d.phase === 'confirm');
+  if (!ready || !canWriteNow(tab)) return;
+  const target = changesState.target;
+  setChangesState({ writing: true, commitOutcome: null });
+  let res;
+  try {
+    res = undo ? await window.aisess.gitDiscardUndo(target.cwd, d.undo) : await window.aisess.gitDiscard(target.cwd, d.path);
+  } catch (e) {
+    res = { ok: false, error: String((e && e.message) || e) };
+  }
+  const same = Boolean(changesState.target && changesState.target.key === target.key);
+  const ok = Boolean(res && res.ok);
+  // Se non è andata il piede resta com'era: un index.lock passeggero non
+  // deve far sparire l'Annulla, il contenuto salvato è ancora in git
+  let next = d;
+  if (ok) next = undo ? null : { phase: 'done', path: d.path, untracked: d.untracked, undo: res.undo || null };
+  setChangesState({ writing: false, discard: same ? next : null, commitOutcome: same ? discardOutcomeOf(undo, d, res) : null });
+  await refreshChanges();
+}
+
+const DISCARD_ACTIONS = {
+  'discard-ask': askDiscard,
+  'discard-cancel': () => setChangesState({ discard: null }),
+  discard: (tab) => runDiscard(tab, false).catch((e) => console.warn('[modifiche] scarto', e)),
+  'discard-undo': (tab) => runDiscard(tab, true).catch((e) => console.warn('[modifiche] annulla scarto', e)),
+};
 
 /* ---------- Commenti sul diff (docs/plans/44) ---------- */
 function reviewStateOf(tab, merge) {
@@ -318,7 +375,7 @@ async function pollChanges() {
 async function refreshChanges() {
   const target = activeChangesTarget();
   const sameTarget = Boolean(target && changesState.target && target.key === changesState.target.key);
-  if (!sameTarget) setChangesState({ target, result: null, signature: 'none', expanded: {}, reviewError: null, commitOutcome: null });
+  if (!sameTarget) setChangesState({ target, result: null, signature: 'none', expanded: {}, reviewError: null, commitOutcome: null, discard: null });
   if (!target) return;
   const seq = changesState.seq + 1;
   changesState = { ...changesState, seq };
@@ -422,7 +479,8 @@ function finishMerge(confirmed) {
 function toggleChangesPanel(force) {
   const open = typeof force === 'boolean' ? force : !changesState.open;
   if (!open && changesState.merge) { finishMerge(false); return; }
-  setChangesState({ open });
+  // Chiudendo il pannello l'Annulla dello scarto non si offre più
+  setChangesState(open ? { open } : { open, discard: null });
   // Aprendolo il fuoco resta al terminale: si può scrivere all'agente col
   // diff sotto gli occhi. Esc chiude quando il fuoco è nel pannello (un clic
   // su un file); chiudendolo il fuoco torna al terminale.

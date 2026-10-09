@@ -167,6 +167,9 @@
 .btn--secondary:hover { border-color: var(--action); }
 .btn--ghost     { background: transparent; border-color: var(--border-strong); color: var(--text-muted); font-weight: 500; }
 .btn--ghost:hover { color: var(--text); border-color: var(--action); }
+/* Azione che toglie qualcosa (scartare un file): rossa, mai piena */
+.btn--danger    { background: color-mix(in srgb, var(--state-error) 16%, transparent); border-color: var(--state-error); color: var(--text); }
+.btn--danger:hover { background: color-mix(in srgb, var(--state-error) 28%, transparent); }
 
 .input          { width: 100%; box-sizing: border-box; padding: 11px 14px; border-radius: var(--radius);
                   background: var(--bg); border: 1px solid var(--border-strong); color: var(--text);

@@ -43,6 +43,8 @@ contextBridge.exposeInMainWorld('aisess', {
   gitCommit: (cwd, message) => ipcRenderer.invoke('git-commit', { cwd, message }),
   gitMerge: (cwd, name, kind, expect) => ipcRenderer.invoke('git-merge', { cwd, name, kind, expect }),
   gitPush: (cwd, name) => ipcRenderer.invoke('git-push', { cwd, name }),
+  gitDiscard: (cwd, path) => ipcRenderer.invoke('git-discard', { cwd, path }),
+  gitDiscardUndo: (cwd, token) => ipcRenderer.invoke('git-discard-undo', { cwd, token }),
   worktreeList: (root) => ipcRenderer.invoke('worktree-list', { root }),
   worktreeStart: (root) => ipcRenderer.invoke('worktree-start', { root }),
   worktreeCreate: (root, branch, base) => ipcRenderer.invoke('worktree-create', { root, branch, base }),

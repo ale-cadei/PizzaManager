@@ -874,6 +874,96 @@ ok('git: stage, unstage e commit dal pannello, hook compresi, con il git install
   }
 });
 
+// ---------- git: scartare un file e annullare con git vero (piano 48) ----------
+ok('git: scarta il non staged di un file e lo rimette, con il git installato', async (t) => {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const path = require('path');
+  const { resolveBinary } = require('../lib/binaries');
+  const { readStaging } = require('../lib/git-staging');
+  const { discardFile, undoDiscard } = require('../lib/git-discard');
+  const bin = resolveBinary('git');
+  if (!bin.path) return t.skip('git non installato su questa macchina');
+  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-discard-')));
+  const git = (...args) => String(execFileSync(bin.path, args, { cwd: root })).trim();
+  const file = (rel) => path.join(root, rel);
+  const read = (rel) => fs.readFileSync(file(rel), 'utf8');
+  const rows = async () => (await readStaging({ cwd: root })).files.map((f) => [f.side, f.status, f.path]);
+  try {
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.name', 'Prova');
+    git('config', 'user.email', 'p@x');
+    git('config', 'commit.gpgsign', 'false');
+    fs.writeFileSync(file('a.txt'), 'uno\n');
+    fs.writeFileSync(file('via.txt'), 'resta\n');
+    fs.writeFileSync(file('run.sh'), 'echo ciao\n');
+    git('add', '.');
+    git('commit', '-q', '-m', 'primo');
+
+    // Parzialmente staged: lo staged resta, il non staged se ne va
+    fs.writeFileSync(file('a.txt'), 'uno\ndue\n');
+    git('add', 'a.txt');
+    fs.writeFileSync(file('a.txt'), 'uno\ndue\ntre\n');
+    const a = await discardFile({ cwd: root, path: 'a.txt' });
+    assert.strictEqual(a.ok, true, a.error);
+    assert.strictEqual(read('a.txt'), 'uno\ndue\n');
+    assert.deepStrictEqual(await rows(), [['staged', 'M', 'a.txt']]);
+    assert.strictEqual(git('cat-file', '-p', a.undo.blob), 'uno\ndue\ntre', 'il contenuto è salvato in git');
+    assert.deepStrictEqual(await undoDiscard({ cwd: root, token: a.undo }), { ok: true, path: 'a.txt' });
+    assert.strictEqual(read('a.txt'), 'uno\ndue\ntre\n');
+    assert.deepStrictEqual(await rows(), [['staged', 'M', 'a.txt'], ['unstaged', 'M', 'a.txt']]);
+
+    // Il bit eseguibile torna con l'Annulla
+    fs.writeFileSync(file('run.sh'), 'echo altro\n');
+    fs.chmodSync(file('run.sh'), 0o755);
+    const sh = await discardFile({ cwd: root, path: 'run.sh' });
+    assert.strictEqual(fs.statSync(file('run.sh')).mode & 0o111, 0, 'come nell\'indice');
+    await undoDiscard({ cwd: root, token: sh.undo });
+    assert.strictEqual(fs.statSync(file('run.sh')).mode & 0o777, 0o755);
+    assert.strictEqual(read('run.sh'), 'echo altro\n');
+
+    // Cancellato: torna; l'Annulla lo ricancella
+    fs.rmSync(file('via.txt'));
+    const via = await discardFile({ cwd: root, path: 'via.txt' });
+    assert.strictEqual(read('via.txt'), 'resta\n');
+    await undoDiscard({ cwd: root, token: via.undo });
+    assert.ok(!fs.existsSync(file('via.txt')));
+
+    // Non tracciato, binario, in una sottocartella: cancellato e rimesso byte per byte
+    fs.mkdirSync(file('dati'));
+    const bytes = Buffer.from([0, 0xff, 0x0a, 0x0d, 0x80, 0x41]);
+    fs.writeFileSync(file('dati/blob.bin'), bytes);
+    const bin1 = await discardFile({ cwd: root, path: 'dati/blob.bin' });
+    assert.strictEqual(bin1.untracked, true);
+    assert.ok(!fs.existsSync(file('dati/blob.bin')));
+    await undoDiscard({ cwd: root, token: bin1.undo });
+    assert.deepStrictEqual(fs.readFileSync(file('dati/blob.bin')), bytes);
+
+    // L'agente riscrive dopo lo scarto: l'Annulla rifiuta e non tocca niente
+    const again = await discardFile({ cwd: root, path: 'a.txt' });
+    fs.writeFileSync(file('a.txt'), 'nuovo lavoro\n');
+    const refused = await undoDiscard({ cwd: root, token: again.undo });
+    assert.strictEqual(refused.ok, false);
+    assert.match(refused.error, /cambiato dopo lo scarto/);
+    assert.strictEqual(read('a.txt'), 'nuovo lavoro\n');
+
+    // Un nome che git leggerebbe come opzione o come pattern resta un nome
+    fs.writeFileSync(file('-n'), 'x\n');
+    fs.writeFileSync(file('*.txt'), 'y\n');
+    git('add', '--', '-n', '*.txt');
+    git('commit', '-q', '-m', 'strani', '--', '-n', '*.txt');
+    fs.writeFileSync(file('-n'), 'cambiato\n');
+    fs.writeFileSync(file('*.txt'), 'cambiato\n');
+    assert.strictEqual((await discardFile({ cwd: root, path: '*.txt' })).ok, true);
+    assert.strictEqual(read('*.txt'), 'y\n');
+    assert.strictEqual(read('a.txt'), 'nuovo lavoro\n', 'il pattern non ha preso altri file');
+    assert.strictEqual((await discardFile({ cwd: root, path: '-n' })).ok, true);
+    assert.strictEqual(read('-n'), 'x\n');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 // ---------- git: unire un branch qualsiasi con git vero (piano 46) ----------
 ok('git: unire un branch nel corrente, fast-forward, merge e conflitti, con il git installato', async (t) => {
   const { execFileSync } = require('child_process');

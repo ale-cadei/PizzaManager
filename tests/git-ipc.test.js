@@ -113,3 +113,21 @@ ok('ipc: git-push rifiuta payload vuoti e nomi che sembrano opzioni, senza pusha
     assert.strictEqual((await push({}, { cwd: __dirname, name })).ok, false, name);
   }
 });
+
+ok('ipc: scarta e annulla rifiutano payload vuoti, percorsi fuori e gettoni finti', async () => {
+  const { handlers, ipcMain } = fakeIpc();
+  registerGitHandlers(ipcMain, { userDataDir: () => '/non/usata' });
+  for (const channel of ['git-discard', 'git-discard-undo']) {
+    for (const payload of [undefined, null, {}, { cwd: __dirname }]) {
+      const r = await handlers.get(channel)({}, payload);
+      assert.strictEqual(r.ok, false, `${channel} con ${JSON.stringify(payload)}`);
+      assert.ok(r.error, `${channel} senza messaggio`);
+    }
+  }
+  // cwd è questo repository: nessuna di queste richieste deve arrivare a scrivere
+  const discard = handlers.get('git-discard');
+  assert.deepStrictEqual(await discard({}, { cwd: __dirname, path: '../../etc/passwd' }), { ok: false, error: 'Percorso non valido.' });
+  assert.strictEqual((await discard({}, { cwd: __dirname, path: 'non-esiste-piano-48.txt' })).ok, false);
+  const token = { path: '../../etc/passwd', blob: 'a'.repeat(40), mode: 0o644, after: null };
+  assert.strictEqual((await handlers.get('git-discard-undo')({}, { cwd: __dirname, token })).ok, false);
+});

@@ -896,7 +896,8 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
   font: 600 13px/1 var(--font-ui); color: var(--text-faint);
 }
 .changes-file-act.changes-stage:hover, .changes-file-act.changes-stage:focus-visible { color: var(--state-ok); background: var(--surface-2); outline: none; }
-.changes-file-act.changes-unstage:hover, .changes-file-act.changes-unstage:focus-visible { color: var(--state-error); background: var(--surface-2); outline: none; }
+.changes-file-act.changes-unstage:hover, .changes-file-act.changes-unstage:focus-visible,
+.changes-file-act.changes-discard:hover, .changes-file-act.changes-discard:focus-visible { color: var(--state-error); background: var(--surface-2); outline: none; }
 .changes-section-act {
   margin-left: auto; padding: 1px 6px; border: 1px solid var(--border); border-radius: 4px; background: none; cursor: pointer;
   font: 500 10px/1.4 var(--font-ui); letter-spacing: 0; text-transform: none; color: var(--text-muted);
@@ -921,6 +922,14 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
   color: var(--state-ok); white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .changes-commit-outcome.is-error { color: var(--state-error); }
+/* Scartare un file (docs/plans/48): conferma e Annulla nel piede */
+.changes-discard-foot {
+  display: flex; flex-direction: column; gap: var(--gap-sm);
+  padding: 10px 14px; border-top: 1px solid var(--border); background: var(--surface-2);
+}
+.changes-discard-foot[hidden], .changes-discard-foot .btn[hidden] { display: none; }
+.changes-discard-text { margin: 0; font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; }
+.changes-discard-foot .btn[disabled] { opacity: .45; cursor: not-allowed; }
 
 /* ---------- Animaletti (renderer/pets-view.js, piano 33) ----------
    Striscia sotto il terminale: ne ruba l'altezza invece di coprirne l'ultima

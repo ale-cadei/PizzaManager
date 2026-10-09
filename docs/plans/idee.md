@@ -65,13 +65,13 @@ worktree. Quattro pezzi, un piano e un branch ciascuno, in quest'ordine:
 2. commit dal pannello: stage/unstage per file e messaggio (prima scrittura
    del pannello: lock, agente che lavora nello stesso momento);
 3. merge di un branch qualsiasi, non solo worktree → base;
-4. PR: push e apertura. Serve `gh` o un token GitHub, oggi non c'è nessuno
-   dei due.
+4. push di un branch. L'apertura della PR no (deciso il 2026-10-09): la si
+   fa a mano o la fa l'agente, niente `gh` né token nell'app.
 
 - [x] studio — fatto con l'utente il 2026-10-08: ordine sopra; commenti per
       riga, in memoria, solo schede agente
 - [x] piano — 44 (commenti, fatto), 45 (commit, fatto), 46 (unisci un
-      branch, fatto); 47 da scrivere
+      branch, fatto), 47 (push dal selettore dei branch)
 - [ ] fatto
 - [ ] provato
 

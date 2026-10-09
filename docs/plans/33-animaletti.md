@@ -1,5 +1,13 @@
 # 33 — Animaletti che camminano in fondo alla finestra
 
+> **Aggiornamento del 9 ottobre 2026 ([piano 49](49-via-personaggi-di-terzi.md)):
+> Il pescatore, la stella e la lumaca non ci sono più**, e con loro la voce di cast
+> `inseguimento` e tutto il codice della coppia (`chase`, `flee`, `placePair`,
+> `mate`). La medusa resta, da sola. Tutto quello che questo file dice
+> dell'inseguimento e del retino racconta com'era: non c'è più niente da
+> ritoccare lì. Il perché sta nel piano 49.
+
+
 Branch: `feat/animaletti` · Dipende da: — · Taglia: ~1 g
 
 ## Obiettivo
@@ -56,10 +64,7 @@ Spento di default. Si accende e si regola da `Vista › Personaggi…`.
 
 | id | Nome | Cosa fa |
 |----|------|---------|
-| `pescatore` | il pescatore | Rincorre la medusa col retino alzato; quando è vicino dà un colpo di retino (frame `swing`) e la manca sempre |
-| `medusa` | Medusa | Galleggia ondeggiando (seno sulla y); quando il pescatore è vicino scatta via. Anche da sola, come voce `medusa`: gironzola e chiama solo se non c'è nessun altro |
-| `stella` | Stella | Cammina piano |
-| `lumaca` | Lumaca | Lumaca: lentissimo |
+| `medusa` | Medusa | Galleggia ondeggiando (seno sulla y), gironzola e chiama solo se non c'è nessun altro, posandosi a terra |
 | `gatto` | Gatto | Cammina; per dormire si sdraia a pagnotta, con la coda stesa davanti |
 | `pizza` | Peppo, la pizza | Fetta con gambine, dal pacchetto «Sprite pixel-art originale» dell'utente |
 | `rana` | Rana | Salta (`motion: 'hop'`): avanza solo in aria, posa `jump` |
@@ -208,13 +213,13 @@ Precedenza: `attention` > `busy` > `sleep` > `idle`.
 ```js
 {
   enabled: false,
-  cast: ['inseguimento'],  // id dal catalogo, ripetibili; massimo MAX_CAST
+  cast: ['pizza'],  // id dal catalogo, ripetibili; massimo MAX_CAST
   size: 'm',               // 's' | 'm' | 'l'  → 24 / 32 / 48 px
   speed: 'normale',        // 'lenta' | 'normale' | 'veloce'
 }
 ```
 
-- `MAX_CAST = 21` voci del dialogo, una per ognuna; la coppia pescatore e medusa è una voce, la papera con gli anatroccoli pure
+- `MAX_CAST = 18` voci del dialogo, una per ognuna; la papera con gli anatroccoli è una voce sola
   (contarla due impediva di sceglierne una di ognuna).
 - Voci sconosciute scartate, valori fuori elenco → default, JSON rotto →
   default intero.

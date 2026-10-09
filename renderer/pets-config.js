@@ -15,9 +15,10 @@
   /** Altezza di riferimento in pixel (un personaggio alto GRID righe). */
   const SIZES = { s: 24, m: 32, l: 48 };
   const SPEEDS = { lenta: 0.5, normale: 1, veloce: 1.8 };
-  /** Voci del dialogo, non personaggi: Il pescatore e la medusa sono una voce. */
-  const MAX_CAST = 21;
-  const DEFAULTS = Object.freeze({ enabled: false, cast: Object.freeze(['inseguimento']), size: 'm', speed: 'normale' });
+  /** Voci del dialogo, non personaggi: una voce può portare un gruppetto
+   *  (la papera con gli anatroccoli). Quante sono in Sprites.CAST. */
+  const MAX_CAST = 18;
+  const DEFAULTS = Object.freeze({ enabled: false, cast: Object.freeze(['pizza']), size: 'm', speed: 'normale' });
 
   const has = (obj, key) => typeof key === 'string' && Object.prototype.hasOwnProperty.call(obj, key);
   /** Voci note, nell'ordine dato, fino a MAX_CAST. */

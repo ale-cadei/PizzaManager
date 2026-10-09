@@ -15,10 +15,13 @@
   if (root) root.AisessFeedbackView = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : null, function () {
+  /** Il badge accanto al titolo. Senza voce qui lo stato non si vede: deve
+   *  restare allineato a STATI in lib/feedback-source.js. */
   const ETICHETTE = {
     pianificato: 'Pianificato',
     'in-corso': 'In corso',
     completato: 'Completato',
+    'non-lo-faremo': 'Non lo faremo',
   };
 
   const quando = (v) => Date.parse(v.creata || '') || 0;

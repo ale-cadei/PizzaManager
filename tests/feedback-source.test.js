@@ -30,6 +30,17 @@ ok('le voci senza i campi minimi si scartano, le altre no', () => {
   assert.deepStrictEqual(r.voci.map((v) => v.numero), [3], 'serve numero E titolo');
 });
 
+ok('gli stati sono quelli delle etichette del repo, uno sconosciuto torna «aperta»', () => {
+  // Il vocabolario e' condiviso col repo pubblico: un'etichetta che l'app non
+  // conosce la renderebbe una riga aperta come le altre, che continua a
+  // raccogliere voti. Per questo sul repo ci sono solo queste (piano 50).
+  const { STATI } = require('../lib/feedback-source');
+  assert.deepStrictEqual(STATI, ['aperta', 'pianificato', 'in-corso', 'completato', 'non-lo-faremo']);
+  const r = parseFeed(feed([voce(1, { stato: 'non-lo-faremo' }), voce(2, { stato: 'bloccato-da-qualcuno' })]));
+  assert.strictEqual(r.voci[0].stato, 'non-lo-faremo');
+  assert.strictEqual(r.voci[1].stato, 'aperta', 'uno stato inventato non deve passare');
+});
+
 ok('l indirizzo della nuova richiesta porta titolo, corpo e diagnostica', () => {
   const u = new URL(createUrl({ tipo: 'richiesta', titolo: 'Fare X', corpo: 'perche si', diagnostica: 'v1.4.0 · macOS' }));
   assert.ok(u.pathname.startsWith(`/${REPO}/issues/new`), u.pathname);

@@ -78,6 +78,20 @@ ok('bacheca: la riga dice se è un problema o una richiesta', () => {
   t.uninstall();
 });
 
+ok('bacheca: ogni stato che il feed puo portare ha il suo badge', () => {
+  // Uno stato senza etichetta qui sparirebbe dalla riga: la cosa resterebbe
+  // «aperta» a raccogliere voti anche dopo che e' stata decisa (piano 50).
+  const { STATI } = require('../lib/feedback-source');
+  const t = monta(STATI.map((stato, i) => voce(i + 1, { stato })));
+  for (const stato of STATI.filter((s) => s !== 'aperta')) {
+    const riga = descendants(t.root).find((e) => e.className.includes(`stato-${stato}`));
+    assert.ok(riga, `lo stato ${stato} non si vede sulla riga`);
+    assert.ok(riga.textContent.trim(), `il badge di ${stato} e vuoto`);
+  }
+  assert.match(t.testo(), /Non lo faremo/);
+  t.uninstall();
+});
+
 ok('bacheca vuota: lo dice invece di restare bianca', () => {
   const t = monta([]);
   assert.ok(t.testo().length > 0, 'una finestra vuota sembra rotta');

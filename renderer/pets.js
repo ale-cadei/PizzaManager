@@ -6,13 +6,8 @@
  * velocità in "misure al secondo" (una misura = size, l'altezza di
  * riferimento), così un personaggio grande non sembra più lento.
  *
- * L'inseguimento: SpongeBob punta la medusa; lei, quando lo sente vicino,
- * scappa più veloce di lui verso il lato con spazio. Messa all'angolo, o
- * se se lo trova addosso, si alza (lift) e gli passa sopra: il retino non la
- * prende mai, ed è una regola verificata nei test. Lontana non va per conto
- * suo: oltre LEASH torna verso di lui, così quando si ferma gli resta vicino.
- *
- * Chi non cammina (MOVES): la rana salta e avanza solo in aria, l'uccellino
+ * Chi non cammina (MOVES): la medusa galleggia ondeggiando (float), la rana
+ * salta e avanza solo in aria, l'uccellino
  * vola sopra la striscia e si posa per dormire o chiamare, il pesce nuota
  * ondeggiando appena sopra il fondo. Chi ha un posatoio (l'ape col fiore,
  * pets-sprites.js perch) ce l'ha in un punto fisso, home: per dormire o
@@ -50,23 +45,9 @@
   const PAUSE_MS = { min: 1500, max: 3500 };
   /** Oltre questa attesa chi chiama, se ha la posa, si fa triste. */
   const SAD_AFTER_MS = 60 * 1000;
-  // Distanze fra i centri, in misure
-  const SWING_DIST = 1.2;
-  const FLEE_DIST = 2.2;
-  const TOO_CLOSE = 0.8;
-  const START_GAP = 3;
-  /** Oltre questa distanza la medusa che gironzola torna verso SpongeBob: anche
-   *  quando lui si ferma (a chiamare) gli resta intorno. */
-  const LEASH = 3.5;
-  /** Spazio sotto il quale la medusa non può più scappare da quella parte. */
-  const CORNER = 0.25;
-  const FLEE_FACTOR = 2.6;
-  const SWING_SLOWDOWN = 0.4;
   /** Ondeggio della medusa: ampiezza in misure, giri al secondo. */
   const BOB_AMPL = 0.12;
   const BOB_HZ = 0.8;
-  /** Quanto in fretta la medusa ridiscende dopo il salto, misure al secondo. */
-  const LIFT_FALL = 2;
   /** In fila: distanza fra i centri (misure) e quanto più svelto recupera chi segue. */
   const LINE_GAP = 0.9;
   const CATCH_UP = 1.6;
@@ -101,7 +82,7 @@
 
   function newPet(key, kind, x, dir, random) {
     const smoke = spriteOf(kind).trail ? { puffs: [], steam: 0 } : {};
-    return { key, kind, variant: pickVariant(kind, random), x, y: 0, dir, pose: 'walk', anim: 0, lift: 0, passing: false, phase: random() * Math.PI * 2, mate: null, act: null, ...smoke };
+    return { key, kind, variant: pickVariant(kind, random), x, y: 0, dir, pose: 'walk', anim: 0, phase: random() * Math.PI * 2, act: null, ...smoke };
   }
 
   /** Comincia un'azione: fermo con quella posa. Senza durata dura quanto la sequenza. */
@@ -121,14 +102,6 @@
   const isVanishing = (p) => Boolean(p.act && p.act.pose === 'vanish');
   const enter = (p) => act(p, 'appear');
 
-  /** La medusa nasce a qualche misura da SpongeBob, dalla parte con più spazio. */
-  function placePair(sponge, jellyKey, width, size, random) {
-    const limit = maxX('medusa', size, width);
-    const side = sponge.x > limit / 2 ? -1 : 1;
-    const x = clamp(sponge.x + side * START_GAP * size, 0, limit);
-    return { ...newPet(jellyKey, 'medusa', x, side, random), mate: sponge.key };
-  }
-
   /** Il punto del posatoio, per chi ne ha uno: la x a cui si posa. */
   const withHome = (pet, width, size, random) => (spriteOf(pet.kind).perch ? { ...pet, home: random() * maxX(pet.kind, size, width) } : pet);
 
@@ -147,11 +120,6 @@
   function spawn(id, group, width, size, random) {
     const kinds = Sprites.CAST[id] || [];
     const tag = (p) => ({ ...withHome(p, width, size, random), cast: id, group });
-    if (kinds[0] === 'spongebob') {
-      const [sKey, jKey] = [`${group}a`, `${group}b`];
-      const sponge = { ...newPet(sKey, kinds[0], random() * maxX(kinds[0], size, width), 1, random), mate: jKey };
-      return [sponge, placePair(sponge, jKey, width, size, random)].map(tag);
-    }
     if (kinds.length > 1) return placeLine(kinds, group, width, size, random).map(tag);
     return kinds.map((kind) => tag(newPet(`${group}`, kind, random() * maxX(kind, size, width), random() < 0.5 ? -1 : 1, random)));
   }
@@ -232,7 +200,7 @@
     const sprite = spriteOf(pet.kind);
     return ['hop', 'fly'].includes(sprite.motion) || Boolean(sprite.shadow) || pet.kind === 'medusa';
   };
-  const landed = (pet) => (floats(pet) ? { ...pet, y: 0, lift: 0 } : pet);
+  const landed = (pet) => (floats(pet) ? { ...pet, y: 0 } : pet);
 
   /** Verso il posatoio in volo; arrivato si siede sul disegno con quella posa
    *  (chi dorme non anima). */
@@ -245,7 +213,7 @@
     }
     const y = spriteOf(pet.kind).perch.seat * Sprites.pixel(pet.kind, ctx.size);
     const anim = pose === 'sleep' ? pet.anim - ctx.s * 1000 * ctx.mult : pet.anim;
-    return { ...pet, x: pet.home, y, lift: 0, pose, anim, act: null };
+    return { ...pet, x: pet.home, y, pose, anim, act: null };
   }
 
   /** Chi soffia bolle (pets-sprites.js bubbles) chiama verso il lato dove
@@ -273,16 +241,6 @@
     return walked.dir !== pet.dir ? act(walked, 'turn') : walked;
   }
 
-  function chase(sponge, jelly, ctx) {
-    const dx = centerOf(jelly, ctx.size) - centerOf(sponge, ctx.size);
-    const dir = Math.sign(dx) || sponge.dir;
-    const close = Math.abs(dx) < SWING_DIST * ctx.size;
-    const v = Sprites.SPRITES.spongebob.speed * (close ? SWING_SLOWDOWN : 1);
-    const limit = maxX(sponge.kind, ctx.size, ctx.width);
-    const x = clamp(sponge.x + dir * v * ctx.size * ctx.mult * ctx.s, 0, limit);
-    return { ...sponge, x, dir, pose: close ? 'swing' : 'walk' };
-  }
-
   /** Fermo con la posa del passo: la zampettata non va avanti. */
   const standing = (pet, dir, ctx) => ({ ...pet, dir, pose: 'walk', anim: pet.anim - ctx.s * 1000 * ctx.mult });
 
@@ -305,36 +263,14 @@
     return { ...pet, x: clamp(pet.x + dir * reach, 0, limit), dir, pose: 'walk' };
   }
 
-  /** Ondeggio e discesa dopo il salto: y è quanto sta sollevata da terra. */
+  /** Ondeggio: y è quanto sta sollevata da terra. */
   function float(jelly, ctx) {
     const phase = (jelly.phase + ctx.s * BOB_HZ * Math.PI * 2) % (Math.PI * 2);
-    const lift = jelly.passing ? ctx.size : Math.max(0, jelly.lift - LIFT_FALL * ctx.size * ctx.s);
-    return { ...jelly, phase, lift, y: lift + (1 + Math.sin(phase)) * BOB_AMPL * ctx.size };
-  }
-
-  function flee(jelly, sponge, ctx) {
-    const { size } = ctx;
-    const dx = centerOf(jelly, size) - centerOf(sponge, size);
-    const dist = Math.abs(dx);
-    const speed = Sprites.SPRITES.medusa.speed;
-    if (jelly.passing) {
-      const past = Math.sign(dx) === jelly.dir && dist > size;
-      return float(walk({ ...jelly, pose: 'flee', passing: !past }, speed * FLEE_FACTOR, ctx), ctx);
-    }
-    if (dist >= FLEE_DIST * size) {
-      const back = -Math.sign(dx);
-      return float(wander(dist > LEASH * size ? { ...jelly, dir: back } : jelly, ctx), ctx);
-    }
-    const away = Math.sign(dx) || jelly.dir;
-    const limit = maxX('medusa', size, ctx.width);
-    const room = away > 0 ? limit - jelly.x : jelly.x;
-    const cornered = room < CORNER * size || dist < TOO_CLOSE * size;
-    const next = { ...jelly, pose: 'flee', dir: cornered ? -away : away, passing: cornered };
-    return float(walk(cornered ? { ...next, lift: size } : next, speed * FLEE_FACTOR, ctx), ctx);
+    return { ...jelly, phase, y: (1 + Math.sin(phase)) * BOB_AMPL * ctx.size };
   }
 
   /** Il personaggio più vicino al centro che chiama quando una sessione
-   *  aspetta. La medusa solo se non c'è nessun altro: in coppia tocca a SpongeBob.
+   *  aspetta. La medusa solo se non c'è nessun altro: per chiamare deve posarsi.
    *  Chi sta in fila dietro a qualcuno mai: chiama il primo. */
   function callerOf(pets, ctx) {
     const mid = ctx.width / 2;
@@ -401,7 +337,6 @@
     const pets = state.pets.map((p) => ({ ...inside(p, ctx), anim: p.anim + s * 1000 * ctx.mult }));
     const caller = mood === 'attention' ? callerOf(pets, ctx) : null;
     const byKey = new Map(pets.map((p) => [p.key, p]));
-    const mateOf = (p) => (p.mate ? byKey.get(p.mate) : null);
     const moved = pets.map((p0) => {
       const p = startActs(p0, state, mood);
       if (isVanishing(p)) return tickAct(p, ctx);
@@ -413,13 +348,11 @@
       if (p.act) return tickAct(p, ctx);
       const lead = p.lead ? byKey.get(p.lead) : null;
       if (lead) return follow(p, lead, ctx);
-      const mate = mateOf(p);
-      if (p.kind === 'spongebob' && mate) return chase(p, mate, ctx);
-      if (p.kind === 'medusa') return mate ? flee(p, mate, ctx) : float(wander(p, ctx), ctx);
+      if (p.kind === 'medusa') return float(wander(p, ctx), ctx);
       return wander(p, ctx);
     });
     return { ...state, mood, attentionMs, caller: caller ? caller.key : state.caller || null, pets: moved.filter((p) => !p.gone).map((p) => smoke(p, ctx)) };
   }
 
-  return { createPets, recast, step, fit, moodOf, frameIndex, petWidth, FRAME_MS, MAX_DT, SLEEP_AFTER_MS, SAD_AFTER_MS, PAUSE_MS, LINE_GAP, LEASH, PUFF_LIFE_MS, MAX_PUFFS };
+  return { createPets, recast, step, fit, moodOf, frameIndex, petWidth, FRAME_MS, MAX_DT, SLEEP_AFTER_MS, SAD_AFTER_MS, PAUSE_MS, LINE_GAP, PUFF_LIFE_MS, MAX_PUFFS };
 });

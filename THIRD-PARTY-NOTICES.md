@@ -7,6 +7,12 @@ preserve them.
 
 Generated from the actual dependencies of the package (2026-10-09).
 
+The artwork is ours: the application icon and the pixel-art characters were
+drawn for PizzaManager. The exception are the product logos that identify the
+tools PizzaManager runs or talks to — Docker, GitHub, Node.js, Python, Claude
+Code and Antigravity. Those names and logos belong to their respective owners
+and are used here only to refer to those products.
+
 | Component | Version | License |
 |---|---|---|
 | @xterm/addon-fit | 0.10.0 | MIT |

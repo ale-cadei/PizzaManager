@@ -180,6 +180,42 @@ Esc non chiude nessuno dei due, ma non chiudeva nemmeno la bacheca prima:
 nell'app lo fa solo `command-config.js`, che se l'è scritto da sé. Se si
 aggiunge, si aggiunge a tutti i modali insieme, non solo a questo.
 
+## 9. Le etichette del repo sono il vocabolario dell'app
+
+Il repo pubblico aveva **13 etichette e l'app ne capiva 5**. Le altre otto
+erano quelle che GitHub mette da sé in ogni repo nuovo: `wontfix`,
+`duplicate`, `question`, `invalid`, `documentation`, `help wanted`,
+`good first issue`, `accessibility`.
+
+Il guaio non è l'etichetta in più, è il silenzio. Metti `wontfix` su una
+richiesta che avete deciso di non fare: su GitHub si vede, nell'app resta una
+riga normale, aperta, che continua a raccogliere voti per una cosa morta.
+Nessuno se ne accorge mai.
+
+Due mosse, nessuna issue ancora in giro quindi senza strascichi:
+
+- **tolte le otto etichette che l'app ignora.** Sul repo restano solo quelle
+  che significano qualcosa: `bug` ed `enhancement` (il tipo, dai moduli) e le
+  `stato:*`. Non si può più etichettare in un modo che l'app non mostra senza
+  creare apposta un'etichetta nuova;
+- **aggiunto il quarto stato `stato:non-lo-faremo`**, grigio, al posto di
+  `wontfix`. Era l'unico esito vero che non si poteva rappresentare: la riga
+  resta in bacheca col suo badge spento, invece di sparire o di fingersi
+  ancora aperta.
+
+Il vocabolario sta scritto in tre posti e vanno insieme: `STATI` in
+`lib/feedback-source.js` (che filtra, uno stato inventato torna `aperta`),
+`ETICHETTE` in `renderer/feedback-view.js` (il testo del badge) e il CSS del
+badge. Due test lo tengono allineato: uno controlla la lista esatta e che uno
+stato inventato non passi, l'altro che **ogni** stato della lista abbia un
+badge visibile sulla riga. Un commento in cima a `.github/feedback.js`, sul
+repo pubblico, dice la stessa cosa a chi tocca il generatore.
+
+Resta una cosa che non ho cambiato: una riga «Non lo faremo» con tanti voti
+sta comunque in cima a «Di tendenza», che ordina per voti. Vale anche per
+«Completato», ed era già così: è una regola di prodotto, non un difetto, e si
+cambia quando si decide cosa deve mostrare quella linguetta.
+
 ## Le etichette su GitHub, verificate
 
 Chiesto di controllare che l'etichetta arrivi davvero. Aperti i due indirizzi

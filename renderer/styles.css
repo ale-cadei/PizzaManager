@@ -1786,6 +1786,8 @@ a, .link { color: var(--action-text); }
 .fb-stato.stato-pianificato { color: var(--action-text); background: var(--action-soft); }
 .fb-stato.stato-in-corso { color: var(--action-text); background: var(--action-soft); }
 .fb-stato.stato-completato { color: #7ee2a8; background: color-mix(in srgb, #7ee2a8 16%, transparent); }
+/* Spento: una cosa decisa e chiusa, che non chiede piu' niente a nessuno. */
+.fb-stato.stato-non-lo-faremo { color: var(--text-muted); background: color-mix(in srgb, var(--text-muted) 14%, transparent); }
 
 .fb-errore {
   margin: 0 0 8px;

@@ -25,7 +25,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 15 | [`feat/quota-token-5h`](15-quota-token-5h.md) | 14 | ~½ g | ✅ fatto |
 | 16 | [`spike/quota-claude`](16-spike-quota-claude.md) | 15 | ~3h | ✅ risposto ([risultati](16-risultati.md)) |
 | 17 | [`feat/quota-endpoint-claude`](17-quota-endpoint-claude.md) | 15, 16 | ~2h | ✅ fatto |
-| 18 | [aggiornamento automatico](18-aggiornamento-automatico.md) — 3 branch | 13 | ~1 g | proposto |
+| 18 | [aggiornamento automatico](18-aggiornamento-automatico.md) — 3 branch | 13 | ~1 g | ✅ 1 e 2 fatti (44, `feat/auto-update`); firma mac fatta nel 44 |
 | 19 | [`feat/sposta-progetti-e-chat-corrente`](19-sposta-progetti-e-chat-corrente.md) | 8, 9, 14 | ~2h | fatto, da provare nell'app |
 | 20 | [`feat/onboarding`](20-onboarding.md) | — | ~1 g | fatto, da provare nell'app |
 | 21 | [`refactor/split-renderer`](21-split-renderer.md) | — | ~2h | ✅ fatto (PR #30) |
@@ -48,10 +48,11 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 37 | [`fix/collassi-al-riavvio`](37-collassi-al-riavvio.md) | 8, 6 | ~1h | fatto, da provare nell'app |
 | 38 | [`feat/notifiche-sistema`](38-notifiche-sistema.md) — macOS e Linux | — | ~½ g | fatto, provato nell'app su macOS; da provare su Linux |
 | 39 | [`feat/temi-colori`](39-temi-colori.md) — temi pronti nel dialogo Colori | — | ~¼ g | fatto, provato nell'app |
-| 40 | [`spike/psmux`](40-windows-sessioni-persistenti.md) → fase 2 — Windows | 6, 8, 24, 26 | ~½ g + ~1 g | proposto, da fare sul fisso Windows |
+| 40 | [`spike/psmux`](40-windows-sessioni-persistenti.md) → fase 2 — Windows, **più il pacchetto che non si costruisce** | 6, 8, 24, 26 | ~½ g + ~1 g | proposto, da fare sul fisso Windows |
 | 41 | [`fix/temi-personalizzati`](41-temi-personalizzati.md) — i ritocchi restano al loro tema | 39 | ~¼ g | fatto |
 | 42 | [`fix/opencode-resume-id`](42-opencode-resume-id.md) — le schede opencode tornano dopo un riavvio | 8 | ~2h | fatto, provato nell'app |
 | 43 | [`feat/modifiche-staged`](43-modifiche-staged.md) — «Da committare»: staged e non staged nel pannello | 32 | ~½ g | fatto, provato nell'app (smoke sotto xvfb) |
+| 44 | [`chore/release-firmata`](44-release-firmata.md) — 1.1.0 firmata, notarizzata, su repo pubblico | 13 | ~½ g | in corso |
 | 46 | [`feat/hooks-esatti`](46-hook-esatti.md) — lavora / ha finito / chiede un permesso, dagli hook di Claude, opencode e Codex | 38 | ~1½ g | fatto, smoke da fare |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.

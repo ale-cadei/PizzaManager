@@ -3,7 +3,11 @@ const { app, Menu, shell: electronShell } = require('electron');
 const { isPlatformSupported } = require('../lib/notifications');
 const { MENU_ITEM_ID: NOTIFICATIONS_ID } = require('./notify');
 
-const REPO_URL = 'https://github.com/ale-cadei/PizzaManager';
+// La pagina pubblica dei download, non il repo del codice (privato): questo
+// link lo apre chi usa l'app, e su un repo privato vedrebbe un 404. L'indirizzo
+// e' lo stesso che usa l'aggiornamento automatico quando non puo' installare
+// da se', quindi la fonte e' una sola.
+const { DOWNLOAD_URL: REPO_URL } = require('../lib/update-policy');
 
 /**
  * Menu applicativo nativo.
@@ -84,10 +88,24 @@ function buildAppMenu({ sendToRenderer, platform = process.platform } = {}) {
     {
       label: 'Help',
       submenu: [
-        { label: 'Repository PizzaManager', click: () => electronShell.openExternal(REPO_URL) },
+        // La versione va mostrata: da quando l'app si scarica invece di
+        // ricostruirla, "che versione hai?" non aveva risposta da nessuna
+        // parte. `role: 'about'` apre il pannello di sistema, riempito da
+        // setAboutPanelOptions (sotto): su macOS e' il posto che l'utente
+        // cerca per abitudine.
+        { role: 'about', label: 'Informazioni su PizzaManager' },
+        { type: 'separator' },
+        { label: 'PizzaManager: download e versioni', click: () => electronShell.openExternal(REPO_URL) },
       ],
     },
   ];
+  // Senza queste opzioni il pannello mostra solo il nome; la versione e'
+  // quella di package.json, cioe' quella del pacchetto che si e' scaricato.
+  app.setAboutPanelOptions({
+    applicationName: 'PizzaManager',
+    applicationVersion: app.getVersion(),
+    copyright: 'Gestore di sessioni di terminale per shell e assistenti',
+  });
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 

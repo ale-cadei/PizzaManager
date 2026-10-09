@@ -1,10 +1,10 @@
 {
   "name": "aisessionmanager",
   "productName": "PizzaManager",
-  "version": "1.0.2",
+  "version": "1.2.0",
   "description": "Gestore unificato di terminali, sessioni OpenCode e Claude Code in un'unica finestra",
   "main": "main.js",
-  "homepage": "https://github.com/ale-cadei/PizzaManager",
+  "homepage": "https://github.com/JackGrieco/PizzaManager-releases",
   "author": "PizzaManager <support@example.com>",
   "license": "MIT",
   "scripts": {
@@ -23,6 +23,7 @@
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/addon-web-links": "^0.11.0",
     "@xterm/xterm": "^5.5.0",
+    "electron-updater": "^6.8.9",
     "node-pty": "^1.0.0"
   },
   "devDependencies": {
@@ -48,6 +49,7 @@
       "!node_modules/.cache/**/*"
     ],
     "npmRebuild": true,
+    "artifactBuildCompleted": "scripts/notarize-dmg.js",
     "linux": {
       "target": [
         "deb",
@@ -75,6 +77,8 @@
     "artifactName": "${productName}-${os}-${arch}.${ext}",
     "publish": {
       "provider": "github",
+      "owner": "JackGrieco",
+      "repo": "PizzaManager-releases",
       "releaseType": "draft"
     },
     "win": {

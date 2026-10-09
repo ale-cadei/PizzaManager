@@ -1708,9 +1708,16 @@ a, .link { color: var(--action-text); }
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 9px 4px;
+  padding: 9px 4px 9px 9px;
   border-bottom: 1px solid var(--border);
+  /* Il filo a sinistra dice il tipo: la catena che lo calcola c'era già
+     (modulo bug → .github/feedback.js → classe tipo-*), mancava solo di
+     dipingerlo. Due colori e non uno: una classe mai usata è il difetto
+     che stiamo correggendo (piano 50). */
+  border-left: 3px solid var(--border-strong);
 }
+
+.fb-voce.tipo-segnalazione { border-left-color: var(--accent); }
 
 .fb-voce:last-child { border-bottom: none; }
 
@@ -1738,12 +1745,24 @@ a, .link { color: var(--action-text); }
 .fb-freccia { font-size: 10px; line-height: 1; opacity: 0.75; }
 .fb-voti { font-size: 13px; font-weight: 600; line-height: 1.1; }
 
+/* È un pulsante (apre la issue), ma deve leggersi come testo. */
 .fb-corpo {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 3px;
   min-width: 0;
+  flex: 1 1 auto;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
 }
+
+.fb-corpo:hover .fb-titolo { color: var(--action-text); }
 
 .fb-titolo { font-size: 13px; }
 
@@ -1767,6 +1786,8 @@ a, .link { color: var(--action-text); }
 .fb-stato.stato-pianificato { color: var(--action-text); background: var(--action-soft); }
 .fb-stato.stato-in-corso { color: var(--action-text); background: var(--action-soft); }
 .fb-stato.stato-completato { color: #7ee2a8; background: color-mix(in srgb, #7ee2a8 16%, transparent); }
+/* Spento: una cosa decisa e chiusa, che non chiede piu' niente a nessuno. */
+.fb-stato.stato-non-lo-faremo { color: var(--text-muted); background: color-mix(in srgb, var(--text-muted) 14%, transparent); }
 
 .fb-errore {
   margin: 0 0 8px;
@@ -1774,4 +1795,3 @@ a, .link { color: var(--action-text); }
   color: var(--warn-text, var(--action-text));
 }
 
-#fb-form { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }

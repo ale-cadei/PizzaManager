@@ -146,10 +146,14 @@ function createEvent(props = {}) {
   return e;
 }
 
-/** Chiama gli handler registrati su un elemento per quel tipo di evento. */
+/** Chiama gli handler registrati su un elemento per quel tipo di evento.
+ *  Anche quelli messi come proprieta' (`el.onclick = …`): nel browser i due
+ *  modi sono equivalenti, e meta' del renderer usa il secondo. */
 function fire(el, type, props) {
   const event = createEvent(props);
   for (const fn of el.listeners.get(type) || []) fn(event);
+  const diretto = el[`on${type}`];
+  if (typeof diretto === 'function') diretto(event);
   return event;
 }
 

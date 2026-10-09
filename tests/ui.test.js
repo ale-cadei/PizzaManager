@@ -123,6 +123,40 @@ ok('sidebar: i gruppi arrivano dal modulo, non da una Map costruita a mano', () 
   assert.ok(html.includes('session-groups.js'), 'session-groups.js non è incluso nella pagina');
 });
 
+ok('hidden: un elemento che si nasconde non deve avere un display piu forte', () => {
+  // [hidden] vale `display: none` per l'UA stylesheet, specificita' (0,1,0):
+  // una regola `#id { display: … }` lo batte e l'elemento resta visibile per
+  // sempre. Era successo a #fb-form: il modulo della nuova segnalazione
+  // restava aperto, «＋ Nuova» non apriva niente e «Annulla» non chiudeva
+  // niente (piano 50). Si guardano solo gli id: una regola #id si applica di
+  // sicuro a quell'elemento, mentre per le classi servirebbe un vero motore
+  // di selettori.
+  const root = path.join(__dirname, '..');
+  const html = fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'renderer', 'styles.css'), 'utf8')
+    + fs.readFileSync(path.join(root, 'renderer', 'tokens.css'), 'utf8');
+  const nascosti = [...html.matchAll(/<[a-z][^>]*>/g)]
+    .map((m) => m[0])
+    .filter((tag) => /\shidden[\s>/]/.test(tag))
+    .map((tag) => (tag.match(/id="([^"]+)"/) || [])[1])
+    .filter(Boolean);
+  for (const id of nascosti) {
+    const regola = new RegExp(`(^|[,}\\s])#${id}\\s*\\{[^}]*display\\s*:`, 'm');
+    if (!regola.test(css)) continue;
+    assert.ok(css.includes(`#${id}[hidden]`),
+      `#${id} ha un display suo ma non la regola #${id}[hidden]: resterebbe visibile anche nascosto`);
+  }
+});
+
+ok('pulsanti: nessuno resta senza variante, o esce grigio', () => {
+  // `.btn` da sola non ha ne' fondo ne' colore (tokens.css): serve sempre una
+  // fra primary, outline, secondary e ghost. Era successo nel pannello delle
+  // segnalazioni: «Nuova» e «Continua su GitHub» uscivano grigi (piano 50).
+  const html = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'index.html'), 'utf8');
+  const nudi = (html.match(/class="btn"/g) || []).length;
+  assert.strictEqual(nudi, 0, `${nudi} pulsanti senza variante: cerca class="btn" in index.html`);
+});
+
 ok('sidebar: le azioni non usano il pieno teal (riservato alla conferma nei modali)', () => {
   const root = path.join(__dirname, '..');
   const html = fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');

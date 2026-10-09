@@ -332,33 +332,39 @@
 </div>
 
 <!-- Segnalazioni (docs/plans/48-segnalazioni.md): le voci le scarica il main
-     (la CSP qui ha connect-src 'none'), disegna feedback-view.js. Il modulo
-     per aprirne una nuova sta dentro; l'invio finale avviene su GitHub. -->
+     (la CSP qui ha connect-src 'none'), disegna feedback-view.js. -->
 <div class="modal-backdrop" id="modal-feedback" hidden>
   <div class="modal wide">
     <h2>📣 Segnalazioni</h2>
     <p class="muted small">Problemi e richieste di funzionalità. Vota quelle che ti servono: le più votate le guardiamo prima.</p>
     <div class="fb-barra">
       <div class="tabs" role="tablist" id="fb-tabs"></div>
-      <button class="btn btn--ghost" id="fb-reload" title="Rileggi la bacheca">⟳</button>
-      <button class="btn" id="fb-new">＋ Nuova</button>
-    </div>
-    <div id="fb-form" hidden>
-      <label>Tipo<select class="input" id="fb-tipo">
-        <option value="richiesta">Richiesta di funzionalità</option>
-        <option value="segnalazione">Problema</option>
-      </select></label>
-      <label>Titolo<input class="input" id="fb-titolo" maxlength="120" placeholder="In poche parole" /></label>
-      <label>Descrizione<textarea class="input" id="fb-corpo" rows="4" placeholder="Cosa ti aspettavi, cosa succede invece"></textarea></label>
-      <p class="muted small">Si apre GitHub con tutto già compilato, compresi versione e sistema: l'invio lo confermi lì.</p>
-      <div class="modal-actions">
-        <button class="btn btn--ghost" id="fb-form-cancel">Annulla</button>
-        <button class="btn" id="fb-form-send">Continua su GitHub</button>
-      </div>
+      <button class="btn btn--secondary" id="fb-reload" title="Rileggi la bacheca">⟳</button>
+      <button class="btn btn--outline" id="fb-new">＋ Nuova</button>
     </div>
     <div id="fb-body"></div>
     <div class="modal-actions">
       <button class="btn btn--ghost" id="fb-close">Chiudi</button>
+    </div>
+  </div>
+</div>
+
+<!-- Nuova segnalazione: un dialogo a sé, non un riquadro dentro la bacheca.
+     Mentre si scrive, l'elenco delle altre sparisce: una schermata alla volta
+     (piano 50). «Annulla» riporta alla bacheca, da dove si era arrivati. -->
+<div class="modal-backdrop" id="modal-fb-new" hidden>
+  <div class="modal">
+    <h2>Nuova segnalazione</h2>
+    <label>Tipo<select class="input" id="fb-tipo">
+      <option value="richiesta">Richiesta di funzionalità</option>
+      <option value="segnalazione">Problema</option>
+    </select></label>
+    <label>Titolo<input class="input" id="fb-titolo" maxlength="120" placeholder="In poche parole" /></label>
+    <label>Descrizione<textarea class="input" id="fb-corpo" rows="5" placeholder="Cosa ti aspettavi, cosa succede invece"></textarea></label>
+    <p class="muted small">Si apre GitHub con tutto già compilato, compresi versione e sistema: l'invio lo confermi lì.</p>
+    <div class="modal-actions">
+      <button class="btn btn--ghost" id="fb-form-cancel">Annulla</button>
+      <button class="btn btn--primary" id="fb-form-send">Continua su GitHub</button>
     </div>
   </div>
 </div>

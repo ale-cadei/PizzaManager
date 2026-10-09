@@ -88,9 +88,13 @@ Le notifiche di sistema si fanno subito sul segnale di oggi, senza toccarlo:
 [38-notifiche-sistema.md](38-notifiche-sistema.md) (fatto, provato su
 macOS; Linux da provare). Il segnale esatto (hook) resta qui, ci lavora Ale.
 
-- [ ] studio — come installare l'hook senza sporcare la config dell'utente
-- [ ] piano
-- [ ] fatto
+- [x] studio — fatto il 2026-10-08: Claude con `--settings`, opencode con un
+      plugin in `OPENCODE_CONFIG_CONTENT`, Codex con OSC 9 (i suoi hook
+      iniettati vengono saltati dalla fiducia per hash). Antigravity resta
+      sull'euristica: hook solo in `~/.gemini/config/hooks.json`, globali;
+      da riprendere quando li renderà iniettabili per processo
+- [x] piano — [46-hook-esatti.md](46-hook-esatti.md)
+- [x] fatto — branch `feat/hooks-esatti`, verifiche nel piano
 - [ ] provato
 
 ---

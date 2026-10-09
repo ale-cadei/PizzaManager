@@ -97,3 +97,44 @@ ok('segnali: una sessione non disegnata lo dice, non fallisce in silenzio', () =
       'una card che non c è risulta aggiornata: il segnale andrebbe perso');
   } finally { restore(); }
 });
+
+/* Piano 46: il permesso lampeggia più rapido, stesso colore. È una classe in
+   più sulla card; spegnere il lampeggio la toglie sempre. */
+ok('segnali: il permesso ha la sua classe e il suo titolo, e si spegne col lampeggio', () => {
+  const { sidebar, cards, restore } = monta([
+    { id: 'a', type: 'claude', name: 'a', cwd: '/repo', alive: true },
+  ], null);
+  try {
+    sidebar.signal('a', { needsAttention: true, permission: true });
+    assert.ok(cards()[0].classes.has('needs-attention'));
+    assert.ok(cards()[0].classes.has('needs-permission'));
+    assert.match(cards()[0].title, /permesso/);
+    sidebar.signal('a', { needsAttention: false });
+    assert.ok(!cards()[0].classes.has('needs-permission'), 'il ritmo rapido resta acceso');
+    sidebar.signal('a', { needsAttention: true });
+    assert.ok(!cards()[0].classes.has('needs-permission'), '«ha finito» non è un permesso');
+  } finally { restore(); }
+});
+
+ok('segnali: una card disegnata con il permesso nasce col ritmo rapido', () => {
+  const { cards, restore } = monta([
+    { id: 'a', type: 'claude', name: 'a', cwd: '/repo', alive: true, needsAttention: true, attentionKind: 'permission' },
+  ], null);
+  try {
+    assert.ok(cards()[0].classes.has('needs-permission'));
+    assert.match(cards()[0].title, /permesso/);
+  } finally { restore(); }
+});
+
+ok('segnali: a gruppo chiuso anche il permesso passa sulla linguetta', () => {
+  const { sidebar, headers, restore } = monta([
+    { id: 'a', type: 'claude', name: 'a', cwd: '/repo', alive: true },
+    { id: 'b', type: 'claude', name: 'b', cwd: '/repo', alive: true },
+  ], null, ['claude']);
+  try {
+    sidebar.signal('a', { needsAttention: true, permission: true });
+    assert.ok(headers()[0].classes.has('needs-permission'));
+    sidebar.signal('a', { needsAttention: false });
+    assert.ok(!headers()[0].classes.has('needs-permission'));
+  } finally { restore(); }
+});

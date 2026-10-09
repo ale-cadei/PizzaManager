@@ -799,3 +799,82 @@ ok('git: readStaging divide indice e cartella, e i diff di ogni sezione, con il 
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+/* Piano 46 su un tmux vero: (1) l'OSC 9 che Codex incapsula per tmux arriva
+   al client dell'app; (2) uno stato scritto da un hook mentre l'app è chiusa
+   si ritrova al riattacco. Il finto agente è uno script node. */
+function hookSetup(t, label) {
+  const path = require('path');
+  const os = require('os');
+  const { detectTmux, createTmuxControl } = require('../lib/tmux');
+  const { createPtyManager, isPtyAvailable } = require('../app/pty');
+  const { createAccountStore } = require('../lib/accounts');
+  const { createHistoryStore } = require('../lib/history');
+  const { createProfileStore } = require('../lib/profiles');
+  const { createAgentSignalStore } = require('../lib/agent-signals');
+  const found = detectTmux({ confPath: null });
+  if (!found) { t.skip('tmux non installato su questa macchina'); return null; }
+  if (!isPtyAvailable()) { t.skip('node-pty non compilato'); return null; }
+  const socket = `aistest-${label}-${process.pid}`;
+  const confPath = path.join(__dirname, '..', 'app', 'tmux.conf');
+  const tmux = { bin: found.bin, confPath, socket, control: createTmuxControl({ bin: found.bin, confPath, socket }) };
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), `ais-${label}-`));
+  const profiles = createProfileStore({ dir });
+  const signals = createAgentSignalStore({ dir });
+  const agent = (type, body) => {
+    const script = path.join(dir, `${type}.js`);
+    fs.writeFileSync(script, `${body}\nsetInterval(() => {}, 1000);`);
+    const cfg = profiles.load();
+    cfg.profiles[type] = [{ id: `${type}:t`, label: 'Finto', command: `${process.execPath} ${script}`, resumeArgs: '' }];
+    profiles.save(cfg);
+  };
+  const mk = (sent) => createPtyManager({
+    accounts: () => createAccountStore({ dir }), history: () => createHistoryStore({ dir }), profiles,
+    sendToRenderer: (ch, v) => sent.push([ch, v]), tmux, signalStore: () => signals,
+  });
+  const kill = () => { try { require('child_process').execFileSync(found.bin, ['-L', socket, 'kill-server']); } catch {} };
+  return { dir, agent, mk, kill };
+}
+
+const until = async (fn, ms = 4000) => {
+  for (let i = 0; i < ms; i += 50) { if (fn()) return true; await new Promise((r) => setTimeout(r, 50)); }
+  return false;
+};
+
+ok('tmux: l OSC 9 incapsulato di Codex arriva al client dell app', async (t) => {
+  const s = hookSetup(t, 'osc');
+  if (!s) return;
+  // Come lo scrive Codex dentro tmux: DCS passthrough con l'ESC interno raddoppiato
+  s.agent('codex', String.raw`process.stdout.write('\x1bPtmux;\x1b\x1b]9;Approval requested: ls\x07\x1b\\');`);
+  const sent = [];
+  const app = s.mk(sent);
+  try {
+    const r = await app.spawn({ id: 'c1', type: 'codex', cwd: s.dir, commandProfileId: 'codex:t', cols: 80, rows: 24 });
+    assert.strictEqual(r.ok, true, r.error);
+    const seen = () => sent.filter(([ch, v]) => ch === 'pty-data' && v.id === 'c1').map(([, v]) => v.data).join('');
+    assert.ok(await until(() => seen().includes('\x1b]9;Approval requested: ls')), `OSC 9 non arrivato: ${JSON.stringify(seen().slice(-200))}`);
+  } finally { app.closeAll(); s.kill(); }
+});
+
+ok('tmux: lo stato scritto ad app chiusa arriva alla scheda al riattacco', async (t) => {
+  const s = hookSetup(t, 'riattacco');
+  if (!s) return;
+  // Scrive solo dopo che l'app si è staccata: lo stato deve aspettarla su disco
+  s.agent('claude', `setTimeout(() => require('fs').writeFileSync(process.env.AISESS_SIGNAL_FILE, 'permission'), 600);`);
+  const first = [];
+  const app1 = s.mk(first);
+  let session = null;
+  try {
+    const r = await app1.spawn({ id: 'tab1', type: 'claude', cwd: s.dir, commandProfileId: 'claude:t', cols: 80, rows: 24 });
+    assert.strictEqual(r.ok, true, r.error);
+    session = r.session;
+    app1.closeAll(); // l'app si chiude, la sessione resta in tmux
+    await new Promise((res) => setTimeout(res, 1000));
+    const second = [];
+    const app2 = s.mk(second);
+    const a = await app2.attach({ id: 'tab9', session, type: 'claude', cols: 80, rows: 24 });
+    assert.strictEqual(a.ok, true, a.error);
+    assert.deepStrictEqual(second.find(([ch]) => ch === 'agent-signal'), ['agent-signal', { id: 'tab9', state: 'permission' }]);
+    app2.closeAll();
+  } finally { s.kill(); }
+});

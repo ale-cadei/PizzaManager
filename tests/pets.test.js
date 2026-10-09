@@ -1,4 +1,4 @@
-// renderer/pets.js: movimento, inseguimento e stati degli animaletti
+// renderer/pets.js: movimento, comportamenti e stati degli animaletti
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
 const Pets = require('../renderer/pets');
@@ -34,28 +34,24 @@ function onStage(cast, random = () => 0.5) {
 const stillFor = (state, ms, opts) => run(state, Math.ceil(ms / 16), { random: never, ...opts });
 
 ok('pets: createPets mette un pet per personaggio del cast, dentro la striscia', () => {
-  const state = createPets({ cast: ['inseguimento', 'lumaca'], width: WIDTH, size: SIZE, random: seeded() });
-  assert.deepStrictEqual(state.pets.map((p) => p.kind), ['pescatore', 'medusa', 'lumaca']);
+  const state = createPets({ cast: ['medusa', 'chiocciola'], width: WIDTH, size: SIZE, random: seeded() });
+  assert.deepStrictEqual(state.pets.map((p) => p.kind), ['medusa', 'chiocciola']);
   for (const p of state.pets) {
     assert.ok(p.x >= 0 && p.x <= WIDTH - petWidth(p.kind, SIZE), `${p.kind} fuori: ${p.x}`);
     assert.strictEqual(p.pose, 'walk');
   }
-  const sponge = byKind(state, 'pescatore');
-  const jelly = byKind(state, 'medusa');
-  assert.strictEqual(sponge.mate, jelly.key);
-  assert.strictEqual(jelly.mate, sponge.key);
-  assert.ok(Math.abs(center(jelly) - center(sponge)) >= SIZE, 'la medusa nasce già sotto il retino');
+  assert.strictEqual(new Set(state.pets.map((p) => p.key)).size, 2, 'chiavi uguali');
 });
 
 ok('pets: step non tocca lo stato che riceve', () => {
-  const state = deepFreeze(createPets({ cast: ['inseguimento', 'gatto'], width: WIDTH, size: SIZE, random: seeded() }));
+  const state = deepFreeze(createPets({ cast: ['medusa', 'gatto'], width: WIDTH, size: SIZE, random: seeded() }));
   const next = step(state, { dt: 16, width: WIDTH, mood: 'busy', random: seeded(2) });
   assert.notStrictEqual(next, state);
   assert.notStrictEqual(next.pets[0], state.pets[0]);
 });
 
 ok('pets: nessuno esce dalla striscia, nemmeno quando la finestra si stringe', () => {
-  let state = createPets({ cast: ['gatto', 'pizza', 'inseguimento', 'stella'], width: WIDTH, size: SIZE, random: seeded(3) });
+  let state = createPets({ cast: ['gatto', 'pizza', 'medusa', 'chiocciola'], width: WIDTH, size: SIZE, random: seeded(3) });
   const random = seeded(4);
   for (let i = 0; i < 2000; i += 1) {
     const width = i < 1000 ? WIDTH : 300;
@@ -67,7 +63,7 @@ ok('pets: nessuno esce dalla striscia, nemmeno quando la finestra si stringe', (
 });
 
 ok('pets: fit rimette dentro chi è rimasto fuori, senza muovere né cambiare posa agli altri', () => {
-  const state = deepFreeze(run(createPets({ cast: ['inseguimento', 'gatto'], width: WIDTH, size: SIZE, random: seeded(5) }), 100, { mood: 'sleep' }));
+  const state = deepFreeze(run(createPets({ cast: ['medusa', 'gatto'], width: WIDTH, size: SIZE, random: seeded(5) }), 100, { mood: 'sleep' }));
   const narrow = 200;
   const next = Pets.fit(state, narrow);
   next.pets.forEach((p, i) => {
@@ -98,7 +94,7 @@ ok('pets: la velocità scelta nelle impostazioni moltiplica lo spostamento', () 
 });
 
 ok('pets: tutto fermo da tanto → dormono, fermi', () => {
-  const state = createPets({ cast: ['inseguimento', 'stella'], width: WIDTH, size: SIZE, random: seeded() });
+  const state = createPets({ cast: ['medusa', 'chiocciola'], width: WIDTH, size: SIZE, random: seeded() });
   const next = run(state, 30, { mood: 'sleep', random: never });
   next.pets.forEach((p, i) => {
     assert.strictEqual(p.pose, 'sleep');
@@ -121,81 +117,11 @@ ok('pets: una sessione aspetta → il più vicino al centro (mai la medusa) si f
   assert.strictEqual(a.pose, 'walk');
   assert.notStrictEqual(a.x, 100);
 
-  const pair = createPets({ cast: ['inseguimento'], width: WIDTH, size: SIZE, random: seeded() });
-  const moved = { ...pair, pets: pair.pets.map((p) => (p.kind === 'medusa' ? { ...p, x: 384 } : { ...p, x: 50 })) };
-  const called = step(moved, { dt: 16, width: WIDTH, mood: 'attention', random: never });
-  assert.strictEqual(byKind(called, 'pescatore').pose, 'call');
+  const withJelly = onStage(['medusa', 'gatto']);
+  const placed = { ...withJelly, pets: withJelly.pets.map((p) => (p.kind === 'medusa' ? { ...p, x: 384 } : { ...p, x: 50 })) };
+  const called = step(placed, { dt: 16, width: WIDTH, mood: 'attention', random: never });
+  assert.strictEqual(byKind(called, 'gatto').pose, 'call', 'chiama il gatto anche se la medusa è più al centro');
   assert.notStrictEqual(byKind(called, 'medusa').pose, 'call');
-});
-
-ok('pets: Il pescatore va sempre verso la medusa', () => {
-  const base = createPets({ cast: ['inseguimento'], width: WIDTH, size: SIZE, random: seeded() });
-  for (const [sx, jx] of [[100, 600], [600, 100]]) {
-    const state = { ...base, pets: base.pets.map((p) => ({ ...p, x: p.kind === 'pescatore' ? sx : jx })) };
-    const next = step(state, { dt: 16, width: WIDTH, mood: 'idle', random: never });
-    const before = Math.abs(jx - sx);
-    const sponge = byKind(next, 'pescatore');
-    assert.ok(Math.abs(jx - sponge.x) < before, 'il pescatore si allontana');
-    assert.strictEqual(sponge.dir, Math.sign(jx - sx));
-  }
-});
-
-ok('pets: da vicino il pescatore dà il colpo di retino e la medusa scappa', () => {
-  const base = createPets({ cast: ['inseguimento'], width: WIDTH, size: SIZE, random: seeded() });
-  // Centri a una misura di distanza: sotto la soglia del colpo, qualunque larghezza abbiano i disegni
-  const jellyX = 300 + petWidth('pescatore', SIZE) / 2 - petWidth('medusa', SIZE) / 2 + SIZE;
-  const state = { ...base, pets: base.pets.map((p) => ({ ...p, x: p.kind === 'pescatore' ? 300 : jellyX })) };
-  const next = step(state, { dt: 16, width: WIDTH, mood: 'idle', random: never });
-  assert.strictEqual(byKind(next, 'pescatore').pose, 'swing');
-  const jelly = byKind(next, 'medusa');
-  assert.strictEqual(jelly.pose, 'flee');
-  assert.strictEqual(jelly.dir, 1, 'scappa dalla parte opposta al pescatore');
-});
-
-ok('pets: messa all angolo la medusa gli passa sopra', () => {
-  const base = createPets({ cast: ['inseguimento'], width: WIDTH, size: SIZE, random: seeded() });
-  const jw = petWidth('medusa', SIZE);
-  const state = { ...base, pets: base.pets.map((p) => ({ ...p, x: p.kind === 'pescatore' ? WIDTH - jw - SIZE * 1.5 : WIDTH - jw })) };
-  const next = step(state, { dt: 16, width: WIDTH, mood: 'busy', random: never });
-  const jelly = byKind(next, 'medusa');
-  assert.strictEqual(jelly.passing, true);
-  assert.strictEqual(jelly.dir, -1);
-  assert.ok(jelly.lift >= SIZE / 2);
-});
-
-ok('pets: il retino non la prende mai (3000 passi, a ogni velocità e larghezza)', () => {
-  for (const [mood, width, seed] of [['idle', WIDTH, 5], ['busy', WIDTH, 6], ['busy', 260, 7], ['attention', 500, 8]]) {
-    let state = createPets({ cast: ['inseguimento'], width, size: SIZE, random: seeded(seed) });
-    const random = seeded(seed + 100);
-    let flights = 0;
-    for (let i = 0; i < 3000; i += 1) {
-      state = step(state, { dt: 16 + (i % 5) * 20, width, mood, random });
-      const jelly = byKind(state, 'medusa');
-      const dist = Math.abs(center(jelly) - center(byKind(state, 'pescatore')));
-      assert.ok(dist >= SIZE / 2 || jelly.lift >= SIZE / 2, `${mood}/${width} passo ${i}: presa a distanza ${dist}`);
-      if (jelly.pose === 'flee') flights += 1;
-    }
-    // Altrimenti il test passerebbe anche con i due che non si incontrano mai
-    assert.ok(flights > 0, `${mood}/${width}: la medusa non è mai scappata`);
-  }
-});
-
-ok('pets: Il pescatore si ferma a chiamare e la medusa gli resta vicino, sempre in movimento', () => {
-  const base = onStage(['inseguimento']);
-  const placed = { ...base, pets: base.pets.map((p) => (p.kind === 'pescatore' ? { ...p, x: 100 } : { ...p, x: 600, dir: 1 })) };
-  const random = seeded(9);
-  const leash = Pets.LEASH * SIZE + petWidth('medusa', SIZE);
-  let state = run(placed, 2000, { mood: 'attention', random });
-  const xs = [];
-  for (let i = 0; i < 3000; i += 1) {
-    state = step(state, { dt: 16, width: WIDTH, mood: 'attention', random });
-    const sponge = byKind(state, 'pescatore');
-    const jelly = byKind(state, 'medusa');
-    assert.strictEqual(sponge.pose, 'call');
-    assert.ok(Math.abs(center(jelly) - center(sponge)) <= leash, `passo ${i}: la medusa se ne va a ${center(jelly) - center(sponge)}`);
-    xs.push(jelly.x);
-  }
-  assert.ok(Math.max(...xs) - Math.min(...xs) > SIZE, 'la medusa sta ferma');
 });
 
 ok('pets: la rana salta, e avanza solo mentre è in aria', () => {
@@ -378,17 +304,15 @@ ok('pets: recast tiene chi resta dov\'è, fa svanire chi esce e fa apparire chi 
   assert.strictEqual(gone.pets[1].pose, 'walk');
 });
 
-ok('pets: recast, chi non sa svanire sparisce subito; una coppia esce intera; le chiavi restano uniche', () => {
-  const state = onStage(['inseguimento', 'gatto', 'gatto']);
+ok('pets: recast, chi non sa svanire sparisce subito; un gruppetto esce intero; le chiavi restano uniche', () => {
+  const state = onStage(['papera', 'gatto', 'gatto']);
   const next = recast(state, { cast: ['gatto'], width: WIDTH, random: never });
-  assert.deepStrictEqual(next.pets.map((p) => p.kind), ['gatto']);
-  assert.strictEqual(next.pets[0].key, state.pets[2].key, 'tiene il primo dei due gatti');
-  const more = recast(next, { cast: ['gatto', 'inseguimento', 'gatto'], width: WIDTH, random: never });
-  assert.deepStrictEqual(more.pets.map((p) => p.kind).sort(), ['gatto', 'gatto', 'medusa', 'pescatore']);
+  assert.deepStrictEqual(next.pets.map((p) => p.kind), ['gatto'], 'la papera se ne va con gli anatroccoli');
+  assert.strictEqual(next.pets[0].key, state.pets[3].key, 'tiene il primo dei due gatti');
+  const more = recast(next, { cast: ['gatto', 'papera', 'gatto'], width: WIDTH, random: never });
+  assert.deepStrictEqual(more.pets.map((p) => p.kind).sort(), ['anatroccolo', 'anatroccolo', 'gatto', 'gatto', 'papera']);
   assert.strictEqual(more.pets[0].key, next.pets[0].key, 'il gatto di prima non è più il primo');
-  assert.strictEqual(new Set(more.pets.map((p) => p.key)).size, 4);
-  const sponge = byKind(more, 'pescatore');
-  assert.strictEqual(byKind(more, 'medusa').mate, sponge.key);
+  assert.strictEqual(new Set(more.pets.map((p) => p.key)).size, 5);
   assert.strictEqual(recast(more, { cast: [], width: WIDTH, random: never }).pets.length, 0);
 });
 
@@ -442,13 +366,12 @@ ok('pets: un random che tocca 1 non produce un aspetto fuori misura', () => {
   assert.strictEqual(byKind(state, 'gatto').variant, 0);
 });
 
-ok('pets: la medusa da sola è una voce del cast: senza il pescatore gironzola ondeggiando, mai in fuga', () => {
+ok('pets: la medusa gironzola ondeggiando, e non ha più nessuno da cui scappare', () => {
   const { CAST, CAST_LABELS } = require('../renderer/pets-sprites');
   assert.deepStrictEqual(CAST.medusa, ['medusa']);
   assert.strictEqual(CAST_LABELS.medusa, 'Medusa');
   let state = onStage(['medusa']);
   assert.strictEqual(state.pets.length, 1);
-  assert.strictEqual(state.pets[0].mate, null);
   const ys = new Set();
   const poses = new Set();
   for (let i = 0; i < 120; i += 1) {
@@ -457,7 +380,6 @@ ok('pets: la medusa da sola è una voce del cast: senza il pescatore gironzola o
     poses.add(state.pets[0].pose);
   }
   assert.ok(ys.size > 3, 'la medusa da sola non ondeggia');
-  assert.ok(!poses.has('flee'), 'scappa da nessuno');
   assert.ok(poses.has('walk'));
 });
 

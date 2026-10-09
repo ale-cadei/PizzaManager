@@ -895,8 +895,8 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 
 /* ---------- Animaletti (renderer/pets-view.js, piano 33) ----------
    Striscia sotto il terminale: ne ruba l'altezza invece di coprirne l'ultima
-   riga. Non prende click e sta sopra i terminali, perché la medusa quando
-   salta esce dalla striscia verso l'alto. */
+   riga. Non prende click e sta sopra i terminali, perché chi vola o salta
+   (l'uccellino, la rana) esce dalla striscia verso l'alto. */
 #pets-strip { position: relative; z-index: 3; flex: 0 0 auto; overflow: visible; pointer-events: none; }
 #pets-strip[hidden] { display: none; }
 .pet { position: absolute; left: 0; bottom: 0; will-change: transform; }

@@ -33,16 +33,21 @@ ok('notify store: localStorage che lancia non rompe niente', () => {
 ok('notify item: nome, tipo leggibile e percorso corto della scheda', () => {
   const tab = { id: 't1', type: 'claude', name: 'refactor login', cwd: '/Users/me/progetto' };
   const item = Notify.notifyItem(tab, { typeLabels: { claude: 'Claude' }, shortPath: (p) => p.replace('/Users/me', '~') });
-  assert.deepStrictEqual(item, { id: 't1', name: 'refactor login', typeLabel: 'Claude', where: '~/progetto' });
+  assert.deepStrictEqual(item, { id: 't1', name: 'refactor login', typeLabel: 'Claude', where: '~/progetto', kind: 'done' });
 });
 
 ok('notify item: tipo sconosciuto e cwd mancante non rompono', () => {
   const item = Notify.notifyItem({ id: 't1', type: 'nuovo' }, { typeLabels: {}, shortPath: () => '' });
-  assert.deepStrictEqual(item, { id: 't1', name: '', typeLabel: 'nuovo', where: '' });
+  assert.deepStrictEqual(item, { id: 't1', name: '', typeLabel: 'nuovo', where: '', kind: 'done' });
 });
 
 ok('notify badge: conta le schede accese', () => {
   const tabs = new Map([['a', { needsAttention: true }], ['b', { needsAttention: false }], ['c', { needsAttention: true }], ['d', {}]]);
   assert.strictEqual(Notify.attentionCount(tabs.values()), 2);
   assert.strictEqual(Notify.attentionCount([]), 0);
+});
+
+ok('notify item: una card che chiede un permesso lo dice alla notifica (piano 46)', () => {
+  const item = Notify.notifyItem({ id: 't1', type: 'claude', attentionKind: 'permission' }, { typeLabels: { claude: 'Claude' }, shortPath: () => '' });
+  assert.strictEqual(item.kind, 'permission');
 });

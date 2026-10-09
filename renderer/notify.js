@@ -41,6 +41,7 @@
       name: tab.name || '',
       typeLabel: typeLabels[tab.type] || tab.type,
       where: tab.cwd ? shortPath(tab.cwd) || '' : '',
+      kind: tab.attentionKind === 'permission' ? 'permission' : 'done',
     };
   }
 

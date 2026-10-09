@@ -17,7 +17,12 @@ const { updateMode, bannerText, DOWNLOAD_URL, CHECK_EVERY_MS, FIRST_CHECK_DELAY_
  */
 function registerUpdateHandlers(ipcMain, { electron, sendToRenderer, autoUpdater: injected } = {}) {
   const { app, shell } = electron;
-  const mode = updateMode({ isPackaged: app.isPackaged });
+  // `buildFrom` arriva da `extraMetadata` del workflow e finisce nel
+  // package.json dentro al pacchetto. In sviluppo e nelle build locali non
+  // c'e', e `updateMode` risponde 'off'.
+  let buildFrom = null;
+  try { buildFrom = require('../package.json').buildFrom || null; } catch { /* niente marcatore */ }
+  const mode = updateMode({ isPackaged: app.isPackaged, buildFrom });
 
   /** Ultimo stato noto: il renderer puo' nascere dopo l'evento e deve ritrovarlo. */
   let last = { state: 'idle', mode };

@@ -115,6 +115,24 @@ Com'è venuto, file per file:
   che la pagina esistesse o dopo un ricaricamento.
 - **`main.js`** — due righe, tetto alzato da 225 a 227 con il perché nel test.
 
+### Perché `off` anche per le build fatte a mano
+
+`app.isPackaged` e' true anche per un'app installata con `npm run install:mac`:
+da sola non distingue una release da un attrezzo di sviluppo. Senza una
+distinzione, chi prova una propria modifica si ritrova la build sostituita
+dall'ultima pubblicata — e `autoInstallOnAppQuit` lo fa **alla chiusura**,
+quindi «Più tardi» non protegge: nasconde il banner, non annulla
+l'installazione.
+
+Il marcatore e' `extraMetadata.buildFrom=release`, che il workflow passa a
+electron-builder e che finisce nel `package.json` **dentro** al pacchetto
+(verificato estraendolo dall'asar). Il repo non lo contiene, quindi nessun
+build locale lo eredita.
+
+Forma lunga `--config.`, non `-c.`: la shell dei runner Windows spezza
+`-c.x=y` e il valore finisce preso per un nome di file — e' lo stesso difetto
+che ha tolto Windows dalla matrice (piano 40).
+
 ### Perché `off` in sviluppo
 
 Con `npm start` manca `app-update.yml` — il file che electron-builder scrive

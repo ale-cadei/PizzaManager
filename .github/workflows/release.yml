@@ -168,7 +168,16 @@ jobs:
           chmod 600 "$RUNNER_TEMP/apple-api-key.p8"
         env:
           APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
-      - run: npx electron-builder ${{ matrix.args }} --publish always
+      # `extraMetadata.buildFrom` finisce nel package.json dentro al pacchetto
+      # ed e' cio' che distingue una release da una build fatta a mano con
+      # `npm run install:mac`: `app.isPackaged` e' true per entrambe, e senza
+      # questo marcatore l'aggiornamento sostituirebbe la build che si sta
+      # provando con l'ultima pubblicata (lib/update-policy.js).
+      #
+      # Forma lunga `--config.`, non `-c.`: la shell dei runner Windows spezza
+      # `-c.x=y` in due token e il valore finisce preso per un nome di file
+      # (e' il difetto che ha tolto Windows dalla matrice).
+      - run: npx electron-builder ${{ matrix.args }} --config.extraMetadata.buildFrom=release --publish always
         env:
           # Il repo di destinazione e' in package.json (build.publish).
           GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}

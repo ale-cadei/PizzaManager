@@ -1256,13 +1256,17 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
    sotto il mouse o col fuoco: dieci cestini accesi sarebbero rumore. */
 .git-picker-row { display: flex; align-items: center; gap: 4px; }
 .git-picker-row > .git-picker-item { flex: 1 1 auto; min-width: 0; }
-.git-picker-delete {
+.git-picker-delete, .git-picker-merge {
   flex: 0 0 auto; display: grid; place-items: center; width: 28px; height: 28px;
   background: none; border: 0; border-radius: var(--radius); cursor: pointer;
   color: var(--text-dim); opacity: .35; transition: opacity .12s ease, color .12s ease, background-color .12s ease;
 }
 .git-picker-delete svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
 .git-picker-row:hover .git-picker-delete, .git-picker-delete:focus-visible { opacity: 1; }
+/* ⤵ unisci nel corrente (docs/plans/46): stesso riserbo del cestino, colore dell'azione */
+.git-picker-merge { font-size: 15px; line-height: 1; }
+.git-picker-row:hover .git-picker-merge, .git-picker-merge:focus-visible { opacity: 1; }
+.git-picker-merge:hover, .git-picker-merge:focus-visible { color: var(--action-text); background: color-mix(in srgb, var(--action-text) 14%, transparent); }
 .git-picker-delete:hover, .git-picker-delete:focus-visible { color: var(--state-error); background: color-mix(in srgb, var(--state-error) 14%, transparent); }
 .git-picker-confirm {
   padding: 6px 8px; border-radius: var(--radius); font-size: 12px; gap: 8px;
@@ -1278,7 +1282,7 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .git-picker-confirm-yes { background: var(--state-error); border-color: var(--state-error); color: #fff; font-weight: 600; }
 .git-picker-confirm-no:hover { background: var(--surface-3); }
 .git-picker-confirm-yes:hover { filter: brightness(1.1); }
-@media (prefers-reduced-motion: reduce) { .git-picker-delete { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .git-picker-delete, .git-picker-merge { transition: none; } }
 .git-picker-item--current { cursor: default; color: var(--type-git); }
 .git-picker-item--current:hover { background: none; }
 .git-picker-item--create { color: var(--action-text); }
@@ -1286,6 +1290,8 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .git-picker-hint { color: var(--text-dim); font-size: 11px; white-space: nowrap; }
 .git-picker-error { color: var(--state-error); margin: 0; white-space: pre-wrap; }
 .git-picker-error[hidden] { display: none; }
+.git-picker-notice { color: var(--text); margin: 0; white-space: pre-wrap; }
+.git-picker-notice[hidden] { display: none; }
 .git-picker-note, .git-picker-empty { margin: 0; padding: 0 4px; }
 /* Mappa dei branch (renderer/git-map-view.js, docs/plans/31). Il selettore
    Timeline | Mappa sta nell'intestazione; nella mappa ogni linea porta il suo

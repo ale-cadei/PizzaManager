@@ -223,3 +223,81 @@ ok('branch: la larghezza del selettore resta fra il minimo e lo spazio disponibi
   assert.strictEqual(clampPickerWidth('512', 1000), 512, 'da localStorage arriva una stringa');
   assert.strictEqual(clampPickerWidth(333.6, 1000), 334);
 });
+
+/* ⤵ nel selettore (docs/plans/46): il codice vero col DOM finto */
+const { createElement, fire } = require('./fake-dom');
+const { createBranchPicker } = require('../renderer/git-branch-picker');
+
+const BRANCHES = {
+  ok: true,
+  local: [{ name: 'main', current: true, upstream: null }, { name: 'feat/x', current: false, upstream: 'origin/feat/x' }],
+  remote: [{ name: 'origin/fix/y', remote: 'origin', short: 'fix/y', hasLocal: false }],
+};
+const settle = () => new Promise((r) => setImmediate(r));
+
+async function openPicker({ branches = BRANCHES, onMerge } = {}) {
+  const doc = createElement('html');
+  doc.createElement = createElement;
+  doc.createElementNS = (ns, tag) => createElement(tag);
+  doc.body = createElement('body');
+  const host = createElement('div');
+  host.clientWidth = 900;
+  const calls = { switch: [], loads: 0 };
+  const picker = createBranchPicker({
+    document: doc, host, onMerge,
+    load: async () => { calls.loads += 1; return branches; },
+    onSwitch: async (name, kind) => { calls.switch.push([name, kind]); return { ok: true }; },
+    onCreate: async () => ({ ok: true }), onDelete: async () => ({ ok: true }),
+  });
+  await picker.open();
+  const merges = () => host.querySelectorAll('.git-picker-merge');
+  const text = (cls) => { const [n] = host.querySelectorAll(cls); return n.hidden ? '' : n.textContent; };
+  return { picker, host, calls, merges, text };
+}
+
+ok('selettore: ⤵ sulle righe che non sono il corrente, locali e remote', async () => {
+  const p = await openPicker({ onMerge: async () => ({ cancelled: true }) });
+  const titles = p.merges().map((b) => b.title);
+  assert.deepStrictEqual(titles, ['Unisci feat/x in main', 'Unisci origin/fix/y in main']);
+  assert.strictEqual(p.merges()[0].getAttribute('aria-label'), 'Unisci feat/x in main');
+  // senza onMerge, o con la cartella su un commit staccato: nessun ⤵
+  assert.strictEqual((await openPicker()).merges().length, 0);
+  const detached = { ...BRANCHES, local: BRANCHES.local.map((b) => ({ ...b, current: false })) };
+  assert.strictEqual((await openPicker({ branches: detached, onMerge: async () => ({}) })).merges().length, 0);
+});
+
+ok('selettore: ⤵ chiede il merge, aspetta la conferma e mostra l\'esito', async () => {
+  let answer;
+  const asked = [];
+  const p = await openPicker({ onMerge: (...args) => { asked.push(args); return new Promise((r) => { answer = r; }); } });
+  fire(p.merges()[1], 'click');
+  assert.deepStrictEqual(asked, [['origin/fix/y', 'remote', 'main']]);
+  assert.match(p.text('.git-picker-notice'), /pannello delle modifiche/);
+  assert.strictEqual(p.picker.isOpen(), true);
+  // un secondo clic mentre aspetta non chiede un altro merge
+  fire(p.merges()[0], 'click');
+  assert.strictEqual(asked.length, 1);
+  const loads = p.calls.loads;
+  answer({ ok: true, text: 'origin/fix/y unito in main (fast-forward).' });
+  await settle(); await settle();
+  assert.strictEqual(p.text('.git-picker-notice'), 'origin/fix/y unito in main (fast-forward).');
+  assert.strictEqual(p.calls.loads, loads + 1, 'i branch si rileggono');
+  assert.strictEqual(p.picker.isOpen(), true);
+});
+
+ok('selettore: merge annullato o rifiutato, il selettore lo dice', async () => {
+  const cancelled = await openPicker({ onMerge: async () => ({ cancelled: true }) });
+  fire(cancelled.merges()[0], 'click');
+  await settle();
+  assert.deepStrictEqual([cancelled.text('.git-picker-notice'), cancelled.text('.git-picker-error')], ['', '']);
+  const conflict = 'Conflitti fra feat/x e main: il merge è stato annullato, la cartella è com\'era.\n\nFile in conflitto:\n  a.js';
+  const refused = await openPicker({ onMerge: async () => ({ ok: false, conflict: true, error: conflict }) });
+  fire(refused.merges()[0], 'click');
+  await settle();
+  assert.strictEqual(refused.text('.git-picker-error'), conflict);
+  assert.strictEqual(refused.text('.git-picker-notice'), '');
+  const thrown = await openPicker({ onMerge: async () => { throw new Error('ipc giù'); } });
+  fire(thrown.merges()[0], 'click');
+  await settle();
+  assert.match(thrown.text('.git-picker-error'), /ipc giù/);
+});

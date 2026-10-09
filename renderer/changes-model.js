@@ -42,6 +42,19 @@
     };
   }
 
+  /**
+   * La conferma di un merge dal selettore dei branch (docs/plans/46): quello
+   * che `name` porta in `into`, dal punto in cui si è staccato alla sua punta.
+   * @param {{cwd: string, name: string, into: string}} merge
+   */
+  function incomingTarget({ cwd, name, into }) {
+    if (typeof cwd !== 'string' || !cwd || typeof name !== 'string' || !name) return null;
+    return {
+      cwd, base: null, branch: null, path: null, since: null, staging: false, incoming: name, into: into || null,
+      key: `${cwd}\0incoming\0${name}`,
+    };
+  }
+
   const isRepo = (result) => Boolean(result && result.ok);
 
   /* I pezzi di un contatore, ciascuno col suo colore: file, aggiunte (verde),
@@ -60,6 +73,7 @@
 
   /** Di cosa parla il pannello, sotto la parola «Modifiche». `turnTime`: ora dell'ultimo prompt */
   function headerTitle(target, result, { turnTime = null } = {}) {
+    if (target && target.incoming) return target.into ? `${target.incoming} in ${target.into}` : target.incoming;
     if (result && result.ok && result.since) return turnTime ? `ultimo giro · dalle ${turnTime}` : 'ultimo giro';
     const branch = target && target.branch;
     if (result && result.ok && result.staging) return branch ? `${branch} · ${STAGING}` : STAGING;
@@ -242,7 +256,36 @@
     };
   }
 
+  /**
+   * Il piè di pagina della conferma di un merge dal selettore (docs/plans/46).
+   * Si spegne con file non committati (lib/git-merge.js rifiuterebbe) o con
+   * una sessione che lavora nello stesso repository.
+   * @param {{name: string, into: string}} merge
+   * @param {object|null} result la lettura di readChanges con `incoming`
+   * @param {Array<{id: string, cwd?: string, name?: string, running?: boolean}>} tabs
+   * @returns {{text: string, confirmLabel: string, warning: string|null, canConfirm: boolean}}
+   */
+  function branchMergeFooter({ name, into }, result, tabs) {
+    const text = `Unisce ${name} in ${into}: fast-forward se ${into} non è andato avanti, altrimenti un commit di merge. `
+      + 'Ai conflitti si annulla tutto e la cartella resta com\'era.';
+    const base = { text, confirmLabel: `Unisci in ${into}` };
+    if (!isRepo(result)) return { ...base, warning: null, canConfirm: false };
+    const pending = result.uncommitted > 0 ? result.uncommitted : 0;
+    // Punta già nel corrente: lib/git-merge.js direbbe «niente da unire»
+    const contained = Boolean(result.tip) && result.tip === result.against;
+    const block = writeBlock(null, tabs, result, false)
+      || (contained ? `${name} è già contenuto in ${into}: niente da unire.` : null);
+    const warning = (pending
+      ? `${pending === 1 ? '1 file tracciato ha' : `${pending} file tracciati hanno`} modifiche non committate: `
+        + 'committale (o mettile da parte) prima di unire.'
+      : null)
+      || block
+      || (!result.totals.files ? `${name} non cambia nessun file rispetto a ${into}.` : null);
+    return { ...base, warning, canConfirm: !pending && !block };
+  }
+
   function emptyText(result) {
+    if (result && result.incoming) return 'Nessun file cambiato.';
     if (result && result.staging) return 'Niente da committare: indice e cartella come all\'ultimo commit.';
     return result && result.since ? 'Nessuna modifica dall\'ultimo prompt.' : 'Nessuna modifica: tutto come all\'ultimo commit.';
   }
@@ -250,5 +293,6 @@
   return {
     targetFor, tabLabel, headerTitle, summary, summaryParts, notice, modeChoice, emptyText, fileCounts, signature,
     diffsToReload, splitPath, displayPath, itemId, splitItemId, sections, reviewAvailable, commitChoice,
+    incomingTarget, branchMergeFooter,
   };
 });

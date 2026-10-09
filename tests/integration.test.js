@@ -873,3 +873,70 @@ ok('git: stage, unstage e commit dal pannello, hook compresi, con il git install
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+// ---------- git: unire un branch qualsiasi con git vero (piano 46) ----------
+ok('git: unire un branch nel corrente, fast-forward, merge e conflitti, con il git installato', async (t) => {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const path = require('path');
+  const { resolveBinary } = require('../lib/binaries');
+  const { readChanges } = require('../lib/git-changes');
+  const { mergeBranch } = require('../lib/git-merge');
+  const bin = resolveBinary('git');
+  if (!bin.path) return t.skip('git non installato su questa macchina');
+  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-merge-')));
+  const git = (...args) => String(execFileSync(bin.path, args, { cwd: root })).trim();
+  const write = (file, text) => fs.writeFileSync(path.join(root, file), text);
+  const commit = (file, text, msg) => { write(file, text); git('add', file); git('commit', '-q', '-m', msg); };
+  try {
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.name', 'Prova');
+    git('config', 'user.email', 'p@x');
+    git('config', 'core.hooksPath', '.git/hooks');
+    git('config', 'commit.gpgsign', 'false');
+    commit('a.txt', 'uno\n', 'init');
+
+    // Fast-forward: feat/ff va avanti, main no
+    git('switch', '-q', '-c', 'feat/ff');
+    commit('b.txt', 'bi\n', 'b');
+    git('switch', '-q', 'main');
+    const seen = await readChanges({ cwd: root, incoming: 'feat/ff' });
+    assert.deepStrictEqual(seen.files.map((f) => [f.status, f.path]), [['A', 'b.txt']]);
+    const ff = await mergeBranch({ cwd: root, name: 'feat/ff', kind: 'local', expect: seen.tip });
+    assert.strictEqual(ff.ok, true, ff.error);
+    assert.strictEqual(ff.fastForward, true);
+    assert.strictEqual(git('rev-parse', 'HEAD'), seen.tip);
+    assert.match((await mergeBranch({ cwd: root, name: 'feat/ff', kind: 'local' })).error, /già contenuto/);
+
+    // Divergenti senza conflitti: commit di merge col messaggio standard
+    git('switch', '-q', '-c', 'feat/div');
+    commit('c.txt', 'ci\n', 'c');
+    git('switch', '-q', 'main');
+    commit('d.txt', 'di\n', 'd');
+    const div = await mergeBranch({ cwd: root, name: 'feat/div', kind: 'local' });
+    assert.strictEqual(div.ok, true, div.error);
+    assert.strictEqual(div.fastForward, false);
+    assert.strictEqual(git('log', '-1', '--format=%s'), "Merge branch 'feat/div'");
+    assert.strictEqual(git('rev-parse', '--short', 'HEAD'), div.commit);
+
+    // Conflitto: annullato, la cartella com'era, il file elencato
+    git('switch', '-q', '-c', 'feat/conf');
+    commit('a.txt', 'dal branch\n', 'a branch');
+    git('switch', '-q', 'main');
+    commit('a.txt', 'da main\n', 'a main');
+    const before = git('rev-parse', 'HEAD');
+    const conf = await mergeBranch({ cwd: root, name: 'feat/conf', kind: 'local' });
+    assert.strictEqual(conf.conflict, true, conf.error);
+    assert.deepStrictEqual(conf.files, ['a.txt']);
+    assert.strictEqual(git('rev-parse', 'HEAD'), before);
+    assert.strictEqual(git('status', '--porcelain'), '');
+    assert.strictEqual(fs.readFileSync(path.join(root, 'a.txt'), 'utf8'), 'da main\n');
+
+    // Con file tracciati non committati non si comincia nemmeno
+    write('a.txt', 'a metà\n');
+    assert.match((await mergeBranch({ cwd: root, name: 'feat/conf', kind: 'local' })).error, /non committate/);
+    assert.strictEqual(fs.readFileSync(path.join(root, 'a.txt'), 'utf8'), 'a metà\n');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

@@ -126,6 +126,26 @@ ok('win: un binario .cmd viene lanciato tramite cmd.exe, con la riga di comando 
   assert.strictEqual(r.wrapped, 'C:\\Users\\jack\\AppData\\Roaming\\npm\\claude.cmd');
 });
 
+/* Gli hook del piano 46 si aggiungono prima di comporre la riga per cmd.exe:
+   dopo, sarebbero fuori dalla riga che node-pty usa davvero. */
+ok('win: gli argomenti iniettati finiscono nella riga di cmd.exe', () => {
+  const resolve = () => ({ path: 'C:\\Users\\jack\\AppData\\Roaming\\npm\\claude.cmd', via: 'PATH:npm' });
+  const seen = [];
+  const inject = (args, env) => { seen.push([args, env]); return { args: ['--settings', '{"a":1}'], env: { X: '1' } }; };
+  const r = buildCommand('claude', null, null, { profiles: winProfiles(), home: HOME, env: ENV, platform: 'win32', resolve, inject });
+  assert.ok(r.commandLine.includes('--settings'), r.commandLine);
+  assert.deepStrictEqual(r.injectedEnv, { X: '1' });
+  assert.deepStrictEqual(r.baseArgs, [], 'gli args del profilo, senza iniezione: per la cronologia');
+  assert.deepStrictEqual(seen, [[[], {}]], 'inject vede gli args e l env del profilo');
+});
+
+ok('senza inject il risultato non cambia: niente env aggiunta', () => {
+  const resolve = () => ({ path: 'C:\\Users\\jack\\.local\\bin\\claude.exe', via: 'candidate' });
+  const r = buildCommand('claude', null, null, { profiles: winProfiles(), home: HOME, env: ENV, platform: 'win32', resolve });
+  assert.deepStrictEqual(r.injectedEnv, {});
+  assert.deepStrictEqual(r.args, r.baseArgs);
+});
+
 ok('win: un .exe si lancia direttamente, senza cmd.exe', () => {
   const resolve = () => ({ path: 'C:\\Users\\jack\\.local\\bin\\claude.exe', via: 'candidate' });
   const r = buildCommand('claude', null, null, { profiles: winProfiles(), home: HOME, env: ENV, platform: 'win32', resolve });

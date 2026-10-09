@@ -118,8 +118,13 @@ Per sessione, modulo UMD puro come `attention.js`, orologio iniettato:
 - `permission` → barra spenta; lampeggio rapido e notifica, sempre.
 - Scheda sotto gli occhi (attiva e finestra col focus): niente lampeggio, come
   oggi. Tornarci lo spegne (`seen`).
-- Codex: OSC 9 accende `waiting`/`permission`; l'output che riprende spegne
-  come oggi (`resumed`).
+- Un permesso resta **pendente** finché un `running` o un `waiting` non dice
+  che l'agente è ripartito o ha chiuso il turno. Se l'utente lascia la scheda
+  o la finestra senza rispondere, `left` lo riaccende (lampeggio, senza
+  notifica: l'ha appena visto). Senza questo, un permesso chiesto sotto gli
+  occhi e dimenticato restava muto: nessun hook arriva finché non si risponde.
+- Codex: OSC 9 accende `waiting`/`permission`; lo spegne la visita. Il
+  permesso di Codex non resta pendente: nessun suo segnale dice «risposto».
 
 ## Dove
 
@@ -151,7 +156,14 @@ Per sessione, modulo UMD puro come `attention.js`, orologio iniettato:
   scrive una parola costante nel percorso di una env che passiamo noi.
 - `id` della sessione nel nome del file: solo i caratteri già ammessi per i
   nomi di sessione tmux; `pathFor` rifiuta separatori e `..`.
-- I file di stato non contengono segreti: mode di default.
+- I file di stato non contengono segreti, ma il plugin di opencode è codice
+  che opencode esegue: cartelle `signals/` e `hooks/` 0700, plugin 0600, con
+  `chmodSync` dopo (il mode vale solo alla creazione).
+- Il valore letto dal file è sempre una delle quattro parole (`parseState`):
+  un file manomesso non porta testo libero alla UI.
+- OSC 9 lo può scrivere qualunque programma nel pty di Codex (anche un file
+  stampato a terminale): al massimo accende un falso «chiede un permesso» o
+  «ha finito». Confine accettato: nessuna esecuzione, nessun dato esce.
 
 ## Test
 
@@ -169,6 +181,29 @@ Per sessione, modulo UMD puro come `attention.js`, orologio iniettato:
 - Smoke nell'app: Claude e opencode con un permesso su una scheda in secondo
   piano e finestra dietro (lampeggio rapido + notifica); risposta → barra;
   fine turno → lampeggio normale. Riavvio dell'app con un permesso pendente.
+
+## Verifica (2026-10-09)
+
+- Suite: 1245 test unitari verdi (1 saltato), 17 di integrazione verdi.
+- **Claude 2.1.x**, `-p` vero con `--settings`: gli hook scattano nell'ordine
+  `SessionStart:ready UserPromptSubmit:running PreToolUse:running
+  PostToolUse:running Stop:waiting`.
+- **opencode 1.18.35**: il plugin si carica e scrive `ready`. `opencode run`
+  su questa macchina fallisce con "UnknownError" anche senza il plugin
+  (provider/ambiente): la fine turno è arrivata comunque come `waiting`.
+- **Codex 0.143**: le chiavi `-c tui.notifications=true -c
+  tui.notification_method=osc9 -c tui.notification_condition=always` sono
+  validate (un valore sbagliato viene rifiutato). OSC 9 attraverso tmux 3.2a:
+  test di integrazione.
+- Windows: il JSON vero degli hook (con `|` nel matcher) passa intatto nella
+  riga di `cmd.exe` (test).
+- Revisione codice e sicurezza: corretti permessi del plugin, permesso
+  dimenticato sotto gli occhi, `fs.watch` che muore, file orfani al
+  ripristino.
+- **Da fare a mano (smoke nell'app):** permesso di Claude e opencode su scheda
+  in secondo piano con finestra dietro (lampeggio rapido + notifica); testo
+  dell'OSC 9 di Codex a fine turno; riavvio con permesso pendente;
+  Antigravity invariato.
 
 ## Fuori
 

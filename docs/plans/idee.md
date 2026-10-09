@@ -77,7 +77,7 @@ macOS; Linux da provare). Il segnale esatto (hook) resta qui, ci lavora Ale.
       sull'euristica: hook solo in `~/.gemini/config/hooks.json`, globali;
       da riprendere quando li renderà iniettabili per processo
 - [x] piano — [46-hook-esatti.md](46-hook-esatti.md)
-- [ ] fatto
+- [x] fatto — branch `feat/hooks-esatti`, verifiche nel piano
 - [ ] provato
 
 ---

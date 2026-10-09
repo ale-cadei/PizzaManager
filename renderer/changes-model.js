@@ -118,7 +118,7 @@
     if (!result.ok) return `ko:${result.reason || result.error || ''}`;
     // `uncommitted` decide se «Unisci» si può confermare: un commit lo cambia
     // senza toccare l'elenco dei file
-    return [result.against, result.base || '', result.staging ? 'staging' : '', result.truncated ? 1 : 0,
+    return [result.against, result.base || '', result.staging ? 'staging' : '', result.busy || '', result.truncated ? 1 : 0,
       result.totals.files, result.uncommitted,
       ...result.files.map(fileKey)].join('\x1e');
   }
@@ -194,6 +194,54 @@
     return Boolean(tab) && tab.type !== 'shell' && tab.type !== 'git' && !merging;
   }
 
+  /* Una cartella dentro la radice del repository (separatori di Windows compresi) */
+  const slashes = (p) => String(p || '').replace(/\\/g, '/').replace(/\/+$/, '');
+  function insideRoot(cwd, root) {
+    const c = slashes(cwd);
+    const r = slashes(root);
+    return Boolean(r) && (c === r || c.startsWith(`${r}/`));
+  }
+
+  const BUSY_REASONS = {
+    merge: 'C\'è un merge a metà nel repository: finiscilo o annullalo dal terminale.',
+    rebase: 'C\'è un rebase a metà nel repository: finiscilo o annullalo dal terminale.',
+  };
+
+  /* Perché adesso non si scrive nell'indice, o null. Una sessione che lavora
+     (renderer/running.js) committerebbe file a metà e si scontrerebbe con
+     l'agente sull'index.lock: vale anche per le altre schede nello stesso repository. */
+  function writeBlock(tab, tabs, result, writing) {
+    if (writing) return 'Operazione in corso…';
+    if (result.busy) return BUSY_REASONS[result.busy] || BUSY_REASONS.merge;
+    if (tab && tab.running) return 'La sessione sta lavorando: aspetta che si fermi.';
+    const other = (tabs || []).find((t) => t && t.running && (!tab || t.id !== tab.id) && insideRoot(t.cwd, result.root));
+    return other ? `«${other.name || 'Un\'altra sessione'}» sta lavorando nello stesso repository: aspetta che si fermi.` : null;
+  }
+
+  /**
+   * Stage, unstage e commit dal pannello (docs/plans/45): cosa si può fare
+   * adesso, e perché no. Solo in «Da committare», mai durante Unisci.
+   * @param {{id: string, running?: boolean}|null} tab la scheda in primo piano
+   * @param {Array<{id: string, cwd?: string, name?: string, running?: boolean}>} tabs tutte
+   * @param {object|null} result la lettura di readStaging
+   * @param {{merging?: boolean, writing?: boolean, message?: string}} state
+   * @returns {{canWrite: boolean, reason: string|null, canCommit: boolean,
+   *   commitReason: string|null, commitLabel: string}|null}
+   */
+  function commitChoice(tab, tabs, result, { merging = false, writing = false, message = '' } = {}) {
+    if (!isRepo(result) || !result.staging || merging) return null;
+    const reason = writeBlock(tab, tabs, result, writing);
+    const stagedCount = result.totals.staged || 0;
+    const commitReason = reason
+      || (!stagedCount ? 'Niente di staged: aggiungi i file con ＋.' : null)
+      || (!String(message || '').trim() ? 'Scrivi il messaggio del commit.' : null);
+    return {
+      canWrite: !reason, reason,
+      canCommit: !commitReason, commitReason,
+      commitLabel: `Committa ${stagedCount} file`,
+    };
+  }
+
   function emptyText(result) {
     if (result && result.staging) return 'Niente da committare: indice e cartella come all\'ultimo commit.';
     return result && result.since ? 'Nessuna modifica dall\'ultimo prompt.' : 'Nessuna modifica: tutto come all\'ultimo commit.';
@@ -201,6 +249,6 @@
 
   return {
     targetFor, tabLabel, headerTitle, summary, summaryParts, notice, modeChoice, emptyText, fileCounts, signature,
-    diffsToReload, splitPath, displayPath, itemId, splitItemId, sections, reviewAvailable,
+    diffsToReload, splitPath, displayPath, itemId, splitItemId, sections, reviewAvailable, commitChoice,
   };
 });

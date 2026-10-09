@@ -61,3 +61,24 @@ ok('ipc: il pannello delle modifiche risponde con un errore a un payload vuoto, 
   const badBase = await handlers.get('git-changes')({}, { cwd: __dirname, base: '--output=/tmp/x' });
   assert.strictEqual(badBase.ok, false);
 });
+
+ok('ipc: stage, unstage e commit rifiutano payload vuoti, percorsi fuori e un `all` che non è true', async () => {
+  const { handlers, ipcMain } = fakeIpc();
+  registerGitHandlers(ipcMain, { userDataDir: () => '/non/usata' });
+  for (const channel of ['git-stage', 'git-unstage', 'git-commit']) {
+    for (const payload of [undefined, null, {}]) {
+      const r = await handlers.get(channel)({}, payload);
+      assert.strictEqual(r.ok, false, `${channel} con ${JSON.stringify(payload)}`);
+      assert.ok(r.error, `${channel} senza messaggio`);
+    }
+  }
+  // cwd è questo repository: nessuna di queste richieste deve arrivare a scrivere
+  for (const channel of ['git-stage', 'git-unstage']) {
+    const outside = await handlers.get(channel)({}, { cwd: __dirname, paths: ['../../etc/passwd'] });
+    assert.deepStrictEqual(outside, { ok: false, error: 'Percorsi non validi.' });
+    const notTrue = await handlers.get(channel)({}, { cwd: __dirname, all: 'true' });
+    assert.deepStrictEqual(notTrue, { ok: false, error: 'Percorsi non validi.' });
+  }
+  const noMessage = await handlers.get('git-commit')({}, { cwd: __dirname, message: '   ' });
+  assert.strictEqual(noMessage.ok, false);
+});

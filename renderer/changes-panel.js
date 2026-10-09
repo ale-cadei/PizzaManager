@@ -18,7 +18,12 @@
    - Commenti sul diff (docs/plans/44): stanno sulla scheda (`tab.reviewNotes`),
      così sopravvivono al pannello chiuso e al cambio di modo, e se ne vanno
      con la scheda. «Invia» li incolla nel terminale come un incolla vero
-     (term.paste): l'Invio lo dà l'utente. */
+     (term.paste): l'Invio lo dà l'utente.
+   - Stage, unstage e commit (docs/plans/45): solo in «Da committare», una
+     scrittura alla volta, poi si rilegge. Spenti mentre la sessione (o
+     un'altra nello stesso repository) lavora: quando una parte o si ferma
+     (signals.js) il pannello aperto si ridisegna. Il messaggio a metà sta
+     sulla scheda (`tab.commitMessage`), come i commenti. */
 
 const CHANGES_POLL_MS = 3000;
 const CHANGES_WIDTH_KEY = 'aisess.changesWidth';
@@ -93,7 +98,7 @@ function readChangesMode() {
 /* Stato del pannello: si sostituisce per intero, mai modificato sul posto */
 let changesState = {
   open: false, target: null, result: null, signature: 'none', expanded: {}, seq: 0, merge: null, mode: readChangesMode(),
-  reviewError: null,
+  reviewError: null, writing: false, commitOutcome: null,
 };
 
 /* L'ultima richiesta di diff per file: una risposta più vecchia (file chiuso
@@ -165,7 +170,68 @@ function renderChanges() {
     emptyText: ChangesModel.emptyText(result),
     notice: ChangesModel.notice(result),
     review: reviewStateOf(activeTab(), merge),
+    commit: commitStateOf(activeTab(), merge),
   });
+}
+
+/* ---------- Stage, unstage e commit (docs/plans/45) ---------- */
+function commitStateOf(tab, merge) {
+  if (!tab) return null;
+  const message = tab.commitMessage || '';
+  const choice = ChangesModel.commitChoice(tab, [...tabs.values()], changesState.result,
+    { merging: Boolean(merge), writing: changesState.writing, message });
+  return choice && { ...choice, key: tab.id, message, outcome: changesState.commitOutcome };
+}
+
+/** Una sessione è partita o si è fermata (signals.js): i pulsanti di scrittura cambiano */
+function noteChangesRunning() {
+  if (changesState.open && changesState.target && changesState.target.staging) renderChanges();
+}
+
+const COMMIT_CALLS = {
+  stage: (cwd, a) => window.aisess.gitStage(cwd, a.paths, false),
+  unstage: (cwd, a) => window.aisess.gitUnstage(cwd, a.paths, false),
+  'stage-all': (cwd) => window.aisess.gitStage(cwd, null, true),
+  'unstage-all': (cwd) => window.aisess.gitUnstage(cwd, null, true),
+  commit: (cwd, a, tab) => window.aisess.gitCommit(cwd, tab.commitMessage || ''),
+};
+
+function handleCommit(action) {
+  const tab = activeTab();
+  if (!tab || !action) return;
+  if (action.type === 'message') {
+    tab.commitMessage = String(action.text || '');
+    changesView.renderCommit(commitStateOf(tab, changesState.merge));
+    return;
+  }
+  if (!Object.prototype.hasOwnProperty.call(COMMIT_CALLS, action.type)) return;
+  runCommitAction(tab, action).catch((e) => console.warn('[modifiche] scrittura', e));
+}
+
+function commitOutcomeOf(action, res) {
+  if (!res || !res.ok) return { ok: false, text: (res && res.error) || 'git ha rifiutato l\'operazione.' };
+  if (action.type !== 'commit') return null;
+  return { ok: true, text: res.branch ? `Commit ${res.commit} su ${res.branch}` : `Commit ${res.commit}` };
+}
+
+/* Una scrittura alla volta; si ricontrolla qui quello che la vista ha già
+   spento, perché fra il disegno e il clic la sessione può essere ripartita */
+async function runCommitAction(tab, action) {
+  const choice = commitStateOf(tab, changesState.merge);
+  const target = changesState.target;
+  if (!choice || !target || !(action.type === 'commit' ? choice.canCommit : choice.canWrite)) return;
+  setChangesState({ writing: true, commitOutcome: null });
+  let res;
+  try {
+    res = await COMMIT_CALLS[action.type](target.cwd, action, tab);
+  } catch (e) {
+    res = { ok: false, error: String((e && e.message) || e) };
+  }
+  if (res && res.ok && action.type === 'commit') tab.commitMessage = '';
+  // Scheda cambiata nel frattempo: l'esito parlerebbe di un'altra cartella
+  const same = Boolean(changesState.target && changesState.target.key === target.key);
+  setChangesState({ writing: false, commitOutcome: same ? commitOutcomeOf(action, res) : null });
+  await refreshChanges();
 }
 
 /* ---------- Commenti sul diff (docs/plans/44) ---------- */
@@ -250,7 +316,7 @@ async function pollChanges() {
 async function refreshChanges() {
   const target = activeChangesTarget();
   const sameTarget = Boolean(target && changesState.target && target.key === changesState.target.key);
-  if (!sameTarget) setChangesState({ target, result: null, signature: 'none', expanded: {}, reviewError: null });
+  if (!sameTarget) setChangesState({ target, result: null, signature: 'none', expanded: {}, reviewError: null, commitOutcome: null });
   if (!target) return;
   const seq = changesState.seq + 1;
   changesState = { ...changesState, seq };
@@ -393,6 +459,7 @@ function initChangesPanel() {
     onMerge: (confirmed) => finishMerge(confirmed),
     onMode: (mode) => setChangesMode(mode),
     onReview: (action) => handleReview(action),
+    onCommit: (action) => handleCommit(action),
   });
   initChangesResize();
   try { window.aisess.onMenu('menu-changes', () => toggleChangesPanel()); } catch {}

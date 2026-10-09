@@ -6,6 +6,7 @@ const { listWorktrees, worktreeStart, createWorktree, mergeWorktree, removeWorkt
 const { readChanges, readFileDiff } = require('../lib/git-changes');
 const { snapshotTree } = require('../lib/git-snapshot');
 const { readStaging, readStagingDiff } = require('../lib/git-staging');
+const { stagePaths, unstagePaths, stageAll, unstageAll, commitStaged } = require('../lib/git-commit');
 
 /**
  * Canali IPC della sessione di tipo git (docs/plans/25), dei worktree
@@ -57,6 +58,11 @@ function registerGitHandlers(ipcMain, { userDataDir } = {}) {
   // «Da committare» (docs/plans/43): sezione e percorso li ricontrolla lib/git-staging.js
   ipcMain.handle('git-staging', guard(({ cwd }) => readStaging({ cwd })));
   ipcMain.handle('git-staging-diff', guard(({ cwd, path, side }) => readStagingDiff({ cwd, path, side })));
+  // Stage, unstage e commit (docs/plans/45): i percorsi devono essere adesso
+  // nella sezione giusta, lo ricontrolla lib/git-commit.js. `all` vale solo se è true.
+  ipcMain.handle('git-stage', guard(({ cwd, paths, all }) => (all === true ? stageAll({ cwd }) : stagePaths({ cwd, paths }))));
+  ipcMain.handle('git-unstage', guard(({ cwd, paths, all }) => (all === true ? unstageAll({ cwd }) : unstagePaths({ cwd, paths }))));
+  ipcMain.handle('git-commit', guard(({ cwd, message }) => commitStaged({ cwd, message })));
 }
 
 module.exports = { registerGitHandlers };

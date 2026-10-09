@@ -16,6 +16,9 @@
  * In modalità «Unisci» (piano 32, momento 3) lo stesso pannello mostra il
  * diff del branch contro la base e, in fondo, la conferma del merge.
  *
+ * In «Da committare» (piano 45) ogni riga ha ＋ o −, le sezioni «tutti», e in
+ * fondo la casella del messaggio col pulsante di commit.
+ *
  * Qui solo il disegno: cosa mostrare lo decide changes-model.js, quando
  * leggere changes-panel.js. Tutto con textContent: il testo di un diff è
  * quello dei file dell'utente, e può contenere qualsiasi cosa.
@@ -30,6 +33,8 @@
   const M = Model || require('./changes-model');
   const R = Review || require('./review-notes');
   const SIGN = { add: '+', del: '-', ctx: ' ', note: '\\' };
+  /* Come lib/git-commit.js, MAX_MESSAGE: la casella non accetta di più */
+  const MAX_COMMIT_MESSAGE = 10000;
   const DIFF_NOTES = {
     loading: 'Carico…',
     binary: 'File binario: niente righe da mostrare.',
@@ -147,10 +152,29 @@
     return box;
   }
 
+  /* Un pulsante che scrive nell'indice: spento, col motivo, se ora non si può */
+  function writeButton(doc, cls, text, title, commit, onClick) {
+    const b = button(doc, cls, text, title, onClick);
+    b.disabled = !commit.canWrite;
+    if (commit.reason) b.title = commit.reason;
+    return b;
+  }
+
+  /* ＋ su una riga non staged, − su una staged (docs/plans/45); `cc` è null fuori da «Da committare» */
+  function stageButton(doc, f, cc) {
+    if (!cc || !f.side) return null;
+    return f.side === 'staged'
+      ? writeButton(doc, 'changes-file-act changes-unstage', '−', `Togli ${f.path} dallo stage`, cc.commit,
+        () => cc.act({ type: 'unstage', paths: [f.path] }))
+      : writeButton(doc, 'changes-file-act changes-stage', '＋', `Aggiungi ${f.path} allo stage`, cc.commit,
+        () => cc.act({ type: 'stage', paths: [f.path] }));
+  }
+
   /* `id` è il percorso, o «sezione:percorso» in «Da committare» (changes-model.js, itemId) */
-  function fileRow(doc, f, diff, onFile, rc) {
+  function fileRow(doc, f, diff, onFile, rc, cc) {
     const id = M.itemId(f);
     const item = el(doc, 'div', 'changes-file');
+    const head = el(doc, 'div', 'changes-file-head');
     const row = el(doc, 'button', 'changes-file-row');
     row.type = 'button';
     row.title = M.displayPath(f);
@@ -166,29 +190,40 @@
     if (counts.note) row.appendChild(el(doc, 'span', 'changes-note', counts.note));
     const comments = rc ? R.countFor(rc.notes, f.path) : 0;
     if (comments) row.appendChild(el(doc, 'span', 'changes-comments', `💬${comments}`));
-    item.appendChild(row);
+    // Il pulsante sta accanto alla riga, non dentro: un pulsante non ne contiene un altro
+    head.appendChild(row);
+    const act = stageButton(doc, f, cc);
+    if (act) head.appendChild(act);
+    item.appendChild(head);
     if (diff) item.appendChild(diffBody(doc, diff, rc));
     return item;
   }
 
-  /** L'intestazione di una sezione di «Da committare»: «STAGED · 2» */
-  function sectionHead(doc, section) {
+  /** L'intestazione di una sezione di «Da committare»: «STAGED · 2», e «tutti» se si scrive */
+  function sectionHead(doc, section, cc) {
     const head = el(doc, 'div', `changes-section s-${section.side}`);
     head.title = section.hint;
     head.appendChild(el(doc, 'span', 'changes-section-title', section.title));
     head.appendChild(el(doc, 'span', 'changes-section-count', String(section.count)));
+    if (cc && section.count) {
+      head.appendChild(section.side === 'staged'
+        ? writeButton(doc, 'changes-section-act changes-unstage-all', 'Togli tutti', 'Togli tutto dallo stage',
+          cc.commit, () => cc.act({ type: 'unstage-all' }))
+        : writeButton(doc, 'changes-section-act changes-stage-all', 'Aggiungi tutti',
+          'Aggiungi tutto allo stage, file nuovi compresi', cc.commit, () => cc.act({ type: 'stage-all' })));
+    }
     return head;
   }
 
   /* Le righe, divise per sezione se ce ne sono; una sezione vuota lo dice */
-  function fileItems(doc, state, diffOf, onFile, reviewOf) {
-    const row = (f) => fileRow(doc, f, diffOf(M.itemId(f)), onFile, reviewOf(f.path));
+  function fileItems(doc, state, diffOf, onFile, reviewOf, cc) {
+    const row = (f) => fileRow(doc, f, diffOf(M.itemId(f)), onFile, reviewOf(f.path), cc);
     const heads = state.sections || [];
     if (!heads.length) return state.files.map(row);
     return heads.flatMap((section) => {
       const own = state.files.filter((f) => f.side === section.side);
       const rows = own.length ? own.map(row) : [el(doc, 'div', 'changes-section-empty', 'Nessun file')];
-      return [sectionHead(doc, section), ...rows];
+      return [sectionHead(doc, section, cc), ...rows];
     });
   }
 
@@ -197,11 +232,17 @@
    *   onToggle: () => void, onClose: () => void, onFile: (path: string) => void,
    *   onMerge?: (confirmed: boolean) => void, onMode?: (mode: 'commit'|'turn'|'staging') => void,
    *   onReview?: (action: {type: 'save', anchor: object, body: string}|{type: 'remove', id: string}
-   *     |{type: 'clear'}|{type: 'send'}) => boolean|void}} o
+   *     |{type: 'clear'}|{type: 'send'}) => boolean|void,
+   *   onCommit?: (action: {type: 'stage'|'unstage', paths: string[]}|{type: 'stage-all'|'unstage-all'|'commit'}
+   *     |{type: 'message', text: string}) => void}} o
    *   `onReview` dei commenti (docs/plans/44): per `save`, false se il commento
-   *   è stato rifiutato (la textarea resta aperta)
+   *   è stato rifiutato (la textarea resta aperta). `onCommit` di stage e
+   *   commit (docs/plans/45): `message` a ogni carattere, il pannello lo tiene
    */
-  function createChangesView({ doc, host, shortcut, onToggle, onClose, onFile, onMerge = () => {}, onMode = () => {}, onReview = () => {} }) {
+  function createChangesView({
+    doc, host, shortcut, onToggle, onClose, onFile, onMerge = () => {}, onMode = () => {}, onReview = () => {},
+    onCommit = () => {},
+  }) {
     const tab = button(doc, 'changes-tab', '', `Modifiche di questa sessione (${shortcut})`, () => onToggle());
     tab.hidden = true;
     const tabTitle = (text) => `Modifiche di questa sessione: ${text} (${shortcut})`;
@@ -269,9 +310,11 @@
     reviewActions.appendChild(sendBtn);
     reviewFoot.appendChild(reviewError);
     reviewFoot.appendChild(reviewActions);
+    const commitBox = createCommitBox(doc, onCommit);
     panel.appendChild(resizer);
     panel.appendChild(head);
     panel.appendChild(body);
+    panel.appendChild(commitBox.foot);
     panel.appendChild(reviewFoot);
     panel.appendChild(foot);
 
@@ -313,7 +356,9 @@
      *   modes?: {current: 'commit'|'turn'|'staging', turnAvailable: boolean, turnHint: string}|null,
      *   sections?: Array<{side: string, title: string, hint: string, count: number}>,
      *   merge?: {text: string, confirmLabel: string, warning: string|null, canConfirm: boolean}|null,
-     *   review?: {enabled: boolean, key: string, notes: object[], error: string|null}|null}} state
+     *   review?: {enabled: boolean, key: string, notes: object[], error: string|null}|null,
+     *   commit?: {message: string, canWrite: boolean, reason: string|null, canCommit: boolean,
+     *     commitReason: string|null, commitLabel: string, outcome: {ok: boolean, text: string}|null}|null}} state
      */
     function render(state) {
       last = state;
@@ -332,6 +377,7 @@
       renderModes(state.modes || null);
       renderFoot(state.merge || null);
       renderReviewFoot(state.review || null);
+      commitBox.render(state.commit || null);
       fillParts(doc, summary, state.summary);
       const items = [];
       if (state.notice) items.push(el(doc, 'div', 'changes-notice', state.notice));
@@ -344,7 +390,8 @@
       if (editing && state.review && state.review.key !== editing.key) editing = null;
       const focused = focusedItem();
       const typing = typingAt();
-      if (state.files.length) items.push(...fileItems(doc, state, diffOf, onFile, reviewOf(state)));
+      const cc = state.commit ? { commit: state.commit, act: onCommit } : null;
+      if (state.files.length) items.push(...fileItems(doc, state, diffOf, onFile, reviewOf(state), cc));
       body.replaceChildren(...items);
       // La textarea prende il fuoco appena aperta, o se l'aveva (si stava
       // scrivendo e l'agente ha cambiato un file); un ridisegno qualsiasi no,
@@ -416,7 +463,60 @@
       panel.style.width = `${Math.round(px)}px`;
     }
 
-    return { render, setWidth, panel, resizer, tab };
+    return { render, renderCommit: commitBox.render, setWidth, panel, resizer, tab };
+  }
+
+  /**
+   * La casella del messaggio e «Committa N file» (docs/plans/45). Resta la
+   * stessa fra un ridisegno e l'altro: fuoco e cursore non si perdono mentre
+   * il pannello si rilegge. Il messaggio lo tiene il pannello (per scheda):
+   * qui si riscrive solo se è diverso, cioè dopo un commit o cambiando scheda.
+   */
+  function createCommitBox(doc, onCommit) {
+    const foot = el(doc, 'footer', 'changes-commit-foot');
+    foot.hidden = true;
+    const reason = el(doc, 'p', 'changes-commit-reason');
+    reason.setAttribute('role', 'status');
+    const input = el(doc, 'textarea', 'changes-commit-input');
+    input.maxLength = MAX_COMMIT_MESSAGE;
+    input.rows = 2;
+    input.placeholder = 'Messaggio del commit';
+    input.setAttribute('aria-label', 'Messaggio del commit');
+    let current = null;
+    const commit = () => { if (current && current.canCommit) onCommit({ type: 'commit' }); };
+    input.addEventListener('input', () => onCommit({ type: 'message', text: input.value }));
+    input.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' || !(e.ctrlKey || e.metaKey)) return;
+      if (e.preventDefault) e.preventDefault();
+      commit();
+    });
+    const actions = el(doc, 'div', 'changes-foot-actions');
+    actions.appendChild(el(doc, 'span', 'changes-commit-hint', 'Ctrl+Invio committa'));
+    const btn = button(doc, 'btn btn--primary changes-commit-btn', '', 'Committa', () => commit());
+    actions.appendChild(btn);
+    const outcome = el(doc, 'p', 'changes-commit-outcome');
+    outcome.setAttribute('role', 'alert');
+    foot.appendChild(reason);
+    foot.appendChild(input);
+    foot.appendChild(actions);
+    foot.appendChild(outcome);
+
+    function render(state) {
+      current = state;
+      foot.hidden = !state;
+      if (!state) return;
+      if (input.value !== state.message) input.value = state.message;
+      reason.hidden = !state.reason;
+      reason.textContent = state.reason || '';
+      btn.textContent = state.commitLabel;
+      btn.title = state.commitReason || state.commitLabel;
+      btn.setAttribute('aria-label', btn.title);
+      btn.disabled = !state.canCommit;
+      outcome.hidden = !state.outcome;
+      outcome.textContent = state.outcome ? state.outcome.text : '';
+      outcome.classList.toggle('is-error', Boolean(state.outcome && !state.outcome.ok));
+    }
+    return { foot, render };
   }
 
   return { createChangesView };

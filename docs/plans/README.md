@@ -56,6 +56,8 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 45 | [`feat/commit-pannello`](45-commit-pannello.md) — stage, unstage e commit dal pannello | 43, 44 | ~1 g | fatto, provato nell'app (smoke sotto xvfb, agente finto) |
 | 46 | [`feat/unisci-branch`](46-unisci-branch.md) — unire un branch qualsiasi nel corrente | 27, 36, 45 | ~1 g | fatto, provato nell'app (smoke sotto xvfb: merge, conflitto, cartella sporca) |
 | 47 | [`feat/push-branch`](47-push-branch.md) — push di un branch dal selettore (la PR resta a mano o all'agente) | 27, 46 | ~½ g | fatto, provato nell'app (smoke sotto xvfb: pubblica, ⇡2, rifiuto senza force) |
+| 48 | [`feat/scarta-file`](48-scarta-file.md) — scartare le modifiche non staged di un file, con Annulla | 43, 45 | ~1 g | da fare |
+| 49 | [`feat/commenti-righe`](49-commenti-righe.md) — un commento su un gruppo di righe (Shift+clic) | 44 | ~1 g | da fare |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

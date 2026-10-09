@@ -33,9 +33,8 @@ ok('sprites: ogni personaggio ha le pose che il motore usa, walk con almeno due 
     assert.ok(sprite.frames.walk.length >= 2, `${kind}: walk non si anima`);
     assert.ok(sprite.speed > 0, `${kind}: velocità mancante`);
   }
-  assert.deepStrictEqual(EXTRA_POSES.spongebob, ['swing']);
-  assert.deepStrictEqual(EXTRA_POSES.medusa, ['flee']);
   assert.deepStrictEqual(EXTRA_POSES.rana, ['jump']);
+  assert.strictEqual(EXTRA_POSES.medusa, undefined, 'la medusa non scappa più da nessuno');
   assert.strictEqual(EXTRA_POSES.tazzina, undefined, 'la tazzina non salta più');
 });
 
@@ -245,7 +244,6 @@ ok('sprites: ogni personaggio si muove in un modo che il motore conosce', () => 
 });
 
 ok('sprites: il cast usa solo personaggi disegnati e ha un nome per ogni voce', () => {
-  assert.deepStrictEqual(CAST.inseguimento, ['spongebob', 'medusa']);
   for (const [id, kinds] of Object.entries(CAST)) {
     assert.ok(CAST_LABELS[id], `${id} senza nome`);
     for (const k of kinds) assert.ok(SPRITES[k], `${id}: ${k} non disegnato`);
@@ -276,8 +274,25 @@ ok('sprites: nessuno supera l\'altezza scelta; chi sta nelle GRID righe tiene il
   }
 });
 
-ok('sprites: la medusa è più bassa di SpongeBob', () => {
-  assert.ok(dims('medusa').rows * pixel('medusa', 48) <= dims('spongebob').rows * pixel('spongebob', 48) * 0.6);
+/* Le colonne vuote a sinistra servivano ai tentacoli in fuga (piano 49): tolto
+   l'inseguimento sono state tagliate, altrimenti la medusa occuperebbe più
+   striscia di quanta ne riempie e si fermerebbe lontana dal bordo. */
+ok('sprites: la medusa non ha colonne vuote ai lati', () => {
+  const first = SPRITES.medusa.frames.walk[0];
+  const column = (i) => first.map((row) => row[i]).join('');
+  assert.notStrictEqual(column(0).replace(/\./g, ''), '', 'colonne vuote a sinistra');
+  assert.notStrictEqual(column(dims('medusa').cols - 1).replace(/\./g, ''), '', 'colonne vuote a destra');
+});
+
+/* Il piano 49 li ha tolti: questo test è lì perché non tornino per sbaglio. */
+ok('sprites: nessun personaggio di Nickelodeon nel catalogo', () => {
+  for (const id of ['spongebob', 'patrick', 'gary', 'inseguimento']) {
+    assert.strictEqual(SPRITES[id], undefined, `${id} è tornato fra i disegni`);
+    assert.strictEqual(CAST[id], undefined, `${id} è tornato nel cast`);
+  }
+  for (const label of Object.values(CAST_LABELS)) {
+    assert.doesNotMatch(label, /spongebob|patrick|gary/i, `etichetta «${label}»`);
+  }
 });
 
 ok('sprites: le varianti ritoccano solo colori che la palette di base conosce; paletteOf le fonde', () => {

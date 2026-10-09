@@ -1,5 +1,13 @@
 # 33 — Animaletti che camminano in fondo alla finestra
 
+> **Aggiornamento del 9 ottobre 2026 ([piano 49](49-via-personaggi-nickelodeon.md)):
+> SpongeBob, Patrick e Gary non ci sono più**, e con loro la voce di cast
+> `inseguimento` e tutto il codice della coppia (`chase`, `flee`, `placePair`,
+> `mate`). La medusa resta, da sola. Tutto quello che questo file dice
+> dell'inseguimento e del retino racconta com'era: non c'è più niente da
+> ritoccare lì. Il perché sta nel piano 49.
+
+
 Branch: `feat/animaletti` · Dipende da: — · Taglia: ~1 g
 
 ## Obiettivo
@@ -35,14 +43,16 @@ Spento di default. Si accende e si regola da `Vista › Personaggi…`.
   Ogni sprite è una griglia di caratteri + palette (`'..yy..'`, `{ y: '#f7e03c' }`)
   convertita in `<rect>`: si legge e si modifica a mano, e un test verifica
   che ogni riga abbia la stessa larghezza e ogni carattere un colore.
-- **Personaggi di SpongeBob riconoscibili, con i loro nomi.** Decisione
+- ~~**Personaggi di SpongeBob riconoscibili, con i loro nomi.**~~ Decisione
   dell'utente (2026-09-29), sapendo che sono personaggi e marchi di
-  Nickelodeon/Paramount e che il repo è pubblico con release: il rischio di
-  una segnalazione DMCA è accettato. SpongeBob è ricopiato da uno sprite GBA
-  ritoccato da un fan (gianlucarugergr, DeviantArt), scelta dell'utente; gli
-  altri sono pixel art originale fatta qui. Se arriva una segnalazione, si
-  tolgono le voci da `pets-sprites.js`: il motore non dipende da nessun
-  personaggio.
+  Nickelodeon/Paramount: il rischio di una segnalazione DMCA era accettato.
+  SpongeBob era ricopiato da uno sprite GBA ritoccato da un fan
+  (gianlucarugergr, DeviantArt); gli altri erano pixel art originale fatta
+  qui. **Decisione ribaltata il 2026-10-09** (piano 49): nel frattempo le
+  release sono diventate pubbliche e firmate col nome di due persone, quindi
+  si sono tolti. L'uscita era prevista proprio così — «si tolgono le voci da
+  `pets-sprites.js`: il motore non dipende da nessun personaggio» — ed è
+  andata esattamente così, più la macchina dell'inseguimento.
 - **Impostazioni in `localStorage`**, come `term-font.js` e `type-colors.js`:
   sono preferenze di UI, non dati da far sopravvivere fuori dall'app. Il
   valore letto è input esterno: si valida e, se non torna, si usa il default.
@@ -64,10 +74,7 @@ Spento di default. Si accende e si regola da `Vista › Personaggi…`.
 
 | id | Nome | Cosa fa |
 |----|------|---------|
-| `spongebob` | SpongeBob | Rincorre la medusa col retino alzato; quando è vicino dà un colpo di retino (frame `swing`) e la manca sempre |
-| `medusa` | Medusa | Galleggia ondeggiando (seno sulla y); quando SpongeBob è vicino scatta via. Anche da sola, come voce `medusa`: gironzola e chiama solo se non c'è nessun altro |
-| `patrick` | Patrick | Cammina piano |
-| `gary` | Gary | Lumaca: lentissimo |
+| `medusa` | Medusa | Galleggia ondeggiando (seno sulla y), gironzola e chiama solo se non c'è nessun altro, posandosi a terra |
 | `gatto` | Gatto | Cammina; per dormire si sdraia a pagnotta, con la coda stesa davanti |
 | `pizza` | Peppo, la pizza | Fetta con gambine, dal pacchetto «Sprite pixel-art originale» dell'utente |
 | `rana` | Rana | Salta (`motion: 'hop'`): avanza solo in aria, posa `jump` |
@@ -216,13 +223,13 @@ Precedenza: `attention` > `busy` > `sleep` > `idle`.
 ```js
 {
   enabled: false,
-  cast: ['inseguimento'],  // id dal catalogo, ripetibili; massimo MAX_CAST
+  cast: ['pizza'],  // id dal catalogo, ripetibili; massimo MAX_CAST
   size: 'm',               // 's' | 'm' | 'l'  → 24 / 32 / 48 px
   speed: 'normale',        // 'lenta' | 'normale' | 'veloce'
 }
 ```
 
-- `MAX_CAST = 21` voci del dialogo, una per ognuna; la coppia SpongeBob e medusa è una voce, la papera con gli anatroccoli pure
+- `MAX_CAST = 18` voci del dialogo, una per ognuna; la papera con gli anatroccoli è una voce sola
   (contarla due impediva di sceglierne una di ognuna).
 - Voci sconosciute scartate, valori fuori elenco → default, JSON rotto →
   default intero.

@@ -33,6 +33,8 @@ const ConfirmBubble = window.AisessConfirmBubble;
 const Attention = window.AisessAttention;
 // «Sta lavorando adesso»: barra del tipo animata (renderer/running.js)
 const Running = window.AisessRunning;
+// Il segnale esatto degli hook degli agenti (renderer/agent-state.js, piano 46)
+const AgentState = window.AisessAgentState;
 const Titles = window.AisessTitles;
 // Linguetta «Cerca» del Resume: frammenti, stati, debounce (renderer/search-results.js)
 const ConvSearch = window.AisessSearch;

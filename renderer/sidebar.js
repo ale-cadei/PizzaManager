@@ -32,6 +32,7 @@
   /* I due tooltip della card: il segnale può accendersi e spegnersi senza
      ridisegnarla (signal()), quindi la scritta va rimessa a posto lì. */
   const ATTENTION_TITLE = 'L\'assistente ha finito: apri la sessione per vedere il risultato';
+  const PERMISSION_TITLE = 'L\'assistente ti chiede un permesso: apri la sessione per rispondere';
   const RENAME_TITLE = 'Doppio click per rinominare';
   /* Le conversazioni di cui si legge il testo (lib/transcripts.js): solo per
      loro la card offre l'export in Markdown. Lo usa anche il Resume. */
@@ -415,9 +416,10 @@
       const isActive = t.id === activeId;
       b.className = `session-item type-${t.type}` + (isActive ? ' active' : '')
         + (t.needsAttention ? ' needs-attention' : '')
+        + (t.needsAttention && t.attentionKind === 'permission' ? ' needs-permission' : '')
         + (t.running ? ' is-running' : '');
       if (isActive) b.setAttribute('aria-current', 'true');
-      if (t.needsAttention) b.title = ATTENTION_TITLE;
+      if (t.needsAttention) b.title = t.attentionKind === 'permission' ? PERMISSION_TITLE : ATTENTION_TITLE;
       // Il comando si mostra solo se per quel tipo ce n'è più di uno configurato
       const multiCommand = Commands && Commands.profilesFor(t.type).length > 1;
       // Per tipo il worktree non ha una sotto-sezione: il branch lo dice la card
@@ -533,7 +535,9 @@
      * colpo trasparente ogni volta che un'altra sessione comincia o smette di
      * lavorare, e la pulsazione si vedrebbe a scatti invece che graduale.
      * @param {string} id
-     * @param {{running?: boolean, needsAttention?: boolean}} flags
+     * `permission` (piano 46) vale solo insieme a needsAttention: spegnere il
+     * lampeggio spegne anche il ritmo rapido.
+     * @param {{running?: boolean, needsAttention?: boolean, permission?: boolean}} flags
      * @returns {boolean} false se la card non è disegnata: chi chiama rifaccia la sidebar
      */
     function signal(id, flags) {
@@ -541,13 +545,16 @@
       if (!p) return false;
       if ('running' in flags) p.card.classList.toggle('is-running', !!flags.running);
       if ('needsAttention' in flags) {
+        const permission = !!flags.needsAttention && !!flags.permission;
         p.card.classList.toggle('needs-attention', !!flags.needsAttention);
-        p.card.title = flags.needsAttention ? ATTENTION_TITLE : RENAME_TITLE;
+        p.card.classList.toggle('needs-permission', permission);
+        p.card.title = permission ? PERMISSION_TITLE : flags.needsAttention ? ATTENTION_TITLE : RENAME_TITLE;
         // Se il gruppo è chiuso la card non si vede: il segnale sta sulla
         // linguetta, e lì vale per tutte le sessioni che ci sono dentro.
         if (p.body.hidden) {
-          const acceso = p.cards.some((c) => c.classList.contains('needs-attention'));
-          p.header.classList.toggle('needs-attention', acceso);
+          for (const cls of ['needs-attention', 'needs-permission']) {
+            p.header.classList.toggle(cls, p.cards.some((c) => c.classList.contains(cls)));
+          }
         }
       }
       return true;
@@ -627,9 +634,11 @@
         // Se collassato nasconde la scheda attiva (o una che lampeggia), l'header lo segnala
         const hidesActive = collapsed && hasActive;
         const hidesAttention = collapsed && allItems.some((t) => t.needsAttention);
+        const hidesPermission = collapsed && allItems.some((t) => t.needsAttention && t.attentionKind === 'permission');
         header.className = `group-header` + (g.kind === 'type' ? ` type-${g.key}` : ' is-project')
           + (hidesActive ? ' has-active' : '')
-          + (hidesAttention ? ' needs-attention' : '');
+          + (hidesAttention ? ' needs-attention' : '')
+          + (hidesPermission ? ' needs-permission' : '');
         header.setAttribute('aria-expanded', String(!collapsed));
         header.title = g.title;
         // In modalità progetto il marchio dell'agente non c'entra: serve un glifo

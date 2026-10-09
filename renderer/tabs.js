@@ -139,6 +139,12 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   window.AisessClipboard.attachContextMenu(term, inner);
   // Il bell è il "ho finito" esplicito degli agenti: vale senza attendere l'idle
   try { term.onBell(() => flagAttention(tab, { bell: true })); } catch {}
+  // Codex manda OSC 9 a fine turno e quando chiede un'approvazione (piano 46)
+  if (type === 'codex') {
+    try {
+      term.parser.registerOscHandler(9, (text) => { applyAgentSignal(tab, AgentState.codexOscState(text)); return true; });
+    } catch (e) { console.warn('OSC 9 di Codex non intercettato, resta l euristica', e); }
+  }
 
   // Dimensioni iniziali misurate sul contenitore reale già visibile
   let cols = 80, rows = 24;
@@ -239,6 +245,7 @@ async function closeTab(id) {
   if (t.type !== 'git') await window.aisess.kill(id);
   clearAttention(id);
   attention.forget(id);
+  agentState.forget(id);
   clearTimeout(t.runTimer);
   running.forget(id);
   try { if (t.ro) t.ro.disconnect(); } catch {}

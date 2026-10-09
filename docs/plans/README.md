@@ -56,6 +56,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 44 | [`feat/review-attiva`](44-review-commenti.md) — commenti sul diff, inviati all'agente | 32, 43 | ~1 g | fatto, provato nell'app (smoke sotto xvfb, agente finto) |
 | 48 | [`feat/segnalazioni`](48-segnalazioni.md) — bacheca di richieste e problemi nell'app | 18, 44 | ~1 g | in corso |
 | 46 | [`feat/hooks-esatti`](46-hook-esatti.md) — lavora / ha finito / chiede un permesso, dagli hook di Claude, opencode e Codex | 38 | ~1½ g | fatto, smoke da fare |
+| 49 | [`chore/via-personaggi-di-terzi`](49-via-personaggi-di-terzi.md) — il pescatore, la stella e la lumaca fuori dal catalogo degli animaletti | 33 | ~2h | ✅ mergiato (PR #52), smoke da fare |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

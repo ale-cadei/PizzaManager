@@ -119,6 +119,8 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     try {
       const inj = injectFor(type, { pluginPath: type === 'opencode' ? ensurePlugin() : null, args, env: profileEnv });
       if (!inj.exact) return { args: [], env: {} };
+      // Codex parla con OSC 9 nel terminale: un file non lo scriverebbe nessuno
+      if (type === 'codex') return { args: inj.args, env: inj.env };
       const store = signalStore();
       const key = signalKey(id, session);
       store.ensureDir();
@@ -248,6 +250,8 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
       // Consumato: il file di prima ha fatto il suo mestiere e puo' contenere
       // segreti. Da qui in avanti si salva sotto il nome della sessione nuova.
       if (previousSession && scrollbackStore) scrollbackStore().remove(previousSession);
+      // Anche il suo segnale: quella sessione non c'è più, nessuno lo leggerebbe
+      if (previousSession && previousSession !== session) dropSignal(previousSession);
       if (session) syncSnapshot();
       history().append({
         type,

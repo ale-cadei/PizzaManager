@@ -101,6 +101,33 @@ la maniglia di ridimensionamento: trascinata sfonda il dialogo. In
 `tokens.css`, dove stanno i componenti di base, `textarea.input` ora ha
 `resize: none` — vale anche per le prossime.
 
+## 6. «＋ Nuova» e «Annulla» non facevano niente
+
+Un sintomo solo, una causa sola, e spiega anche come l'utente ha visto le
+cose del punto 5 senza mai premere «Nuova».
+
+```css
+#fb-form { display: flex; … }     /* specificita' (1,0,0) */
+[hidden] { display: none }        /* UA stylesheet, (0,1,0) */
+```
+
+Il selettore di id vince: l'attributo `hidden` su `#fb-form` **non nasconde
+niente**. Il modulo della nuova segnalazione era quindi sempre aperto, e da
+lì i due sintomi: «＋ Nuova» non apriva niente perché era già aperto,
+«Annulla» non chiudeva niente perché metteva `hidden` e il CSS lo ignorava.
+Nessuno dei due pulsanti era scollegato: facevano il loro lavoro su un
+attributo che non contava nulla.
+
+La trappola era già nota nel repo: `.group-body[hidden] { display: none }`
+ha sopra un commento che la spiega, e `.type-colors-reset[hidden]` fa lo
+stesso. Mancava solo qui. Si aggiunge `#fb-form[hidden] { display: none }`.
+
+Un test nuovo la cerca da sola: per ogni elemento di `index.html` che nasce
+`hidden` e ha un id, se il CSS gli dà un `display` suo allora deve esserci
+anche `#id[hidden]`. Provato togliendo la correzione: diventa rosso e dice
+quale id. Guarda solo gli id — una regola `#id` si applica di sicuro a
+quell'elemento, mentre per le classi servirebbe un vero motore di selettori.
+
 ## Commenti da correggere, gratis
 
 Tre intestazioni dicono che i filtri stanno in `lib/feedback-source.js`:

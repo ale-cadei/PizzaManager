@@ -1794,3 +1794,9 @@ a, .link { color: var(--action-text); }
 }
 
 #fb-form { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+/* Senza questa riga il modulo è SEMPRE aperto: `#fb-form` è un selettore di id
+   e batte il `display: none` che l'UA stylesheet dà a [hidden]. Si vedeva così:
+   «＋ Nuova» non apriva niente (era già aperto) e «Annulla» non chiudeva
+   niente (metteva hidden, e il CSS lo ignorava). Stessa trappola di
+   .group-body[hidden] qui sopra. */
+#fb-form[hidden] { display: none; }

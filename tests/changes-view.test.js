@@ -256,7 +256,7 @@ ok('da committare: le righe stanno sotto la loro sezione, un file a metà in tut
   const files = [file('a.js', { side: 'staged' }), file('a.js', { side: 'unstaged', added: 7 }), file('n.md', { side: 'unstaged', status: '?' })];
   view.render(baseState({ files, sections: SECTIONS }));
   const body = one(host, 'changes-body');
-  const order = body.children.map((c) => (c.classes.has('changes-section') ? `# ${textOf(c)}` : c.children[0].dataset.item));
+  const order = body.children.map((c) => (c.classes.has('changes-section') ? `# ${textOf(c)}` : one(c, 'changes-file-row').dataset.item));
   assert.deepStrictEqual(order, ['# Staged1', 'staged:a.js', '# Non staged2', 'unstaged:a.js', 'unstaged:n.md']);
   assert.strictEqual(one(host, 'changes-section').title, 'nell\'indice');
 });
@@ -417,4 +417,101 @@ ok('commenti: piè di pagina con conteggio, Svuota e Invia; l\'errore si vede', 
   assert.strictEqual(one(foot, 'changes-review-error').hidden, true);
   view.render(reviewState({ enabled: true, notes: [], error: null }));
   assert.strictEqual(foot.hidden, true);
+});
+
+/* ---------- Stage, unstage e commit (docs/plans/45) ---------- */
+
+const stagingSections = (staged, unstaged) => [
+  { side: 'staged', title: 'Staged', hint: 'h', count: staged },
+  { side: 'unstaged', title: 'Non staged', hint: 'h', count: unstaged },
+];
+const commitOf = (over = {}) => ({
+  key: 't1', message: '', canWrite: true, reason: null, canCommit: false,
+  commitReason: 'Scrivi il messaggio del commit.', commitLabel: 'Committa 1 file', outcome: null, ...over,
+});
+const stagingView = (commit, over = {}) => baseState({
+  files: [file('a.js', { side: 'staged' }), file('a.js', { side: 'unstaged' }), file('n.md', { side: 'unstaged', status: '?' })],
+  sections: stagingSections(1, 2), commit, ...over,
+});
+
+ok('commit: ＋ sulle righe non staged, − sulle staged, e «tutti» nelle sezioni', () => {
+  const actions = [];
+  const { host, view } = setup({ onCommit: (a) => { actions.push(a); } });
+  view.render(stagingView(commitOf()));
+  const add = byClass(host, 'changes-stage');
+  const remove = byClass(host, 'changes-unstage');
+  assert.deepStrictEqual([add.length, remove.length], [2, 1]);
+  assert.ok(byClass(host, 'changes-file-row').every((r) => !descendants(r).some((n) => n.tag === 'button')), 'niente pulsanti dentro un pulsante');
+  add[1].onclick();
+  remove[0].onclick();
+  one(host, 'changes-stage-all').onclick();
+  one(host, 'changes-unstage-all').onclick();
+  assert.deepStrictEqual(actions, [
+    { type: 'stage', paths: ['n.md'] }, { type: 'unstage', paths: ['a.js'] },
+    { type: 'stage-all' }, { type: 'unstage-all' },
+  ]);
+  assert.strictEqual(add[0].getAttribute('aria-label'), 'Aggiungi a.js allo stage');
+});
+
+ok('commit: fuori da «Da committare» niente pulsanti, niente casella', () => {
+  const { host, view } = setup({ onCommit: () => {} });
+  view.render(baseState({ files: [file('a.js')] }));
+  assert.deepStrictEqual([byClass(host, 'changes-stage').length, byClass(host, 'changes-unstage').length], [0, 0]);
+  assert.strictEqual(one(host, 'changes-commit-foot').hidden, true);
+});
+
+ok('commit: con la sessione che lavora tutto spento, e il motivo si legge', () => {
+  const actions = [];
+  const { host, view } = setup({ onCommit: (a) => { actions.push(a); } });
+  const reason = 'La sessione sta lavorando: aspetta che si fermi.';
+  view.render(stagingView(commitOf({ canWrite: false, reason, commitReason: reason, message: 'x' })));
+  const buttons = [...byClass(host, 'changes-stage'), ...byClass(host, 'changes-unstage'),
+    one(host, 'changes-stage-all'), one(host, 'changes-unstage-all'), one(host, 'changes-commit-btn')];
+  assert.ok(buttons.every((b) => b.disabled), 'un pulsante acceso');
+  assert.ok(byClass(host, 'changes-stage').every((b) => b.title === reason));
+  assert.strictEqual(textOf(one(host, 'changes-commit-reason')), reason);
+  fire(one(host, 'changes-commit-input'), 'keydown', { key: 'Enter', ctrlKey: true });
+  assert.deepStrictEqual(actions, [], 'Ctrl+Invio non committa');
+});
+
+ok('commit: il messaggio va al pannello, Ctrl+Invio e il pulsante committano', () => {
+  const actions = [];
+  const { host, view } = setup({ onCommit: (a) => { actions.push(a); } });
+  view.render(stagingView(commitOf()));
+  const foot = one(host, 'changes-commit-foot');
+  assert.strictEqual(foot.hidden, false);
+  const input = one(foot, 'changes-commit-input');
+  assert.strictEqual(input.maxLength, 10000);
+  input.value = 'fix: <b>x</b>';
+  fire(input, 'input');
+  assert.deepStrictEqual(actions, [{ type: 'message', text: 'fix: <b>x</b>' }]);
+  view.renderCommit(commitOf({ message: 'fix: <b>x</b>', canCommit: true, commitReason: null, commitLabel: 'Committa 2 file' }));
+  const btn = one(foot, 'changes-commit-btn');
+  assert.deepStrictEqual([btn.disabled, btn.textContent], [false, 'Committa 2 file']);
+  assert.strictEqual(input.value, 'fix: <b>x</b>');
+  fire(input, 'keydown', { key: 'Enter', ctrlKey: true, preventDefault() {} });
+  btn.onclick();
+  assert.deepStrictEqual(actions.slice(1), [{ type: 'commit' }, { type: 'commit' }]);
+});
+
+ok('commit: la riga dell\'esito, e l\'output di un hook che fallisce resta testo', () => {
+  const { host, view } = setup({ onCommit: () => {} });
+  view.render(stagingView(commitOf({ outcome: { ok: true, text: 'Commit abc1234 su main' } })));
+  const outcome = one(host, 'changes-commit-outcome');
+  assert.deepStrictEqual([outcome.hidden, textOf(outcome), outcome.classes.has('is-error')], [false, 'Commit abc1234 su main', false]);
+  view.render(stagingView(commitOf({ outcome: { ok: false, text: '<img src=x onerror=alert(1)>\nlint: 2 errori' } })));
+  assert.ok(outcome.classes.has('is-error'));
+  assert.ok(textOf(outcome).includes('<img src=x'));
+  assert.ok(descendants(host).every((n) => !n.html));
+  view.render(stagingView(commitOf()));
+  assert.strictEqual(outcome.hidden, true);
+});
+
+ok('commit: cambiando scheda il messaggio è quello della scheda, non quello di prima', () => {
+  const { host, view } = setup({ onCommit: () => {} });
+  view.render(stagingView(commitOf({ key: 't1', message: 'uno' })));
+  const input = one(host, 'changes-commit-input');
+  assert.strictEqual(input.value, 'uno');
+  view.render(stagingView(commitOf({ key: 't2', message: '' })));
+  assert.strictEqual(input.value, '');
 });

@@ -799,3 +799,77 @@ ok('git: readStaging divide indice e cartella, e i diff di ogni sezione, con il 
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+// ---------- git: stage, unstage e commit dal pannello con git vero (piano 45) ----------
+ok('git: stage, unstage e commit dal pannello, hook compresi, con il git installato', async (t) => {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const path = require('path');
+  const { resolveBinary } = require('../lib/binaries');
+  const { readStaging } = require('../lib/git-staging');
+  const C = require('../lib/git-commit');
+  const bin = resolveBinary('git');
+  if (!bin.path) return t.skip('git non installato su questa macchina');
+  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-commit-')));
+  const git = (...args) => String(execFileSync(bin.path, args, { cwd: root })).trim();
+  const write = (file, text) => fs.writeFileSync(path.join(root, file), text);
+  const rows = async () => (await readStaging({ cwd: root })).files.map((f) => [f.side, f.status, f.path]);
+  try {
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.name', 'Prova');
+    git('config', 'user.email', 'p@x');
+    // Hook e firma solo quelli di questo repository, non quelli dell'utente
+    git('config', 'core.hooksPath', '.git/hooks');
+    git('config', 'commit.gpgsign', 'false');
+
+    // Senza commit: − passa da rm --cached, «Togli tutti» pure
+    write('a.txt', 'uno\n');
+    write('b.txt', 'resto uguale\nper il rename\ne ancora\n');
+    assert.deepStrictEqual(await C.stagePaths({ cwd: root, paths: ['a.txt'] }), { ok: true });
+    assert.deepStrictEqual(await rows(), [['staged', 'A', 'a.txt'], ['unstaged', '?', 'b.txt']]);
+    assert.deepStrictEqual(await C.unstagePaths({ cwd: root, paths: ['a.txt'] }), { ok: true });
+    assert.deepStrictEqual(await rows(), [['unstaged', '?', 'a.txt'], ['unstaged', '?', 'b.txt']]);
+    await C.stageAll({ cwd: root });
+    assert.deepStrictEqual(await C.unstageAll({ cwd: root }), { ok: true });
+    assert.deepStrictEqual((await rows()).map((r) => r[0]), ['unstaged', 'unstaged']);
+    assert.strictEqual((await C.commitStaged({ cwd: root, message: 'x' })).ok, false, 'niente di staged');
+
+    await C.stageAll({ cwd: root });
+    const first = await C.commitStaged({ cwd: root, message: 'primo\n\ncorpo' });
+    assert.deepStrictEqual(first, { ok: true, commit: git('rev-parse', '--short', 'HEAD'), branch: 'main' });
+    assert.strictEqual(git('log', '-1', '--format=%B'), 'primo\n\ncorpo');
+
+    // Con HEAD: − su un rinominato rimette a posto tutti e due i nomi
+    git('mv', 'b.txt', 'c.txt');
+    assert.deepStrictEqual(await C.unstagePaths({ cwd: root, paths: ['c.txt'] }), { ok: true });
+    assert.deepStrictEqual(await rows(), [['unstaged', 'D', 'b.txt'], ['unstaged', '?', 'c.txt']]);
+    assert.strictEqual((await C.unstagePaths({ cwd: root, paths: ['c.txt'] })).ok, false, 'non è staged');
+
+    // Un hook che fallisce: il commit non c'è, il suo output sì, lo staged resta
+    write('a.txt', 'uno\ndue\n');
+    await C.stagePaths({ cwd: root, paths: ['a.txt'] });
+    const hook = path.join(root, '.git', 'hooks', 'pre-commit');
+    fs.writeFileSync(hook, '#!/bin/sh\necho "lint: 2 errori"\nexit 1\n', { mode: 0o755 });
+    const head = git('rev-parse', 'HEAD');
+    const failed = await C.commitStaged({ cwd: root, message: 'secondo' });
+    assert.strictEqual(failed.ok, false);
+    assert.match(failed.error, /lint: 2 errori/);
+    assert.strictEqual(git('rev-parse', 'HEAD'), head);
+    assert.strictEqual(git('diff', '--cached', '--name-only'), 'a.txt');
+    fs.rmSync(hook);
+
+    // Un altro git al lavoro, o un merge a metà: niente scritture
+    const lock = path.join(root, '.git', 'index.lock');
+    fs.writeFileSync(lock, '');
+    assert.match((await C.stageAll({ cwd: root })).error, /riprova/);
+    fs.rmSync(lock);
+    fs.writeFileSync(path.join(root, '.git', 'MERGE_HEAD'), `${head}\n`);
+    assert.match((await C.commitStaged({ cwd: root, message: 'secondo' })).error, /merge/);
+    fs.rmSync(path.join(root, '.git', 'MERGE_HEAD'));
+
+    assert.strictEqual((await C.commitStaged({ cwd: root, message: 'secondo' })).ok, true);
+    assert.strictEqual(git('log', '-1', '--format=%s'), 'secondo');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

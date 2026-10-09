@@ -27,9 +27,10 @@ committa lo staged.
 ```
 
 - **Per file**: `＋` sulle righe non staged (`git add -- <path>`, anche per un
-  file cancellato o non tracciato), `−` sulle staged (`git reset -q -- <path>`;
-  in un repository senza commit `git rm --cached -q -- <path>`). Niente blocchi:
-  per quelli c'è `git add -p`.
+  file cancellato o non tracciato), `−` sulle staged (`git restore --staged --
+  <path>`; in un repository senza commit `git rm --cached -q -- <path>`). Di un
+  rinominato si passano tutti e due i nomi. Niente blocchi: per quelli c'è
+  `git add -p`.
 - **Tutti**: «Aggiungi tutti» (`git add -A`) e «Togli tutti» (`git reset -q`,
   senza commit `git rm --cached -r -q .`) nelle intestazioni di sezione.
 - **Commit**: casella del messaggio e «Committa N file» in fondo, solo nel modo
@@ -40,9 +41,10 @@ committa lo staged.
 - **Dopo**: messaggio svuotato, pannello riletto, una riga «Commit `abc1234` su
   `main`». Il messaggio a metà resta se il commit fallisce.
 - **Quando no** (pulsanti spenti, il motivo accanto):
-  - la scheda sta lavorando (`t.running`, renderer/running.js), o un'altra
-    scheda nella stessa cartella: committerebbe file a metà, e si
-    scontrerebbe con l'agente sull'`index.lock`;
+  - la scheda sta lavorando (`t.running`, renderer/signals.js), o un'altra
+    scheda la cui cartella sta dentro la radice dello stesso repository:
+    committerebbe file a metà, e si scontrerebbe con l'agente
+    sull'`index.lock`;
   - niente di staged, o messaggio vuoto (solo per Committa);
   - merge o rebase a metà nel repository: un commit lì chiuderebbe il merge,
     non è quello che ci si aspetta da questo pulsante;
@@ -70,7 +72,10 @@ committa lo staged.
 - `lib/git-commit.js` (nuovo): `stagePaths`, `unstagePaths`, `stageAll`,
   `unstageAll`, `commitStaged({ cwd, message })`. Controlli comuni (repository,
   merge/rebase a metà, percorsi presenti nella sezione). `run` iniettabile.
-- `lib/git-run.js`: opzione `timeout` (il commit con gli hook; le letture no).
+- `lib/git-run.js`: opzione `timeout` (il commit con gli hook; le letture no);
+  all'errore si attacca anche `stdout`, dove molti hook scrivono.
+- `lib/git-staging.js`: `readStaging` dice anche `busy` (`'merge'|'rebase'|null`),
+  così il pannello spegne i pulsanti prima che git rifiuti.
 - `app/git.js`, `preload.js`: canali `git-stage`, `git-unstage`, `git-commit`.
 - `renderer/changes-model.js`: `commitChoice(tab, tabs, result, state)` —
   cosa si può fare e perché no (puro, testato).

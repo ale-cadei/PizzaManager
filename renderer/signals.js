@@ -100,6 +100,8 @@ function retractAttention(t) {
    lampeggio si vedrebbe a scatti. */
 function showRunning(t) {
   if (!sidebar.signal(t.id, { running: t.running })) renderSidebar();
+  // Stage e commit si spengono mentre una sessione lavora (changes-panel.js)
+  noteChangesRunning();
 }
 
 /** Azzera la segnalazione di una scheda. @returns {boolean} true se lampeggiava */

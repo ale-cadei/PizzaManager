@@ -205,3 +205,66 @@ ok('commenti: solo nelle sessioni con un agente, e non in modalità Unisci', () 
   assert.strictEqual(M.reviewAvailable({ type: 'git' }, false), false);
   assert.strictEqual(M.reviewAvailable(null, false), false);
 });
+
+/* ---------- Stage, unstage e commit (docs/plans/45) ---------- */
+
+ok('commit: si scrive solo in «Da committare», e mai in modalità Unisci', () => {
+  const tab = { id: 't1', type: 'shell', cwd: '/r' };
+  const r = stagingResult([unstaged('a.js')], { staged: 0, unstaged: 1 });
+  assert.strictEqual(M.commitChoice(tab, [tab], result([file('a.js')]), {}), null);
+  assert.strictEqual(M.commitChoice(tab, [tab], r, { merging: true }), null);
+  assert.strictEqual(M.commitChoice(tab, [tab], { ok: false, error: 'x' }, {}), null);
+  const c = M.commitChoice(tab, [tab], r, { message: '' });
+  assert.deepStrictEqual([c.canWrite, c.reason], [true, null]);
+});
+
+ok('commit: «Committa N file» solo con qualcosa di staged e un messaggio', () => {
+  const tab = { id: 't1', type: 'claude', cwd: '/r' };
+  const r = stagingResult([staged('a.js'), staged('b.js'), unstaged('c.js')], { staged: 2, unstaged: 1 });
+  const ready = M.commitChoice(tab, [tab], r, { message: 'fix: x' });
+  assert.deepStrictEqual([ready.canCommit, ready.commitReason, ready.commitLabel], [true, null, 'Committa 2 file']);
+  const blank = M.commitChoice(tab, [tab], r, { message: '  \n ' });
+  assert.strictEqual(blank.canCommit, false);
+  assert.match(blank.commitReason, /messaggio/);
+  const none = M.commitChoice(tab, [tab], stagingResult([unstaged('c.js')], { staged: 0, unstaged: 1 }), { message: 'x' });
+  assert.strictEqual(none.canCommit, false);
+  assert.match(none.commitReason, /staged/);
+  assert.strictEqual(none.canWrite, true, 'si può ancora aggiungere');
+});
+
+ok('commit: spento, col motivo, se la sessione o un\'altra nello stesso repository lavora', () => {
+  const tab = { id: 't1', type: 'claude', cwd: '/r/lib', name: 'questa' };
+  const r = stagingResult([staged('a.js')], { staged: 1, unstaged: 0 });
+  const self = M.commitChoice({ ...tab, running: true }, [{ ...tab, running: true }], r, { message: 'x' });
+  assert.deepStrictEqual([self.canWrite, self.canCommit], [false, false]);
+  assert.match(self.reason, /sta lavorando/);
+  assert.strictEqual(self.commitReason, self.reason);
+  const other = { id: 't2', type: 'codex', cwd: '/r', name: 'agente <b>', running: true };
+  const c = M.commitChoice(tab, [tab, other], r, { message: 'x' });
+  assert.strictEqual(c.canWrite, false);
+  assert.match(c.reason, /agente <b>/);
+  // fuori dal repository, o in uno che comincia uguale: non conta
+  for (const cwd of ['/altro', '/r2', '/r.worktrees/feat-x']) {
+    assert.strictEqual(M.commitChoice(tab, [tab, { ...other, cwd }], r, {}).canWrite, true, cwd);
+  }
+  // Windows: separatori diversi, stessa cartella
+  const win = stagingResult([staged('a.js')], { staged: 1, unstaged: 0 });
+  const wr = { ...win, root: 'C:\\r' };
+  assert.strictEqual(M.commitChoice(tab, [tab, { ...other, cwd: 'C:/r/sub' }], wr, {}).canWrite, false);
+});
+
+ok('commit: spento con un merge o un rebase a metà, o con un\'altra scrittura in corso', () => {
+  const tab = { id: 't1', type: 'shell', cwd: '/r' };
+  const r = stagingResult([staged('a.js')], { staged: 1, unstaged: 0 });
+  const merge = M.commitChoice(tab, [tab], { ...r, busy: 'merge' }, { message: 'x' });
+  assert.deepStrictEqual([merge.canWrite, merge.canCommit], [false, false]);
+  assert.match(merge.reason, /merge/);
+  assert.match(M.commitChoice(tab, [tab], { ...r, busy: 'rebase' }, {}).reason, /rebase/);
+  const writing = M.commitChoice(tab, [tab], r, { message: 'x', writing: true });
+  assert.deepStrictEqual([writing.canWrite, writing.canCommit], [false, false]);
+});
+
+ok('commit: un merge che comincia o finisce cambia la firma', () => {
+  const r = stagingResult([staged('a.js')], { staged: 1, unstaged: 0 });
+  assert.notStrictEqual(M.signature(r), M.signature({ ...r, busy: 'merge' }));
+});

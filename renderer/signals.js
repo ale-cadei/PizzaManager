@@ -51,7 +51,7 @@ function flagAttention(t, { bell = false } = {}) {
    rivederla, come selezionarla. */
 function onWindowBlur() {
   windowFocused = false;
-  if (activeId) attention.left(activeId);
+  if (activeId) { attention.left(activeId); leaveAgentTab(activeId); }
 }
 
 function onWindowFocus() {
@@ -78,6 +78,15 @@ function applyAgentSignal(t, sig) {
   setAttentionKind(t, r.attention);
 }
 
+/* Un permesso chiesto sotto gli occhi e lasciato lì: nessun hook arriverà più
+   finché l'utente non risponde, quindi lo si riaccende quando se ne va. Senza
+   notifica: l'ha appena visto, basta la card. */
+function leaveAgentTab(id) {
+  const t = tabs.get(id);
+  if (!t || agentState.left(id) !== 'permission') return;
+  setAttentionKind(t, 'permission', { notify: false });
+}
+
 /* La barra la decide il segnale: il timer del silenzio la spegnerebbe mentre
    l'agente aspetta il modello senza scrivere niente. */
 function setExactRunning(t, on) {
@@ -89,13 +98,16 @@ function setExactRunning(t, on) {
   showRunning(t);
 }
 
-/** @param {null|'done'|'permission'} kind */
-function setAttentionKind(t, kind) {
+/**
+ * @param {null|'done'|'permission'} kind
+ * @param {{notify?: boolean}} [o]
+ */
+function setAttentionKind(t, kind, { notify = true } = {}) {
   const was = t.needsAttention ? (t.attentionKind || 'done') : null;
   if (kind === was) return;
   t.needsAttention = Boolean(kind);
   t.attentionKind = kind;
-  if (kind) notifyFinished(t);
+  if (kind && notify) notifyFinished(t);
   syncBadge();
   if (!sidebar.signal(t.id, { needsAttention: Boolean(kind), permission: kind === 'permission' })) renderSidebar();
 }

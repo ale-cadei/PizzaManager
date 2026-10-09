@@ -206,7 +206,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
 function setActive(id, { reveal = true } = {}) {
   // La scheda che lascia il primo piano si ridisegna per il refit: quell'output
   // è una conseguenza della visita, non un lavoro nuovo (attention.js).
-  if (activeId && activeId !== id) attention.left(activeId);
+  if (activeId && activeId !== id) { attention.left(activeId); leaveAgentTab(activeId); }
   const previousId = activeId;
   activeId = id;
   tabs.forEach((t) => t.wrap.classList.toggle('active', t.id === id));

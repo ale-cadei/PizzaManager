@@ -1,5 +1,7 @@
 /* Segnali sulle card: «l'assistente ha finito» (lampeggio) e «sta lavorando».
-   Le regole stanno in attention.js e running.js; qui i timer e il render. */
+   Le regole stanno in attention.js e running.js; qui i timer e il render.
+   Quando l'agente dice da sé in che stato è (hook, OSC 9 di Codex: piano 46)
+   le regole sono quelle di agent-state.js e l'euristica tace. */
 
 /* ---------- "L'assistente ha finito": card che lampeggia ----------
    Un agente TUI scrive senza sosta mentre lavora: quando il flusso si ferma
@@ -21,6 +23,7 @@ function isWatched(t) {
 
 function noteActivity(t, bytes) {
   if (t.type === 'shell') return;   // nessun assistente: niente da segnalare
+  if (agentState.isExact(t.id)) return; // lo dice l'agente stesso
   if (isWatched(t)) return;         // già sotto gli occhi dell'utente
   attention.data(t.id, bytes);
   clearTimeout(t.idleTimer);
@@ -33,7 +36,7 @@ function flagAttention(t, { bell = false } = {}) {
   t.idleTimer = null;
   // Anche se non lampeggia (shell): il lavoro è finito, i numeri del suo worktree cambiano
   noteWorktreeSessionDone(t);
-  if (t.type === 'shell' || isWatched(t) || t.needsAttention) return;
+  if (t.type === 'shell' || isWatched(t) || t.needsAttention || agentState.isExact(t.id)) return;
   if (!(bell ? attention.bell(t.id) : attention.idle(t.id))) return;
   t.needsAttention = true;
   notifyFinished(t);
@@ -57,6 +60,46 @@ function onWindowFocus() {
   if (!sidebar.signal(activeId, { needsAttention: false })) renderSidebar();
 }
 
+/* ---------- Segnale esatto dagli agenti (docs/plans/46) ----------
+   Claude e opencode lo scrivono su file tramite hook (arriva dal main come
+   agent-signal), Codex lo manda come OSC 9 nel terminale. Al primo segnale
+   la sessione passa alle regole di agent-state.js: se non ne arriva mai
+   nessuno (hook bloccati, versione vecchia) resta tutto come prima. */
+const agentState = AgentState.createAgentState();
+
+/** @param {'ready'|'running'|'waiting'|'permission'} sig */
+function applyAgentSignal(t, sig) {
+  if (!t || !t.alive) return;
+  const r = agentState.signal(t.id, sig, { watched: isWatched(t), codex: t.type === 'codex' });
+  clearTimeout(t.idleTimer);
+  t.idleTimer = null;
+  if (sig === 'waiting') noteWorktreeSessionDone(t);
+  if (r.running !== null) setExactRunning(t, r.running);
+  setAttentionKind(t, r.attention);
+}
+
+/* La barra la decide il segnale: il timer del silenzio la spegnerebbe mentre
+   l'agente aspetta il modello senza scrivere niente. */
+function setExactRunning(t, on) {
+  clearTimeout(t.runTimer);
+  t.runTimer = null;
+  if (!on) running.stop(t.id);
+  if (t.running === on) return;
+  t.running = on;
+  showRunning(t);
+}
+
+/** @param {null|'done'|'permission'} kind */
+function setAttentionKind(t, kind) {
+  const was = t.needsAttention ? (t.attentionKind || 'done') : null;
+  if (kind === was) return;
+  t.needsAttention = Boolean(kind);
+  t.attentionKind = kind;
+  if (kind) notifyFinished(t);
+  syncBadge();
+  if (!sidebar.signal(t.id, { needsAttention: Boolean(kind), permission: kind === 'permission' })) renderSidebar();
+}
+
 function watchWindowFocus() {
   window.addEventListener('blur', onWindowBlur);
   window.addEventListener('focus', onWindowFocus);
@@ -73,6 +116,8 @@ const running = Running.createRunning();
 
 function noteRunning(t) {
   if (!t.alive) return;
+  // Per Claude e opencode la barra la accende l'hook; Codex non ha un «lavora» esatto
+  if (agentState.isExact(t.id) && t.type !== 'codex') return;
   if (running.data(t.id)) { t.running = true; showRunning(t); retractAttention(t); }
   clearTimeout(t.runTimer);
   t.runTimer = setTimeout(() => stopRunning(t), RUNNING_IDLE_MS);
@@ -88,8 +133,11 @@ function stopRunning(t) {
 
 /* Ha ripreso a lavorare: il «ho finito» acceso nella pausa era sbagliato */
 function retractAttention(t) {
+  // Un segnale esatto non si smentisce con l'output: lo spegne la visita
+  if (agentState.isExact(t.id)) return;
   if (!t.needsAttention || !attention.resumed(t.id)) return;
   t.needsAttention = false;
+  t.attentionKind = null;
   syncBadge();
   if (!sidebar.signal(t.id, { needsAttention: false })) renderSidebar();
 }
@@ -109,8 +157,10 @@ function clearAttention(id) {
   clearTimeout(t.idleTimer);
   t.idleTimer = null;
   attention.seen(id);
+  agentState.seen(id);
   if (!t.needsAttention) return false;
   t.needsAttention = false;
+  t.attentionKind = null;
   syncBadge();
   return true;
 }

@@ -179,7 +179,10 @@ Tre branch:
 
 - [x] `chore/release-pubblica` — fatto nel [piano 44](44-release-firmata.md):
       `JackGrieco/PizzaManager-releases`, pubblico, solo Release
-- [ ] `feat/auto-update`
-- [ ] `chore/firma-mac` (facoltativo)
+- [x] `feat/auto-update` — scarica da sé, banner «Riavvia ora» a pacchetto
+      pronto, controllo ogni 4 ore
+- [x] `chore/firma-mac` — fatto nel [piano 44](44-release-firmata.md): senza
+      firma Squirrel.Mac rifiuta gli aggiornamenti, quindi era un prerequisito
+      e non un optional
 - [ ] provato su macOS
 - [ ] provato su Linux (collega)

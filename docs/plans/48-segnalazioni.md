@@ -150,6 +150,22 @@ Nel **repo pubblico** (non qui):
 3. Mettere `stato:in-corso` su una issue: l'etichetta compare nel pannello.
 4. Mettere 👍 da due account: l'ordine di *Di tendenza* cambia.
 
+## Provato davvero (2026-10-09)
+
+Giro completo sul repo pubblico, con una issue di prova poi cancellata:
+creata → etichettata `stato:in-corso` → l'Action rigenera → `feedback.json`
+contiene la voce con lo stato giusto. Due cose scoperte facendolo:
+
+- **`raw.githubusercontent` tiene una cache di qualche minuto.** Subito dopo
+  il commit serviva ancora il file vecchio. Per questo la rilettura chiesta a
+  mano (⟳) aggiunge un parametro che la scavalca, altrimenti il pulsante
+  sembrerebbe non fare niente.
+- **Due eventi ravvicinati si contendono il push.** Issue aperta e subito
+  etichettata fanno partire due giri, e il secondo viene rifiutato con
+  «fetch first»: l'Action diventa rossa pur avendo fatto il lavoro. Ora
+  riprova prendendo il remoto e **rigenerando**, perché il file è prodotto da
+  zero dalle issue e un merge non avrebbe senso.
+
 ## Fuori scope
 
 - **Backend proprio** e voto senza account: vedi sopra.

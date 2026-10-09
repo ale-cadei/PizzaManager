@@ -33,10 +33,15 @@ function registerFeedbackHandlers(ipcMain, {
   /** Unico stato: la cache. Sostituita, mai modificata. */
   let cache = null;
 
-  async function scarica() {
+  async function scarica(ricarica) {
     if (!fetchImpl) return { voci: [], errore: 'rete non disponibile' };
     try {
-      const res = await fetchImpl(feedUrl, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+      // raw.githubusercontent tiene una cache di qualche minuto: su una
+      // rilettura chiesta a mano si aggiunge un parametro per scavalcarla,
+      // altrimenti il pulsante ⟳ sembra non fare niente. Misurato: il file
+      // aggiornato arrivava ancora vecchio subito dopo il commit.
+      const url = ricarica ? `${feedUrl}?t=${now()}` : feedUrl;
+      const res = await fetchImpl(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
       if (!res.ok) return { voci: [], errore: `GitHub ha risposto ${res.status}` };
       return { ...parseFeed(await res.text()), errore: null };
     } catch (e) {
@@ -47,7 +52,7 @@ function registerFeedbackHandlers(ipcMain, {
 
   ipcMain.handle('feedback-list', async (event, { ricarica } = {}) => {
     if (!ricarica && cache && now() - cache.quando < ttlMs) return cache.dati;
-    const dati = await scarica();
+    const dati = await scarica(ricarica);
     // Un errore non butta via una bacheca che avevamo: meglio dati vecchi
     // che una finestra vuota quando la rete cade per un minuto.
     if (dati.errore && cache) return { ...cache.dati, errore: dati.errore };

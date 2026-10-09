@@ -19,11 +19,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ale-cadei/PizzaManager/releases/latest"><img src="https://img.shields.io/github/v/release/ale-cadei/PizzaManager?label=release&color=F04E23" alt="Ultima release"></a>
+  <a href="https://github.com/JackGrieco/PizzaManager-releases/releases/latest"><img src="https://img.shields.io/github/v/release/JackGrieco/PizzaManager-releases?label=release&color=F04E23" alt="Ultima release"></a>
   <a href="https://github.com/ale-cadei/PizzaManager/actions/workflows/ci.yml"><img src="https://github.com/ale-cadei/PizzaManager/actions/workflows/ci.yml/badge.svg" alt="Test"></a>
   <img src="https://img.shields.io/badge/macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-black" alt="macOS, Linux e Windows">
   <img src="https://img.shields.io/badge/Electron-33-47848F?logo=electron&logoColor=white" alt="Electron 33">
-  <img src="https://img.shields.io/badge/licenza-MIT-green" alt="Licenza MIT">
+  <img src="https://img.shields.io/badge/licenza-proprietaria-lightgrey" alt="Software proprietario">
 </p>
 
 <p align="center">
@@ -48,15 +48,16 @@ Se lavori con più agenti AI da terminale, finisci con dieci finestre aperte, ne
 
 | | | |
 |---|---|---|
-| **macOS** | [Apple Silicon (.dmg)](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-mac-arm64.dmg) · [Intel (.dmg)](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-mac-x64.dmg) | Trascina l'app in *Applicazioni* |
-| **Linux** | [AppImage](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-linux-x86_64.AppImage) · [.deb](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-linux-amd64.deb) | `chmod +x` l'AppImage, o `sudo dpkg -i` il .deb |
-| **Windows** | [Installer (.exe)](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-win-x64-setup.exe) | Installer classico; senza `tmux` (vedi [Su Windows](#su-windows)) |
+| **macOS** | [Apple Silicon (.dmg)](https://github.com/JackGrieco/PizzaManager-releases/releases/latest/download/PizzaManager-mac-arm64.dmg) · [Intel (.dmg)](https://github.com/JackGrieco/PizzaManager-releases/releases/latest/download/PizzaManager-mac-x64.dmg) | Trascina l'app in *Applicazioni* |
+| **Linux** | [AppImage](https://github.com/JackGrieco/PizzaManager-releases/releases/latest/download/PizzaManager-linux-x86_64.AppImage) · [.deb](https://github.com/JackGrieco/PizzaManager-releases/releases/latest/download/PizzaManager-linux-amd64.deb) | `chmod +x` l'AppImage, o `sudo dpkg -i` il .deb |
+| **Windows** | [Installer (.exe)](https://github.com/JackGrieco/PizzaManager-releases/releases/latest/download/PizzaManager-win-x64-setup.exe) | Installer classico; senza `tmux` (vedi [Su Windows](#su-windows)) |
 
-Tutte le versioni: [Releases](https://github.com/ale-cadei/PizzaManager/releases). Le CLI (`claude`, `codex`, `opencode`) vanno installate a parte: l'app lancia quelle che trova nel PATH.
+Tutte le versioni: [Releases](https://github.com/JackGrieco/PizzaManager-releases/releases) — repo pubblico che contiene **solo** i pacchetti, perché i link di download funzionino per chiunque; il codice resta qui. Le CLI (`claude`, `codex`, `opencode`) vanno installate a parte: l'app lancia quelle che trova nel PATH.
 
-**I pacchetti non sono firmati.** Alla prima apertura:
-- **macOS** dice «PizzaManager è danneggiato» o «di uno sviluppatore non identificato». Vai in *Impostazioni di Sistema → Privacy e sicurezza*, scorri in fondo e premi **Apri comunque** (da macOS 15 il tasto destro → Apri non basta più). In alternativa, da terminale: `xattr -cr /Applications/PizzaManager.app`.
-- **Windows** mostra l'avviso SmartScreen: *Ulteriori informazioni → Esegui comunque*.
+Alla prima apertura:
+- **macOS**: niente da fare. Il `.dmg` è firmato con un Developer ID e notarizzato da Apple, quindi si apre come qualsiasi app scaricata.
+- **Linux**: niente da fare.
+- **Windows**: il pacchetto non è firmato e compare l'avviso SmartScreen — *Ulteriori informazioni → Esegui comunque*.
 
 ### Dal sorgente
 
@@ -215,4 +216,10 @@ I test importano il codice vero e girano anche i casi Windows da macOS/Linux, in
 
 ## Licenza
 
-MIT.
+Software **proprietario**: si può installare e usare liberamente, non
+ridistribuire né modificare. Il testo sta in [`LICENSE`](LICENSE), e i
+componenti di terze parti che l'app impacchetta — con le loro licenze, tutte
+permissive — in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md), generato
+dalle dipendenze reali.
+
+Copyright © 2026 Giacomo Grieco e Alessandro Cadei.

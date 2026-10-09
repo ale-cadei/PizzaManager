@@ -194,8 +194,12 @@ Già pianificato: [18-aggiornamento-automatico.md](18-aggiornamento-automatico.m
 (repo pubblico solo per le release, `electron-updater`, banner «Riavvia»).
 Tre branch:
 
-- [ ] `chore/release-pubblica`
-- [ ] `feat/auto-update`
-- [ ] `chore/firma-mac` (facoltativo)
+- [x] `chore/release-pubblica` — fatto nel [piano 44](44-release-firmata.md):
+      `JackGrieco/PizzaManager-releases`, pubblico, solo Release
+- [x] `feat/auto-update` — scarica da sé, banner «Riavvia ora» a pacchetto
+      pronto, controllo ogni 4 ore
+- [x] `chore/firma-mac` — fatto nel [piano 44](44-release-firmata.md): senza
+      firma Squirrel.Mac rifiuta gli aggiornamenti, quindi era un prerequisito
+      e non un optional
 - [ ] provato su macOS
 - [ ] provato su Linux (collega)

@@ -14,6 +14,30 @@ questo piano e i risultati), poi il branch della fase 2 · Dipende da: 6, 8,
 > uno spike). I riferimenti al codice sono verificati su `main` al commit
 > `fec750b` (2026-10-06): cercali per nome di funzione, le righe si spostano.
 
+## Da fare anche: il pacchetto Windows non si costruisce più
+
+Trovato il 2026-10-08, durante la release 1.1.0. Il job Windows del workflow
+fallisce subito:
+
+```
+⨯ ENOENT: no such file or directory, open 'D:\a\...\.npmRebuild=false'
+```
+
+`-c.npmRebuild=false` non arriva intero a electron-builder: la shell dei runner
+Windows è `pwsh`, che spezza l'argomento in `-c` e `.npmRebuild=false`, e
+quest'ultimo viene preso per il nome di un file di configurazione. Non è una
+regressione del codice: quella riga della matrice non era mai stata eseguita in
+una release (la 1.0.2 aveva solo `--win`), e il difetto è solo della shell —
+`yargs` legge bene entrambe le forme (verificato) e su Unix l'argomento passa.
+
+La correzione probabile è **una riga**: `shell: bash` sul passo del build, dato
+che bash c'è anche sui runner Windows e lì l'argomento passa come su Unix. Non
+è stata messa alla cieca perché si scoprirebbe se funziona solo bruciando un
+giro di release: va provata da qui, con la macchina Windows a disposizione.
+
+Nel frattempo il job è **commentato** in `.github/workflows/release.yml`, con
+la stessa spiegazione accanto, e la 1.1.0 esce senza pacchetto Windows.
+
 ## Il problema
 
 Su Mac e Linux ogni sessione vive nel server tmux dell'app (socket

@@ -87,15 +87,21 @@ inghiottiti **dentro il plugin** (un nostro errore non deve rompere opencode);
 
 ### Codex (OSC 9)
 
-- Primo passo del branch, prima di scrivere il resto: verificare che OSC 9
-  attraversi tmux (socket di prova). Se tmux lo inghiotte, provare
-  `set -g allow-passthrough on` in `app/tmux.conf`. Registrare quale testo
-  manda Codex nei due casi (fine turno, approvazione): da lì la regola che
-  distingue `waiting` da `permission`.
-- Se OSC 9 non passa in nessun modo: ripiego su `-c notify=[…]` (non
-  soggetto alla fiducia degli hook) che dà solo `waiting`, e il permesso resta
-  all'euristica. Annotarlo qui.
+- **Verificato (2026-10-09, tmux 3.2a, socket di prova):** dentro tmux Codex
+  incapsula l'OSC 9 in `\ePtmux;…\e\\`; tmux 3.2a lo lascia passare e
+  l'xterm dell'app riceve `\e]9;<testo>\a`. L'OSC 9 nudo invece tmux lo
+  inghiotte. Dalla 3.3 il passthrough va permesso: `set -gq allow-passthrough on`
+  in `app/tmux.conf` (`-q`: la 3.2 non conosce l'opzione e non deve dare errore).
+- Testi delle richieste (sorgente di Codex 0.143): iniziano con
+  `Approval requested: `, `Approval requested by `, `Codex wants to edit `,
+  `Plan mode prompt: ` → `permission`. Ogni altro testo è la fine del turno
+  → `waiting` (dovrebbe essere l'ultimo messaggio dell'assistente: da
+  confermare nello smoke).
+- Ripiego, se in qualche ambiente OSC 9 non arriva: `-c notify=[…]` (non
+  soggetto alla fiducia degli hook) dà solo `waiting`. Non serve per ora.
 - Il «sta lavorando» di Codex resta euristico (non c'è un evento esatto).
+
+Task passo per passo: [46-hook-esatti-tasks.md](46-hook-esatti-tasks.md).
 
 ## Regole (`renderer/agent-state.js`)
 
@@ -122,9 +128,10 @@ Per sessione, modulo UMD puro come `attention.js`, orologio iniettato:
   sorgente del plugin opencode. **Non inietta** se il profilo ha già
   `--settings` (Claude) o `OPENCODE_CONFIG_CONTENT` (opencode): la sessione
   resta sull'euristica invece di sovrascrivere la scelta dell'utente.
-- `lib/agent-signals.js` (nuovo, store con `{ dir }`): `pathFor(id)`,
-  `read(id)`, `readAll()`, `remove(id)`, `prune(liveIds)`, `watch(cb)`,
-  `writePlugin()`.
+- `lib/agent-signals.js` (nuovo, store con `{ dir }`): `pathFor(key)`,
+  `read(key)`, `remove(key)`, `sweep(liveKeys)`, `watch(cb)`,
+  `writePlugin(source)`. Chiave = nome della sessione tmux (stabile ai
+  riavvii), `tab-<id>` senza tmux.
 - `app/pty.js`: allo spawn env `AISESS_SIGNAL_FILE` + iniezione; `remove` alla
   chiusura; `prune` all'avvio insieme al ripristino.
 - `main.js`: crea lo store, `watch` → `agent-signal`, canale per lo stato

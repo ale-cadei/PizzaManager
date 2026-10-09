@@ -1,10 +1,10 @@
-# 50 — Tre rifiniture alla bacheca delle segnalazioni
+# 50 — Rifiniture alla bacheca delle segnalazioni
 
 Branch: `fix/segnalazioni-rifiniture`. Dipende dal 48 (bacheca). Taglia: ~1h.
 
-Tre difetti trovati rileggendo il pannello dopo il rilascio della 1.5.0. Sono
-indipendenti fra loro; stanno insieme perché toccano le stesse quattro righe
-di interfaccia.
+Difetti trovati rileggendo il pannello dopo il rilascio della 1.5.0, più due
+che ha visto l'utente usandolo davvero. Sono indipendenti fra loro; stanno
+insieme perché toccano le stesse quattro righe di interfaccia.
 
 ## 1. Il titolo non apre niente
 
@@ -63,6 +63,44 @@ Non è codice, è configurazione del repo pubblico: si rifà con
 perse con la issue di prova cancellata, e nessuno se ne accorge finché non
 manca il badge.
 
+## 4. Quello che scrivevi nell'app non arrivava su GitHub
+
+**Il difetto peggiore del lotto**, e non si vedeva da nessun test: la
+descrizione scritta nel pannello finiva nel nulla.
+
+`createUrl` passava il testo come `body=…`. Su un template Markdown semplice
+funzionerebbe, ma i nostri sono **moduli** (`.yml` con dei campi), e un modulo
+si precompila con **l'ID dei suoi campi**. `body` lì è un nome riservato:
+GitHub lo scarta in silenzio, apre la pagina col campo vuoto e la persona si
+ritrova a riscrivere tutto. Nessun errore, nessun avviso.
+
+Verificato aprendo davvero l'indirizzo: col vecchio, «Cosa succede» restava
+sul segnaposto mentre titolo ed etichetta `bug` arrivavano; passando
+`passi=…` e `ambiente=…` quei due campi si riempivano. Quindi non era GitHub
+a non precompilare: era quel nome.
+
+I campi `id: body` dei due moduli si chiamano ora `descrizione`, e `createUrl`
+manda `descrizione` e `ambiente`. La diagnostica va nel suo campo invece che
+appiccicata in coda al testo, dove sembrava scritta dalla persona; a
+`richiesta.yml`, che non ce l'aveva, si aggiunge il campo. Nei commenti di
+`lib/feedback-source.js` e in cima ai moduli sta scritto che **nessun campo
+può chiamarsi `body`**.
+
+## 5. Pulsanti grigi e textarea che si trascina
+
+`.btn` da sola non ha né fondo né colore (`tokens.css`): la variante è
+obbligatoria. Nel pannello mancava, e «＋ Nuova» e «Continua su GitHub»
+uscivano grigi mentre ogni altro modale dell'app usa `btn--primary` per la
+conferma. Ora: `btn--outline` per «Nuova» (come il «+ Nuova» della sidebar),
+`btn--primary` per la conferma, `btn--secondary` per il ⟳ (come «↻ Ricarica»
+di Resume). Un test conta i `class="btn"` nudi in `index.html` e si ferma al
+primo.
+
+La `textarea` della descrizione era l'**unica** di tutta l'app, e nasceva con
+la maniglia di ridimensionamento: trascinata sfonda il dialogo. In
+`tokens.css`, dove stanno i componenti di base, `textarea.input` ora ha
+`resize: none` — vale anche per le prossime.
+
 ## Commenti da correggere, gratis
 
 Tre intestazioni dicono che i filtri stanno in `lib/feedback-source.js`:
@@ -77,4 +115,8 @@ contraddice da solo, riga 2 contro riga 8.
 - I test della bacheca (`tests/feedback-panel.test.js`) coprono già le righe:
   si aggiunge che il corpo è cliccabile e porta allo stesso numero del
   riquadro, e che la riga porta la classe del tipo.
-- Lo stile del filo colorato si verifica a occhio: la CSS non si testa qui.
+- `tests/feedback-source.test.js`: il testo va in `descrizione` e `ambiente`,
+  e **`body` non viene mandato**. Un test non può accorgersi che GitHub
+  ignora un parametro, ma può impedire che quel nome torni.
+- `tests/ui.test.js`: nessun `class="btn"` senza variante in `index.html`.
+- Il filo colorato e il `resize` si guardano a occhio: il CSS non si prova qui.

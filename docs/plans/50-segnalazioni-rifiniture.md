@@ -211,10 +211,23 @@ stato inventato non passi, l'altro che **ogni** stato della lista abbia un
 badge visibile sulla riga. Un commento in cima a `.github/feedback.js`, sul
 repo pubblico, dice la stessa cosa a chi tocca il generatore.
 
-Resta una cosa che non ho cambiato: una riga «Non lo faremo» con tanti voti
-sta comunque in cima a «Di tendenza», che ordina per voti. Vale anche per
-«Completato», ed era già così: è una regola di prodotto, non un difetto, e si
-cambia quando si decide cosa deve mostrare quella linguetta.
+### Cosa mostra «Di tendenza»
+
+Decisione dell'utente: **«Di tendenza» risponde a «cosa c'è ancora sul
+tavolo»**, quindi `completato` e `non-lo-faremo` non ci stanno. Prima una riga
+chiusa con tanti voti ci restava in cima per sempre — valeva già per il
+completato, da prima di questo branch.
+
+Non spariscono: una cosa decisa si ritrova in «Recenti», che resta il registro
+di tutto, e il completato anche in «Rilasciate». Le quattro linguette adesso
+hanno ognuna una domanda sua:
+
+| Linguetta | Risponde a |
+|---|---|
+| Di tendenza | cosa c'è ancora sul tavolo, più votato in cima |
+| Recenti | cos'è successo, tutto, dal più nuovo |
+| Pianificato | ci state lavorando? (`pianificato` + `in-corso`) |
+| Rilasciate | cos'è già nelle vostre mani (`completato`) |
 
 ## Le etichette su GitHub, verificate
 

@@ -26,9 +26,12 @@
 
   const quando = (v) => Date.parse(v.creata || '') || 0;
 
+  /** Stati di una cosa gia' decisa: non chiede piu' voti a nessuno. */
+  const CHIUSE = ['completato', 'non-lo-faremo'];
+
 /**
- * Le quattro linguette. Una sconosciuta mostra tutto: meglio di una lista
- * vuota, che sembrerebbe «non c'e' niente» invece di «non ho capito».
+ * Le quattro linguette. Una sconosciuta ricade su «Di tendenza»: meglio di una
+ * lista vuota, che sembrerebbe «non c'e' niente» invece di «non ho capito».
  */
   function filterBy(voci, linguetta) {
     const tutte = Array.isArray(voci) ? [...voci] : [];
@@ -37,8 +40,12 @@
   // e' gia' in corso, altrimenti servirebbe guardare in due posti.
     if (linguetta === 'pianificato') return tutte.filter((v) => v.stato === 'pianificato' || v.stato === 'in-corso').sort((a, b) => b.voti - a.voti);
     if (linguetta === 'rilasciate') return tutte.filter((v) => v.stato === 'completato').sort((a, b) => quando(b) - quando(a));
-  // Di tendenza: piu' votate in cima, a parita' di voti la piu' recente.
-    return tutte.sort((a, b) => b.voti - a.voti || quando(b) - quando(a));
+  // Di tendenza risponde a «cosa c'e' ancora sul tavolo»: quello che e' gia'
+  // stato deciso — fatto o scartato — non ci sta, altrimenti una riga chiusa
+  // con tanti voti ci resterebbe in cima per sempre. Si ritrova in «Recenti»,
+  // e il completato anche in «Rilasciate». Piu' votate in cima, a parita' di
+  // voti la piu' recente.
+    return tutte.filter((v) => !CHIUSE.includes(v.stato)).sort((a, b) => b.voti - a.voti || quando(b) - quando(a));
   }
 
 

@@ -144,7 +144,22 @@ ok('pianificato e rilasciate mostrano solo il loro stato', () => {
   const tutte = [voce(1), voce(2, { stato: 'pianificato' }), voce(3, { stato: 'in-corso' }), voce(4, { stato: 'completato' })];
   assert.deepStrictEqual(filterBy(tutte, 'pianificato').map((v) => v.numero), [2, 3], 'in corso e gia pianificato');
   assert.deepStrictEqual(filterBy(tutte, 'rilasciate').map((v) => v.numero), [4]);
-  assert.deepStrictEqual(filterBy(tutte, 'tendenza').map((v) => v.numero).sort(), [1, 2, 3, 4]);
+  assert.deepStrictEqual(filterBy(tutte, 'tendenza').map((v) => v.numero).sort(), [1, 2, 3], 'il completato non sta fra le cose da votare');
+});
+
+ok('di tendenza: quello che e gia stato deciso non ci sta', () => {
+  // Una riga chiusa con tanti voti resterebbe in cima per sempre, e la
+  // linguetta risponde a «cosa c'e' ancora sul tavolo». Si ritrova in
+  // «Recenti», e il completato anche in «Rilasciate» (piano 50).
+  const tutte = [
+    voce(1, { voti: 1 }),
+    voce(2, { voti: 99, stato: 'completato' }),
+    voce(3, { voti: 50, stato: 'non-lo-faremo' }),
+    voce(4, { voti: 2, stato: 'in-corso' }),
+  ];
+  assert.deepStrictEqual(filterBy(tutte, 'tendenza').map((v) => v.numero), [4, 1]);
+  assert.deepStrictEqual(filterBy(tutte, 'recenti').map((v) => v.numero).sort(), [1, 2, 3, 4], 'in Recenti c e tutto');
+  assert.deepStrictEqual(filterBy(tutte, 'rilasciate').map((v) => v.numero), [2]);
 });
 
 ok('una linguetta sconosciuta non nasconde tutto', () => {

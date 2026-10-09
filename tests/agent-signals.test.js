@@ -74,3 +74,20 @@ test('writePlugin: file fuori da asar, percorso stabile, contenuto aggiornato', 
   store.writePlugin('export default 2;');
   assert.equal(fs.readFileSync(p, 'utf8'), 'export default 2;');
 });
+
+/* Il plugin è codice che opencode esegue: se un altro utente potesse
+   riscriverlo, girerebbe dentro ogni sessione. Permessi come scrollback. */
+test('permessi: cartelle 0700, plugin 0600 anche se esisteva già', { skip: process.platform === 'win32' }, () => {
+  const dir = tmp();
+  const store = S.createAgentSignalStore({ dir });
+  const hooks = path.join(dir, 'hooks');
+  fs.mkdirSync(hooks, { mode: 0o755 });
+  fs.writeFileSync(path.join(hooks, 'opencode-signal.mjs'), 'vecchio', { mode: 0o666 });
+  fs.chmodSync(path.join(hooks, 'opencode-signal.mjs'), 0o666);
+  const p = store.writePlugin('export default 1;');
+  store.ensureDir();
+  const mode = (f) => fs.statSync(f).mode & 0o777;
+  assert.equal(mode(p), 0o600);
+  assert.equal(mode(hooks), 0o700, 'una cartella già esistente resta scrivibile da altri');
+  assert.equal(mode(path.join(dir, 'signals')), 0o700);
+});

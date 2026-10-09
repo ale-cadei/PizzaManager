@@ -6,7 +6,7 @@
   "main": "main.js",
   "homepage": "https://github.com/JackGrieco/PizzaManager-releases",
   "author": "PizzaManager <support@example.com>",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "scripts": {
     "start": "electron .",
     "postinstall": "node scripts/postinstall.js",
@@ -46,6 +46,8 @@
       "assets/**/*",
       "!assets/generate-icon.py",
       "package.json",
+      "LICENSE",
+      "THIRD-PARTY-NOTICES.md",
       "!node_modules/.cache/**/*"
     ],
     "npmRebuild": true,

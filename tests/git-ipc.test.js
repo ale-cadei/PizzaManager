@@ -82,3 +82,19 @@ ok('ipc: stage, unstage e commit rifiutano payload vuoti, percorsi fuori e un `a
   const noMessage = await handlers.get('git-commit')({}, { cwd: __dirname, message: '   ' });
   assert.strictEqual(noMessage.ok, false);
 });
+
+ok('ipc: git-merge rifiuta payload vuoti, nomi che sembrano opzioni e tipi sconosciuti', async () => {
+  const { handlers, ipcMain } = fakeIpc();
+  registerGitHandlers(ipcMain, { userDataDir: () => '/non/usata' });
+  const merge = handlers.get('git-merge');
+  for (const payload of [undefined, null, {}]) {
+    const r = await merge({}, payload);
+    assert.strictEqual(r.ok, false, JSON.stringify(payload));
+    assert.ok(r.error);
+  }
+  // cwd è questo repository: nessuna di queste richieste deve arrivare a unire
+  assert.strictEqual((await merge({}, { cwd: __dirname, name: '--abort', kind: 'local' })).ok, false);
+  assert.strictEqual((await merge({}, { cwd: __dirname, name: 'main', kind: 'tag' })).ok, false);
+  const badIncoming = await handlers.get('git-changes')({}, { cwd: __dirname, incoming: '-X' });
+  assert.strictEqual(badIncoming.ok, false);
+});

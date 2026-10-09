@@ -268,3 +268,51 @@ ok('commit: un merge che comincia o finisce cambia la firma', () => {
   const r = stagingResult([staged('a.js')], { staged: 1, unstaged: 0 });
   assert.notStrictEqual(M.signature(r), M.signature({ ...r, busy: 'merge' }));
 });
+
+/* ---------- Unire un branch dal selettore (docs/plans/46) ---------- */
+
+const incoming = (files, extra = {}) => result(files, { incoming: 'feat/x', tip: 'bbb222', uncommitted: 0, ...extra });
+
+ok('unisci branch: il bersaglio è il branch che entra, con una chiave sua', () => {
+  const t = M.incomingTarget({ cwd: '/r', name: 'feat/x', into: 'main' });
+  assert.strictEqual(t.incoming, 'feat/x');
+  assert.strictEqual(t.into, 'main');
+  assert.deepStrictEqual([t.base, t.since, t.staging], [null, null, false]);
+  assert.notStrictEqual(t.key, M.targetFor({ type: 'shell', cwd: '/r' }, null).key);
+  assert.notStrictEqual(t.key, M.incomingTarget({ cwd: '/r', name: 'origin/x', into: 'main' }).key);
+  assert.strictEqual(M.headerTitle(t, incoming([file('a.js')])), 'feat/x in main');
+  assert.strictEqual(M.incomingTarget({ cwd: '', name: 'x', into: 'main' }), null);
+  assert.strictEqual(M.incomingTarget({ cwd: '/r', name: '', into: 'main' }), null);
+});
+
+ok('unisci branch: «Unisci in main» acceso quando si può, e dice cosa farà', () => {
+  const tabs = [{ id: 'g', type: 'git', cwd: '/r' }];
+  const f = M.branchMergeFooter({ name: 'feat/x', into: 'main' }, incoming([file('a.js')]), tabs);
+  assert.deepStrictEqual([f.confirmLabel, f.canConfirm, f.warning], ['Unisci in main', true, null]);
+  assert.match(f.text, /fast-forward/);
+  // ancora da leggere, o illeggibile: spento senza avviso
+  assert.strictEqual(M.branchMergeFooter({ name: 'feat/x', into: 'main' }, null, tabs).canConfirm, false);
+  assert.strictEqual(M.branchMergeFooter({ name: 'feat/x', into: 'main' }, { ok: false, error: 'x' }, tabs).canConfirm, false);
+});
+
+ok('unisci branch: spento con file non committati o una sessione che lavora nel repository', () => {
+  const merge = { name: 'feat/x', into: 'main' };
+  const dirty = M.branchMergeFooter(merge, incoming([file('a.js')], { uncommitted: 2 }), []);
+  assert.strictEqual(dirty.canConfirm, false);
+  assert.match(dirty.warning, /2 file tracciati/);
+  const busy = { id: 't2', type: 'claude', cwd: '/r/lib', name: 'agente', running: true };
+  const running = M.branchMergeFooter(merge, incoming([file('a.js')]), [busy]);
+  assert.strictEqual(running.canConfirm, false);
+  assert.match(running.warning, /agente/);
+  assert.strictEqual(M.branchMergeFooter(merge, incoming([file('a.js')]), [{ ...busy, cwd: '/altro' }]).canConfirm, true);
+  // niente file cambiati: si avvisa, ma il merge (i commit) si può fare
+  const empty = M.branchMergeFooter(merge, incoming([]), []);
+  assert.strictEqual(empty.canConfirm, true);
+  assert.match(empty.warning, /nessun file/);
+});
+
+ok('unisci branch: un branch già contenuto nel corrente non si unisce', () => {
+  const f = M.branchMergeFooter({ name: 'feat/x', into: 'main' }, incoming([], { against: 'bbb222', tip: 'bbb222' }), []);
+  assert.strictEqual(f.canConfirm, false);
+  assert.match(f.warning, /già contenuto/);
+});

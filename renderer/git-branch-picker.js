@@ -4,6 +4,8 @@
  *
  * Il lavoro vero (git switch) lo fa il main (lib/git-branches.js): qui si
  * sceglie e si mostra l'esito. Nomi dei branch sempre con textContent.
+ * Da ogni riga che non è il corrente si unisce quel branch nel corrente
+ * (⤵, docs/plans/46): la conferma la dà il pannello delle modifiche.
  *
  * Wrapper UMD come gli altri moduli del renderer: globale nella pagina,
  * module.exports sotto Node per i test. */
@@ -45,7 +47,12 @@
   /* Cestino: tracciati statici, nessun dato dentro */
   const TRASH = ['M3 4h10', 'M6.5 4V2.5h3V4', 'M4.5 4l.6 9.5h5.8l.6-9.5', 'M7 6.5v5', 'M9 6.5v5'];
 
-  function createBranchPicker({ document, host, load, onSwitch, onCreate, onDelete = null, storage = null }) {
+  /**
+   * @param {object} o
+   * @param {(name: string, kind: 'local'|'remote', into: string) =>
+   *   Promise<{ok: true, text: string}|{ok: false, error: string}|{cancelled: true}>} [o.onMerge]
+   */
+  function createBranchPicker({ document, host, load, onSwitch, onCreate, onDelete = null, onMerge = null, storage = null }) {
     const el = (tag, cls, text) => {
       const e = document.createElement(tag);
       if (cls) e.className = cls;
@@ -61,11 +68,13 @@
     const list = el('div', 'git-picker-list');
     const error = el('p', 'git-picker-error small');
     error.hidden = true;
+    const notice = el('p', 'git-picker-notice small');
+    notice.hidden = true;
     const note = el('p', 'git-picker-note small muted',
       'Cambia il branch della directory: vale anche per le altre sessioni aperte lì.');
     const grip = el('div', 'git-picker-grip');
     grip.title = 'Trascina per cambiare la larghezza · doppio clic: larghezza iniziale';
-    box.append(input, list, error, note, grip);
+    box.append(input, list, error, notice, note, grip);
     host.appendChild(box);
 
     const savedWidth = () => {
@@ -104,11 +113,21 @@
     // Branch da eliminare in attesa di conferma; notMerged: git ha già
     // rifiutato -d, la seconda conferma userebbe -D
     let confirming = null;
+    // Un merge aspetta la conferma nel pannello: il clic là non chiude il selettore
+    let merging = false;
 
     function showError(text) {
       error.textContent = text || '';
       error.hidden = !text;
+      if (text) showNotice('');
     }
+
+    function showNotice(text) {
+      notice.textContent = text || '';
+      notice.hidden = !text;
+    }
+
+    const currentBranch = () => (branches.local.find((b) => b.current) || {}).name || null;
 
     function item(label, hint, action, cls = '') {
       const b = el('button', 'git-picker-item ' + cls);
@@ -146,6 +165,8 @@
       row.append(b.current
         ? item(b.name, 'corrente', null, 'git-picker-item--current')
         : item(b.name, b.upstream ? `↔ ${b.upstream}` : '', () => onSwitch(b.name, 'local')));
+      const merge = b.current ? null : mergeButton(b.name, 'local');
+      if (merge) row.append(merge);
       if (!b.current && onDelete) {
         const del = button('git-picker-delete', undefined, () => {
           confirming = { name: b.name, notMerged: false };
@@ -158,6 +179,51 @@
         row.append(del);
       }
       return row;
+    }
+
+    /* ⤵: unisce `name` nel branch corrente. Niente se la cartella è su un
+       commit staccato (nessun corrente) */
+    function mergeButton(name, kind) {
+      const into = currentBranch();
+      if (!onMerge || !into) return null;
+      const b = button('git-picker-merge', '⤵', () => runMerge(name, kind, into));
+      b.title = `Unisci ${name} in ${into}`;
+      b.setAttribute('aria-label', b.title);
+      return b;
+    }
+
+    function remoteRow(b) {
+      const row = el('div', 'git-picker-row');
+      row.append(item(b.name, b.hasLocal ? `→ ${b.short} locale` : `→ nuovo ${b.short} locale`, () => onSwitch(b.name, 'remote')));
+      const merge = mergeButton(b.name, 'remote');
+      if (merge) row.append(merge);
+      return row;
+    }
+
+    /* Il selettore resta aperto: dice di confermare nel pannello, poi l'esito */
+    async function runMerge(name, kind, into) {
+      if (busy) return;
+      busy = true;
+      merging = true;
+      box.classList.add('loading');
+      confirming = null;
+      showError('');
+      showNotice(`Guarda nel pannello delle modifiche cosa porta ${name} e conferma lì.`);
+      render();
+      let r = null;
+      try {
+        r = await onMerge(name, kind, into);
+      } catch (e) {
+        r = { ok: false, error: String((e && e.message) || e) };
+      } finally {
+        busy = false;
+        merging = false;
+        box.classList.remove('loading');
+      }
+      if (r && r.cancelled) { showNotice(''); return; }
+      if (!r || !r.ok) { showError((r && r.error) || 'Merge non riuscito.'); return; }
+      showNotice(r.text);
+      await reload();
     }
 
     function confirmRow(name) {
@@ -204,9 +270,7 @@
       if (f.local.length) nodes.push(el('div', 'git-picker-group', 'Locali'));
       for (const b of f.local) nodes.push(localRow(b));
       if (f.remote.length) nodes.push(el('div', 'git-picker-group', 'Remoti'));
-      for (const b of f.remote) {
-        nodes.push(item(b.name, b.hasLocal ? `→ ${b.short} locale` : `→ nuovo ${b.short} locale`, () => onSwitch(b.name, 'remote')));
-      }
+      for (const b of f.remote) nodes.push(remoteRow(b));
       // In fondo: Invio sceglie il primo della lista, e un branch che esiste
       // viene prima di crearne uno nuovo con un nome simile
       if (f.create) nodes.push(item(`+ Crea «${f.create}»`, 'dal commit corrente', () => onCreate(f.create), 'git-picker-item--create'));
@@ -237,6 +301,7 @@
       input.value = '';
       confirming = null;
       showError('');
+      showNotice('');
       list.replaceChildren(el('p', 'git-picker-empty small muted', 'Carico i branch…'));
       input.focus();
       await reload();
@@ -282,7 +347,7 @@
     // Un clic fuori dal riquadro lo chiude (il pulsante che lo apre si gestisce da sé)
     const onOutside = (e) => {
       const t = e.target;
-      if (!box.hidden && !box.contains(t) && !(t && t.closest && t.closest('.git-branch'))) close();
+      if (!box.hidden && !merging && !box.contains(t) && !(t && t.closest && t.closest('.git-branch'))) close();
     };
     document.addEventListener('mousedown', onOutside);
     const destroy = () => document.removeEventListener('mousedown', onOutside);

@@ -118,6 +118,7 @@ function setChangesState(patch) {
 /** Il piè di pagina di «Unisci»: cosa succede, e perché non si può ancora */
 function mergeFooter(merge, result) {
   if (!merge) return null;
+  if (merge.kind === 'branch') return ChangesModel.branchMergeFooter(merge.branch, result, [...tabs.values()]);
   const { worktree, conf } = merge;
   const loaded = Boolean(result && result.ok);
   const pending = loaded && result.uncommitted > 0 ? result.uncommitted : 0;
@@ -149,7 +150,7 @@ function renderChanges() {
   // il pannello si apre comunque: è lì che si annulla.
   const readable = ok || Boolean(result && result.error);
   const unreadable = result && !result.ok
-    ? result.error || (merge ? 'Non riesco a leggere il worktree: la cartella c\'è ancora?' : null)
+    ? result.error || (merge ? 'Non riesco a leggere il branch da unire: la cartella c\'è ancora?' : null)
     : null;
   changesView.render({
     label: ChangesModel.tabLabel(result),
@@ -185,7 +186,7 @@ function commitStateOf(tab, merge) {
 
 /** Una sessione è partita o si è fermata (signals.js): i pulsanti di scrittura cambiano */
 function noteChangesRunning() {
-  if (changesState.open && changesState.target && changesState.target.staging) renderChanges();
+  if (changesState.open && changesState.target && (changesState.target.staging || changesState.merge)) renderChanges();
 }
 
 const COMMIT_CALLS = {
@@ -285,6 +286,7 @@ function sendReview(tab, notes) {
 
 function activeChangesTarget() {
   const { merge } = changesState;
+  if (merge && merge.kind === 'branch') return ChangesModel.incomingTarget(merge.branch);
   if (merge) return ChangesModel.targetFor({ type: 'worktree', cwd: merge.worktree.path }, merge.worktree);
   const t = activeTab();
   const worktree = t ? Groups.worktreeOf(t, worktreeCache.snapshot()) : null;
@@ -324,7 +326,7 @@ async function refreshChanges() {
   try {
     result = target.staging
       ? await window.aisess.gitStaging(target.cwd)
-      : await window.aisess.gitChanges(target.cwd, target.base, target.since);
+      : await window.aisess.gitChanges(target.cwd, target.base, target.since, target.incoming || null);
   } catch (e) {
     result = { ok: false, error: String((e && e.message) || e) };
   }
@@ -344,7 +346,7 @@ async function refreshChanges() {
 
 /* `id` è il percorso, o «sezione:percorso» in «Da committare» (changes-model.js, itemId) */
 function readFileDiffOf(target, id) {
-  if (!target.staging) return window.aisess.gitFileDiff(target.cwd, target.base, id, target.since);
+  if (!target.staging) return window.aisess.gitFileDiff(target.cwd, target.base, id, target.since, target.incoming || null);
   const { side, path } = ChangesModel.splitItemId(target, id);
   return window.aisess.gitStagingDiff(target.cwd, path, side);
 }
@@ -383,18 +385,36 @@ function toggleChangesFile(id) {
  * @returns {Promise<boolean>}
  */
 function reviewMerge(worktree, conf) {
-  finishMerge(false); // una revisione rimasta aperta (un altro worktree) si annulla
+  return openMergeReview({ kind: 'worktree', worktree, conf });
+}
+
+/**
+ * La conferma di un merge dal selettore dei branch (docs/plans/46, git-tab.js):
+ * il pannello mostra quello che `name` porta in `into`. Si scioglie con la
+ * punta del branch che si è guardata (il merge la ricontrolla), o null.
+ * @param {{cwd: string, name: string, into: string}} branch
+ * @returns {Promise<{tip: string}|null>}
+ */
+function reviewBranchMerge(branch) {
+  return openMergeReview({ kind: 'branch', branch })
+    .then((answer) => (answer.confirmed && answer.result && answer.result.tip ? { tip: answer.result.tip } : null));
+}
+
+/* Una revisione rimasta aperta (un altro worktree o branch) si annulla */
+function openMergeReview(merge) {
+  finishMerge(false);
   return new Promise((resolve) => {
-    setChangesState({ open: true, merge: { worktree, conf, resolve } });
+    setChangesState({ open: true, merge: { ...merge, resolve } });
     refreshChanges().catch((e) => console.warn('[modifiche]', e));
   });
 }
 
 function finishMerge(confirmed) {
-  const { merge } = changesState;
+  const { merge, result } = changesState;
   if (!merge) return;
   setChangesState({ merge: null, open: false });
-  merge.resolve(confirmed);
+  // Il worktree vuole sì/no; il branch anche la lettura confermata (`tip`)
+  merge.resolve(merge.kind === 'branch' ? { confirmed, result } : confirmed);
   // Si torna a parlare della scheda in primo piano
   refreshChanges().catch(() => {});
 }

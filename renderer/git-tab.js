@@ -1,8 +1,8 @@
 /* Scheda di tipo git: niente pty né xterm, un pannello con la timeline dei
    branch locali (renderer/git-graph-view.js) letta dal main (lib/git-graph.js).
    Si aggiorna quando torna in primo piano e dal pulsante del pannello; dal
-   nome del branch si cambia branch, se ne crea uno o si elimina un locale
-   (git-branch-picker.js).
+   nome del branch si cambia branch, se ne crea uno, si elimina un locale o
+   se ne unisce uno nel corrente (git-branch-picker.js).
    Le schede aperte si salvano (lib/git-sessions.js) e tornano al riavvio:
    da sole, o dalla finestra del ripristino se la macchina si è riavviata. */
 
@@ -39,6 +39,18 @@ async function afterBranchChange(tab, request) {
   const r = await request;
   if (r && r.ok) await refreshGitTab(tab);
   return r;
+}
+
+/* ⤵ nel selettore (docs/plans/46): il pannello delle modifiche mostra cosa
+   porta il branch e chiede conferma; il merge ricontrolla che la punta sia
+   ancora quella guardata. Il testo dell'esito lo mostra il selettore. */
+async function mergeIntoCurrent(tab, name, kind, into) {
+  const seen = await reviewBranchMerge({ cwd: tab.cwd, name, into });
+  if (!seen) return { cancelled: true };
+  const r = await afterBranchChange(tab, window.aisess.gitMerge(tab.cwd, name, kind, seen.tip));
+  if (!r || !r.ok) return r;
+  const how = r.fastForward ? 'fast-forward' : r.commit ? `commit ${r.commit}` : 'commit di merge';
+  return { ok: true, text: `${r.branch} unito in ${r.into} (${how}).` };
 }
 
 /* Senza un nome scelto, la scheda prende quello del repository */
@@ -101,6 +113,7 @@ async function createGitTab({ name, cwd, startedAt = Date.now(), restoring = fal
     onSwitch: (name, kind) => afterBranchChange(tab, window.aisess.gitSwitch(tab.cwd, name, kind)),
     onCreate: (name) => afterBranchChange(tab, window.aisess.gitCreateBranch(tab.cwd, name)),
     onDelete: (name, force) => afterBranchChange(tab, window.aisess.gitDeleteBranch(tab.cwd, name, force)),
+    onMerge: (name, kind, into) => mergeIntoCurrent(tab, name, kind, into),
   });
   tab.git = { view, picker, pending: null };
   tabs.set(id, tab);

@@ -25,6 +25,7 @@ const RENDERER_APP_FILES = [
   'menu-actions.js',
   'panels.js',
   'extensions-panel.js',
+  'feedback-panel.js',
   'changes-panel.js',
   'renderer.js',
 ];

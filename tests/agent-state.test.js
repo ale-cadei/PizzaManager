@@ -74,3 +74,40 @@ test('Codex: waiting senza running esatto vale come fine turno', () => {
   const s = createAgentState();
   assert.equal(s.signal('c', 'waiting', { watched: false, codex: true }).attention, 'done');
 });
+
+/* Il permesso chiesto sotto gli occhi non lampeggia; ma se l'utente se ne va
+   senza rispondere, Claude resta fermo e nessun hook arriverà più: lasciare
+   la scheda deve riaccenderlo. «Ha finito» invece, visto, è letto. */
+test('permesso visto e non risposto: lasciare la scheda lo riaccende', () => {
+  const s = createAgentState();
+  s.signal('a', 'running', { watched: true });
+  assert.equal(s.signal('a', 'permission', { watched: true }).attention, null);
+  assert.equal(s.left('a'), 'permission');
+  assert.equal(s.left('a'), null, 'già acceso: niente da cambiare');
+});
+
+test('permesso visto, poi visitato e lasciato di nuovo: ancora pendente', () => {
+  const s = createAgentState();
+  s.signal('a', 'permission', { watched: false });
+  s.seen('a');
+  assert.equal(s.left('a'), 'permission');
+});
+
+test('permesso risposto o fine turno vista: lasciare non accende niente', () => {
+  const s = createAgentState();
+  s.signal('a', 'permission', { watched: true });
+  s.signal('a', 'running', { watched: true });
+  assert.equal(s.left('a'), null, 'concesso: torna a lavorare');
+  s.signal('a', 'waiting', { watched: true });
+  assert.equal(s.left('a'), null, '«ha finito» visto non si riaccende');
+  s.signal('a', 'permission', { watched: true });
+  s.signal('a', 'waiting', { watched: true });
+  assert.equal(s.left('a'), null, 'negato: il turno si chiude con Stop');
+  assert.equal(s.left('mai-vista'), null);
+});
+
+test('Codex: niente segnale dice «risposto», quindi lasciare non riaccende', () => {
+  const s = createAgentState();
+  s.signal('a', 'permission', { watched: true, codex: true });
+  assert.equal(s.left('a'), null);
+});

@@ -57,7 +57,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 48 | [`feat/segnalazioni`](48-segnalazioni.md) — bacheca di richieste e problemi nell'app | 18, 44 | ~1 g | ✅ mergiato (PR #51), nella 1.5.0 |
 | 46 | [`feat/hooks-esatti`](46-hook-esatti.md) — lavora / ha finito / chiede un permesso, dagli hook di Claude, opencode e Codex | 38 | ~1½ g | fatto, smoke da fare |
 | 49 | [`chore/via-personaggi-nickelodeon`](49-via-personaggi-nickelodeon.md) — SpongeBob, Patrick e Gary fuori dal catalogo degli animaletti | 33 | ~2h | ✅ mergiato (PR #52), smoke da fare |
-| 50 | [`fix/segnalazioni-rifiniture`](50-segnalazioni-rifiniture.md) — titolo cliccabile, tipo visibile, etichette `stato:*`, e il testo che non arrivava su GitHub | 48 | ~1h | in corso |
+| 50 | [`fix/segnalazioni-rifiniture`](50-segnalazioni-rifiniture.md) — titolo cliccabile, tipo visibile, etichette `stato:*`, e il testo che non arrivava su GitHub | 48 | ~1h | ✅ mergiato (PR #53) |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

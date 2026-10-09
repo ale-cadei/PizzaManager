@@ -50,12 +50,24 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Due job per macOS: x64 e' una cross-compilazione di node-pty sul
-          # runner arm64, e un suo problema non deve bloccare il .dmg arm64.
+          # UN SOLO job per entrambe le architetture macOS, di proposito.
+          #
+          # Prima erano due, per isolare la cross-compilazione x64 da quella
+          # arm64. Ma ogni invocazione di electron-builder scrive il PROPRIO
+          # latest-mac.yml con i soli file che ha prodotto, e i due job
+          # caricavano sulla stessa Release: l'ultimo vinceva. Nella 1.2.1 ha
+          # vinto x64, e il manifesto elencava solo quello — cioe' OGNI Mac,
+          # anche Apple Silicon, riceveva il build Intel.
+          #
+          # electron-updater sceglie per architettura (MacUpdater: «on arm64
+          # Macs, arm64 files are preferred when available»), ma puo' farlo
+          # solo se le trova entrambe nel manifesto. Con una sola invocazione
+          # il file le elenca tutte.
+          #
+          # Si paga che un problema su x64 ferma anche arm64: un manifesto che
+          # manda a tutti il build sbagliato e' peggio.
           - os: macos-latest
-            args: --mac --arm64
-          - os: macos-latest
-            args: --mac --x64
+            args: --mac --arm64 --x64
           - os: ubuntu-latest
             args: --linux
           # WINDOWS FUORI DALLA RELEASE, dalla v1.1.0.
@@ -80,8 +92,10 @@ jobs:
           # - os: windows-2022
           #   args: --win -c.npmRebuild=false
     runs-on: ${{ matrix.os }}
-    # Un build che non finisce deve fallire, non occupare un runner per ore
-    timeout-minutes: 40
+    # Un build che non finisce deve fallire, non occupare un runner per ore.
+    # 60 e non 40: il job macOS ora fa quattro invii ad Apple (due app, due
+    # dmg), e ognuno dipende da quanta coda ha il servizio di notarizzazione.
+    timeout-minutes: 60
     # Solo per i `if` dei passi: dicono SE il materiale di firma c'e', senza
     # esporne il valore. I valori veri si passano al build, scoped a macOS.
     env:
@@ -215,6 +229,21 @@ jobs:
               *) echo "::error::$NAME sulla Release non e' accettato da Gatekeeper"; exit 1 ;;
             esac
             xcrun stapler validate "$DEST/$NAME" || { echo "::error::$NAME sulla Release non ha il francobollo"; exit 1; }
+          done
+          # E il MANIFESTO, che il controllo qui sopra non guardava: nella
+          # 1.2.1 i pacchetti erano firmati e notarizzati a dovere, ma
+          # latest-mac.yml elencava una sola architettura — quindi ogni Mac,
+          # anche Apple Silicon, riceveva il build Intel. Un difetto del file
+          # che dice quali versioni esistono, non dei file che contiene.
+          echo "Verifico che il manifesto elenchi tutte le architetture costruite"
+          gh release download "$TAG" --repo "$RELEASES_REPO" --pattern "latest-mac.yml" --dir "$DEST" --clobber
+          cat "$DEST/latest-mac.yml"
+          for dmg in dist/*.dmg; do
+            ARCH=$(basename "$dmg" .dmg | sed 's/.*-//')
+            grep -q "PizzaManager-mac-$ARCH.zip" "$DEST/latest-mac.yml" || {
+              echo "::error::latest-mac.yml non elenca lo zip $ARCH: le app $ARCH aggiornerebbero all'architettura sbagliata"
+              exit 1
+            }
           done
         env:
           RELEASES_REPO: JackGrieco/PizzaManager-releases

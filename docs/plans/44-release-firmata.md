@@ -300,6 +300,39 @@ vedere il difetto che deve intercettare non e' un controllo: ora **riscarica
 l'asset dalla Release** e verifica quello. E' l'unica cosa che conta, perche'
 e' il file che la gente scarichera'.
 
+## Un manifesto per architettura si sovrascrive
+
+Trovato il 2026-10-09, sulla 1.2.1, e scoperto solo perche' l'utente ha
+guardato cosa stava scaricando: su un Mac **arm64**, con l'app **arm64**
+installata, l'aggiornamento tirava giu' `PizzaManager-mac-x64.zip`.
+
+`latest-mac.yml` elencava **solo i file x64**. Non e' che l'updater scegliesse
+male: non aveva alternative. I due job macOS giravano in parallelo, **ognuno
+scriveva il proprio `latest-mac.yml`** con i soli file che aveva prodotto, e
+caricando sulla stessa Release l'ultimo sovrascriveva il primo.
+
+`electron-updater` sa scegliere — `MacUpdater`: «on arm64 Macs (including
+Rosetta), arm64 files are preferred when available», e `findFile` cerca
+`process.arch` nel nome — ma solo se le trova entrambe nel manifesto.
+
+Correzione: **un solo job per macOS**, `--mac --arm64 --x64` in un'unica
+invocazione, cosi' electron-builder scrive un manifesto con tutti e quattro i
+file. Verificato in locale prima di rilasciare. Si paga che un problema su x64
+ferma anche arm64, ma un manifesto che manda a tutti il build sbagliato e'
+peggio dell'isolamento fra le due architetture.
+
+Il vecchio campo `path:` in coda al manifesto resta a puntare a x64: e' il
+ripiego per i client antichi, e `getFileList` usa `files` quando c'e'.
+
+### Perche' non l'ha preso il controllo nel workflow
+
+Il passo che riscarica l'asset verifica **firma e francobollo**, e quelli
+erano giusti: il pacchetto x64 era perfettamente firmato e notarizzato. Il
+difetto non era nel pacchetto, era nel **manifesto** — un file che quel
+controllo non guardava. Quello che l'avrebbe preso e' un controllo sul
+contenuto di `latest-mac.yml`: che elenchi uno zip per ogni architettura
+costruita.
+
 ## Stato al 2026-10-08, sera
 
 Tag `v1.1.0` spinto (su `013c35d`), **bozza di Release creata** sul repo

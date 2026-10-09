@@ -72,7 +72,7 @@ worktree. Quattro pezzi, un piano e un branch ciascuno, in quest'ordine:
       riga, in memoria, solo schede agente
 - [x] piano — 44 (commenti, fatto), 45 (commit, fatto), 46 (unisci un
       branch, fatto), 47 (push dal selettore dei branch, fatto); poi,
-      chiesti il 2026-10-09: 48 (scartare un file), 49 (commento su più
+      chiesti il 2026-10-09: 48 (scartare un file, fatto), 49 (commento su più
       righe)
 - [ ] fatto
 - [ ] provato

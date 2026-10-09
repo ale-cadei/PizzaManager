@@ -12,6 +12,7 @@ const { createAccountStore } = require('./lib/accounts');
 const { createProfileStore } = require('./lib/profiles');
 const { createLiveSessionsStore } = require('./lib/live-sessions');
 const { createScrollbackStore } = require('./lib/scrollback');
+const { createAgentSignalStore } = require('./lib/agent-signals');
 const { listClaudeSessions } = require('./lib/claude-sessions');
 const { listOpencodeSessionsIn, opencodeHistoryDirs } = require('./lib/opencode-sessions');
 const { listCodexSessions } = require('./lib/codex-sessions');
@@ -51,6 +52,7 @@ const accounts = lazy(() => createAccountStore({ dir: app.getPath('userData') })
 const profiles = lazy(() => createProfileStore({ dir: app.getPath('userData') }));
 const liveStore = lazy(() => createLiveSessionsStore({ dir: app.getPath('userData') }));
 const scrollbackStore = lazy(() => createScrollbackStore({ dir: app.getPath('userData') }));
+const signalStore = lazy(() => createAgentSignalStore({ dir: app.getPath('userData') }));
 // Ricerca nei messaggi delle conversazioni: in un thread, il main resta libero
 const conversationSearch = lazy(() => createSearchWorker());
 
@@ -59,7 +61,7 @@ const conversationSearch = lazy(() => createSearchWorker());
 const tmux = detectTmux({ confPath: path.join(__dirname, 'app', 'tmux.conf') });
 
 const ptys = createPtyManager({
-  accounts, history, profiles: { load: () => profiles().load() }, sendToRenderer, tmux, liveStore, scrollbackStore,
+  accounts, history, profiles: { load: () => profiles().load() }, sendToRenderer, tmux, liveStore, scrollbackStore, signalStore,
   // Lingua di sistema: sceglie LANG per i processi quando l'app, avviata dal
   // Finder, non ce l'ha. Funzione perche' app.getLocale() vale solo dopo `ready`.
   systemLocale: () => { try { return app.getLocale(); } catch { return null; } },
@@ -79,6 +81,8 @@ app.whenReady().then(() => {
   // riavvio non avvisa) e un'ultima volta prima di uscire.
   ptys.startCapture();
   installQuitCapture({ app, ptys });
+  // Lo stato esatto che gli hook degli agenti scrivono su file (piano 46)
+  ptys.startSignals();
   mainWindow = createWindow({ onRendererReload: () => ptys.closeAll() });
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow({ onRendererReload: () => ptys.closeAll() });

@@ -391,5 +391,7 @@ ok('main.js e solo cablaggio: nessuna funzione di logica definita al suo interno
   // su main in parallelo — anche quello solo cablaggio.
   // 225: altre 5 per le notifiche di sistema (piano 38): un require e la
   // registrazione; la logica sta in lib/notifications.js e app/notify.js.
-  assert.ok(main.split('\n').length < 225, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
+  // 230: altre 5 per il segnale esatto degli agenti (piano 46): require, store
+  // e avvio; la logica sta in lib/agent-signals.js e app/pty.js.
+  assert.ok(main.split('\n').length < 230, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
 });

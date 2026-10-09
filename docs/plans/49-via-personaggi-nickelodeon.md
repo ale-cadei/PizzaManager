@@ -93,12 +93,12 @@ dalle impostazioni, ma il codice c'è.
 ottobre per **1.1.0, 1.2.0, 1.2.1 e 1.3.0**: 48 file via, le release restano
 con le loro note e il loro tag, ma non c'è più niente da scaricare.
 
-La **1.4.0 no, non ancora**: è la release corrente. È lei che la pagina offre a
-chi arriva, ed è il suo `latest-mac.yml` che l'aggiornamento automatico legge
-per sapere cosa scaricare. Toglierle gli asset vorrebbe dire lasciare la pagina
-pubblica senza niente da installare e rompere l'aggiornamento per chi sta su una
-versione vecchia. Si fa **appena esce la 1.5.0**, che i personaggi non li ha
-più: a quel punto la 1.4.0 è una vecchia come le altre.
+La **1.4.0** si è aspettata, perché era la release corrente: è quella che la
+pagina offre a chi arriva, ed è il suo `latest-mac.yml` che l'aggiornamento
+automatico legge. Svuotarla prima avrebbe lasciato la pagina pubblica senza
+niente da installare. Fatto il 9 ottobre, **subito dopo aver pubblicato la
+1.5.0**: adesso l'unica release con dei file è la 1.5.0, e i personaggi non
+ci sono in nessun pacchetto scaricabile.
 
 Effetto collaterale, piccolo: `electron-updater` scarica la differenza fra due
 versioni usando il `.blockmap` della vecchia. Senza quei file ricade sullo

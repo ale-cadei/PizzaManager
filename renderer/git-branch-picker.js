@@ -6,6 +6,8 @@
  * sceglie e si mostra l'esito. Nomi dei branch sempre con textContent.
  * Da ogni riga che non è il corrente si unisce quel branch nel corrente
  * (⤵, docs/plans/46): la conferma la dà il pannello delle modifiche.
+ * Un branch locale con commit che il remoto non ha, o senza upstream, si
+ * pusha da ⇡ (docs/plans/47).
  *
  * Wrapper UMD come gli altri moduli del renderer: globale nella pagina,
  * module.exports sotto Node per i test. */
@@ -43,6 +45,24 @@
     return Math.round(Math.min(max, Math.max(MIN_W, Number.isFinite(w) && w > 0 ? w : DEFAULT_W)));
   }
 
+  /**
+   * Il pulsante ⇡ di un branch locale, o null se non c'è niente da pushare.
+   * I numeri vengono da `%(upstream:track)`: l'ultimo fetch, non il remoto adesso.
+   * @param {{name: string, upstream?: string, upstreamRemote?: string, ahead?: number, behind?: number, gone?: boolean}} b
+   * @returns {{text: string, title: string}|null}
+   */
+  function pushLabel(b) {
+    if (!b || !b.name) return null;
+    if (!b.upstream) return { text: '⇡', title: `Pubblica ${b.name} sul remoto (nuovo upstream)` };
+    if (b.upstreamRemote === '.') return null;
+    if (b.gone) return { text: '⇡', title: `Ripubblica ${b.name} su ${b.upstream}: sul remoto non c'è più` };
+    const ahead = Number(b.ahead) || 0;
+    if (ahead <= 0) return null;
+    const behind = Number(b.behind) || 0;
+    const warn = behind > 0 ? ` · il remoto ha ${behind} commit che ${b.name} non ha: git rifiuterà` : '';
+    return { text: `⇡${ahead}`, title: `Push ${b.name} su ${b.upstream} (${ahead} commit)${warn}` };
+  }
+
   const SVG_NS = 'http://www.w3.org/2000/svg';
   /* Cestino: tracciati statici, nessun dato dentro */
   const TRASH = ['M3 4h10', 'M6.5 4V2.5h3V4', 'M4.5 4l.6 9.5h5.8l.6-9.5', 'M7 6.5v5', 'M9 6.5v5'];
@@ -51,8 +71,9 @@
    * @param {object} o
    * @param {(name: string, kind: 'local'|'remote', into: string) =>
    *   Promise<{ok: true, text: string}|{ok: false, error: string}|{cancelled: true}>} [o.onMerge]
+   * @param {(name: string) => Promise<{ok: true, text: string}|{ok: false, error: string}>} [o.onPush]
    */
-  function createBranchPicker({ document, host, load, onSwitch, onCreate, onDelete = null, onMerge = null, storage = null }) {
+  function createBranchPicker({ document, host, load, onSwitch, onCreate, onDelete = null, onMerge = null, onPush = null, storage = null }) {
     const el = (tag, cls, text) => {
       const e = document.createElement(tag);
       if (cls) e.className = cls;
@@ -165,6 +186,8 @@
       row.append(b.current
         ? item(b.name, 'corrente', null, 'git-picker-item--current')
         : item(b.name, b.upstream ? `↔ ${b.upstream}` : '', () => onSwitch(b.name, 'local')));
+      const push = pushButton(b);
+      if (push) row.append(push);
       const merge = b.current ? null : mergeButton(b.name, 'local');
       if (merge) row.append(merge);
       if (!b.current && onDelete) {
@@ -190,6 +213,40 @@
       b.title = `Unisci ${name} in ${into}`;
       b.setAttribute('aria-label', b.title);
       return b;
+    }
+
+    /* ⇡: push del branch locale, sull'upstream o pubblicandolo */
+    function pushButton(b) {
+      const label = onPush ? pushLabel(b) : null;
+      if (!label) return null;
+      const btn = button('git-picker-push', label.text, () => runPush(b.name));
+      btn.title = label.title;
+      btn.setAttribute('aria-label', label.title);
+      return btn;
+    }
+
+    /* Nessuna conferma: il push non tocca la cartella. Il selettore resta
+       aperto e dice com'è andata */
+    async function runPush(name) {
+      if (busy) return;
+      busy = true;
+      box.classList.add('loading');
+      confirming = null;
+      showError('');
+      showNotice(`Push di ${name}…`);
+      render();
+      let r = null;
+      try {
+        r = await onPush(name);
+      } catch (e) {
+        r = { ok: false, error: String((e && e.message) || e) };
+      } finally {
+        busy = false;
+        box.classList.remove('loading');
+      }
+      if (!r || !r.ok) { showError((r && r.error) || 'Push non riuscito.'); return; }
+      showNotice(r.text);
+      await reload();
     }
 
     function remoteRow(b) {
@@ -356,5 +413,5 @@
     return { open, close, toggle, destroy, isOpen: () => !box.hidden, element: box };
   }
 
-  return { createBranchPicker, filterBranches, clampPickerWidth, PICKER_MIN_W: MIN_W, PICKER_DEFAULT_W: DEFAULT_W };
+  return { createBranchPicker, filterBranches, clampPickerWidth, pushLabel, PICKER_MIN_W: MIN_W, PICKER_DEFAULT_W: DEFAULT_W };
 });

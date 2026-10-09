@@ -98,3 +98,18 @@ ok('ipc: git-merge rifiuta payload vuoti, nomi che sembrano opzioni e tipi scono
   const badIncoming = await handlers.get('git-changes')({}, { cwd: __dirname, incoming: '-X' });
   assert.strictEqual(badIncoming.ok, false);
 });
+
+ok('ipc: git-push rifiuta payload vuoti e nomi che sembrano opzioni, senza pushare', async () => {
+  const { handlers, ipcMain } = fakeIpc();
+  registerGitHandlers(ipcMain, { userDataDir: () => '/non/usata' });
+  const push = handlers.get('git-push');
+  for (const payload of [undefined, null, {}, { cwd: __dirname }]) {
+    const r = await push({}, payload);
+    assert.strictEqual(r.ok, false, JSON.stringify(payload));
+    assert.ok(r.error);
+  }
+  // cwd è questo repository: nessuna di queste richieste deve arrivare a git push
+  for (const name of ['--all', '--mirror', '-f', 'non/esiste/davvero-47']) {
+    assert.strictEqual((await push({}, { cwd: __dirname, name })).ok, false, name);
+  }
+});

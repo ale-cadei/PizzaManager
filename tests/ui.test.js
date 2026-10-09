@@ -123,6 +123,15 @@ ok('sidebar: i gruppi arrivano dal modulo, non da una Map costruita a mano', () 
   assert.ok(html.includes('session-groups.js'), 'session-groups.js non è incluso nella pagina');
 });
 
+ok('pulsanti: nessuno resta senza variante, o esce grigio', () => {
+  // `.btn` da sola non ha ne' fondo ne' colore (tokens.css): serve sempre una
+  // fra primary, outline, secondary e ghost. Era successo nel pannello delle
+  // segnalazioni: «Nuova» e «Continua su GitHub» uscivano grigi (piano 50).
+  const html = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'index.html'), 'utf8');
+  const nudi = (html.match(/class="btn"/g) || []).length;
+  assert.strictEqual(nudi, 0, `${nudi} pulsanti senza variante: cerca class="btn" in index.html`);
+});
+
 ok('sidebar: le azioni non usano il pieno teal (riservato alla conferma nei modali)', () => {
   const root = path.join(__dirname, '..');
   const html = fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');

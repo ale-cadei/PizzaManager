@@ -194,7 +194,7 @@ se l'app è aperta. Nel piano [24-windows-prova-vera.md](24-windows-prova-vera.m
 - [x] provato su Windows 11
 
 ### Fork di psmux: barra di scorrimento fluida su Windows
-Piano: [45-fork-psmux.md](45-fork-psmux.md). Con psmux originale (piano 46)
+Piano: [51-fork-psmux.md](51-fork-psmux.md). Con psmux originale (piano 52)
 su Windows tutto funziona, ma la barra di scorrimento va a scatti di rotella e
 ha una lunghezza stimata. Il fork `JackGrieco/psmux` è già clonato sul fisso
 Windows (branch `pizza/base` su v3.3.8, Rust installato): correggere i comandi

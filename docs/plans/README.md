@@ -48,7 +48,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 37 | [`fix/collassi-al-riavvio`](37-collassi-al-riavvio.md) | 8, 6 | ~1h | fatto, da provare nell'app |
 | 38 | [`feat/notifiche-sistema`](38-notifiche-sistema.md) — macOS e Linux | — | ~½ g | fatto, provato nell'app su macOS; da provare su Linux |
 | 39 | [`feat/temi-colori`](39-temi-colori.md) — temi pronti nel dialogo Colori | — | ~¼ g | fatto, provato nell'app |
-| 40 | [`spike/psmux`](40-windows-sessioni-persistenti.md) → fase 2 — Windows, **più il pacchetto che non si costruisce** | 6, 8, 24, 26 | ~½ g + ~1 g | spike fatto: psmux regge, il mouse si risolve con `mouse on` ([risultati](40-risultati.md)); fase 2: piano 46 con psmux originale; pacchetto ancora da fare |
+| 40 | [`spike/psmux`](40-windows-sessioni-persistenti.md) → fase 2 — Windows, **più il pacchetto che non si costruisce** | 6, 8, 24, 26 | ~½ g + ~1 g | spike fatto: psmux regge, il mouse si risolve con `mouse on` ([risultati](40-risultati.md)); fase 2: piano 52 con psmux originale; pacchetto ancora da fare |
 | 41 | [`fix/temi-personalizzati`](41-temi-personalizzati.md) — i ritocchi restano al loro tema | 39 | ~¼ g | fatto |
 | 42 | [`fix/opencode-resume-id`](42-opencode-resume-id.md) — le schede opencode tornano dopo un riavvio | 8 | ~2h | fatto, provato nell'app |
 | 43 | [`feat/modifiche-staged`](43-modifiche-staged.md) — «Da committare»: staged e non staged nel pannello | 32 | ~½ g | fatto, provato nell'app (smoke sotto xvfb) |
@@ -58,8 +58,8 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 46 | [`feat/hooks-esatti`](46-hook-esatti.md) — lavora / ha finito / chiede un permesso, dagli hook di Claude, opencode e Codex | 38 | ~1½ g | fatto, smoke da fare |
 | 49 | [`chore/via-personaggi-di-terzi`](49-via-personaggi-di-terzi.md) — il pescatore, la stella e la lumaca fuori dal catalogo degli animaletti | 33 | ~2h | ✅ mergiato (PR #52), smoke da fare |
 | 50 | [`fix/segnalazioni-rifiniture`](50-segnalazioni-rifiniture.md) — titolo cliccabile, tipo visibile, etichette `stato:*`, e il testo che non arrivava su GitHub | 48 | ~1h | ✅ mergiato (PR #53) |
-| 45 | [fork di psmux](45-fork-psmux.md) (`JackGrieco/psmux`) — barra di scorrimento fluida, con PR all'autore | 40 | ~1 g | idea, non bloccante ([idee](idee.md)) |
-| 46 | [`feat/psmux-backend`](46-psmux-backend.md) — psmux nel pacchetto, sessioni persistenti su Windows | 40, 26 | ~1½ g + ½ g CI | proposto, da fare sul fisso Windows |
+| 51 | [fork di psmux](51-fork-psmux.md) (`JackGrieco/psmux`) — barra di scorrimento fluida, con PR all'autore | 40 | ~1 g | idea, non bloccante ([idee](idee.md)) |
+| 52 | [`feat/psmux-backend`](52-psmux-backend.md) — psmux nel pacchetto, sessioni persistenti su Windows | 40, 26 | ~1½ g + ½ g CI | proposto, da fare sul fisso Windows |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

@@ -154,6 +154,11 @@ Non sono urgenti; stanno qui per non essere dimenticate.
   `binaries` e `claude-sessions`): su un runner Windows fallisce, per questo
   `release.yml` non la esegue. Farla girare anche lì vorrebbe dire iniettare
   `platform: 'linux'` nei test che oggi usano il default.
+- **La CI su `windows-2022` è rossa dal 2026-09-28** (`78d8f68`, merge di
+  `feat/plugin-skill`): 24 test falliscono, gli stessi in locale sul fisso
+  Windows. Sono di `listExtensions`, `worktree`, `worktree-files` e `changes`,
+  niente di tmux. Da quel giorno ogni merge su `main` è passato col job
+  Windows rosso. Trovato durante lo spike del piano 40.
 - **`npm audit`**: 15 vulnerabilità, tutte in `electron-builder` /
   `electron-rebuild`, quindi devDependencies che non finiscono nel bundle. Da
   sistemare prima di distribuire l'app.

@@ -99,7 +99,7 @@ Con l'utente si è deciso:
   Il mouse si è risolto con `set -g mouse on`, e la barra di scorrimento
   funziona così com'è (`40-risultati.md`, «Il mouse»). **Nel pacchetto va
   psmux originale**, a versione fissata. Il fork `JackGrieco/psmux` resta
-  un'idea per migliorare (piano 45): barra più fluida, con PR all'autore.
+  un'idea per migliorare (piano 51): barra più fluida, con PR all'autore.
 - Una scorsa veloce al sorgente (2026-10-10) non ha trovato niente di
   sospetto. Le dipendenze sono solo per terminale, testo e JSON. Non c'è rete
   verso l'esterno. Client e server parlano su `127.0.0.1` con una chiave per
@@ -107,9 +107,9 @@ Con l'utente si è deciso:
 
 La fase 2 si divide in due piani:
 
-- [`45-fork-psmux.md`](45-fork-psmux.md) — rifiniture a psmux nel fork, non
+- [`51-fork-psmux.md`](51-fork-psmux.md) — rifiniture a psmux nel fork, non
   bloccanti;
-- [`46-psmux-backend.md`](46-psmux-backend.md) — PizzaManager che lo usa
+- [`52-psmux-backend.md`](52-psmux-backend.md) — PizzaManager che lo usa
   (`feat/psmux-backend`).
 
 `feat/scrollback-senza-tmux` (riga 26b) resta utile come rete di sicurezza:

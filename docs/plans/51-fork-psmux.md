@@ -1,11 +1,11 @@
-# 45 — Fork di psmux: rifiniture, non bloccanti
+# 51 — Fork di psmux: rifiniture, non bloccanti
 
 Repo: fork di <https://github.com/psmux/psmux> sotto l'account dell'utente
 (`JackGrieco/psmux`, clonato sul fisso Windows, branch `pizza/base`) · Base:
 tag **v3.3.8** (`66cf613`) · Dipende da: 40 · Taglia: ~1 g
 **Si fa su Windows**: psmux è Windows-only, e le prove valgono solo lì.
 
-> **Stato (2026-10-10): non serve al piano 46.** Il difetto bloccante, la
+> **Stato (2026-10-10): non serve al piano 52.** Il difetto bloccante, la
 > selezione col mouse, si è rivelato una riga di config (`set -g mouse on`,
 > vedi «Il mouse» in [`40-risultati.md`](40-risultati.md)). Il pacchetto usa
 > quindi **psmux originale**. Questo piano resta come idea per migliorare
@@ -24,7 +24,7 @@ tag **v3.3.8** (`66cf613`) · Dipende da: 40 · Taglia: ~1 g
   su un repo altrui.
 - Se mai il pacchetto dovesse usare il fork, il fork pubblica **release
   proprie** con la CI che psmux ha già (`.github/workflows/release.yml`). Il
-  tag porta la base nel nome, es. `v3.3.8-pizza.1`. Il piano 46 cambia solo
+  tag porta la base nel nome, es. `v3.3.8-pizza.1`. Il piano 52 cambia solo
   l'URL e lo SHA-256 dello zip.
 - Prima della prima PR, un messaggio all'autore: chi siamo, che usiamo psmux
   in PizzaManager, che arrivano alcune PR. Il testo lo prepara Claude in
@@ -77,7 +77,7 @@ non funzionano:
 Da solo non basta. Perché la barra usi la strada vera, `term-scroll.js` deve
 smettere di trattare il client psmux come una TUI che vuole il mouse. Serve
 quindi anche un modo per sapere se il **pane** vuole il mouse: `dump-state` ha
-già `wants_mouse` e `alternate_screen`. Questa parte va disegnata nel piano 46,
+già `wants_mouse` e `alternate_screen`. Questa parte va disegnata nel piano 52,
 non qui. Va controllato anche cosa intende tmux con il numero di `goto-line`:
 PizzaManager gli passa righe **dal fondo** (`scrollToArgs`, `fromBottom`).
 

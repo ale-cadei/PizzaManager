@@ -170,7 +170,7 @@ sua history. La barra trasforma il trascinamento in scatti di rotella
 (`sendTicks`) e ne stima la lunghezza. Con `mouse off` psmux buttava via
 anche quegli scatti, per questo la barra «non scorreva». Con `mouse on`
 funziona, verificato dall'utente, ma un po' a scatti. Renderla fluida e
-precisa richiede di correggere psmux (piano 45, rifinitura).
+precisa richiede di correggere psmux (piano 51, rifinitura).
 
 Shift+trascinamento in xterm.js seleziona, ma la selezione sparisce al
 rilascio: non è un'alternativa.
@@ -254,8 +254,8 @@ Ctrl+B dell'utente, `PS C:\Users\giaco> FWE^B^B^B^B`.
 2. **Config separata** (`app/psmux.conf`): `prefix C-M-S-F12`, `mouse on`,
    `warm off`, senza `terminal-features`; anche lei in `build.asarUnpack`.
 3. **Scorrimento**: niente da fare. Rotella e barra passano da psmux come
-   eventi di mouse. Una barra fluida richiede di correggere psmux (piano 45).
-4. `detectTmux` su `win32`: il psmux del pacchetto (piano 46), accettato solo se `-V` ha la riga
+   eventi di mouse. Una barra fluida richiede di correggere psmux (piano 51).
+4. `detectTmux` su `win32`: il psmux del pacchetto (piano 52), accettato solo se `-V` ha la riga
    `psmux ` (Q5).
 5. `replayCommand` con la variante PowerShell di Q7, `platform` come parametro.
 6. Issue a psmux per la riga in meno e per `^B` in PowerShell.

@@ -1,11 +1,11 @@
-# 46 — psmux dentro PizzaManager: sessioni persistenti su Windows
+# 52 — psmux dentro PizzaManager: sessioni persistenti su Windows
 
 Branch: `feat/psmux-backend` · Dipende da: 40, 26 ·
 Taglia: ~1½ g, più ~½ g di CI. **Si fa su Windows.**
 
 > **Per chi lo riceve.** Prima `CLAUDE.md` (tmux, Windows, sicurezza), poi
 > [`40-risultati.md`](40-risultati.md) (cosa fa psmux, misurato). Si usa
-> **psmux originale**: il fork del piano 45 non serve (2026-10-10). Le
+> **psmux originale**: il fork del piano 51 non serve (2026-10-10). Le
 > «Trappole» del piano 40 valgono tutte anche qui.
 
 ## Obiettivo
@@ -27,7 +27,7 @@ parametro (regole Windows di `CLAUDE.md`).
 
 - Lo zip della release ufficiale di psmux (oggi v3.3.8), **a versione
   fissata e con lo SHA-256 nel repo**, lo scarica uno script prima di
-  electron-builder. Se un giorno servisse il fork (piano 45), cambiano solo
+  electron-builder. Se un giorno servisse il fork (piano 51), cambiano solo
   URL e SHA-256.
   `psmux.exe` e il suo `LICENSE` vanno in `extraResources` (es.
   `resources/psmux/`). Niente Rust nella CI di PizzaManager.
@@ -57,7 +57,7 @@ versione che abbiamo provato, e il socket `aisession` resta nostro. Casi in
 
 `app/tmux.conf` non si tocca (su Mac serve `prefix None`). Quella per psmux:
 
-- `set -g prefix C-M-S-F12`: psmux non accetta `None` (piano 45,
+- `set -g prefix C-M-S-F12`: psmux non accetta `None` (piano 51,
   correzione 4). Nessuno preme questa combinazione, quindi Ctrl+B arriva
   all'applicazione;
 - **`set -g mouse on`**, al contrario di Mac. Con `mouse off` il server psmux
@@ -111,7 +111,7 @@ a psmux, e la barra manda scatti di rotella con una lunghezza stimata.
 Verificato nell'app (2026-10-10): funziona, un po' a scatti. `scrollArgs` e
 `scrollToArgs` su psmux non vengono mai chiamati, e non devono esserlo: le
 catene con `;` non funzionano (Q1). Una barra fluida e precisa è
-la rifinitura del piano 45.
+la rifinitura del piano 51.
 
 ### 7. CI e release
 

@@ -11,6 +11,8 @@ const {
 } = require('../lib/worktree');
 
 const win = path.win32;
+/* I casi Unix dicono `platform: 'linux'`: senza, su Windows i percorsi finti
+   come /src/progetto diventerebbero \src\progetto e i confronti fallirebbero. */
 
 function fakeGit(handler) {
   const calls = [];
@@ -38,9 +40,9 @@ const PORCELAIN = [
 // ---------- percorsi ----------
 
 ok('worktree: la cartella sta accanto al progetto, in <nome>.worktrees, col branch senza slash', () => {
-  assert.strictEqual(worktreesContainer('/src/progetto'), '/src/progetto.worktrees');
-  assert.strictEqual(worktreeDirFor('/src/progetto', 'feat/login'), '/src/progetto.worktrees/feat-login');
-  assert.notStrictEqual(worktreeDirFor('/src/progetto', 'feat/login'), worktreeDirFor('/src/progetto', 'fix/login'),
+  assert.strictEqual(worktreesContainer('/src/progetto', { pathImpl: path.posix }), '/src/progetto.worktrees');
+  assert.strictEqual(worktreeDirFor('/src/progetto', 'feat/login', { pathImpl: path.posix }), '/src/progetto.worktrees/feat-login');
+  assert.notStrictEqual(worktreeDirFor('/src/progetto', 'feat/login', { pathImpl: path.posix }), worktreeDirFor('/src/progetto', 'fix/login', { pathImpl: path.posix }),
     'feat/login e fix/login finiscono nella stessa cartella');
 });
 
@@ -51,7 +53,7 @@ ok('worktree: su Windows la cartella si costruisce coi backslash', () => {
 // ---------- lettura ----------
 
 ok('worktree: parseWorktreeList legge branch, staccati, bloccati e cartelle sparite', () => {
-  const list = parseWorktreeList(PORCELAIN);
+  const list = parseWorktreeList(PORCELAIN, { platform: 'linux' });
   assert.deepStrictEqual(list.map((w) => w.path), [
     '/src/progetto', '/src/progetto.worktrees/feat-x', '/src/progetto.worktrees/prova', '/src/progetto.worktrees/sparito',
   ]);
@@ -85,7 +87,7 @@ ok('worktree: listWorktrees salta il principale, i bare e le cartelle sparite, e
     if (has(args, 'config', '--get-regexp')) return 'branch.feat/x.pizzabase main\n';
     throw new Error(`inatteso: ${args.join(' ')}`);
   });
-  const r = await listWorktrees({ root: '/src/progetto', run });
+  const r = await listWorktrees({ platform: 'linux', root: '/src/progetto', run });
   assert.strictEqual(r.ok, true, r.error);
   assert.deepStrictEqual(r.worktrees.map((w) => [w.path, w.branch, w.base]), [
     ['/src/progetto.worktrees/feat-x', 'feat/x', 'main'],
@@ -98,20 +100,20 @@ ok('worktree: listWorktrees senza nessuna base salvata (git config esce con 1) v
     if (has(args, 'worktree', 'list')) return PORCELAIN;
     throw gitError('');
   });
-  const r = await listWorktrees({ root: '/src/progetto', run });
+  const r = await listWorktrees({ platform: 'linux', root: '/src/progetto', run });
   assert.strictEqual(r.ok, true, r.error);
   assert.strictEqual(r.worktrees[0].base, null);
 });
 
 ok('worktree: listWorktrees passa l\'errore di git e rifiuta una radice mancante', async () => {
   const { run } = fakeGit(() => { throw gitError('fatal: unable to read tree'); });
-  assert.deepStrictEqual(await listWorktrees({ root: '/x', run }), { ok: false, error: 'fatal: unable to read tree' });
+  assert.deepStrictEqual(await listWorktrees({ platform: 'linux', root: '/x', run }), { ok: false, error: 'fatal: unable to read tree' });
   assert.strictEqual((await listWorktrees({ root: '', run })).ok, false);
 });
 
 ok('worktree: una cartella che non è un repository non ha worktree, non è un errore', async () => {
   const { run } = fakeGit(() => { throw gitError('fatal: not a git repository (or any of the parent directories): .git'); });
-  assert.deepStrictEqual(await listWorktrees({ root: '/home/tizio/note', run }), { ok: true, worktrees: [] });
+  assert.deepStrictEqual(await listWorktrees({ platform: 'linux', root: '/home/tizio/note', run }), { ok: true, worktrees: [] });
 });
 
 // ---------- da dove parte (il modale) ----------
@@ -138,7 +140,7 @@ function startRepo({ symbolic = 'feat/y', status = ' M a.js\0?? b.js\0', merging
 
 ok('worktree: worktreeStart propone il branch corrente, poi quello di default, poi gli altri', async () => {
   const { run } = startRepo();
-  const r = await worktreeStart({ root: '/src/progetto', run, exists: () => false });
+  const r = await worktreeStart({ platform: 'linux', root: '/src/progetto', run, exists: () => false });
   assert.strictEqual(r.ok, true, r.error);
   assert.deepStrictEqual(r.current, { branch: 'feat/y', commit: 'abc1234' });
   assert.deepStrictEqual(r.bases, ['feat/y', 'main', 'develop']);
@@ -148,7 +150,7 @@ ok('worktree: worktreeStart propone il branch corrente, poi quello di default, p
 
 ok('worktree: worktreeStart con HEAD staccato parte dal commit', async () => {
   const { run } = startRepo({ symbolic: null });
-  const r = await worktreeStart({ root: '/src/progetto', run, exists: () => false });
+  const r = await worktreeStart({ platform: 'linux', root: '/src/progetto', run, exists: () => false });
   assert.deepStrictEqual(r.current, { branch: null, commit: 'abc1234' });
   assert.deepStrictEqual(r.bases, ['abc1234', 'main', 'develop', 'feat/y']);
 });
@@ -156,14 +158,14 @@ ok('worktree: worktreeStart con HEAD staccato parte dal commit', async () => {
 ok('worktree: worktreeStart conta un rename una volta sola', async () => {
   // In -z il rename porta anche il nome vecchio, come voce a sé
   const { run } = startRepo({ status: 'R  nuovo.js\0vecchio.js\0 M a.js\0' });
-  const r = await worktreeStart({ root: '/src/progetto', run, exists: () => false });
+  const r = await worktreeStart({ platform: 'linux', root: '/src/progetto', run, exists: () => false });
   assert.strictEqual(r.dirty, 2);
 });
 
 ok('worktree: worktreeStart segnala un merge o un rebase in corso', async () => {
-  const merging = await worktreeStart({ root: '/src/progetto', run: startRepo({ merging: true }).run, exists: () => false });
+  const merging = await worktreeStart({ platform: 'linux', root: '/src/progetto', run: startRepo({ merging: true }).run, exists: () => false });
   assert.strictEqual(merging.busy, 'merge');
-  const rebasing = await worktreeStart({ root: '/src/progetto', run: startRepo().run, exists: (p) => p === path.join('/src/progetto', '.git/rebase-merge') });
+  const rebasing = await worktreeStart({ platform: 'linux', root: '/src/progetto', run: startRepo().run, exists: (p) => p === path.posix.join('/src/progetto', '.git/rebase-merge') });
   assert.strictEqual(rebasing.busy, 'rebase');
 });
 
@@ -172,7 +174,7 @@ ok('worktree: worktreeStart senza nessun commit lo dice', async () => {
     if (has(args, 'symbolic-ref', 'HEAD')) return 'main\n';
     throw gitError("fatal: ambiguous argument 'HEAD': unknown revision");
   });
-  const r = await worktreeStart({ root: '/src/progetto', run, exists: () => false });
+  const r = await worktreeStart({ platform: 'linux', root: '/src/progetto', run, exists: () => false });
   assert.strictEqual(r.ok, false);
   assert.match(r.error, /commit/);
 });
@@ -198,7 +200,7 @@ function createRepo({ addFails = null, baseIsBranch = true } = {}) {
 
 ok('worktree: createWorktree crea branch e cartella dalla base e se la ricorda', async () => {
   const { run, calls } = createRepo();
-  const r = await createWorktree({ root: '/src/progetto', branch: 'feat/login', base: 'main', run, exists: () => false, linkIgnored: async () => [] });
+  const r = await createWorktree({ platform: 'linux', root: '/src/progetto', branch: 'feat/login', base: 'main', run, exists: () => false, linkIgnored: async () => [] });
   assert.strictEqual(r.ok, true, r.error);
   assert.strictEqual(r.path, '/src/progetto.worktrees/feat-login');
   const sent = argsOf(calls);
@@ -210,7 +212,7 @@ ok('worktree: createWorktree crea branch e cartella dalla base e se la ricorda',
 
 ok('worktree: da un commit (HEAD staccato) non si salva nessuna base', async () => {
   const { run, calls } = createRepo({ baseIsBranch: false });
-  const r = await createWorktree({ root: '/src/progetto', branch: 'feat/login', base: 'abc1234', run, exists: () => false, linkIgnored: async () => [] });
+  const r = await createWorktree({ platform: 'linux', root: '/src/progetto', branch: 'feat/login', base: 'abc1234', run, exists: () => false, linkIgnored: async () => [] });
   assert.strictEqual(r.ok, true, r.error);
   assert.strictEqual(r.base, null);
   assert.ok(!argsOf(calls).some((a) => a.startsWith('config ')), 'base salvata per un commit');
@@ -219,7 +221,7 @@ ok('worktree: da un commit (HEAD staccato) non si salva nessuna base', async () 
 ok('worktree: createWorktree rifiuta nomi non validi e basi che sembrano opzioni, senza chiamare git', async () => {
   for (const [branch, base] of [['', 'main'], ['feat login', 'main'], ['-x', 'main'], ['feat/x', '--force'], ['feat/x', '']]) {
     const { run, calls } = createRepo();
-    const r = await createWorktree({ root: '/src/progetto', branch, base, run, exists: () => false, linkIgnored: async () => [] });
+    const r = await createWorktree({ platform: 'linux', root: '/src/progetto', branch, base, run, exists: () => false, linkIgnored: async () => [] });
     assert.strictEqual(r.ok, false, `accettato ${branch} da ${base}`);
     assert.ok(!argsOf(calls).some((a) => a.startsWith('worktree add')), `git chiamato per ${branch} da ${base}`);
   }
@@ -227,7 +229,7 @@ ok('worktree: createWorktree rifiuta nomi non validi e basi che sembrano opzioni
 
 ok('worktree: createWorktree non sovrascrive una cartella che esiste già', async () => {
   const { run, calls } = createRepo();
-  const r = await createWorktree({ root: '/src/progetto', branch: 'feat/login', base: 'main', run, exists: (p) => p.endsWith('feat-login'), linkIgnored: async () => [] });
+  const r = await createWorktree({ platform: 'linux', root: '/src/progetto', branch: 'feat/login', base: 'main', run, exists: (p) => p.endsWith('feat-login'), linkIgnored: async () => [] });
   assert.strictEqual(r.ok, false);
   assert.match(r.error, /esiste già/);
   assert.ok(!argsOf(calls).some((a) => a.startsWith('worktree add')));
@@ -235,13 +237,13 @@ ok('worktree: createWorktree non sovrascrive una cartella che esiste già', asyn
 
 ok('worktree: createWorktree passa il messaggio di git se add fallisce', async () => {
   const { run } = createRepo({ addFails: "fatal: a branch named 'feat/login' already exists" });
-  const r = await createWorktree({ root: '/src/progetto', branch: 'feat/login', base: 'main', run, exists: () => false, linkIgnored: async () => [] });
+  const r = await createWorktree({ platform: 'linux', root: '/src/progetto', branch: 'feat/login', base: 'main', run, exists: () => false, linkIgnored: async () => [] });
   assert.deepStrictEqual(r, { ok: false, error: "fatal: a branch named 'feat/login' already exists" });
 });
 
 ok('worktree: se i file ignorati non si collegano il worktree resta, con l\'avviso', async () => {
   const { run } = createRepo();
-  const r = await createWorktree({ root: '/src/progetto', branch: 'feat/login', base: 'main', run, exists: () => false,
+  const r = await createWorktree({ platform: 'linux', root: '/src/progetto', branch: 'feat/login', base: 'main', run, exists: () => false,
     linkIgnored: async () => { throw new Error('EPERM'); } });
   assert.strictEqual(r.ok, true);
   assert.match(r.warnings.join(' '), /EPERM/);
@@ -286,7 +288,7 @@ const WT = '/src/progetto.worktrees/feat-x';
 
 ok('worktree: Unisci fa il merge nella cartella principale, poi toglie cartella e branch', async () => {
   const { run, calls } = mergeRepo();
-  const r = await mergeWorktree({ root: '/src/progetto', path: WT, run, rmdir: () => {} });
+  const r = await mergeWorktree({ platform: 'linux', root: '/src/progetto', path: WT, run, rmdir: () => {} });
   assert.strictEqual(r.ok, true, r.error);
   const sent = calls.map((c) => `${c.args.join(' ')} @${c.cwd}`);
   assert.ok(sent.includes('merge --no-edit feat/x @/src/progetto'), sent.join('\n'));
@@ -296,7 +298,7 @@ ok('worktree: Unisci fa il merge nella cartella principale, poi toglie cartella 
 
 ok('worktree: Unisci rifiuta senza toccare niente se la cartella principale non è sulla base', async () => {
   const { run, calls } = mergeRepo({ over: { 'symbolic-ref': 'develop\n' } });
-  const r = await mergeWorktree({ root: '/src/progetto', path: WT, run, rmdir: () => {} });
+  const r = await mergeWorktree({ platform: 'linux', root: '/src/progetto', path: WT, run, rmdir: () => {} });
   assert.strictEqual(r.ok, false);
   assert.match(r.error, /develop/);
   assert.match(r.error, /main/);
@@ -307,7 +309,7 @@ ok('worktree: Unisci rifiuta con modifiche nella cartella principale o nel workt
   for (const where of ['/src/progetto', WT]) {
     const repo = mergeRepo();
     const run = (args, opts) => (has(args, 'status') && opts.cwd === where ? Promise.resolve(' M a.js\0') : repo.run(args, opts));
-    const r = await mergeWorktree({ root: '/src/progetto', path: WT, run, rmdir: () => {} });
+    const r = await mergeWorktree({ platform: 'linux', root: '/src/progetto', path: WT, run, rmdir: () => {} });
     assert.strictEqual(r.ok, false, `accettato con modifiche in ${where}`);
     assert.ok(!argsOf(repo.calls).some((a) => a.startsWith('merge')), `merge tentato con modifiche in ${where}`);
   }
@@ -315,7 +317,7 @@ ok('worktree: Unisci rifiuta con modifiche nella cartella principale o nel workt
 
 ok('worktree: Unisci senza base salvata non indovina', async () => {
   const { run, calls } = mergeRepo({ over: { '--get-regexp': gitError('') } });
-  const r = await mergeWorktree({ root: '/src/progetto', path: WT, run, rmdir: () => {} });
+  const r = await mergeWorktree({ platform: 'linux', root: '/src/progetto', path: WT, run, rmdir: () => {} });
   assert.strictEqual(r.ok, false);
   assert.match(r.error, /base/i);
   assert.ok(!argsOf(calls).some((a) => a.startsWith('merge')));
@@ -323,7 +325,7 @@ ok('worktree: Unisci senza base salvata non indovina', async () => {
 
 ok('worktree: Unisci con conflitti annulla il merge e lascia worktree e branch', async () => {
   const { run, calls } = mergeRepo({ mergeFails: 'CONFLICT (content): Merge conflict in a.js', merging: true });
-  const r = await mergeWorktree({ root: '/src/progetto', path: WT, run, rmdir: () => {} });
+  const r = await mergeWorktree({ platform: 'linux', root: '/src/progetto', path: WT, run, rmdir: () => {} });
   assert.strictEqual(r.ok, false);
   assert.strictEqual(r.conflict, true);
   const sent = argsOf(calls);
@@ -333,7 +335,7 @@ ok('worktree: Unisci con conflitti annulla il merge e lascia worktree e branch',
 
 ok('worktree: un merge rifiutato prima di cominciare non lancia un abort inutile', async () => {
   const { run, calls } = mergeRepo({ mergeFails: 'error: The following untracked working tree files would be overwritten by merge' });
-  const r = await mergeWorktree({ root: '/src/progetto', path: WT, run, rmdir: () => {} });
+  const r = await mergeWorktree({ platform: 'linux', root: '/src/progetto', path: WT, run, rmdir: () => {} });
   assert.strictEqual(r.ok, false);
   assert.ok(!r.conflict);
   assert.match(r.error, /untracked/);
@@ -343,7 +345,7 @@ ok('worktree: un merge rifiutato prima di cominciare non lancia un abort inutile
 ok('worktree: Unisci rifiuta un percorso che non è un worktree del progetto', async () => {
   for (const p of ['/src/progetto', '/etc', '/src/progetto.worktrees/sparito']) {
     const { run, calls } = mergeRepo();
-    const r = await mergeWorktree({ root: '/src/progetto', path: p, run, rmdir: () => {} });
+    const r = await mergeWorktree({ platform: 'linux', root: '/src/progetto', path: p, run, rmdir: () => {} });
     assert.strictEqual(r.ok, false, `accettato ${p}`);
     assert.ok(!argsOf(calls).some((a) => a.startsWith('merge')), `merge tentato su ${p}`);
   }
@@ -366,29 +368,29 @@ function removeRepo({ dirty = false } = {}) {
 
 ok('worktree: Tieni il branch toglie solo la cartella', async () => {
   const { run, calls } = removeRepo();
-  const r = await removeWorktree({ root: '/src/progetto', path: WT, branch: 'keep', run, rmdir: () => {} });
+  const r = await removeWorktree({ platform: 'linux', root: '/src/progetto', path: WT, branch: 'keep', run, rmdir: () => {} });
   assert.strictEqual(r.ok, true, r.error);
   assert.deepStrictEqual(argsOf(calls).filter((a) => !a.startsWith('worktree list') && !a.startsWith('config')), [`worktree remove ${WT}`]);
 });
 
 ok('worktree: Butta toglie cartella e branch anche non unito', async () => {
   const { run, calls } = removeRepo();
-  const r = await removeWorktree({ root: '/src/progetto', path: WT, branch: 'delete', run, rmdir: () => {} });
+  const r = await removeWorktree({ platform: 'linux', root: '/src/progetto', path: WT, branch: 'delete', run, rmdir: () => {} });
   assert.strictEqual(r.ok, true, r.error);
   assert.ok(argsOf(calls).includes('branch -D feat/x'));
 });
 
 ok('worktree: con modifiche non committate chiede conferma, e con force butta', async () => {
   const { run } = removeRepo({ dirty: true });
-  const first = await removeWorktree({ root: '/src/progetto', path: WT, branch: 'delete', run, rmdir: () => {} });
+  const first = await removeWorktree({ platform: 'linux', root: '/src/progetto', path: WT, branch: 'delete', run, rmdir: () => {} });
   assert.deepStrictEqual({ ok: first.ok, dirty: first.dirty }, { ok: false, dirty: true });
-  const second = await removeWorktree({ root: '/src/progetto', path: WT, branch: 'delete', force: true, run, rmdir: () => {} });
+  const second = await removeWorktree({ platform: 'linux', root: '/src/progetto', path: WT, branch: 'delete', force: true, run, rmdir: () => {} });
   assert.strictEqual(second.ok, true, second.error);
 });
 
 ok('worktree: un worktree staccato si butta senza toccare branch', async () => {
   const { run, calls } = removeRepo();
-  const r = await removeWorktree({ root: '/src/progetto', path: '/src/progetto.worktrees/prova', branch: 'delete', run, rmdir: () => {} });
+  const r = await removeWorktree({ platform: 'linux', root: '/src/progetto', path: '/src/progetto.worktrees/prova', branch: 'delete', run, rmdir: () => {} });
   assert.strictEqual(r.ok, true, r.error);
   assert.ok(!argsOf(calls).some((a) => a.startsWith('branch')));
 });
@@ -396,17 +398,17 @@ ok('worktree: un worktree staccato si butta senza toccare branch', async () => {
 ok('worktree: la cartella <progetto>.worktrees si toglie quando resta vuota, e solo quella', async () => {
   const removed = [];
   const { run } = removeRepo();
-  await removeWorktree({ root: '/src/progetto', path: WT, branch: 'keep', run, rmdir: (p) => removed.push(p) });
+  await removeWorktree({ platform: 'linux', root: '/src/progetto', path: WT, branch: 'keep', run, rmdir: (p) => removed.push(p) });
   assert.deepStrictEqual(removed, ['/src/progetto.worktrees']);
   // rmdir di una cartella piena fallisce (ENOTEMPTY): non è un errore
-  const r = await removeWorktree({ root: '/src/progetto', path: WT, branch: 'keep', run, rmdir: () => { throw new Error('ENOTEMPTY'); } });
+  const r = await removeWorktree({ platform: 'linux', root: '/src/progetto', path: WT, branch: 'keep', run, rmdir: () => { throw new Error('ENOTEMPTY'); } });
   assert.strictEqual(r.ok, true);
 });
 
 ok('worktree: removeWorktree rifiuta il progetto principale e i percorsi estranei', async () => {
   for (const p of ['/src/progetto', '/etc', '']) {
     const { run, calls } = removeRepo();
-    const r = await removeWorktree({ root: '/src/progetto', path: p, branch: 'delete', run, rmdir: () => {} });
+    const r = await removeWorktree({ platform: 'linux', root: '/src/progetto', path: p, branch: 'delete', run, rmdir: () => {} });
     assert.strictEqual(r.ok, false, `accettato ${p}`);
     assert.ok(!argsOf(calls).some((a) => a.startsWith('worktree remove')), `remove tentato su ${p}`);
   }
@@ -414,13 +416,13 @@ ok('worktree: removeWorktree rifiuta il progetto principale e i percorsi estrane
 
 ok('worktree: removeWorktree vuole sapere cosa fare del branch', async () => {
   const { run } = removeRepo();
-  const r = await removeWorktree({ root: '/src/progetto', path: WT, branch: 'boh', run, rmdir: () => {} });
+  const r = await removeWorktree({ platform: 'linux', root: '/src/progetto', path: WT, branch: 'boh', run, rmdir: () => {} });
   assert.strictEqual(r.ok, false);
 });
 
 ok('worktree: se dopo il merge la cartella non si toglie, lo dice: il merge è fatto', async () => {
   const { run } = mergeRepo({ over: { 'worktree remove': gitError("error: failed to delete '/w': Permission denied") } });
-  const r = await mergeWorktree({ root: '/src/progetto', path: WT, run, rmdir: () => {} });
+  const r = await mergeWorktree({ platform: 'linux', root: '/src/progetto', path: WT, run, rmdir: () => {} });
   assert.strictEqual(r.ok, false);
   assert.strictEqual(r.merged, true);
   assert.match(r.error, /unit/i, 'il messaggio non dice che il merge c è stato: ' + r.error);

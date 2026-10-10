@@ -139,7 +139,8 @@ ok('worktree-files: .worktreeinclude copia i file elencati e ignorati, con i lor
   const checked = git.calls.filter((c) => c.args.includes('check-ignore') && c.args.includes('.env'));
   assert.deepStrictEqual(checked.map((c) => c.cwd), [dir], 'ignorato chiesto fuori dal worktree');
   assert.strictEqual(fs.readFileSync(path.join(dir, '.env'), 'utf8'), 'SEGRETO=1\n');
-  assert.strictEqual(fs.statSync(path.join(dir, '.env')).mode & 0o777, 0o600, 'il .env copiato è leggibile da tutti');
+  // Windows non ha i permessi POSIX: lì stat dice sempre 0o666
+  if (process.platform !== 'win32') assert.strictEqual(fs.statSync(path.join(dir, '.env')).mode & 0o777, 0o600, 'il .env copiato è leggibile da tutti');
   assert.ok(fs.existsSync(path.join(dir, 'config', 'local.json')));
   assert.ok(!fs.existsSync(path.join(dir, 'config', 'nuovo.json')), 'copiato un file che git non ignora');
   assert.ok(!fs.existsSync(path.join(dir, 'node_modules')), 'node_modules copiato file per file');

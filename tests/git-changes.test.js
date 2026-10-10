@@ -168,7 +168,7 @@ function repoAnswers(extra = {}) {
 
 ok('changes: readChanges nella cartella principale confronta con HEAD', async () => {
   const calls = [];
-  const r = await readChanges({ cwd: `${ROOT}/lib`, run: fakeGit(repoAnswers(), calls) });
+  const r = await readChanges({ cwd: `${ROOT}/lib`, run: fakeGit(repoAnswers(), calls), platform: 'linux' });
   assert.strictEqual(r.ok, true);
   assert.strictEqual(r.root, ROOT);
   assert.strictEqual(r.against, 'abc123');

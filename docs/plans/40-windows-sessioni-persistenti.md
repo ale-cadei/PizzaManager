@@ -70,8 +70,9 @@ niente.
 - **Prima si prova psmux, poi si decide** (fase 1 → fase 2). psmux, se
   funziona, rimette su Windows lo stesso modello di Mac senza una seconda
   architettura.
-- psmux, se adottato, è un **prerequisito opzionale** come tmux su Mac: senza,
-  l'app funziona come oggi. Non lo installiamo noi e non lo impacchettiamo.
+- ~~psmux, se adottato, è un **prerequisito opzionale** come tmux su Mac: senza,
+  l'app funziona come oggi. Non lo installiamo noi e non lo impacchettiamo.~~
+  **Rivista il 2026-10-10**, vedi «Decisioni dopo lo spike» qui sotto.
 - Ripristino: si **chiede** con il modal, non si fanno ripartire N processi da
   soli.
 - Scrollback (piano 26): **solo shell**, **2000 righe** per sessione,
@@ -80,6 +81,39 @@ niente.
   wmux/minimux) **solo** se psmux fallisce, e con un piano a parte: è
   riscrivere un pezzo di tmux, e su Windows il demone terrebbe bloccati i
   file dell'app durante gli aggiornamenti (piano 18).
+
+## Decisioni dopo lo spike (2026-10-10)
+
+Lo spike è fatto: psmux regge **con rinunce** ([`40-risultati.md`](40-risultati.md)).
+Con l'utente si è deciso:
+
+- **Le sessioni persistenti su Windows sono una feature da avere**, non un
+  extra: è ciò che distingue PizzaManager dagli altri (cmux, per dire, è solo
+  macOS).
+- **psmux va dentro il pacchetto.** La licenza è MIT: si può distribuire, basta
+  includere il testo della licenza. L'utente non installa niente.
+- Il blocco dei file durante l'aggiornamento (il motivo del vecchio «non lo
+  impacchettiamo») si evita così: l'app **copia psmux.exe fuori dalla sua
+  cartella**, in una cartella con la versione nel nome, e lo lancia da lì.
+- ~~Fork leggero di psmux nel pacchetto, per il mouse e lo scorrimento.~~
+  Il mouse si è risolto con `set -g mouse on`, e la barra di scorrimento
+  funziona così com'è (`40-risultati.md`, «Il mouse»). **Nel pacchetto va
+  psmux originale**, a versione fissata. Il fork `JackGrieco/psmux` resta
+  un'idea per migliorare (piano 51): barra più fluida, con PR all'autore.
+- Una scorsa veloce al sorgente (2026-10-10) non ha trovato niente di
+  sospetto. Le dipendenze sono solo per terminale, testo e JSON. Non c'è rete
+  verso l'esterno. Client e server parlano su `127.0.0.1` con una chiave per
+  sessione in `~/.psmux`.
+
+La fase 2 si divide in due piani:
+
+- [`51-fork-psmux.md`](51-fork-psmux.md) — rifiniture a psmux nel fork, non
+  bloccanti;
+- [`52-psmux-backend.md`](52-psmux-backend.md) — PizzaManager che lo usa
+  (`feat/psmux-backend`).
+
+`feat/scrollback-senza-tmux` (riga 26b) resta utile come rete di sicurezza:
+copre il caso in cui psmux non parte, per esempio se un antivirus lo blocca.
 
 ---
 

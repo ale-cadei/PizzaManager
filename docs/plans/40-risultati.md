@@ -24,16 +24,19 @@ si rifà in tre righe, vedi «Come rifare le prove».
 
 Ma psmux **non è un multiplexer trasparente** come tmux: il suo client è una TUI
 (ratatui + crossterm) che ridisegna lo schermo da sé, e alcune scelte sono
-cablate nel codice, non nella config. Tre difetti contano:
+cablate nel codice, non nella config. Tre difetti sono emersi, e nessuno
+resta bloccante:
 
 | | Difetto | Peso | Rimedio |
 |---|---|---|---|
-| 1 | **Niente selezione col mouse**: il client attiva sempre la cattura del mouse | **bloccante** per l'uso quotidiano | da trovare in fase 2 (vedi Q4) |
-| 2 | **L'ultima riga del terminale resta vuota**: il client riserva sempre una riga alla barra di stato, anche con `status off` | cosmetico | issue a psmux |
+| 1 | **Niente selezione col mouse in Claude**: con `mouse off` il server scarta gli eventi di mouse per il pane | era bloccante | **risolto**: `set -g mouse on` nella config per psmux (vedi «Il mouse») |
+| 2 | **L'ultima riga del terminale resta vuota**: il client riserva sempre una riga alla barra di stato, anche con `status off` | cosmetico, l'utente non la nota | issue a psmux |
 | 3 | **Il prefisso non si spegne** (`prefix None` scartato): Ctrl+B apre finestre psmux | risolto | config a parte per psmux, prefisso su `C-M-S-F12` |
 
 Poi rinunce minori: lo scorrimento comandato dall'app (catene con `;`) non
-funziona, e Ctrl+B arriva a PowerShell come `^B` letterale. Dettagli sotto.
+funziona, quindi la barra di scorrimento va a scatti di rotella (funziona, un
+po' in ritardo), e Ctrl+B arriva a PowerShell come `^B` letterale. Dettagli
+sotto.
 
 ---
 
@@ -136,15 +139,41 @@ come psmux ricodifica i Ctrl+lettera verso ConPTY; da segnalare.
 - **Una riga in meno**: client a 140×40 → pane 140×39 con `status off`. Il
   client riserva `max(status_lines, 1)` righe (`src/client.rs`, `.max(1)`).
 
-**Conseguenze nell'app**, verificate dall'utente:
+**Conseguenze nell'app con `mouse off`**, verificate dall'utente: in Claude
+non si seleziona testo, e la barra di scorrimento non muove la history. Le
+cause e il rimedio sono in «Il mouse», qui sotto.
 
-- **la selezione col mouse non funziona**: xterm.js vede un'applicazione che
-  ha chiesto il mouse e gli manda il drag invece di selezionare;
-- **la rotella invece scorre**, ma per la strada di psmux: con il mouse
-  catturato `renderer/term-scroll.js` lascia la rotella all'«applicazione», e
-  psmux scorre da sé (`scroll-enter-copy-mode on`). La strada dell'app
-  (`scrollArgs`, le catene) non entra mai in gioco. La barra di scorrimento
-  laterale invece passa da `scrollTo`, che su psmux non funziona.
+## Il mouse — risolto con `set -g mouse on` (2026-10-10)
+
+La prima lettura («il client cattura sempre il mouse, quindi non si seleziona»)
+era sbagliata. Misurato con una sonda in node-pty che chiede il mouse come
+Claude (`\e[?1049h`, `?1000h`, `?1002h`, `?1003h`, `?1006h`) e registra i byte
+che riceve, poi con Claude vero e un trascinamento SGR come quello di
+xterm.js:
+
+- Claude **seleziona da sé**: chiede il mouse, riceve il trascinamento, e al
+  rilascio copia sia negli appunti di Windows sia via OSC 52. Senza psmux
+  funziona così anche nell'app installata.
+- Con **`mouse off`** il server psmux **scarta** gli eventi di mouse diretti al
+  pane (`src/server/mod.rs`, ramo `CtrlReq::PaneMouse`:
+  `if app.mouse_enabled { … }`). La sonda non riceve niente, e Claude non
+  seleziona.
+- Con **`mouse on`** la sonda riceve gli stessi byte che senza psmux. Claude
+  copia il testo trascinato («Claude Code v2.1.296» con lo script, «Ciao!
+  Tutto bene? Dimmi pure c» a mano nell'app). Nelle shell seleziona psmux,
+  e anche lì il testo arriva negli appunti (`267`…`274`).
+
+**La rotella e la barra.** Il client psmux tiene sempre il terminale esterno
+in modalità mouse (`\e[?1003;1006h`). Per `renderer/term-scroll.js` è quindi
+sempre una TUI: la rotella va a psmux come evento di mouse, e psmux scorre la
+sua history. La barra trasforma il trascinamento in scatti di rotella
+(`sendTicks`) e ne stima la lunghezza. Con `mouse off` psmux buttava via
+anche quegli scatti, per questo la barra «non scorreva». Con `mouse on`
+funziona, verificato dall'utente, ma un po' a scatti. Renderla fluida e
+precisa richiede di correggere psmux (piano 45, rifinitura).
+
+Shift+trascinamento in xterm.js seleziona, ma la selezione sparisce al
+rilascio: non è un'alternativa.
 
 **Il server caldo.** psmux tiene pronto un server `__warm__` per il prossimo
 `new-session`, ma lo riusa solo per sessioni senza config, comando, cartella,
@@ -220,20 +249,13 @@ Ctrl+B dell'utente, `PS C:\Users\giaco> FWE^B^B^B^B`.
 
 ## Cosa serve alla fase 2, se si adotta psmux
 
-1. **La selezione col mouse**, prima di tutto. Strade da valutare:
-   - una issue a psmux perché il client rispetti `mouse off` (niente
-     `EnableMouseCapture`);
-   - in `app/pty.js`, togliere dall'output del client psmux le sequenze che
-     accendono il mouse (`\e[?1000h`, `1002h`, `1003h`, `1006h`). Allora però la
-     rotella torna alla strada dell'app (punto 3), e le TUI dentro psmux perdono
-     il mouse.
-2. **Config separata** (`app/psmux.conf`): `prefix C-M-S-F12`, `warm off`, senza
-   `terminal-features`; anche lei in `build.asarUnpack`.
-3. **Scorrimento senza catene** in `lib/tmux.js`, in un punto solo: un comando
-   per invocazione, `scroll-up` ripetuto invece di `-N`, e un sostituto di
-   `goto-line`. Oppure lasciare la rotella a psmux e spegnere `scrollTo` su
-   Windows.
-4. `detectTmux` su `win32`: binario dal PATH, accettato solo se `-V` ha la riga
+1. **La selezione col mouse**: risolta da config, `set -g mouse on` (vedi «Il
+   mouse»).
+2. **Config separata** (`app/psmux.conf`): `prefix C-M-S-F12`, `mouse on`,
+   `warm off`, senza `terminal-features`; anche lei in `build.asarUnpack`.
+3. **Scorrimento**: niente da fare. Rotella e barra passano da psmux come
+   eventi di mouse. Una barra fluida richiede di correggere psmux (piano 45).
+4. `detectTmux` su `win32`: il psmux del pacchetto (piano 46), accettato solo se `-V` ha la riga
    `psmux ` (Q5).
 5. `replayCommand` con la variante PowerShell di Q7, `platform` come parametro.
 6. Issue a psmux per la riga in meno e per `^B` in PowerShell.
@@ -249,6 +271,7 @@ Ctrl+B dell'utente, `PS C:\Users\giaco> FWE^B^B^B^B`.
    if (platform === 'win32' && process.env.AIS_TMUX_CONF) rawConfPath = process.env.AIS_TMUX_CONF;
    ```
 
-3. Una copia di `app/tmux.conf` con `set -g prefix C-M-S-F12` e `set -g warm off`.
+3. Una copia di `app/tmux.conf` con `set -g prefix C-M-S-F12`, `set -g mouse on`
+   e `set -g warm off`.
 4. Lanciare l'app **da un terminale normale**, non da una sessione di Claude
    Code (vedi Q6): `AIS_TMUX_BIN=…\psmux.exe AIS_TMUX_CONF=…\copia.conf npx electron .`

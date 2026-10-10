@@ -847,8 +847,10 @@ const until = async (fn, ms = 4000) => {
 ok('tmux: l OSC 9 incapsulato di Codex arriva al client dell app', async (t) => {
   const s = hookSetup(t, 'osc');
   if (!s) return;
-  // Come lo scrive Codex dentro tmux: DCS passthrough con l'ESC interno raddoppiato
-  s.agent('codex', String.raw`process.stdout.write('\x1bPtmux;\x1b\x1b]9;Approval requested: ls\x07\x1b\\');`);
+  // Come lo scrive Codex dentro tmux: DCS passthrough con l'ESC interno raddoppiato.
+  // Ripetuto: tmux lo passa solo ai client attaccati, e scritto una volta sola
+  // all'avvio può arrivare prima che l'app si attacchi (rosso sulla CI Ubuntu).
+  s.agent('codex', String.raw`setInterval(() => process.stdout.write('\x1bPtmux;\x1b\x1b]9;Approval requested: ls\x07\x1b\\'), 300);`);
   const sent = [];
   const app = s.mk(sent);
   try {

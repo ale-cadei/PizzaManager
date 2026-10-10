@@ -460,6 +460,7 @@ ok('git: worktree creato, unito, in conflitto e buttato, con il git installato',
     assert.strictEqual(merged.ok, true, merged.error);
     assert.ok(fs.existsSync(path.join(root, 'b.txt')), 'il lavoro del worktree non è in main');
     assert.ok(!fs.existsSync(made.path), 'la cartella del worktree è rimasta');
+    assert.ok(fs.existsSync(path.join(root, 'node_modules', 'pkg', 'i.js')), 'tolto il node_modules del progetto invece del collegamento');
     assert.ok(!fs.existsSync(path.join(base, 'progetto.worktrees')), 'la cartella .worktrees vuota è rimasta');
     assert.strictEqual(git(root, 'branch', '--list', 'feat/uno'), '', 'il branch unito è rimasto');
     assert.ok(fs.existsSync(path.join(root, 'node_modules', 'pkg', 'i.js')), 'node_modules del progetto cancellato');

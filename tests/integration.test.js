@@ -448,7 +448,9 @@ ok('git: worktree creato, unito, in conflitto e buttato, con il git installato',
     assert.deepStrictEqual(made.warnings, []);
     assert.strictEqual(made.path, path.join(base, 'progetto.worktrees', 'feat-uno'));
     assert.ok(fs.lstatSync(path.join(made.path, 'node_modules')).isSymbolicLink(), 'node_modules non collegato');
-    assert.strictEqual(fs.statSync(path.join(made.path, '.env')).mode & 0o777, 0o600, '.env non copiato o con altri permessi');
+    assert.ok(fs.existsSync(path.join(made.path, '.env')), '.env non copiato');
+    // Windows non ha i permessi POSIX: lì stat dice sempre 0o666
+    if (process.platform !== 'win32') assert.strictEqual(fs.statSync(path.join(made.path, '.env')).mode & 0o777, 0o600, '.env con altri permessi');
     const listed = await wt.listWorktrees({ root });
     assert.deepStrictEqual(listed.worktrees.map((w) => [w.path, w.branch, w.base]), [[made.path, 'feat/uno', 'main']]);
 

@@ -34,7 +34,7 @@ function setup(t, type, extraProfile = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-wiring-'));
   const profiles = createProfileStore({ dir });
   const cfg = profiles.load();
-  cfg.profiles[type] = [{ id: `${type}:t`, label: 'Finto', command: `${process.execPath} ${fakeAgent(dir)}`, resumeArgs: '', ...extraProfile }];
+  cfg.profiles[type] = [{ id: `${type}:t`, label: 'Finto', command: `"${process.execPath}" "${fakeAgent(dir)}"`, resumeArgs: '', ...extraProfile }];
   profiles.save(cfg);
   const store = createAgentSignalStore({ dir });
   const sent = [];

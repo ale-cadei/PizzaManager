@@ -14,6 +14,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-2022]
     runs-on: ${{ matrix.os }}
+    # Un test che lascia un processo appeso teneva il job vivo 6 ore (il
+    # massimo di GitHub): la suite intera ci mette pochi minuti.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

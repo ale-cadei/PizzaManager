@@ -10,6 +10,9 @@ const { parseCodexPlugins } = require('../lib/extensions/codex');
 const { stripJsonComments, firstComment } = require('../lib/extensions/opencode');
 const { listExtensions } = require('../lib/extensions');
 
+/* listExtensions mostra i percorsi col separatore del sistema: ~\progetto su Windows */
+const tilde = (p) => p.split('/').join(path.sep);
+
 function fakeHome() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-ext-'));
   const put = (rel, text) => {
@@ -94,12 +97,12 @@ ok('listExtensions: Claude, plugin con skill e comandi, stato e ambito', async (
   ]);
   assert.strictEqual(locale.enabled, false);
   assert.strictEqual(locale.version, '', '"unknown" non è una versione');
-  assert.strictEqual(locale.scope, 'solo in ~/progetto');
+  assert.strictEqual(locale.scope, 'solo in ' + tilde('~/progetto'));
   assert.deepStrictEqual(locale.items, [], 'cartella mancante: plugin elencato, senza contenuto');
   assert.deepStrictEqual([bello.missing, locale.missing], [false, true]);
   assert.deepStrictEqual(c.skillDirs.map((d) => [d.dir, d.items.map((i) => i.name)]), [
-    ['~/.claude/skills', ['mia']],
-    ['~/.claude/commands', ['fai']],
+    [tilde('~/.claude/skills'), ['mia']],
+    [tilde('~/.claude/commands'), ['fai']],
   ]);
   assert.strictEqual(c.skillDirs[1].items[0].description, 'Fa le cose.');
 });
@@ -127,7 +130,7 @@ ok('listExtensions: Codex, config.toml più cache, versione più recente', async
   assert.strictEqual(byId['fantasma@mkt'].description, '', 'nel config ma non su disco');
   assert.strictEqual(byId['due@altro'].enabled, null, 'su disco ma non nel config');
   assert.deepStrictEqual(byId['due@altro'].items.map((i) => i.name), ['s']);
-  assert.deepStrictEqual(c.skillDirs.map((d) => d.dir), ['~/.codex/skills', '~/.agents/skills']);
+  assert.deepStrictEqual(c.skillDirs.map((d) => d.dir), [tilde('~/.codex/skills'), tilde('~/.agents/skills')]);
 });
 
 ok('listExtensions: opencode, plugin locali e npm, XDG_CONFIG_HOME, skill da più cartelle', async () => {
@@ -145,8 +148,8 @@ ok('listExtensions: opencode, plugin locali e npm, XDG_CONFIG_HOME, skill da pi�
     ['opencode-foo@1.0', '', 'pacchetto npm'],
   ]);
   assert.deepStrictEqual(c.skillDirs.map((d) => [d.dir, d.items.map((i) => i.name)]), [
-    ['~/xdg/opencode/skills', ['oc']],
-    ['~/.claude/skills', ['cl']],
+    [tilde('~/xdg/opencode/skills'), ['oc']],
+    [tilde('~/.claude/skills'), ['cl']],
   ]);
 });
 
@@ -261,12 +264,12 @@ ok('listExtensions: col progetto aperto le sue skill vengono prima, segnate', as
   put('.claude/plugins/installed_plugins.json', { version: 2, plugins: { 'a@m': [{ scope: 'user' }], 'b@m': [{ scope: 'user' }] } });
 
   const res = await listExtensions({ home, env: {}, cwd: path.join(home, 'repo') });
-  assert.strictEqual(res.project, '~/repo');
+  assert.strictEqual(res.project, tilde('~/repo'));
   const dirs = (id) => cli(res, id).skillDirs.map((d) => [d.dir, d.project]);
-  assert.deepStrictEqual(dirs('claude'), [['~/repo/.claude/skills', true], ['~/repo/.claude/commands', true], ['~/.claude/skills', false]]);
-  assert.deepStrictEqual(dirs('codex'), [['~/repo/.agents/skills', true]]);
+  assert.deepStrictEqual(dirs('claude'), [[tilde('~/repo/.claude/skills'), true], [tilde('~/repo/.claude/commands'), true], [tilde('~/.claude/skills'), false]]);
+  assert.deepStrictEqual(dirs('codex'), [[tilde('~/repo/.agents/skills'), true]]);
   assert.deepStrictEqual(dirs('opencode'), [
-    ['~/repo/.opencode/skills', true], ['~/repo/.claude/skills', true], ['~/repo/.agents/skills', true], ['~/.claude/skills', false],
+    [tilde('~/repo/.opencode/skills'), true], [tilde('~/repo/.claude/skills'), true], [tilde('~/repo/.agents/skills'), true], [tilde('~/.claude/skills'), false],
   ]);
   assert.deepStrictEqual(cli(res, 'claude').plugins.map((p) => [p.id, p.enabled]), [['a@m', false], ['b@m', false]],
     'le impostazioni del progetto vincono su quelle dell\'utente');

@@ -123,8 +123,10 @@ la rifinitura del piano 51.
   psmux scaricato. Servono varianti con `powershell.exe` al posto di
   `/bin/sh` e `sleep` (Q1 bis di `40-risultati.md`). Senza psmux si dichiarano
   saltati, non fingono di passare.
-- Prima va sistemata la CI Windows, rossa dal 28 settembre (backlog del
-  README), altrimenti non si capisce cosa rompe questo branch.
+- La CI Windows è stata sistemata (PR #55), ma GitHub Actions è fermo
+  finché il repo non diventa pubblico (backlog del README). Fino ad allora i
+  test girano in locale sul fisso Windows, e il pacchetto Windows si
+  costruisce lì: la parte su `release.yml` serve quando Actions riparte.
 
 ### 8. Onboarding e legenda
 

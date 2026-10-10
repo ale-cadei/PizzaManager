@@ -156,11 +156,17 @@ Non sono urgenti; stanno qui per non essere dimenticate.
   `binaries` e `claude-sessions`): su un runner Windows fallisce, per questo
   `release.yml` non la esegue. Farla girare anche lì vorrebbe dire iniettare
   `platform: 'linux'` nei test che oggi usano il default.
-- **La CI su `windows-2022` è rossa dal 2026-09-28** (`78d8f68`, merge di
-  `feat/plugin-skill`): 24 test falliscono, gli stessi in locale sul fisso
-  Windows. Sono di `listExtensions`, `worktree`, `worktree-files` e `changes`,
-  niente di tmux. Da quel giorno ogni merge su `main` è passato col job
-  Windows rosso. Trovato durante lo spike del piano 40.
+- ~~La CI su `windows-2022` è rossa dal 2026-09-28~~: corretta in
+  `fix/ci-windows` (PR #55). Erano 31 test che presumevano Unix, più un difetto
+  vero (la cartella del worktree restava su Windows). In locale su Windows è
+  tutto verde.
+- **GitHub Actions è fermo (2026-10-10).** I job Windows appesi 6 ore hanno
+  finito i minuti dell'account `ale-cadei`, e i job non partono più. Decisione
+  dell'utente: **test e build si fanno in locale** finché il repo non diventa
+  pubblico (si decide nella settimana del 2026-10-12). Mac e Windows sono
+  dell'utente, Linux è del collega. Prima di un merge: `npm run test:unit`
+  verde sulle macchine che la modifica tocca. `ci.yml` ha ora un limite di 20
+  minuti, perché un blocco non bruci di nuovo i minuti.
 - **`npm audit`**: 15 vulnerabilità, tutte in `electron-builder` /
   `electron-rebuild`, quindi devDependencies che non finiscono nel bundle. Da
   sistemare prima di distribuire l'app.

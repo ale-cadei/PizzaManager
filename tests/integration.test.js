@@ -448,7 +448,9 @@ ok('git: worktree creato, unito, in conflitto e buttato, con il git installato',
     assert.deepStrictEqual(made.warnings, []);
     assert.strictEqual(made.path, path.join(base, 'progetto.worktrees', 'feat-uno'));
     assert.ok(fs.lstatSync(path.join(made.path, 'node_modules')).isSymbolicLink(), 'node_modules non collegato');
-    assert.strictEqual(fs.statSync(path.join(made.path, '.env')).mode & 0o777, 0o600, '.env non copiato o con altri permessi');
+    assert.ok(fs.existsSync(path.join(made.path, '.env')), '.env non copiato');
+    // Windows non ha i permessi POSIX: lì stat dice sempre 0o666
+    if (process.platform !== 'win32') assert.strictEqual(fs.statSync(path.join(made.path, '.env')).mode & 0o777, 0o600, '.env con altri permessi');
     const listed = await wt.listWorktrees({ root });
     assert.deepStrictEqual(listed.worktrees.map((w) => [w.path, w.branch, w.base]), [[made.path, 'feat/uno', 'main']]);
 
@@ -458,6 +460,7 @@ ok('git: worktree creato, unito, in conflitto e buttato, con il git installato',
     assert.strictEqual(merged.ok, true, merged.error);
     assert.ok(fs.existsSync(path.join(root, 'b.txt')), 'il lavoro del worktree non è in main');
     assert.ok(!fs.existsSync(made.path), 'la cartella del worktree è rimasta');
+    assert.ok(fs.existsSync(path.join(root, 'node_modules', 'pkg', 'i.js')), 'tolto il node_modules del progetto invece del collegamento');
     assert.ok(!fs.existsSync(path.join(base, 'progetto.worktrees')), 'la cartella .worktrees vuota è rimasta');
     assert.strictEqual(git(root, 'branch', '--list', 'feat/uno'), '', 'il branch unito è rimasto');
     assert.ok(fs.existsSync(path.join(root, 'node_modules', 'pkg', 'i.js')), 'node_modules del progetto cancellato');
@@ -844,8 +847,10 @@ const until = async (fn, ms = 4000) => {
 ok('tmux: l OSC 9 incapsulato di Codex arriva al client dell app', async (t) => {
   const s = hookSetup(t, 'osc');
   if (!s) return;
-  // Come lo scrive Codex dentro tmux: DCS passthrough con l'ESC interno raddoppiato
-  s.agent('codex', String.raw`process.stdout.write('\x1bPtmux;\x1b\x1b]9;Approval requested: ls\x07\x1b\\');`);
+  // Come lo scrive Codex dentro tmux: DCS passthrough con l'ESC interno raddoppiato.
+  // Ripetuto: tmux lo passa solo ai client attaccati, e scritto una volta sola
+  // all'avvio può arrivare prima che l'app si attacchi (rosso sulla CI Ubuntu).
+  s.agent('codex', String.raw`setInterval(() => process.stdout.write('\x1bPtmux;\x1b\x1b]9;Approval requested: ls\x07\x1b\\'), 300);`);
   const sent = [];
   const app = s.mk(sent);
   try {

@@ -1,11 +1,11 @@
 # 46 — psmux dentro PizzaManager: sessioni persistenti su Windows
 
-Branch: `feat/psmux-backend` · Dipende da: 40, 45 (la release del fork), 26 ·
+Branch: `feat/psmux-backend` · Dipende da: 40, 26 ·
 Taglia: ~1½ g, più ~½ g di CI. **Si fa su Windows.**
 
 > **Per chi lo riceve.** Prima `CLAUDE.md` (tmux, Windows, sicurezza), poi
-> [`40-risultati.md`](40-risultati.md) (cosa fa psmux, misurato) e
-> [`45-fork-psmux.md`](45-fork-psmux.md) (cosa correggiamo in psmux). Le
+> [`40-risultati.md`](40-risultati.md) (cosa fa psmux, misurato). Si usa
+> **psmux originale**: il fork del piano 45 non serve (2026-10-10). Le
 > «Trappole» del piano 40 valgono tutte anche qui.
 
 ## Obiettivo
@@ -25,8 +25,10 @@ parametro (regole Windows di `CLAUDE.md`).
 
 ### 1. psmux nel pacchetto, copiato fuori dall'app
 
-- Lo zip della release del fork (piano 45), **a versione fissata e con lo
-  SHA-256 nel repo**, lo scarica uno script prima di electron-builder.
+- Lo zip della release ufficiale di psmux (oggi v3.3.8), **a versione
+  fissata e con lo SHA-256 nel repo**, lo scarica uno script prima di
+  electron-builder. Se un giorno servisse il fork (piano 45), cambiano solo
+  URL e SHA-256.
   `psmux.exe` e il suo `LICENSE` vanno in `extraResources` (es.
   `resources/psmux/`). Niente Rust nella CI di PizzaManager.
 - All'avvio, su Windows, l'app copia `psmux.exe` in
@@ -47,21 +49,25 @@ parametro (regole Windows di `CLAUDE.md`).
 
 Oggi restituisce `null` apposta, per non usare un `tmux.exe` di MSYS2. Domani:
 su `win32` usa **solo** il psmux installato al punto 1, mai un `tmux` dal
-PATH. Un psmux che l'utente ha installato da sé non c'entra: il nostro ha le
-nostre correzioni, e il socket `aisession` resta nostro. Casi in
+PATH. Un psmux che l'utente ha installato da sé non c'entra: il nostro ha la
+versione che abbiamo provato, e il socket `aisession` resta nostro. Casi in
 `tests/windows.test.js` con `platform: 'win32'`.
 
 ### 3. Una config per psmux: `app/psmux.conf`
 
 `app/tmux.conf` non si tocca (su Mac serve `prefix None`). Quella per psmux:
 
-- `set -g prefix C-M-S-F12`: psmux non accetta `None`, e il fork non lo
-  corregge (piano 45, correzione 4). Nessuno preme questa combinazione, quindi
-  Ctrl+B arriva all'applicazione;
+- `set -g prefix C-M-S-F12`: psmux non accetta `None` (piano 45,
+  correzione 4). Nessuno preme questa combinazione, quindi Ctrl+B arriva
+  all'applicazione;
+- **`set -g mouse on`**, al contrario di Mac. Con `mouse off` il server psmux
+  scarta gli eventi di mouse destinati al pane, e Claude non seleziona più.
+  Con `on` Claude e le TUI ricevono il mouse, nelle shell seleziona psmux, e
+  la rotella scorre la history di psmux («Il mouse» in `40-risultati.md`);
 - `set -g warm off`: il server caldo non verrebbe mai usato dall'app;
 - niente `terminal-features` (psmux dà un avviso) né `terminal-overrides`
   (ignorato);
-- il resto come `tmux.conf`: `status off`, `mouse off`, `escape-time 0`,
+- il resto come `tmux.conf`: `status off`, `escape-time 0`,
   `history-limit 50000`, `window-size latest`, `destroy-unattached off`,
   `mode-style`.
 
@@ -99,10 +105,13 @@ vecchio? Se no:
 
 ### 6. Scorrimento
 
-Con la correzione 3 del piano 45, `scrollArgs`/`scrollToArgs` funzionano su
-psmux come su tmux: **niente da fare**. Senza quella correzione non si parte con
-questo piano: la variante a tre processi per scatto andrebbe a scatti su
-Windows.
+**Niente da fare.** Il client psmux tiene sempre il terminale in modalità
+mouse, quindi `renderer/term-scroll.js` lo tratta come una TUI. La rotella va
+a psmux, e la barra manda scatti di rotella con una lunghezza stimata.
+Verificato nell'app (2026-10-10): funziona, un po' a scatti. `scrollArgs` e
+`scrollToArgs` su psmux non vengono mai chiamati, e non devono esserlo: le
+catene con `;` non funzionano (Q1). Una barra fluida e precisa è
+la rifinitura del piano 45.
 
 ### 7. CI e release
 
@@ -134,8 +143,9 @@ vanno aggiornati. Il `LICENSE` di psmux finisce nel pacchetto (punto 1).
   la crea. Un'app lanciata da dentro Claude Code passa `CLAUDE_CODE_CHILD_SESSION`
   e il Claude nelle schede non salva le conversazioni (Q6). Riguarda solo chi
   sviluppa: le prove si lanciano da un terminale normale.
-- **Il fork resta indietro.** Ogni release di psmux va valutata. Quando le PR
-  sono accettate si torna alla release ufficiale (piano 45).
+- **psmux cambia in fretta.** La versione è fissata: ogni aggiornamento si
+  rifà con le prove di «Come rifare le prove» (piano 40) prima di cambiare lo
+  SHA-256.
 
 ## Fatto quando
 

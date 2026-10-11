@@ -103,6 +103,41 @@ vecchio? Se no:
 - all'avvio si cancellano solo le cartelle di versioni che nessuna sessione
   viva usa più.
 
+**Letto nel codice (2026-10-11, sorgente 3.3.8 `66cf613` e storia dei tag
+v0.4.5…v3.3.8).** La risposta è «di fatto sì, ma nessuno lo promette», quindi
+il disegno qui sopra resta, tutto:
+
+- **Il protocollo non ha versione.** Client e server parlano TCP su loopback
+  (porta in `~/.psmux/<socket>__<nome>.port`): `AUTH <chiave>`, poi comandi
+  testuali una riga per volta; l'attacco (`PERSISTENT`, `client-attach`)
+  riceve frame JSON `DumpState`. Nessun controllo di versione da nessuna parte.
+- **Finora regge per disciplina.** In `DumpState` dalla 0.4.5 alla 3.3.8 i campi
+  sono passati da 26 a 84, sempre con `#[serde(default)]`: gli obbligatori sono
+  ancora solo `layout` e `windows`, e i campi in più si ignorano. Le modifiche
+  alla codifica dei comandi della 3.3.8 (#547 virgolette e backslash, #560 a
+  capo in `send-keys`) toccano solo chi codifica, il decoder non è cambiato. Un
+  frame illeggibile il client lo scarta in silenzio e ne chiede un altro
+  (`client.rs`, `JSON parse error` → `force_dump`): se un giorno il formato
+  cambiasse, la scheda resterebbe vuota senza errori.
+- **L'exe di una sessione viva è bloccato.** Il server è `current_exe()` lanciato
+  di nuovo (`platform.rs`, `spawn_server_hidden`): ogni sessione tiene aperto il
+  `psmux.exe` che l'ha creata. La cartella per versione è quindi obbligatoria
+  comunque, e quella vecchia non si cancella finché le sue sessioni vivono: la
+  pulizia deve guardare `@ais_psmux`, non affidarsi a un `rm` che fallisce.
+- **Il reaper.** Ogni invocazione di psmux (`main.rs`, `reap_orphaned_servers`)
+  termina i server con immagine `psmux`/`tmux`/`pmux` che il suo registro non
+  conosce. Dalla 3.3.8 (#510) solo quelli con un marcatore di proprietà nella
+  **sua** cartella dati: un psmux più vecchio con un'altra cartella dati
+  potrebbe uccidere i nostri. Con la stessa cartella (`~/.psmux`, quella di
+  default) i nostri hanno il `.port` e non si toccano. Caso raro, non ci si fa
+  niente; se servisse, `PSMUX_DATA_DIR` (dalla 3.3.8) separa i registri.
+
+Quindi: l'attacco usa l'exe della versione della sessione (è il pezzo più
+fragile, frame JSON e tasti), i comandi una tantum (`list`, `has`, metadati,
+cattura, `kill`) l'exe corrente. Quando si cambia la versione fissata, le prove
+di «Come rifare le prove» includono un server della versione vecchia con il
+client nuovo.
+
 ### 6. Scorrimento
 
 **Niente da fare.** Il client psmux tiene sempre il terminale in modalità

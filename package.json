@@ -45,6 +45,8 @@
       "renderer/**/*",
       "assets/**/*",
       "!assets/generate-icon.py",
+      "!assets/antigravity.png",
+      "!assets/claude-code.png",
       "package.json",
       "LICENSE",
       "THIRD-PARTY-NOTICES.md",

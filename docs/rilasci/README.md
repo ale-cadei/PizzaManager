@@ -162,6 +162,7 @@ I sei secret e come si preparano: [`secret.md`](secret.md). Il token scade il
 | `RC2-40-CBC unsupported` provando il `.p12` | nemmeno questa è una password sbagliata: è OpenSSL 3 che rifiuta l'algoritmo del Portachiavi. Serve `openssl pkcs12 -legacy …` |
 | Job verde ma il `.dmg` scaricato dà «è danneggiato» | era il gancio sbagliato, già corretto: il file veniva caricato 50 ms prima di essere firmato. Per questo il workflow ora **riscarica l'asset e lo verifica** |
 | Il pacchetto Windows non si costruisce | `pwsh` spezza `-c.npmRebuild=false`. Correzione probabile: `shell: bash`. Da provare su una macchina Windows → [piano 40](../plans/40-windows-sessioni-persistenti.md) |
+| **Un job non parte proprio**: zero passi eseguiti, muore in pochi secondi, e nelle sue annotazioni c'è «*payments have failed or your spending limit needs to be increased*» | **Sono finiti i minuti di Actions del mese.** Non è un difetto nostro e non c'è niente da aggiustare nel codice → §10 qui sotto |
 
 ### Verificare a mano un pacchetto macOS
 
@@ -177,7 +178,49 @@ xcrun stapler validate <file.dmg>
 **Sempre sul file scaricato dalla release**, non su quello costruito in
 locale: la differenza fra i due è esattamente il difetto che ci è sfuggito.
 
-## 9. Ogni quanto rilasciare
+## 9. Quanto costa una release (e perché può fermarsi)
+
+`ale-cadei/PizzaManager` è **privato**, quindi le sue Actions consumano i
+minuti del piano di chi possiede il repo: 2000 al mese sul piano gratuito. E
+i minuti non valgono tutti uguale — è questo che sorprende:
+
+| Runner | Moltiplicatore |
+|---|---|
+| Linux | ×1 |
+| Windows | ×2 |
+| **macOS** | **×10** |
+
+Una release costa circa **66 minuti fatturati**: ~6 reali di macOS (che ne
+valgono 60), più Linux e la bozza. Fanno circa **28 release al mese**, che è
+molto più di quanto serva — ma il 9 ottobre 2026 i minuti sono finiti lo
+stesso: sei release in un giorno, la CI che gira due volte per ogni merge
+(una sulla PR, una sul push a `main`) e un job Windows rotto che restava
+appeso sei ore contando doppio. Da lì in poi **nessun job è più partito**,
+nemmeno su Linux.
+
+Il repo pubblico delle release non c'entra: è pubblico, quindi le sue Actions
+sono gratis, cron delle segnalazioni compreso.
+
+**Cosa fare quando succede.** Niente panico sui soldi: il tetto di spesa è a
+zero di default, quindi GitHub *blocca* invece di addebitare — il fatto che i
+job si fermino è la prova che non si sta spendendo. L'allocazione riparte al
+rinnovo del piano, che non è il primo del mese ma il giorno in cui il piano è
+stato aperto (si legge su <https://github.com/settings/billing/usage>, pagina
+del proprietario del repo).
+
+Se una release serve prima, **si costruisce in locale**: il pacchetto macOS
+si fa sulla macchina di chi ha il certificato *Developer ID* nel portachiavi e
+la chiave di notarizzazione. Tre avvertenze, tutte già costate care una volta:
+
+1. va passato `--config.extraMetadata.buildFrom=release`, altrimenti l'app
+   costruita **non si aggiornerà mai più da sola** e non lo dice (§6);
+2. il manifesto deve elencare uno zip per **ogni** architettura: a mano quella
+   guardia non c'è, e un `latest-mac.yml` sbagliato manda gli arm64 a
+   scaricare la build Intel;
+3. si verifica Gatekeeper sull'asset **riscaricato dalla Release**, non sul
+   file locale.
+
+## 10. Ogni quanto rilasciare
 
 Quando c'è qualcosa che si vuole far avere agli altri — non a ogni merge. Ogni
 release costa tre runner e due invii ad Apple, e una bozza da pubblicare a

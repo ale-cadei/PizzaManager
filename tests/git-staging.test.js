@@ -15,10 +15,15 @@ const noDisk = { lstat: async () => { throw new Error('niente disco'); } };
  * `run` finto che distingue le due sezioni: `cached` risponde a
  * `git diff --cached`, `work` a `git diff`, `others` a `ls-files --others`.
  */
-function fakeGit({ cached = {}, work = {}, others = '', head = 'abc123\n', diff = '' } = {}, calls = []) {
+function fakeGit({ cached = {}, work = {}, others = '', head = 'abc123\n', diff = '', merging = false } = {}, calls = []) {
   return async (args, opts) => {
     calls.push({ args, cwd: opts.cwd });
     if (args.includes('--show-toplevel')) return `${ROOT}\n`;
+    if (args.includes('MERGE_HEAD')) {
+      if (merging) return 'abc123\n';
+      throw Object.assign(new Error('exit 1'), { code: 1, stderr: '' });
+    }
+    if (args.includes('--git-path')) return '.git/rebase-merge\n.git/rebase-apply\n';
     if (args.includes('--verify')) {
       if (head instanceof Error) throw head;
       return head;
@@ -49,6 +54,15 @@ ok('da committare: staged e non staged in due sezioni, un file a metà in tutte 
   assert.deepStrictEqual(r.totals, { files: 3, added: 33, removed: 12, staged: 2, unstaged: 2 });
   assert.strictEqual(r.truncated, false);
   assert.strictEqual(r.uncommitted, 3, 'a.js conta una volta');
+});
+
+ok('da committare: dice se c\'è un merge o un rebase a metà (il pannello non scrive, piano 53)', async () => {
+  const clean = await readStaging({ cwd: ROOT, run: fakeGit(), fsp: noDisk, exists: () => false });
+  assert.strictEqual(clean.busy, null);
+  const merging = await readStaging({ cwd: ROOT, run: fakeGit({ merging: true }), fsp: noDisk, exists: () => false });
+  assert.strictEqual(merging.busy, 'merge');
+  const rebasing = await readStaging({ cwd: ROOT, run: fakeGit(), fsp: noDisk, exists: (p) => p.endsWith('rebase-apply') });
+  assert.strictEqual(rebasing.busy, 'rebase');
 });
 
 ok('da committare: i non tracciati vanno fra i non staged', async () => {

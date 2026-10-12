@@ -203,6 +203,73 @@ ok('changes: con una base conta a parte i file non ancora committati', async () 
   assert.strictEqual(r.uncommitted, 2, 'c.js modificato e nuovo.txt non tracciato; b.js è nei commit');
 });
 
+/* «Unisci un branch» (docs/plans/54): due commit, il disco non c'entra */
+function incomingAnswers(extra = {}) {
+  return repoAnswers({
+    'rev-parse --verify': (args) => {
+      if (args.some((a) => a.startsWith('refs/heads/feat/x'))) return 'tip777\n';
+      if (args.some((a) => a.startsWith('refs/remotes/origin/y'))) return 'tip888\n';
+      throw gitError('');
+    },
+    'merge-base': 'fff999\n',
+    'diff --name-only': z('sporco.js'),
+    'ls-files': () => { throw new Error('il disco non va letto'); },
+    ...extra,
+  });
+}
+
+ok('changes: con incoming confronta il punto di separazione con la punta del branch', async () => {
+  const calls = [];
+  const r = await readChanges({ cwd: ROOT, incoming: 'feat/x', run: fakeGit(incomingAnswers(), calls) });
+  assert.strictEqual(r.ok, true, r.error);
+  assert.strictEqual(r.against, 'fff999');
+  assert.strictEqual(r.tip, 'tip777');
+  assert.strictEqual(r.incoming, 'feat/x');
+  assert.deepStrictEqual(r.files.map((f) => f.path), ['app.js']);
+  assert.strictEqual(r.uncommitted, 1, 'quanti file non committati ha la cartella: Unisci li rifiuta');
+  assert.deepStrictEqual(calls.find((c) => c.args.includes('merge-base')).args.slice(-2), ['HEAD', 'tip777']);
+  assert.deepStrictEqual(calls.find((c) => c.args.includes('--numstat')).args.slice(-2), ['fff999', 'tip777']);
+  // un remoto, se non c'è un locale con quel nome
+  const remote = await readChanges({ cwd: ROOT, incoming: 'origin/y', run: fakeGit(incomingAnswers()) });
+  assert.strictEqual(remote.tip, 'tip888');
+});
+
+ok('changes: con incoming il diff di un file è fra i due commit', async () => {
+  const calls = [];
+  const run = fakeGit(incomingAnswers({ 'diff --no-ext-diff': '' }), calls);
+  const r = await readFileDiff({ cwd: ROOT, path: 'app.js', incoming: 'feat/x', run });
+  assert.strictEqual(r.ok, true, r.error);
+  const diff = calls.filter((c) => c.args.includes('--literal-pathspecs')).pop().args;
+  assert.deepStrictEqual(diff.slice(-4), ['fff999', 'tip777', '--', 'app.js']);
+  // un file che il branch non tocca non si legge dal disco
+  const other = await readFileDiff({ cwd: ROOT, path: 'altro.js', incoming: 'feat/x', run: fakeGit(incomingAnswers()) });
+  assert.strictEqual(other.ok, false);
+});
+
+ok('changes: incoming non valido, sparito, o insieme a un altro confronto: rifiutato', async () => {
+  for (const incoming of ['-c', 'a..b', 42]) {
+    const calls = [];
+    const r = await readChanges({ cwd: ROOT, incoming, run: fakeGit(incomingAnswers(), calls) });
+    assert.strictEqual(r.ok, false, String(incoming));
+    assert.strictEqual(calls.length, 0, String(incoming));
+  }
+  assert.strictEqual((await readChanges({ cwd: ROOT, incoming: 'feat/x', base: 'main', run: fakeGit(incomingAnswers()) })).ok, false);
+  const gone = await readChanges({ cwd: ROOT, incoming: 'sparito', run: fakeGit(incomingAnswers()) });
+  assert.match(gone.error, /sparito/);
+  const unrelated = await readChanges({ cwd: ROOT, incoming: 'feat/x', run: fakeGit(incomingAnswers({ 'merge-base': gitError('') })) });
+  assert.match(unrelated.error, /storia in comune/);
+});
+
+ok('changes: incoming che è sia un locale sia un remoto: rifiutato, il merge lo rifiuterebbe', async () => {
+  const twin = incomingAnswers({ 'rev-parse --verify': (args) => {
+    if (args.some((a) => a.startsWith('refs/heads/origin/y') || a.startsWith('refs/remotes/origin/y'))) return 'tip888\n';
+    throw gitError('');
+  } });
+  const r = await readChanges({ cwd: ROOT, incoming: 'origin/y', run: fakeGit(twin) });
+  assert.strictEqual(r.ok, false);
+  assert.match(r.error, /locale e uno remoto/);
+});
+
 ok('changes: contro HEAD tutto quello che si vede è non committato', async () => {
   const r = await readChanges({ cwd: ROOT, run: fakeGit(repoAnswers()) });
   assert.strictEqual(r.uncommitted, 1);

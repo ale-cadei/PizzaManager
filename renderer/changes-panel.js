@@ -18,7 +18,12 @@
    - Commenti sul diff (docs/plans/44): stanno sulla scheda (`tab.reviewNotes`),
      così sopravvivono al pannello chiuso e al cambio di modo, e se ne vanno
      con la scheda. «Invia» li incolla nel terminale come un incolla vero
-     (term.paste): l'Invio lo dà l'utente. */
+     (term.paste): l'Invio lo dà l'utente.
+   - Stage, unstage e commit (docs/plans/53): solo in «Da committare», una
+     scrittura alla volta, poi si rilegge. Spenti mentre la sessione (o
+     un'altra nello stesso repository) lavora: quando una parte o si ferma
+     (signals.js) il pannello aperto si ridisegna. Il messaggio a metà sta
+     sulla scheda (`tab.commitMessage`), come i commenti. */
 
 const CHANGES_POLL_MS = 3000;
 const CHANGES_WIDTH_KEY = 'aisess.changesWidth';
@@ -93,7 +98,7 @@ function readChangesMode() {
 /* Stato del pannello: si sostituisce per intero, mai modificato sul posto */
 let changesState = {
   open: false, target: null, result: null, signature: 'none', expanded: {}, seq: 0, merge: null, mode: readChangesMode(),
-  reviewError: null,
+  reviewError: null, writing: false, commitOutcome: null, discard: null,
 };
 
 /* L'ultima richiesta di diff per file: una risposta più vecchia (file chiuso
@@ -113,6 +118,7 @@ function setChangesState(patch) {
 /** Il piè di pagina di «Unisci»: cosa succede, e perché non si può ancora */
 function mergeFooter(merge, result) {
   if (!merge) return null;
+  if (merge.kind === 'branch') return ChangesModel.branchMergeFooter(merge.branch, result, [...tabs.values()]);
   const { worktree, conf } = merge;
   const loaded = Boolean(result && result.ok);
   const pending = loaded && result.uncommitted > 0 ? result.uncommitted : 0;
@@ -144,7 +150,7 @@ function renderChanges() {
   // il pannello si apre comunque: è lì che si annulla.
   const readable = ok || Boolean(result && result.error);
   const unreadable = result && !result.ok
-    ? result.error || (merge ? 'Non riesco a leggere il worktree: la cartella c\'è ancora?' : null)
+    ? result.error || (merge ? 'Non riesco a leggere il branch da unire: la cartella c\'è ancora?' : null)
     : null;
   changesView.render({
     label: ChangesModel.tabLabel(result),
@@ -165,8 +171,126 @@ function renderChanges() {
     emptyText: ChangesModel.emptyText(result),
     notice: ChangesModel.notice(result),
     review: reviewStateOf(activeTab(), merge),
+    commit: commitStateOf(activeTab(), merge),
+    discard: merge ? null : discardStateOf(activeTab()),
   });
 }
+
+/* ---------- Stage, unstage e commit (docs/plans/53) ---------- */
+function commitStateOf(tab, merge) {
+  if (!tab) return null;
+  const message = tab.commitMessage || '';
+  const choice = ChangesModel.commitChoice(tab, [...tabs.values()], changesState.result,
+    { merging: Boolean(merge), writing: changesState.writing, message });
+  return choice && { ...choice, key: tab.id, message, outcome: changesState.commitOutcome };
+}
+
+/** Una sessione è partita o si è fermata (signals.js): i pulsanti di scrittura cambiano */
+function noteChangesRunning() {
+  if (changesState.open && changesState.target && (changesState.target.staging || changesState.merge)) renderChanges();
+}
+
+const COMMIT_CALLS = {
+  stage: (cwd, a) => window.aisess.gitStage(cwd, a.paths, false),
+  unstage: (cwd, a) => window.aisess.gitUnstage(cwd, a.paths, false),
+  'stage-all': (cwd) => window.aisess.gitStage(cwd, null, true),
+  'unstage-all': (cwd) => window.aisess.gitUnstage(cwd, null, true),
+  commit: (cwd, a, tab) => window.aisess.gitCommit(cwd, tab.commitMessage || ''),
+};
+
+function handleCommit(action) {
+  const tab = activeTab();
+  if (!tab || !action) return;
+  if (action.type === 'message') {
+    tab.commitMessage = String(action.text || '');
+    changesView.renderCommit(commitStateOf(tab, changesState.merge));
+    return;
+  }
+  if (Object.prototype.hasOwnProperty.call(DISCARD_ACTIONS, action.type)) {
+    DISCARD_ACTIONS[action.type](tab, action);
+    return;
+  }
+  if (!Object.prototype.hasOwnProperty.call(COMMIT_CALLS, action.type)) return;
+  runCommitAction(tab, action).catch((e) => console.warn('[modifiche] scrittura', e));
+}
+
+function commitOutcomeOf(action, res) {
+  if (!res || !res.ok) return { ok: false, text: (res && res.error) || 'git ha rifiutato l\'operazione.' };
+  if (action.type !== 'commit') return null;
+  return { ok: true, text: res.branch ? `Commit ${res.commit} su ${res.branch}` : `Commit ${res.commit}` };
+}
+
+/* Una scrittura alla volta; si ricontrolla qui quello che la vista ha già
+   spento, perché fra il disegno e il clic la sessione può essere ripartita */
+async function runCommitAction(tab, action) {
+  const choice = commitStateOf(tab, changesState.merge);
+  const target = changesState.target;
+  if (!choice || !target || !(action.type === 'commit' ? choice.canCommit : choice.canWrite)) return;
+  setChangesState({ writing: true, commitOutcome: null });
+  let res;
+  try {
+    res = await COMMIT_CALLS[action.type](target.cwd, action, tab);
+  } catch (e) {
+    res = { ok: false, error: String((e && e.message) || e) };
+  }
+  if (res && res.ok && action.type === 'commit') tab.commitMessage = '';
+  // Scheda cambiata nel frattempo: l'esito parlerebbe di un'altra cartella
+  const same = Boolean(changesState.target && changesState.target.key === target.key);
+  setChangesState({ writing: false, commitOutcome: same ? commitOutcomeOf(action, res) : null });
+  await refreshChanges();
+}
+
+/* ---------- Scartare un file (docs/plans/56) ---------- */
+function discardStateOf(tab) {
+  const choice = tab && commitStateOf(tab, null);
+  return choice ? ChangesModel.discardFooter(changesState.discard, choice.canWrite) : null;
+}
+
+const canWriteNow = (tab) => {
+  const choice = commitStateOf(tab, changesState.merge);
+  return Boolean(choice && choice.canWrite && changesState.target);
+};
+
+function askDiscard(tab, action) {
+  if (!canWriteNow(tab) || typeof action.path !== 'string') return;
+  setChangesState({ discard: { phase: 'confirm', path: action.path, untracked: Boolean(action.untracked) }, commitOutcome: null });
+}
+
+function discardOutcomeOf(undo, discard, res) {
+  if (!res || !res.ok) return { ok: false, text: (res && res.error) || 'git ha rifiutato l\'operazione.' };
+  return undo ? { ok: true, text: `${discard.path} è tornato com'era.` } : null;
+}
+
+/* Scarto e Annulla: come runCommitAction, una scrittura alla volta e
+   ricontrollando che la sessione non sia ripartita fra disegno e clic */
+async function runDiscard(tab, undo) {
+  const d = changesState.discard;
+  const ready = d && (undo ? d.phase === 'done' && d.undo : d.phase === 'confirm');
+  if (!ready || !canWriteNow(tab)) return;
+  const target = changesState.target;
+  setChangesState({ writing: true, commitOutcome: null });
+  let res;
+  try {
+    res = undo ? await window.aisess.gitDiscardUndo(target.cwd, d.undo) : await window.aisess.gitDiscard(target.cwd, d.path);
+  } catch (e) {
+    res = { ok: false, error: String((e && e.message) || e) };
+  }
+  const same = Boolean(changesState.target && changesState.target.key === target.key);
+  const ok = Boolean(res && res.ok);
+  // Se non è andata il piede resta com'era: un index.lock passeggero non
+  // deve far sparire l'Annulla, il contenuto salvato è ancora in git
+  let next = d;
+  if (ok) next = undo ? null : { phase: 'done', path: d.path, untracked: d.untracked, undo: res.undo || null };
+  setChangesState({ writing: false, discard: same ? next : null, commitOutcome: same ? discardOutcomeOf(undo, d, res) : null });
+  await refreshChanges();
+}
+
+const DISCARD_ACTIONS = {
+  'discard-ask': askDiscard,
+  'discard-cancel': () => setChangesState({ discard: null }),
+  discard: (tab) => runDiscard(tab, false).catch((e) => console.warn('[modifiche] scarto', e)),
+  'discard-undo': (tab) => runDiscard(tab, true).catch((e) => console.warn('[modifiche] annulla scarto', e)),
+};
 
 /* ---------- Commenti sul diff (docs/plans/44) ---------- */
 function reviewStateOf(tab, merge) {
@@ -185,7 +309,7 @@ function handleReview(action) {
   if (!ChangesModel.reviewAvailable(tab, Boolean(changesState.merge))) return false;
   const notes = tab.reviewNotes || [];
   if (action.type === 'save') {
-    const res = ReviewNotes.addNote(notes, action.anchor, action.body);
+    const res = ReviewNotes.addNote(notes, action.anchor, action.body, { replaces: action.replaces || null });
     setReviewNotes(tab, res.notes, res.ok ? null : res.error);
     return res.ok;
   }
@@ -219,6 +343,7 @@ function sendReview(tab, notes) {
 
 function activeChangesTarget() {
   const { merge } = changesState;
+  if (merge && merge.kind === 'branch') return ChangesModel.incomingTarget(merge.branch);
   if (merge) return ChangesModel.targetFor({ type: 'worktree', cwd: merge.worktree.path }, merge.worktree);
   const t = activeTab();
   const worktree = t ? Groups.worktreeOf(t, worktreeCache.snapshot()) : null;
@@ -250,7 +375,7 @@ async function pollChanges() {
 async function refreshChanges() {
   const target = activeChangesTarget();
   const sameTarget = Boolean(target && changesState.target && target.key === changesState.target.key);
-  if (!sameTarget) setChangesState({ target, result: null, signature: 'none', expanded: {}, reviewError: null });
+  if (!sameTarget) setChangesState({ target, result: null, signature: 'none', expanded: {}, reviewError: null, commitOutcome: null, discard: null });
   if (!target) return;
   const seq = changesState.seq + 1;
   changesState = { ...changesState, seq };
@@ -258,7 +383,7 @@ async function refreshChanges() {
   try {
     result = target.staging
       ? await window.aisess.gitStaging(target.cwd)
-      : await window.aisess.gitChanges(target.cwd, target.base, target.since);
+      : await window.aisess.gitChanges(target.cwd, target.base, target.since, target.incoming || null);
   } catch (e) {
     result = { ok: false, error: String((e && e.message) || e) };
   }
@@ -278,7 +403,7 @@ async function refreshChanges() {
 
 /* `id` è il percorso, o «sezione:percorso» in «Da committare» (changes-model.js, itemId) */
 function readFileDiffOf(target, id) {
-  if (!target.staging) return window.aisess.gitFileDiff(target.cwd, target.base, id, target.since);
+  if (!target.staging) return window.aisess.gitFileDiff(target.cwd, target.base, id, target.since, target.incoming || null);
   const { side, path } = ChangesModel.splitItemId(target, id);
   return window.aisess.gitStagingDiff(target.cwd, path, side);
 }
@@ -317,18 +442,36 @@ function toggleChangesFile(id) {
  * @returns {Promise<boolean>}
  */
 function reviewMerge(worktree, conf) {
-  finishMerge(false); // una revisione rimasta aperta (un altro worktree) si annulla
+  return openMergeReview({ kind: 'worktree', worktree, conf });
+}
+
+/**
+ * La conferma di un merge dal selettore dei branch (docs/plans/54, git-tab.js):
+ * il pannello mostra quello che `name` porta in `into`. Si scioglie con la
+ * punta del branch che si è guardata (il merge la ricontrolla), o null.
+ * @param {{cwd: string, name: string, into: string}} branch
+ * @returns {Promise<{tip: string}|null>}
+ */
+function reviewBranchMerge(branch) {
+  return openMergeReview({ kind: 'branch', branch })
+    .then((answer) => (answer.confirmed && answer.result && answer.result.tip ? { tip: answer.result.tip } : null));
+}
+
+/* Una revisione rimasta aperta (un altro worktree o branch) si annulla */
+function openMergeReview(merge) {
+  finishMerge(false);
   return new Promise((resolve) => {
-    setChangesState({ open: true, merge: { worktree, conf, resolve } });
+    setChangesState({ open: true, merge: { ...merge, resolve } });
     refreshChanges().catch((e) => console.warn('[modifiche]', e));
   });
 }
 
 function finishMerge(confirmed) {
-  const { merge } = changesState;
+  const { merge, result } = changesState;
   if (!merge) return;
   setChangesState({ merge: null, open: false });
-  merge.resolve(confirmed);
+  // Il worktree vuole sì/no; il branch anche la lettura confermata (`tip`)
+  merge.resolve(merge.kind === 'branch' ? { confirmed, result } : confirmed);
   // Si torna a parlare della scheda in primo piano
   refreshChanges().catch(() => {});
 }
@@ -336,7 +479,8 @@ function finishMerge(confirmed) {
 function toggleChangesPanel(force) {
   const open = typeof force === 'boolean' ? force : !changesState.open;
   if (!open && changesState.merge) { finishMerge(false); return; }
-  setChangesState({ open });
+  // Chiudendo il pannello l'Annulla dello scarto non si offre più
+  setChangesState(open ? { open } : { open, discard: null });
   // Aprendolo il fuoco resta al terminale: si può scrivere all'agente col
   // diff sotto gli occhi. Esc chiude quando il fuoco è nel pannello (un clic
   // su un file); chiudendolo il fuoco torna al terminale.
@@ -393,6 +537,7 @@ function initChangesPanel() {
     onMerge: (confirmed) => finishMerge(confirmed),
     onMode: (mode) => setChangesMode(mode),
     onReview: (action) => handleReview(action),
+    onCommit: (action) => handleCommit(action),
   });
   initChangesResize();
   try { window.aisess.onMenu('menu-changes', () => toggleChangesPanel()); } catch {}

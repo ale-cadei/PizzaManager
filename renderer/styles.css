@@ -880,6 +880,19 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 }
 .changes-comment-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--gap-sm); margin-top: 6px; }
 .changes-comment-hint { margin-right: auto; font-size: 11px; color: var(--text-faint); }
+/* Gruppo di righe (docs/plans/57). Il bordo sinistro è già del verde/rosso
+   della riga: il segno del commento è una seconda barra subito dentro.
+   Il gruppo in modifica si vela sopra il fondo, che resta verde o rosso */
+.changes-line.has-note { box-shadow: inset 3px 0 0 var(--action-text); }
+.changes-line.is-selecting {
+  box-shadow: inset 3px 0 0 var(--action-text);
+  background-image: linear-gradient(color-mix(in srgb, var(--action-text) 18%, transparent), color-mix(in srgb, var(--action-text) 18%, transparent));
+}
+.changes-line.is-selecting .changes-note-add { opacity: 1; }
+.changes-comment-lines { font-size: 11px; color: var(--action-text); margin-bottom: 4px; }
+.changes-comment-warn { color: var(--state-error); }
+.changes-comment-range { flex: 0 0 auto; align-self: baseline; font-size: 11px; color: var(--action-text); }
+.changes-comment:has(.changes-comment-range) .changes-comment-body { align-self: baseline; }
 .changes-orphan-title { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
 .changes-orphan .changes-comment, .changes-orphan .changes-comment-editor { position: static; margin: 2px 0 6px; padding-left: 0; border-left: 0; }
 .changes-comment-quote { font: 400 12px/1.45 var(--font-mono); color: var(--text-faint); white-space: pre; overflow: hidden; text-overflow: ellipsis; }
@@ -892,6 +905,49 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .changes-review-count { margin-right: auto; align-self: center; font-size: 12px; color: var(--text-muted); }
 .changes-review-error { margin: 0; font-size: 12px; color: var(--accent); white-space: pre-wrap; }
 .changes-review-foot .btn[disabled] { opacity: .45; cursor: not-allowed; }
+/* Stage, unstage e commit (docs/plans/53): ＋/− accanto alla riga del file,
+   «tutti» a destra nell'intestazione di sezione, il messaggio in fondo */
+.changes-file-head { display: flex; align-items: center; }
+.changes-file-head .changes-file-row { flex: 1; min-width: 0; }
+.changes-file-act {
+  flex: 0 0 auto; width: 26px; align-self: stretch; padding: 0; border: 0; background: none; cursor: pointer;
+  font: 600 13px/1 var(--font-ui); color: var(--text-faint);
+}
+.changes-file-act.changes-stage:hover, .changes-file-act.changes-stage:focus-visible { color: var(--state-ok); background: var(--surface-2); outline: none; }
+.changes-file-act.changes-unstage:hover, .changes-file-act.changes-unstage:focus-visible,
+.changes-file-act.changes-discard:hover, .changes-file-act.changes-discard:focus-visible { color: var(--state-error); background: var(--surface-2); outline: none; }
+.changes-section-act {
+  margin-left: auto; padding: 1px 6px; border: 1px solid var(--border); border-radius: 4px; background: none; cursor: pointer;
+  font: 500 10px/1.4 var(--font-ui); letter-spacing: 0; text-transform: none; color: var(--text-muted);
+}
+.changes-section-act:hover, .changes-section-act:focus-visible { color: var(--text); background: var(--surface-2); outline: none; }
+.changes-file-act[disabled], .changes-section-act[disabled] { opacity: .35; cursor: not-allowed; background: none; }
+.changes-commit-foot {
+  display: flex; flex-direction: column; gap: var(--gap-sm);
+  padding: 10px 14px; border-top: 1px solid var(--border); background: var(--surface-2);
+}
+.changes-commit-foot[hidden], .changes-commit-reason[hidden], .changes-commit-outcome[hidden] { display: none; }
+.changes-commit-reason { margin: 0; font-size: 12px; color: var(--accent); }
+.changes-commit-input {
+  box-sizing: border-box; width: 100%; min-height: 3.2em; max-height: 12em; resize: vertical;
+  font: 400 12px/1.45 var(--font-mono); color: var(--text); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px;
+}
+.changes-commit-hint { margin-right: auto; align-self: center; font-size: 11px; color: var(--text-faint); }
+.changes-commit-btn[disabled] { opacity: .45; cursor: not-allowed; }
+.changes-commit-outcome {
+  margin: 0; max-height: 10em; overflow: auto; font: 400 12px/1.45 var(--font-mono);
+  color: var(--state-ok); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.changes-commit-outcome.is-error { color: var(--state-error); }
+/* Scartare un file (docs/plans/56): conferma e Annulla nel piede */
+.changes-discard-foot {
+  display: flex; flex-direction: column; gap: var(--gap-sm);
+  padding: 10px 14px; border-top: 1px solid var(--border); background: var(--surface-2);
+}
+.changes-discard-foot[hidden], .changes-discard-foot .btn[hidden] { display: none; }
+.changes-discard-text { margin: 0; font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; }
+.changes-discard-foot .btn[disabled] { opacity: .45; cursor: not-allowed; }
 
 /* ---------- Animaletti (renderer/pets-view.js, piano 33) ----------
    Striscia sotto il terminale: ne ruba l'altezza invece di coprirne l'ultima
@@ -1227,13 +1283,24 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
    sotto il mouse o col fuoco: dieci cestini accesi sarebbero rumore. */
 .git-picker-row { display: flex; align-items: center; gap: 4px; }
 .git-picker-row > .git-picker-item { flex: 1 1 auto; min-width: 0; }
-.git-picker-delete {
+.git-picker-delete, .git-picker-merge {
   flex: 0 0 auto; display: grid; place-items: center; width: 28px; height: 28px;
   background: none; border: 0; border-radius: var(--radius); cursor: pointer;
   color: var(--text-dim); opacity: .35; transition: opacity .12s ease, color .12s ease, background-color .12s ease;
 }
 .git-picker-delete svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
 .git-picker-row:hover .git-picker-delete, .git-picker-delete:focus-visible { opacity: 1; }
+/* ⤵ unisci nel corrente (docs/plans/54): stesso riserbo del cestino, colore dell'azione */
+.git-picker-merge { font-size: 15px; line-height: 1; }
+.git-picker-row:hover .git-picker-merge, .git-picker-merge:focus-visible { opacity: 1; }
+.git-picker-merge:hover, .git-picker-merge:focus-visible { color: var(--action-text); background: color-mix(in srgb, var(--action-text) 14%, transparent); }
+.git-picker-push {
+  flex: 0 0 auto; min-width: 28px; height: 28px; padding: 0 6px; background: none; border: 0;
+  border-radius: var(--radius); cursor: pointer; font: inherit; font-size: 12px; font-variant-numeric: tabular-nums;
+  color: var(--action-text); transition: background-color .12s ease;
+}
+/* ⇡ push (docs/plans/55): sempre visibile, dice che ci sono commit da mandare */
+.git-picker-push:hover, .git-picker-push:focus-visible { background: color-mix(in srgb, var(--action-text) 14%, transparent); }
 .git-picker-delete:hover, .git-picker-delete:focus-visible { color: var(--state-error); background: color-mix(in srgb, var(--state-error) 14%, transparent); }
 .git-picker-confirm {
   padding: 6px 8px; border-radius: var(--radius); font-size: 12px; gap: 8px;
@@ -1249,7 +1316,7 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .git-picker-confirm-yes { background: var(--state-error); border-color: var(--state-error); color: #fff; font-weight: 600; }
 .git-picker-confirm-no:hover { background: var(--surface-3); }
 .git-picker-confirm-yes:hover { filter: brightness(1.1); }
-@media (prefers-reduced-motion: reduce) { .git-picker-delete { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .git-picker-delete, .git-picker-merge, .git-picker-push { transition: none; } }
 .git-picker-item--current { cursor: default; color: var(--type-git); }
 .git-picker-item--current:hover { background: none; }
 .git-picker-item--create { color: var(--action-text); }
@@ -1257,6 +1324,8 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .git-picker-hint { color: var(--text-dim); font-size: 11px; white-space: nowrap; }
 .git-picker-error { color: var(--state-error); margin: 0; white-space: pre-wrap; }
 .git-picker-error[hidden] { display: none; }
+.git-picker-notice { color: var(--text); margin: 0; white-space: pre-wrap; }
+.git-picker-notice[hidden] { display: none; }
 .git-picker-note, .git-picker-empty { margin: 0; padding: 0 4px; }
 /* Mappa dei branch (renderer/git-map-view.js, docs/plans/31). Il selettore
    Timeline | Mappa sta nell'intestazione; nella mappa ogni linea porta il suo

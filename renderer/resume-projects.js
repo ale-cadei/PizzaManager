@@ -16,9 +16,22 @@
     return /^[A-Za-z]:\//.test(path) || path.startsWith('//') ? path.toLowerCase() : path;
   }
 
-  /** @returns {Promise<Array<{key: string, label: string, title: string, items: object[]}>>} */
-  async function arrange(items, { source, resolve, filterRoot = null, grouped = false, query = '', Groups } = {}) {
-    const sessions = Array.isArray(items) ? items : [];
+  /** `cwd` è `dir` o sta sotto: la cartella di un worktree e le sue sottocartelle. */
+  function isInside(dir, cwd) {
+    if (!cwd) return false;
+    const base = pathKey(dir);
+    const key = pathKey(cwd);
+    return key === base || key.startsWith(base.endsWith('/') ? base : base + '/');
+  }
+
+  /**
+   * `filterRoot` tiene le conversazioni di un progetto (radice risolta),
+   * `filterDir` quelle nate dentro una cartella (il ⟲ di un worktree).
+   * @returns {Promise<Array<{key: string, label: string, title: string, items: object[]}>>}
+   */
+  async function arrange(items, { source, resolve, filterRoot = null, filterDir = null, grouped = false, query = '', Groups } = {}) {
+    const all = Array.isArray(items) ? items : [];
+    const sessions = filterDir ? all.filter((item) => isInside(filterDir, pathOf(item.source || source, item))) : all;
     const searched = fold(query).trim();
     if (!grouped && !filterRoot && !searched) return [{ key: '', label: '', title: '', items: sessions }];
     const directories = new Map();
@@ -39,5 +52,5 @@
       .map((group) => ({ ...group, items: group.items.map((entry) => entry.item) }));
   }
 
-  return { arrange, pathOf, pathKey };
+  return { arrange, pathOf, pathKey, isInside };
 });

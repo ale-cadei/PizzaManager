@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const Groups = require('../renderer/session-groups');
-const { arrange, pathOf, pathKey } = require('../renderer/resume-projects');
+const { arrange, pathOf, pathKey, isInside } = require('../renderer/resume-projects');
 
 test('Resume raggruppa per radice git e mantiene le conversazioni del progetto insieme', async () => {
   const calls = [];
@@ -66,4 +66,26 @@ test('la casella del Resume trova il nome del progetto anche se non compare nei 
     });
     assert.deepEqual(result.flatMap((g) => g.items).map((s) => s.id), ['a']);
   }
+});
+
+test('Resume di un worktree tiene la sua cartella e le sottocartelle, non i vicini', async () => {
+  const wt = '/src/progetto.worktrees/feat-x';
+  const items = [
+    { id: 'a', source: 'claude', cwd: wt },
+    { id: 'b', source: 'claude', cwd: `${wt}/src` },
+    { id: 'c', source: 'claude', cwd: `${wt}2` },
+    { id: 'd', source: 'opencode', directory: wt },
+    { id: 'e', source: 'codex', cwd: '/src/progetto' },
+  ];
+  const groups = await arrange(items, {
+    filterDir: `${wt}/`, Groups, resolve: async () => '/src/progetto',
+  });
+  assert.deepEqual(groups.flatMap((g) => g.items).map((s) => s.id), ['a', 'b', 'd']);
+});
+
+test('isInside confronta i percorsi Windows senza badare a maiuscole e separatori', () => {
+  assert.equal(isInside('C:\\Src\\Progetto.worktrees\\feat-x', 'c:/src/progetto.worktrees/feat-x/lib'), true);
+  assert.equal(isInside('C:\\Src\\Progetto.worktrees\\feat-x', 'C:\\Src\\Progetto.worktrees\\feat-x2'), false);
+  assert.equal(isInside('/', '/qualsiasi'), true);
+  assert.equal(isInside('/repo', ''), false);
 });

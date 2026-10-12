@@ -14,6 +14,7 @@ let counter = 1;
 let pendingNewType = 'shell';
 let resumeTab = 'opencode';
 let resumeProjectFilterRoot = null;
+let resumeDirFilter = null; // il ⟲ di un worktree: solo le chat nate lì
 let resumeCache = { opencode: null, claude: null, codex: null, history: null };
 const emptyResumeCache = () => ({ opencode: null, claude: null, codex: null, history: null });
 

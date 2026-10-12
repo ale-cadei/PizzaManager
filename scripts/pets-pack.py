@@ -163,6 +163,114 @@ VARIANTS = {
 }
 
 
+# Pacchetto «Pixel Reef»: un foglio per personaggio (<nome>-sheet.png, 1x),
+# 4 colonne di frame da 32×32 e una riga per stato, nell'ordine di REEF_ROWS
+# (vanish solo la barchetta). Le pose si prendono per riga: una riga intera,
+# o una lista di colonne. appear è vanish al contrario.
+REEF_DIR = '/tmp/reef/pixel-reef-sprites/sprites'
+REEF_CELL = 32
+REEF_ROWS = ['idle', 'walk', 'call', 'sleep', 'vanish']
+# Contorno scuro attorno a ogni sagoma, da togliere come negli altri pacchetti
+REEF_OUTLINE = '#241A33'
+# Le «z» disegnate nei frame del sonno: quelle di chi dorme le mette la vista
+REEF_SLEEP_Z = '#9FD3E6'
+
+# id, file, pose → riga (o (riga, colonne)), speed, commento, e facoltativi
+# i ritocchi allo scuro del contorno (REEF_OUTLINE) prima di toglierlo:
+# 'eyes', il bianco degli occhi: lo scuro che lo tocca (bordo e pupilla)
+# resta, in un colore a parte che unoutlined non vede; 'limbs', il colore
+# delle linee fatte solo di scuro (zampe, peduncoli), che sul terminale scuro
+# sparirebbero. La bocca, dentro al corpo, resta scura.
+REEF = [
+    ('granchio', 'crab',
+     {'walk': 'walk', 'sleep': 'sleep', 'call': 'call', 'idle': 'idle'},
+     0.8, 'Il granchio: cammina di lato, e per chiamare agita le chele',
+     {'eyes': '#FFF6EA', 'limbs': '#A8352A'}),
+    ('barchetta', 'paperboat',
+     {'walk': 'walk', 'sleep': 'sleep', 'call': 'call', 'idle': 'idle',
+      'vanish': 'vanish', 'appear': ('vanish', [3, 2, 1, 0])},
+     0.5, 'La barchetta di carta: naviga sulla sua acqua, e uscendo affonda'),
+]
+
+
+def reef_frames(file, pal):
+    """I frame del foglio come griglie di caratteri, per nome (<stato>-<colonna>)."""
+    sheet = Image.open(f'{REEF_DIR}/{file}-sheet.png').convert('RGBA')
+    c = REEF_CELL
+    return {f'{state}-{col + 1}': grid(sheet, (col * c, row * c, (col + 1) * c, (row + 1) * c), pal)
+            for row, state in enumerate(REEF_ROWS[:sheet.height // c]) for col in range(sheet.width // c)}
+
+
+def without_z(grid, z):
+    """Via le «z»: i loro pixel diventano vuoto."""
+    return [''.join('.' if ch == z else ch for ch in r) for r in grid]
+
+
+def recolored(grid, ch, to, keep):
+    """I pixel ch per cui keep(at, x, y) è vero diventano to; at legge la griglia di partenza."""
+    h, w = len(grid), len(grid[0])
+    at = lambda x, y: grid[y][x] if 0 <= x < w and 0 <= y < h else '.'
+    return [''.join(to if c == ch and keep(at, x, y) else c for x, c in enumerate(r)) for y, r in enumerate(grid)]
+
+
+def with_eyes(grid, dark, white, eye):
+    """Lo scuro attorno al bianco degli occhi (anche in diagonale) diventa eye."""
+    near = lambda at, x, y: any(at(x + dx, y + dy) == white for dx in (-1, 0, 1) for dy in (-1, 0, 1))
+    return recolored(grid, dark, eye, near)
+
+
+def with_limbs(grid, dark, limb, eye):
+    """Lo scuro che non tocca nessun altro colore (zampe, peduncoli) diventa limb."""
+    alone = lambda at, x, y: all(at(x + dx, y + dy) in ('.', dark, eye) for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)))
+    return recolored(grid, dark, limb, alone)
+
+
+def reef_pose(spec):
+    """I nomi dei frame di una posa: una riga intera, o (riga, colonne)."""
+    row, cols = (spec, range(4)) if isinstance(spec, str) else spec
+    return [f'{row}-{col + 1}' for col in cols]
+
+
+def reef(kind, file, poses, speed, comment, fixes=None):
+    """Un personaggio del pacchetto Pixel Reef: il sorgente del file."""
+    fixes = fixes or {}
+    pal = {}
+    frames = reef_frames(file, pal)
+    z, dark = pal.get(REEF_SLEEP_Z), pal[REEF_OUTLINE]
+    frames = {n: without_z(g, z) if z and n.startswith('sleep-') else g for n, g in frames.items()}
+    eye = None
+    if 'eyes' in fixes:
+        # Lo stesso scuro, scritto con l'alpha: un'altra voce di palette
+        eye = pal.setdefault(REEF_OUTLINE + 'FF', LETTERS[len(pal)])
+        frames = {n: with_eyes(g, dark, pal[fixes['eyes']], eye) for n, g in frames.items()}
+    frames = {n: unoutlined(g, dark) for n, g in frames.items()}
+    if 'limbs' in fixes:
+        limb = pal.setdefault(fixes['limbs'], LETTERS[len(pal)])
+        frames = {n: with_limbs(g, dark, limb, eye) for n, g in frames.items()}
+    named = {p: reef_pose(spec) for p, spec in poses.items()}
+    # Frame uguali (il sonno senza le «z») diventano una costante sola
+    first = {}
+    for n in dict.fromkeys(n for v in named.values() for n in v):
+        first.setdefault(tuple(frames[n]), n)
+    alias = {n: first[tuple(frames[n])] for v in named.values() for n in v}
+    used = list(dict.fromkeys(alias.values()))
+    grids, _ = crop({n: frames[n] for n in used})
+    ink = dict.fromkeys(ch for n in used for r in grids[n] for ch in r if ch != '.')
+    letter = {ch: LETTERS[i] for i, ch in enumerate(ink)}
+    grids = {n: [''.join(letter.get(ch, ch) for ch in r) for r in g] for n, g in grids.items()}
+    hexes = {v: h for h, v in pal.items()}
+    used_pal = {hexes[ch]: letter[ch] for ch in ink}
+    cn = lambda n: f"{kind.upper()}_{n.upper().replace('-', '_')}"
+    some = grids[used[0]]
+    lines = [f'  // ---- {comment} ({len(some[0])}×{len(some)}) ----']
+    for n in used:
+        lines += const_block(cn(n), grids[n])
+    frames_js = ',\n'.join('        %s: [%s]' % (p, ', '.join(cn(alias[n]) for n in v)) for p, v in named.items())
+    # Pixel fine quanto i pacchetti a 32 righe, anche se il disegno è più basso
+    height = round(len(some) / REEF_CELL, 3) if len(some) < REEF_CELL else None
+    return module_js(kind, comment, 'Pixel Reef', lines, speed, 'walk', height, palette_js(kind, used_pal), '', frames_js)
+
+
 def load(pack, folder):
     base, _, mode = PACKS[pack]
     d = json.load(open(f'{base}/{folder}/data.json'))
@@ -442,3 +550,5 @@ if __name__ == '__main__':
         write(entry[0], classic(*entry))
     for kind, *entry in SPRITELLI:
         write(kind, spritelli(kind, *entry))
+    for kind, *entry in REEF:
+        write(kind, reef(kind, *entry))

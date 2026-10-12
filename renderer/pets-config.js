@@ -17,7 +17,7 @@
   const SPEEDS = { lenta: 0.5, normale: 1, veloce: 1.8 };
   /** Voci del dialogo, non personaggi: una voce può portare un gruppetto
    *  (la papera con gli anatroccoli). Quante sono in Sprites.CAST. */
-  const MAX_CAST = 18;
+  const MAX_CAST = 20;
   const DEFAULTS = Object.freeze({ enabled: false, cast: Object.freeze(['pizza']), size: 'm', speed: 'normale' });
 
   const has = (obj, key) => typeof key === 'string' && Object.prototype.hasOwnProperty.call(obj, key);

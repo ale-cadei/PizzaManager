@@ -7,7 +7,7 @@ const tmuxLib = require('../lib/tmux');
 const { shouldCapture } = require('../lib/scrollback');
 const { replayCommand } = require('../lib/scrollback-command');
 const { isTreeId } = require('../lib/git-snapshot');
-const { injectFor, opencodePluginSource, SIGNAL_ENV } = require('../lib/agent-hooks');
+const { injectFor, opencodePluginSource, withoutSignal, SIGNAL_ENV } = require('../lib/agent-hooks');
 
 let pty = null;
 try {
@@ -206,7 +206,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
 
     // Le variabili del profilo vengono per ultime: sono la scelta esplicita
     // dell'utente (es. CLAUDE_CONFIG_DIR) e devono vincere sui default.
-    const env = { ...augmentedEnv([cmd], identity.vars, process.env, localeOpts()), ...(profileEnv || {}), ...injectedEnv };
+    const env = { ...augmentedEnv([cmd], identity.vars, withoutSignal(process.env), localeOpts()), ...(profileEnv || {}), ...injectedEnv };
 
     try {
       let p;

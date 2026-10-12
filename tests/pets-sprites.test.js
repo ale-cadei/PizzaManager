@@ -45,12 +45,14 @@ ok('sprites: i personaggi del pacchetto Spritelli sono voci del cast', () => {
   }
 });
 
-ok('sprites: granchio e barchetta (pacchetto Pixel Reef) sono voci del cast, fini quanto i pacchetti a 32 righe', () => {
-  for (const id of ['granchio', 'barchetta']) {
+ok('sprites: granchio e barchetta (pacchetto Pixel Reef) sono voci del cast, fini quanto i pacchetti a 32 righe (il granchio un po di più)', () => {
+  // Il granchio è rimpicciolito apposta (scale nel generatore)
+  const SCALE = { granchio: 0.85, barchetta: 1 };
+  for (const [id, scale] of Object.entries(SCALE)) {
     assert.deepStrictEqual(CAST[id], [id], `${id} non è nel cast`);
     assert.strictEqual(SPRITES[id].frames.walk.length, 4, `${id}: quattro tempi`);
     assert.ok(SPRITES[id].frames.idle, `${id}: senza pausa`);
-    assert.ok(Math.abs(pixel(id, 48) - 48 / 32) < 0.01, `${id}: pixel ${pixel(id, 48)}`);
+    assert.ok(Math.abs(pixel(id, 48) - (48 / 32) * scale) < 0.01, `${id}: pixel ${pixel(id, 48)}`);
   }
   // La barchetta esce affondando e rientra riemergendo: la stessa sequenza al contrario
   const { vanish, appear } = SPRITES.barchetta.frames;

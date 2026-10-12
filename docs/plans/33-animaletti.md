@@ -116,7 +116,9 @@ sospeso. Il generatore salva lo scuro attorno al bianco come voce di palette
 a sé (`with_eyes`, prima di `unoutlined`) e ricolora nel rosso scuro del
 corpo le linee scure isolate (`with_limbs`, dopo); la bocca resta scura
 perché tocca il corpo. Chi è più basso di 32
-righe riceve `height`, come gli Spritelli.
+righe riceve `height`, come gli Spritelli. Il granchio è più piccolo
+apposta, su richiesta dell'utente: `scale: 0.85` nel generatore, che finisce
+nel suo `height`.
 
 **Senza contorno**: i pacchetti disegnano un bordo scuro di 1 px attorno a
 ogni sagoma (gli Spritelli tutti dello stesso `#2B2233`, Fizzo, la pizza,

@@ -130,12 +130,13 @@ REEF_SLEEP_Z = '#9FD3E6'
 # 'eyes', il bianco degli occhi: lo scuro che lo tocca (bordo e pupilla)
 # resta, in un colore a parte che unoutlined non vede; 'limbs', il colore
 # delle linee fatte solo di scuro (zampe, peduncoli), che sul terminale scuro
-# sparirebbero. La bocca, dentro al corpo, resta scura.
+# sparirebbero. La bocca, dentro al corpo, resta scura. 'scale': più
+# piccolo degli altri, in frazione della misura a pixel pieno.
 REEF = [
     ('granchio', 'crab',
      {'walk': 'walk', 'sleep': 'sleep', 'call': 'call', 'idle': 'idle'},
      0.8, 'Il granchio: cammina di lato, e per chiamare agita le chele',
-     {'eyes': '#FFF6EA', 'limbs': '#A8352A'}),
+     {'eyes': '#FFF6EA', 'limbs': '#A8352A', 'scale': 0.85}),
     ('barchetta', 'paperboat',
      {'walk': 'walk', 'sleep': 'sleep', 'call': 'call', 'idle': 'idle',
       'vanish': 'vanish', 'appear': ('vanish', [3, 2, 1, 0])},
@@ -217,7 +218,8 @@ def reef(kind, file, poses, speed, comment, fixes=None):
         lines += const_block(cn(n), grids[n])
     frames_js = ',\n'.join('        %s: [%s]' % (p, ', '.join(cn(alias[n]) for n in v)) for p, v in named.items())
     # Pixel fine quanto i pacchetti a 32 righe, anche se il disegno è più basso
-    height = round(len(some) / REEF_CELL, 3) if len(some) < REEF_CELL else None
+    scale = fixes.get('scale', 1)
+    height = round(len(some) / REEF_CELL * scale, 3) if len(some) < REEF_CELL or scale != 1 else None
     return module_js(kind, comment, 'Pixel Reef', lines, speed, 'walk', height, palette_js(kind, used_pal), '', frames_js)
 
 

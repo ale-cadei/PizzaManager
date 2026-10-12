@@ -21,7 +21,7 @@ function createPage() {
     document: { createElement, querySelector: (selector) => ids.get(selector.slice(1)) },
     $: (selector) => ids.get(selector.slice(1)),
     $$: () => tabs,
-    resumeTab: 'codex', resumeCache: {}, resumeProjectFilterRoot: null,
+    resumeTab: 'codex', resumeCache: {}, resumeProjectFilterRoot: null, resumeDirFilter: null,
     updateResumeAccountRow: async () => {},
     resolveProjectRoot: async (cwd) => cwd.startsWith('/repo/') ? '/repo' : cwd,
     Groups, titleStore: { nameFor: () => null },
@@ -94,4 +94,42 @@ test('i gruppi del Resume si comprimono singolarmente e restano compressi dopo u
   toggleOf(list.children[0]).onclick();
   assert.equal(list.children[0].children[1].hidden, false);
   assert.equal(toggleOf(list.children[0]).getAttribute('aria-expanded'), 'true');
+});
+
+test('Resume aperto da un worktree mostra solo le sue chat, senza raggruppare', async () => {
+  const { ctx, ids } = createPage();
+  ctx.aisess.listCodex = async () => ({ ok: true, sessions: [
+    { id: 'a', title: 'Nel worktree', cwd: '/repo.worktrees/feat-x' },
+    { id: 'b', title: 'Nella principale', cwd: '/repo/src' },
+  ] });
+  await vm.runInContext("openResumeModal({ dir: '/repo.worktrees/feat-x' })", ctx);
+  assert.equal(ids.get('resume-group-projects').checked, false);
+  assert.equal(ids.get('resume-project-scope').hidden, false);
+  assert.equal(ids.get('resume-project-label').textContent, 'Solo /repo.worktrees/feat-x');
+  const items = ids.get('resume-list').children;
+  assert.deepEqual(items.map((node) => node.className), ['resume-item']);
+  assert.match(items[0].innerHTML, /Nel worktree/);
+
+  await vm.runInContext('openResumeModal()', ctx);
+  assert.equal(ids.get('resume-project-scope').hidden, true);
+  assert.equal(ids.get('resume-list').children.length, 2);
+});
+
+test('Resume aperto da un worktree passa alla linguetta della sua ultima sessione', async () => {
+  const { ctx, ids } = createPage();
+  ctx.resumeTab = 'opencode';
+  ctx.aisess.getHistory = async () => [{ type: 'codex', cwd: '/repo.worktrees/feat-x' }];
+  ctx.aisess.listCodex = async () => ({ ok: true, sessions: [{ id: 'a', title: 'Nel worktree', cwd: '/repo.worktrees/feat-x' }] });
+  await vm.runInContext("openResumeModal({ dir: '/repo.worktrees/feat-x' })", ctx);
+  assert.equal(ctx.resumeTab, 'codex');
+  assert.equal(ids.get('resume-list').children.length, 1);
+  const active = vm.runInContext('$$(".tab")', ctx).filter((tab) => tab.classes.has('active')).map((tab) => tab.dataset.tab);
+  assert.deepEqual(active, ['codex']);
+});
+
+test('Resume da un worktree senza cronologia resta sulla linguetta di prima', async () => {
+  const { ctx } = createPage();
+  ctx.aisess.getHistory = async () => [];
+  await vm.runInContext("openResumeModal({ dir: '/repo.worktrees/feat-x' })", ctx);
+  assert.equal(ctx.resumeTab, 'codex');
 });

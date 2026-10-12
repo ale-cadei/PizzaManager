@@ -3,33 +3,56 @@
 let resumeRenderSeq = 0;
 const resumeCollapsedProjects = new Set();
 
+/** Il Resume è ristretto a un progetto (⟲ del gruppo) o a una cartella (⟲ di un worktree). */
+const resumeScope = () => resumeDirFilter || resumeProjectFilterRoot;
+
 function updateResumeProjectScope() {
   const scope = $('#resume-project-scope');
-  scope.hidden = !resumeProjectFilterRoot;
-  $('#resume-project-label').textContent = resumeProjectFilterRoot ? `Solo ${resumeProjectFilterRoot}` : '';
-  $('#resume-project-label').title = resumeProjectFilterRoot || '';
+  scope.hidden = !resumeScope();
+  $('#resume-project-label').textContent = resumeScope() ? `Solo ${resumeScope()}` : '';
+  $('#resume-project-label').title = resumeScope() || '';
 }
 
-async function openResumeModal({ projectRoot = null } = {}) {
+async function openResumeModal({ projectRoot = null, dir = null } = {}) {
   resumeCollapsedProjects.clear();
   resumeProjectFilterRoot = typeof projectRoot === 'string' && projectRoot ? projectRoot : null;
+  resumeDirFilter = typeof dir === 'string' && dir ? dir : null;
+  // Le chat di un worktree starebbero tutte in un gruppo solo
   $('#resume-group-projects').checked = Boolean(resumeProjectFilterRoot);
   $('#resume-search').value = '';
-  if (resumeProjectFilterRoot && resumeTab === 'search') {
-    resumeTab = 'opencode';
-    $$('.tab').forEach((tab) => {
-      tab.classList.toggle('active', tab.dataset.tab === resumeTab);
-      tab.setAttribute('aria-selected', String(tab.dataset.tab === resumeTab));
-    });
-  }
+  const recent = resumeDirFilter ? await recentResumeTabIn(resumeDirFilter) : null;
+  if (recent) selectResumeTab(recent);
+  else if (resumeScope() && resumeTab === 'search') selectResumeTab('opencode');
   updateResumeProjectScope();
   $('#modal-resume').hidden = false;
   await updateResumeAccountRow();
   await renderResumeList();
 }
 
+function selectResumeTab(name) {
+  resumeTab = name;
+  $$('.tab').forEach((tab) => {
+    tab.classList.toggle('active', tab.dataset.tab === resumeTab);
+    tab.setAttribute('aria-selected', String(tab.dataset.tab === resumeTab));
+  });
+}
+
+/* La linguetta del ⟲ di un worktree: il tipo dell'ultima sessione aperta lì.
+   La cronologia si rilegge ogni volta (la cache del Resume può essere vecchia
+   di una sessione); se non si legge, resta la linguetta di prima. */
+const RESUME_SOURCE_TABS = ['opencode', 'claude', 'codex', 'antigravity'];
+
+async function recentResumeTabIn(dir) {
+  try {
+    return window.AisessResumeProjects.recentTypeIn(await window.aisess.getHistory(), dir, RESUME_SOURCE_TABS);
+  } catch (e) {
+    console.warn('cronologia non letta per il Resume del worktree', e);
+    return null;
+  }
+}
+
 async function ensureResumeData(tab) {
-  const limit = resumeProjectFilterRoot ? 500 : 100;
+  const limit = resumeScope() ? 500 : 100;
   if (resumeCache[tab] && (tab === 'history' || resumeCache[tab].requestedLimit >= limit)) return resumeCache[tab];
   if (tab === 'opencode') {
     const r = await window.aisess.listOpencode(limit);
@@ -73,7 +96,7 @@ async function renderResumeList(keepCache = false) {
   const grouped = $('#resume-group-projects').checked;
   const groups = await window.AisessResumeProjects.arrange(items, {
     source: resumeTab, resolve: resolveProjectRoot,
-    filterRoot: resumeProjectFilterRoot, grouped, query: q, Groups,
+    filterRoot: resumeProjectFilterRoot, filterDir: resumeDirFilter, grouped, query: q, Groups,
   });
   if (seq !== resumeRenderSeq) return;
   if (!groups.some((group) => group.items.length)) {
@@ -95,14 +118,14 @@ async function renderResumeList(keepCache = false) {
 }
 
 function appendResumeLimitNote(box, data, grouped) {
-  if (!(grouped || resumeProjectFilterRoot) || !data.requestedLimit || (data.sessions || []).length < data.requestedLimit) return;
+  if (!(grouped || resumeScope()) || !data.requestedLimit || (data.sessions || []).length < data.requestedLimit) return;
   box.appendChild(mutedNote(`Elenco limitato alle ${data.requestedLimit} conversazioni più recenti.`, 'small'));
 }
 
 function appendResumeGroups(box, groups, createItem) {
   // La lista normale resta corta come prima; con un progetto scelto o con il
   // raggruppamento attivo non nascondere interi gruppi per il limite visivo.
-  const limit = $('#resume-group-projects').checked || resumeProjectFilterRoot ? Infinity : 80;
+  const limit = $('#resume-group-projects').checked || resumeScope() ? Infinity : 80;
   let shown = 0;
   for (const group of groups) {
     const visible = group.items.slice(0, limit - shown);
@@ -182,7 +205,7 @@ async function renderSearchState(state) {
     return;
   }
   const groups = await window.AisessResumeProjects.arrange(state.results, {
-    resolve: resolveProjectRoot, filterRoot: resumeProjectFilterRoot,
+    resolve: resolveProjectRoot, filterRoot: resumeProjectFilterRoot, filterDir: resumeDirFilter,
     grouped: $('#resume-group-projects').checked, Groups,
   });
   if (seq !== resumeRenderSeq || resumeTab !== 'search' || $('#modal-resume').hidden) return;

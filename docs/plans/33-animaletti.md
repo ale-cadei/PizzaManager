@@ -92,6 +92,8 @@ Spento di default. Si accende e si regola da `Vista › Personaggi…`.
 | `robottino` | Robbo, il robottino | Cammina con l'antenna che lampeggia; chiama con lo schermo giallo |
 | `tazzina` | Tazzi, la tazzina | Cammina come Fizzo (quattro passi) lasciando sbuffi di fumo dietro di sé (`trail`); da fredda dorme e non fuma. Disegnata a mano, al posto di quella del pacchetto Spritelli che saltellava |
 | `trenino` | Trenino | Locomotiva a vapore col vagone, disegnata a mano (`pets-sprite-trenino.js`): le ruote girano coi raggi e la biella in quattro tempi, dal comignolo escono sbuffi come dalla tazzina (`trail`). Dorme a luci spente e senza fumo, chiama coi finestrini accesi e un fischio |
+| `granchio` | Granchio | Cammina di lato a quattro tempi, si ferma a sbattere gli occhi (`idle`), chiama agitando le chele; dal pacchetto «Pixel Reef» |
+| `barchetta` | Barchetta di carta | Naviga su un tratto d'acqua suo, chiama con gli schizzi; esce affondando (`vanish`) e rientra riemergendo (`appear`, la stessa sequenza al contrario); dal pacchetto «Pixel Reef» |
 
 Rana, uccellino e pesce aggiunti su richiesta dell'utente dopo il primo
 giro. Pizza, Fizzo, Rotolacampo e Babbo Natale vengono dal pacchetto
@@ -109,6 +111,20 @@ generatore li raddoppia con EPX (Scale2x, `SPRITELLI_SCALE`), che arrotonda
 i contorni senza inventare colori. Perché non crescano anche in scena, un
 disegno più basso di 32 righe riceve `height` (righe/32): il pixel resta
 quello di un disegno a 32 righe, e la tazzina resta tazzina.
+
+Granchio e barchetta vengono dal pacchetto «Pixel Reef» (`REEF` nel
+generatore): un foglio PNG per personaggio, quattro colonne di frame da
+32×32 e una riga per stato (`idle`, `walk`, `call`, `sleep`, e per la sola
+barchetta `vanish`), già nelle pose del motore. Il contorno `#241A33` si
+toglie come negli altri. Le «z» disegnate nel sonno si tolgono perché le
+mette la vista (`without_z`). Il granchio (rifatto
+dal secondo zip) ha occhi in riquadri scuri e peduncoli e zampe in linee di
+1 px dello stesso scuro: togliendo il contorno restava un pixel bianco
+sospeso. Il generatore salva lo scuro attorno al bianco come voce di palette
+a sé (`with_eyes`, prima di `unoutlined`) e ricolora nel rosso scuro del
+corpo le linee scure isolate (`with_limbs`, dopo); la bocca resta scura
+perché tocca il corpo. Chi è più basso di 32
+righe riceve `height`, come gli Spritelli.
 
 **Senza contorno**: i pacchetti disegnano un bordo scuro di 1 px attorno a
 ogni sagoma (gli Spritelli tutti dello stesso `#2B2233`, Fizzo, la pizza,

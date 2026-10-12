@@ -19,7 +19,7 @@
 (function (root, factory) {
   const api = root
     ? factory(root.AisessPetsPack)
-    : factory(Object.assign({}, ...['pizza', 'fizzo', 'rotolacampo', 'babbo', 'morte', 'zucca', 'fantasmino', 'ape', 'chiocciola', 'papera', 'anatroccolo', 'robottino', 'tazzina', 'pesce', 'trenino'].map((k) => require(`./pets-sprite-${k}`))));
+    : factory(Object.assign({}, ...['pizza', 'fizzo', 'rotolacampo', 'babbo', 'morte', 'zucca', 'fantasmino', 'ape', 'chiocciola', 'papera', 'anatroccolo', 'robottino', 'tazzina', 'pesce', 'trenino', 'granchio', 'barchetta'].map((k) => require(`./pets-sprite-${k}`))));
   if (root) root.AisessPetsSprites = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : null, function (pack) {
@@ -242,6 +242,8 @@
     robottino: ['robottino'],
     tazzina: ['tazzina'],
     trenino: ['trenino'],
+    granchio: ['granchio'],
+    barchetta: ['barchetta'],
   };
   const CAST_LABELS = {
     medusa: 'Medusa',
@@ -262,6 +264,8 @@
     robottino: 'Robbo, il robottino',
     tazzina: 'Tazzi, la tazzina',
     trenino: 'Trenino',
+    granchio: 'Granchio',
+    barchetta: 'Barchetta di carta',
   };
 
   /** Quanti aspetti ha un personaggio: la palette di base più le variants. */

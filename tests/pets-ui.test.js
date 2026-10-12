@@ -64,7 +64,7 @@ ok('pets-ui: il + si spegne quando non c è più posto', () => {
   fire(s.stepBtn('gatto', 1), 'click', {});
   assert.strictEqual(s.last().cast.length, MAX_CAST, 'oltre MAX_CAST non si va');
   fire(s.stepBtn('medusa', -1), 'click', {});
-  assert.strictEqual(s.stepBtn('papera', 1).disabled, false, 'tolta una voce, anche un gruppetto rientra');
+  assert.strictEqual(s.stepBtn('gatto', 1).disabled, false, 'tolta una voce, un altro rientra');
   assert.ok(descendants(s.els.body).some((n) => n.textContent === `Scelti: ${MAX_CAST - 1} su ${MAX_CAST}`));
 });
 

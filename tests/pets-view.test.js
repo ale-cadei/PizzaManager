@@ -233,21 +233,6 @@ ok('pets-view: due pesci con aspetto diverso hanno colori diversi nel disegno', 
 const xOf = (el) => Number(/translate\(([-\d.]+)px/.exec(el.style.transform)[1]);
 const widthOf = (el) => Number(el.children[0].getAttribute('width'));
 
-ok('pets-view: il fiore dell ape sta a terra, sotto di lei, anche mentre vola', () => {
-  const { view, strip, tick } = setup();
-  view.apply({ ...ON, cast: ['ape'] });
-  const [flower, bee] = strip.children;
-  assert.strictEqual(classOf(flower), 'pet-perch');
-  assert.ok(classOf(bee).includes('pet--ape'));
-  for (let i = 0; i < 20; i += 1) tick(50);
-  assert.strictEqual(flower.hidden, false);
-  assert.strictEqual(visibleFrames(flower).length, 1);
-  assert.ok(/, 0px\)$/.test(flower.style.transform), 'il fiore si è alzato da terra');
-  view.apply({ ...ON, cast: ['gatto'] });
-  for (let i = 0; i < 30; i += 1) tick(50);
-  assert.strictEqual(strip.children.filter((el) => classOf(el) === 'pet-perch').length, 0, 'il fiore è rimasto');
-});
-
 ok('pets-view: le bolle del pesce escono davanti alla bocca solo quando chiama', () => {
   const { view, strip, tick, current } = setup();
   view.apply({ ...ON, cast: ['pesce'] });

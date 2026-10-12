@@ -67,8 +67,8 @@ PALETTE_FIX = {
 # Per personaggio: cartella, pose → nomi dei fotogrammi, speed, motion, commento,
 # e i fotogrammi derivati che il pacchetto non ha: base, righe ritoccate
 # (coordinate della cella) e altri fotogrammi sovrapposti in (x, y);
-# in fondo, facoltativi, i disegni a parte (layers): 'perch' (fotogramma,
-# riga a cui si siede) e 'bubbles' (larghezza, sovrapposizioni per frame).
+# in fondo, facoltativi, i disegni a parte (layers): 'bubbles' (larghezza,
+# sovrapposizioni per frame).
 SPRITELLI_DIR = '/tmp/spiritelli/spritelli'
 # I fotogrammi Spritelli sono a 16 px, gli altri pacchetti a 24-32: si
 # raddoppiano con EPX (arrotonda le diagonali, tiene i bordi dritti) così
@@ -78,63 +78,13 @@ SPRITELLI_SCALE = 2
 # I PNG Spritelli hanno un contorno di 1 px di questo colore attorno a ogni
 # sagoma: si toglie (unoutlined) prima di ingrandire, come per gli altri.
 SPRITELLI_OUTLINE = '#2B2233'
-# Le zampe di papera e anatroccolo, rifatte: nel pacchetto i due passi
-# spostavano entrambe di un pixel nello stesso verso (scivolavano) e avevano
-# sotto la pancia il bordo scuro, che a 2x diventava una fascia. Passo a
-# quattro tempi come Fizzo: una zampa avanti, l'incrocio con l'altra alzata,
-# l'altra avanti, l'incrocio. La zampa lontana (f, il giallo scuro del
-# pacchetto) è più scura della vicina (c), così si capisce quale va avanti.
-# Righe della cella a 1x, dalla fine della pancia in giù. Gli anatroccoli
-# hanno zampe di tre righe come la papera: la loro cella cresce di una riga.
-DUCK_LEGS = {
-    'step-1': {13: '.....f..c.......', 14: '....f....c......', 15: '....ff...cc.....'},
-    'pass-1': {13: '......f.c.......', 14: '......ffc.......', 15: '........cc......'},
-    'step-2': {13: '.....c..f.......', 14: '....c....f......', 15: '....cc...ff.....'},
-    'pass-2': {13: '......f.c.......', 14: '......f.cc......', 15: '......ff........'},
-    'stand': {13: '.....f..c.......', 14: '.....f..c.......', 15: '.....ff.cc......'},
-}
-DUCKLING_LEGS = {
-    'step-1': {9: '....f..c...', 10: '...f....c..', 11: '...ff...cc.'},
-    'pass-1': {9: '.....f.c...', 10: '.....ffc...', 11: '.......cc..'},
-    'step-2': {9: '....c..f...', 10: '...c....f..', 11: '...cc...ff.'},
-    'pass-2': {9: '.....f.c...', 10: '.....f.cc..', 11: '.....ff....'},
-    'stand': {9: '....f..c...', 10: '....f..c...', 11: '....ff.cc..'},
-}
-
-
-def legs(who, base, rows):
-    """I fotogrammi derivati con le zampe nuove: <who>-step-1, <who>-stand…"""
-    return {f'{who}-{name}': (base, r, []) for name, r in rows.items()}
-
-
 SPRITELLI = [
-    ('ape', 'ape-fiore',
-     {'walk': ['bee-fly-1', 'bee-fly-2'], 'sleep': ['bee-rest'], 'call': ['bee-fly-1', 'bee-rest']},
-     0.9, 'fly', "L'ape: vola, e si posa sul suo fiore per dormire e per chiamare", {},
-     # Il fiore resta a terra; l'ape si posa a 13 righe d'altezza, tra i petali
-     {'perch': ('flower', 13)}),
     ('chiocciola', 'chiocciola',
      {'walk': ['snail-walk-1', 'snail-walk-2'], 'sleep': ['snail-sleep'],
       'call': ['snail-walk-1', 'snail-walk-2']},
      0.2, 'walk', 'La chiocciola: lenta, e per chiamare dondola le antenne', {
          # Senza le «z» disegnate: quelle di chi dorme le mette la vista, per tutti
          'snail-sleep': ('snail-sleep-1', {i: '.' * 16 for i in range(5)}, []),
-     }),
-    ('papera', 'papera-anatroccoli',
-     {'walk': ['duck-step-1', 'duck-pass-1', 'duck-step-2', 'duck-pass-2'], 'sleep': ['duck-sleep'],
-      'call': ['duck-stand', 'duck-quack']},
-     0.7, 'walk', 'La papera: cammina con gli anatroccoli dietro, e chiama facendo qua qua', {
-         **legs('duck', 'duck-walk-1', DUCK_LEGS),
-         'duck-sleep': ('duck-walk-1', {4: '......abbbdbcca.', **DUCK_LEGS['stand']}, []),
-         'duck-quack': ('duck-walk-1', {2: '.......abbbaaa..', 3: '......abbbbbcca.', 4: '......abbbaba...',
-                                        5: '......abbbbbcca.', 6: '.......abbbaaa..', **DUCK_LEGS['stand']}, []),
-     }),
-    ('anatroccolo', 'papera-anatroccoli',
-     {'walk': ['duckling-step-1', 'duckling-pass-1', 'duckling-step-2', 'duckling-pass-2'],
-      'sleep': ['duckling-sleep'], 'call': ['duckling-stand']},
-     0.7, 'walk', "L'anatroccolo: va dietro alla papera", {
-         **legs('duckling', 'duckling-walk-1', DUCKLING_LEGS),
-         'duckling-sleep': ('duckling-walk-1', {2: '...aeeefeca', **DUCKLING_LEGS['stand']}, []),
      }),
     ('robottino', 'robottino',
      {'walk': ['robot-walk-1-on', 'robot-walk-2-on', 'robot-walk-1-off', 'robot-walk-2-off'],
@@ -161,6 +111,116 @@ VARIANTS = {
         {'#3A86A8': '#9A4A9A', '#5FB7D6': '#C86BC8', '#C4EBF5': '#F4D0F4'},
     ],
 }
+
+
+# Pacchetto «Pixel Reef»: un foglio per personaggio (<nome>-sheet.png, 1x),
+# 4 colonne di frame da 32×32 e una riga per stato, nell'ordine di REEF_ROWS
+# (vanish solo la barchetta). Le pose si prendono per riga: una riga intera,
+# o una lista di colonne. appear è vanish al contrario.
+REEF_DIR = '/tmp/reef/pixel-reef-sprites/sprites'
+REEF_CELL = 32
+REEF_ROWS = ['idle', 'walk', 'call', 'sleep', 'vanish']
+# Contorno scuro attorno a ogni sagoma, da togliere come negli altri pacchetti
+REEF_OUTLINE = '#241A33'
+# Le «z» disegnate nei frame del sonno: quelle di chi dorme le mette la vista
+REEF_SLEEP_Z = '#9FD3E6'
+
+# id, file, pose → riga (o (riga, colonne)), speed, commento, e facoltativi
+# i ritocchi allo scuro del contorno (REEF_OUTLINE) prima di toglierlo:
+# 'eyes', il bianco degli occhi: lo scuro che lo tocca (bordo e pupilla)
+# resta, in un colore a parte che unoutlined non vede; 'limbs', il colore
+# delle linee fatte solo di scuro (zampe, peduncoli), che sul terminale scuro
+# sparirebbero. La bocca, dentro al corpo, resta scura. 'scale': più
+# piccolo degli altri, in frazione della misura a pixel pieno.
+REEF = [
+    ('granchio', 'crab',
+     {'walk': 'walk', 'sleep': 'sleep', 'call': 'call', 'idle': 'idle'},
+     0.8, 'Il granchio: cammina di lato, e per chiamare agita le chele',
+     {'eyes': '#FFF6EA', 'limbs': '#A8352A', 'scale': 0.85}),
+    ('barchetta', 'paperboat',
+     {'walk': 'walk', 'sleep': 'sleep', 'call': 'call', 'idle': 'idle',
+      'vanish': 'vanish', 'appear': ('vanish', [3, 2, 1, 0])},
+     0.5, 'La barchetta di carta: naviga sulla sua acqua, e uscendo affonda'),
+]
+
+
+def reef_frames(file, pal):
+    """I frame del foglio come griglie di caratteri, per nome (<stato>-<colonna>)."""
+    sheet = Image.open(f'{REEF_DIR}/{file}-sheet.png').convert('RGBA')
+    c = REEF_CELL
+    return {f'{state}-{col + 1}': grid(sheet, (col * c, row * c, (col + 1) * c, (row + 1) * c), pal)
+            for row, state in enumerate(REEF_ROWS[:sheet.height // c]) for col in range(sheet.width // c)}
+
+
+def without_z(grid, z):
+    """Via le «z»: i loro pixel diventano vuoto."""
+    return [''.join('.' if ch == z else ch for ch in r) for r in grid]
+
+
+def recolored(grid, ch, to, keep):
+    """I pixel ch per cui keep(at, x, y) è vero diventano to; at legge la griglia di partenza."""
+    h, w = len(grid), len(grid[0])
+    at = lambda x, y: grid[y][x] if 0 <= x < w and 0 <= y < h else '.'
+    return [''.join(to if c == ch and keep(at, x, y) else c for x, c in enumerate(r)) for y, r in enumerate(grid)]
+
+
+def with_eyes(grid, dark, white, eye):
+    """Lo scuro attorno al bianco degli occhi (anche in diagonale) diventa eye."""
+    near = lambda at, x, y: any(at(x + dx, y + dy) == white for dx in (-1, 0, 1) for dy in (-1, 0, 1))
+    return recolored(grid, dark, eye, near)
+
+
+def with_limbs(grid, dark, limb, eye):
+    """Lo scuro che non tocca nessun altro colore (zampe, peduncoli) diventa limb."""
+    alone = lambda at, x, y: all(at(x + dx, y + dy) in ('.', dark, eye) for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)))
+    return recolored(grid, dark, limb, alone)
+
+
+def reef_pose(spec):
+    """I nomi dei frame di una posa: una riga intera, o (riga, colonne)."""
+    row, cols = (spec, range(4)) if isinstance(spec, str) else spec
+    return [f'{row}-{col + 1}' for col in cols]
+
+
+def reef(kind, file, poses, speed, comment, fixes=None):
+    """Un personaggio del pacchetto Pixel Reef: il sorgente del file."""
+    fixes = fixes or {}
+    pal = {}
+    frames = reef_frames(file, pal)
+    z, dark = pal.get(REEF_SLEEP_Z), pal[REEF_OUTLINE]
+    frames = {n: without_z(g, z) if z and n.startswith('sleep-') else g for n, g in frames.items()}
+    eye = None
+    if 'eyes' in fixes:
+        # Lo stesso scuro, scritto con l'alpha: un'altra voce di palette
+        eye = pal.setdefault(REEF_OUTLINE + 'FF', LETTERS[len(pal)])
+        frames = {n: with_eyes(g, dark, pal[fixes['eyes']], eye) for n, g in frames.items()}
+    frames = {n: unoutlined(g, dark) for n, g in frames.items()}
+    if 'limbs' in fixes:
+        limb = pal.setdefault(fixes['limbs'], LETTERS[len(pal)])
+        frames = {n: with_limbs(g, dark, limb, eye) for n, g in frames.items()}
+    named = {p: reef_pose(spec) for p, spec in poses.items()}
+    # Frame uguali (il sonno senza le «z») diventano una costante sola
+    first = {}
+    for n in dict.fromkeys(n for v in named.values() for n in v):
+        first.setdefault(tuple(frames[n]), n)
+    alias = {n: first[tuple(frames[n])] for v in named.values() for n in v}
+    used = list(dict.fromkeys(alias.values()))
+    grids, _ = crop({n: frames[n] for n in used})
+    ink = dict.fromkeys(ch for n in used for r in grids[n] for ch in r if ch != '.')
+    letter = {ch: LETTERS[i] for i, ch in enumerate(ink)}
+    grids = {n: [''.join(letter.get(ch, ch) for ch in r) for r in g] for n, g in grids.items()}
+    hexes = {v: h for h, v in pal.items()}
+    used_pal = {hexes[ch]: letter[ch] for ch in ink}
+    cn = lambda n: f"{kind.upper()}_{n.upper().replace('-', '_')}"
+    some = grids[used[0]]
+    lines = [f'  // ---- {comment} ({len(some[0])}×{len(some)}) ----']
+    for n in used:
+        lines += const_block(cn(n), grids[n])
+    frames_js = ',\n'.join('        %s: [%s]' % (p, ', '.join(cn(alias[n]) for n in v)) for p, v in named.items())
+    # Pixel fine quanto i pacchetti a 32 righe, anche se il disegno è più basso
+    scale = fixes.get('scale', 1)
+    height = round(len(some) / REEF_CELL * scale, 3) if len(some) < REEF_CELL or scale != 1 else None
+    return module_js(kind, comment, 'Pixel Reef', lines, speed, 'walk', height, palette_js(kind, used_pal), '', frames_js)
 
 
 def load(pack, folder):
@@ -300,7 +360,7 @@ def spritelli_frames(folder):
 
 def derive(frames, base, rows, over):
     """Un fotogramma nuovo: righe ritoccate, poi altri fotogrammi sopra (i '.' non coprono).
-    Una riga ritoccata oltre la fine allunga la cella in giù (le zampe degli anatroccoli)."""
+    Una riga ritoccata oltre la fine allunga la cella in giù."""
     src = frames[base]
     height = max([len(src), *(i + 1 for i in rows)])
     padded = [*src, *['.' * len(src[0])] * (height - len(src))]
@@ -371,13 +431,10 @@ def crop(grids):
 
 
 def layer_grids(frames, layers, height, rows, scale):
-    """I disegni a parte, per nome, ingranditi come il personaggio: il posatoio
-    ritagliato da solo, le bolle disegnate su una tela alta quanto la cella e
-    tagliate sulle righe (rows, già ingrandite) del personaggio."""
+    """I disegni a parte, per nome, ingranditi come il personaggio: le bolle
+    disegnate su una tela alta quanto la cella e tagliate sulle righe (rows,
+    già ingrandite) del personaggio."""
     out = {}
-    if 'perch' in layers:
-        out['perch'], _ = crop({'perch': scaled(frames[layers['perch'][0]], scale)})
-        out['perch'] = out['perch']['perch']
     if 'bubbles' in layers:
         width, steps = layers['bubbles']
         blank = {'.': ['.' * width] * height}
@@ -387,10 +444,8 @@ def layer_grids(frames, layers, height, rows, scale):
 
 
 def layers_js(kind, layers, names, scale):
-    """I campi perch e bubbles del personaggio, coi nomi delle costanti."""
+    """Il campo bubbles del personaggio, coi nomi delle costanti."""
     js = ''
-    if 'perch' in layers:
-        js += f"\n      perch: {{ grid: {names('perch')}, seat: {layers['perch'][1] * scale} }},"
     if 'bubbles' in layers:
         js += f"\n      bubbles: [{', '.join(names(f'bolle-{i + 1}') for i in range(len(layers['bubbles'][1])))}],"
     return js
@@ -442,3 +497,5 @@ if __name__ == '__main__':
         write(entry[0], classic(*entry))
     for kind, *entry in SPRITELLI:
         write(kind, spritelli(kind, *entry))
+    for kind, *entry in REEF:
+        write(kind, reef(kind, *entry))

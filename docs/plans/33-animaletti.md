@@ -86,22 +86,26 @@ Spento di default. Si accende e si regola da `Vista › Personaggi…`.
 | `morte` | La Morte | Fluttua appena sopra il fondo (`swim`); quando chiama dà una falciata (8 frame) |
 | `zucca` | Zucco, la zucca | Cammina; dal pacchetto di Halloween |
 | `fantasmino` | Fantasmino | Fluttua basso (`swim`, come la Morte) col lenzuolo; si posa per dormire e per fare «buu» quando chiama (chi ha l'ombra si posa) |
-| `ape` | Ape | Vola (`fly`); ha un fiore suo in un punto della striscia, e ci vola sopra per dormire e per chiamare |
 | `chiocciola` | Chiocciola | Lentissima; dorme chiusa nel guscio, chiama dondolando le antenne |
-| `papera` | Papera e anatroccoli | La papera gironzola, i due anatroccoli (`anatroccolo`) le vanno dietro in fila; chiama facendo qua qua. Le zampe sono rifatte (`DUCK_LEGS` nel generatore): passo a quattro tempi, la zampa lontana più scura; gli anatroccoli con zampe lunghe quanto le sue |
 | `robottino` | Robbo, il robottino | Cammina con l'antenna che lampeggia; chiama con lo schermo giallo |
 | `tazzina` | Tazzi, la tazzina | Cammina come Fizzo (quattro passi) lasciando sbuffi di fumo dietro di sé (`trail`); da fredda dorme e non fuma. Disegnata a mano, al posto di quella del pacchetto Spritelli che saltellava |
 | `trenino` | Trenino | Locomotiva a vapore col vagone, disegnata a mano (`pets-sprite-trenino.js`): le ruote girano coi raggi e la biella in quattro tempi, dal comignolo escono sbuffi come dalla tazzina (`trail`). Dorme a luci spente e senza fumo, chiama coi finestrini accesi e un fischio |
+| `granchio` | Granchio | Cammina di lato a quattro tempi, si ferma a sbattere gli occhi (`idle`), chiama agitando le chele; dal pacchetto «Pixel Reef» |
+| `barchetta` | Barchetta di carta | Naviga su un tratto d'acqua suo, chiama con gli schizzi; esce affondando (`vanish`) e rientra riemergendo (`appear`, la stessa sequenza al contrario); dal pacchetto «Pixel Reef» |
+
+Tolti su richiesta dell'utente: ape col fiore, papera con anatroccoli,
+clessidra e lampadina. Con loro sono usciti i due meccanismi che usavano
+solo loro: il posatoio (`perch`/`home`, il fiore dell'ape) e la fila
+(`lead`, gli anatroccoli dietro alla papera).
 
 Rana, uccellino e pesce aggiunti su richiesta dell'utente dopo il primo
 giro. Pizza, Fizzo, Rotolacampo e Babbo Natale vengono dal pacchetto
 «Sprite pixel-art originale» dell'utente, La Morte e Zucco dall'«Halloween
 Pack», il Fantasmino dal pacchetto «Fantasmino Lenzuolo» (rifatto col
-lenzuolo al posto di quello dell'Halloween Pack). Ape, chiocciola, papera
-con anatroccoli, robottino e il pesce (al posto di quello disegnato a
-mano) dal pacchetto «Spritelli», che ha un formato suo:
-fotogrammi con un nome in `<cartella>-sheet.json`, senza animazioni. Le
-pose mancanti (sonno della papera, richiamo col becco aperto…) sono
+lenzuolo al posto di quello dell'Halloween Pack). Chiocciola, robottino e
+il pesce (al posto di quello disegnato a mano) dal pacchetto «Spritelli»,
+che ha un formato suo: fotogrammi con un nome in `<cartella>-sheet.json`,
+senza animazioni. Le pose mancanti (sonno del robottino e del pesce…) sono
 fotogrammi derivati nel generatore: righe ritoccate e altri fotogrammi
 sovrapposti. I disegni originali sono su 16×16 (i PNG «@4x» sono solo
 ingranditi), più grossolani degli altri pacchetti (18×26–35×33): il
@@ -109,6 +113,22 @@ generatore li raddoppia con EPX (Scale2x, `SPRITELLI_SCALE`), che arrotonda
 i contorni senza inventare colori. Perché non crescano anche in scena, un
 disegno più basso di 32 righe riceve `height` (righe/32): il pixel resta
 quello di un disegno a 32 righe, e la tazzina resta tazzina.
+
+Granchio e barchetta vengono dal pacchetto «Pixel Reef» (`REEF` nel
+generatore): un foglio PNG per personaggio, quattro colonne di frame da
+32×32 e una riga per stato (`idle`, `walk`, `call`, `sleep`, e per la sola
+barchetta `vanish`), già nelle pose del motore. Il contorno `#241A33` si
+toglie come negli altri. Le «z» disegnate nel sonno si tolgono perché le
+mette la vista (`without_z`). Il granchio (rifatto
+dal secondo zip) ha occhi in riquadri scuri e peduncoli e zampe in linee di
+1 px dello stesso scuro: togliendo il contorno restava un pixel bianco
+sospeso. Il generatore salva lo scuro attorno al bianco come voce di palette
+a sé (`with_eyes`, prima di `unoutlined`) e ricolora nel rosso scuro del
+corpo le linee scure isolate (`with_limbs`, dopo); la bocca resta scura
+perché tocca il corpo. Chi è più basso di 32
+righe riceve `height`, come gli Spritelli. Il granchio è più piccolo
+apposta, su richiesta dell'utente: `scale: 0.85` nel generatore, che finisce
+nel suo `height`.
 
 **Senza contorno**: i pacchetti disegnano un bordo scuro di 1 px attorno a
 ogni sagoma (gli Spritelli tutti dello stesso `#2B2233`, Fizzo, la pizza,
@@ -124,11 +144,7 @@ quanto bordo scuro resta sulla sagoma.
 
 **Disegni a parte**: come l'ombra del fantasmino, stanno fuori dal div del
 personaggio (così non si specchiano né saltellano con lui) e li disegna la
-vista. `perch` è il posatoio: il fiore dell'ape, una griglia ferma a terra e
-`seat`, l'altezza in righe a cui si siede. Il motore le dà alla nascita un
-punto, `home`, che rientra nei bordi come la x; per dormire o chiamare ci
-vola sopra con la posa del volo e poi si siede a `seat` pixel del disegno.
-`bubbles` sono le bolle del pesce: griglie alte quanto lui, davanti alla
+vista. `bubbles` sono le bolle del pesce: griglie alte quanto lui, davanti alla
 bocca (dalla parte in cui guarda) e alla sua quota, una dopo l'altra, solo
 in posa `call`; al bordo, se dall'altra parte c'è più posto, il pesce si
 gira per chiamare, così le bolle non escono dalla striscia. Nel generatore sono la voce facoltativa `layers` in fondo a
@@ -155,15 +171,6 @@ fugge verso il lato con più spazio; messa all'angolo si alza e gli passa
 sopra. Il retino non la prende mai. Lontana non va per conto suo: oltre
 `LEASH` misure torna verso di lui, così quando SpongeBob si ferma (a
 chiamare) gli gironzola intorno invece di andarsene per la striscia.
-
-**In fila**: una voce con più personaggi che non sia l'inseguimento
-(`papera` = papera + due anatroccoli) nasce in fila. Ognuno ha un `lead`,
-quello davanti, e gli sta a `LINE_GAP` misure dietro rispetto al verso in
-cui va, recuperando più svelto (`CATCH_UP`); arrivato si ferma, guarda
-dove guarda lui e non zampetta sul posto. Quando la papera si gira e se
-li trova davanti, gli anatroccoli non le passano attraverso: la aspettano
-guardandola e, passata, le vanno dietro. Chi segue non chiama mai: tocca
-al primo.
 
 Frame per personaggio: `walk` (2 frame; SpongeBob 4, con il corpo che sale
 fra un passo e l'altro), `sleep`, `call`. SpongeBob ha anche `swing`, la
@@ -229,7 +236,7 @@ Precedenza: `attention` > `busy` > `sleep` > `idle`.
 }
 ```
 
-- `MAX_CAST = 18` voci del dialogo, una per ognuna; la papera con gli anatroccoli è una voce sola
+- `MAX_CAST = 18` voci del dialogo, una per ognuna
   (contarla due impediva di sceglierne una di ognuna).
 - Voci sconosciute scartate, valori fuori elenco → default, JSON rotto →
   default intero.

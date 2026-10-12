@@ -22,11 +22,11 @@ ok('pets-config: tiene i campi validi e rimette gli altri al default', () => {
     { enabled: true, cast: ['pizza'], size: 'l', speed: 'normale' });
 });
 
-ok('pets-config: il limite conta le voci del dialogo, un gruppetto vale uno', () => {
+ok('pets-config: il limite conta le voci del dialogo', () => {
   const oneEach = Object.keys(CAST);
   assert.strictEqual(MAX_CAST, oneEach.length);
   assert.deepStrictEqual(sanitizeConfig({ cast: oneEach }).cast, oneEach, 'uno di ognuno ci deve stare');
-  assert.deepStrictEqual(sanitizeConfig({ cast: [...oneEach, 'gatto', 'papera'] }).cast, oneEach, 'oltre MAX_CAST si tronca dalla fine');
+  assert.deepStrictEqual(sanitizeConfig({ cast: [...oneEach, 'gatto', 'pizza'] }).cast, oneEach, 'oltre MAX_CAST si tronca dalla fine');
 });
 
 ok('pets-config: un cast vuoto resta vuoto (nessun animale, striscia vuota)', () => {

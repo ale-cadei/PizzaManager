@@ -875,6 +875,19 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 }
 .changes-comment-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--gap-sm); margin-top: 6px; }
 .changes-comment-hint { margin-right: auto; font-size: 11px; color: var(--text-faint); }
+/* Gruppo di righe (docs/plans/49). Il bordo sinistro è già del verde/rosso
+   della riga: il segno del commento è una seconda barra subito dentro.
+   Il gruppo in modifica si vela sopra il fondo, che resta verde o rosso */
+.changes-line.has-note { box-shadow: inset 3px 0 0 var(--action-text); }
+.changes-line.is-selecting {
+  box-shadow: inset 3px 0 0 var(--action-text);
+  background-image: linear-gradient(color-mix(in srgb, var(--action-text) 18%, transparent), color-mix(in srgb, var(--action-text) 18%, transparent));
+}
+.changes-line.is-selecting .changes-note-add { opacity: 1; }
+.changes-comment-lines { font-size: 11px; color: var(--action-text); margin-bottom: 4px; }
+.changes-comment-warn { color: var(--state-error); }
+.changes-comment-range { flex: 0 0 auto; align-self: baseline; font-size: 11px; color: var(--action-text); }
+.changes-comment:has(.changes-comment-range) .changes-comment-body { align-self: baseline; }
 .changes-orphan-title { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
 .changes-orphan .changes-comment, .changes-orphan .changes-comment-editor { position: static; margin: 2px 0 6px; padding-left: 0; border-left: 0; }
 .changes-comment-quote { font: 400 12px/1.45 var(--font-mono); color: var(--text-faint); white-space: pre; overflow: hidden; text-overflow: ellipsis; }

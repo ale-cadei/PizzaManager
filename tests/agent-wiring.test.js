@@ -114,9 +114,13 @@ test('ripristino: il file della sessione precedente se ne va', async (t) => {
 });
 
 /* Codex parla con OSC 9 nel terminale: il file non lo scriverebbe nessuno. */
-test('codex: gli args delle notifiche sì, il file del segnale no', async (t) => {
+test('codex: gli args delle notifiche sì, il file del segnale no (nemmeno quello dell app)', async (t) => {
   const s = setup(t, 'codex');
   if (!s) return;
+  // L'app avviata da una scheda di PizzaManager ha già il suo (piano 59)
+  const prev = process.env.AISESS_SIGNAL_FILE;
+  process.env.AISESS_SIGNAL_FILE = path.join(s.dir, 'di-fuori');
+  t.after(() => { if (prev === undefined) delete process.env.AISESS_SIGNAL_FILE; else process.env.AISESS_SIGNAL_FILE = prev; });
   try {
     const r = await s.mgr.spawn({ id: 'tab6', type: 'codex', cwd: s.dir, commandProfileId: 'codex:t', cols: 80, rows: 24 });
     assert.strictEqual(r.ok, true, r.error);

@@ -66,6 +66,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 56 | [`feat/scarta-file`](56-scarta-file.md) — scartare le modifiche non staged di un file, con Annulla | 43, 53 | ~1 g | fatto, provato nell'app (smoke sotto xvfb: scarta e Annulla, cancella un non tracciato, Annulla rifiutato dopo una riscrittura) |
 | 57 | [`feat/commenti-righe`](57-commenti-righe.md) — un commento su un gruppo di righe (Shift+clic) | 44 | ~1 g | fatto, provato nell'app (smoke sotto xvfb: gruppo con Shift+clic, avviso su un altro blocco, ✎ che restringe il gruppo, testo incollato all'agente finto) |
 | 58 | [`feat/resume-worktree`](58-resume-worktree.md) — ⟲ sulla riga del worktree, Resume delle sole sue chat | 36, 8 | ~2h | fatto, provato nell'app |
+| 59 | [`fix/codex-segnale-ereditato`](59-codex-segnale-ereditato.md) — `AISESS_SIGNAL_FILE` dell'app non passa alle sessioni | 46 | ~1h | fatto |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

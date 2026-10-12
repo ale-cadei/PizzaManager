@@ -66,11 +66,21 @@ riga e si spera che l'agente capisca fin dove.
 - `renderer/review-notes.js`: ancora a intervallo, `rangeAnchor`,
   `notesAt` (le note che finiscono su questa riga), `coveredBy` (la riga
   sta in un gruppo, per il segno), `formatPrompt`.
+  *Fatto così:* `notesAt`, `coveredBy` e `orphansOf` sono diventati
+  `placeNotes`, che in un passaggio solo sul diff dà `endsAt` (riga → note
+  che finiscono lì), `covered` (righe segnate) e `orphans`: con una ricerca
+  per riga un hunk lungo costava il quadrato.
 - `renderer/changes-view.js`: Shift+clic sul ＋ (l'evento arriva con
   `shiftKey`), evidenza delle righe del gruppo in modifica, segno sulle
   righe dei gruppi salvati.
 - `renderer/changes-panel.js`: `rc.open(anchor, draft)` accetta un'ancora a
   intervallo; `rc.extend(line, hunk)` per lo Shift+clic.
+  *Fatto così:* `open` ed `extend` stanno nella vista (`changes-view.js`),
+  dove già viveva la textarea; il pannello passa solo `replaces` ad
+  `addNote`.
+- Emerso in review: allargare un gruppo fin sulle righe esatte di un altro
+  commento lo sovrascriveva. Ora la textarea lo dice e il gruppo resta
+  quello di prima; `addNote` con `replaces` rifiuta lo stesso caso.
 - `renderer/styles.css`.
 
 ## Fuori

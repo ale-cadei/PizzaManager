@@ -9,16 +9,8 @@
  * Chi non cammina (MOVES): la medusa galleggia ondeggiando (float), la rana
  * salta e avanza solo in aria, l'uccellino
  * vola sopra la striscia e si posa per dormire o chiamare, il pesce nuota
- * ondeggiando appena sopra il fondo. Chi ha un posatoio (l'ape col fiore,
- * pets-sprites.js perch) ce l'ha in un punto fisso, home: per dormire o
- * chiamare ci vola sopra e si siede all'altezza del disegno. Chi fuma (la
- * tazzina, trail) lascia sbuffi che restano dove nascono e salgono: sono
+ * ondeggiando appena sopra il fondo. Chi fuma (la tazzina, trail) lascia sbuffi che restano dove nascono e salgono: sono
  * nello stato del personaggio (puffs), la vista li disegna a parte.
- *
- * In fila (una voce del cast con più personaggi, come la papera con gli
- * anatroccoli): ognuno ha un lead, quello davanti, e gli sta dietro
- * rispetto al verso in cui va; arrivato si ferma. Se il lead si gira, chi
- * si trova davanti lo aspetta e lo lascia passare. Chi segue non chiama.
  *
  * Le azioni (act): una posa temporanea durante la quale il personaggio sta
  * fermo, solo per chi ha quel frame (pets-sprites.js OPTIONAL_POSES). Le
@@ -48,11 +40,6 @@
   /** Ondeggio della medusa: ampiezza in misure, giri al secondo. */
   const BOB_AMPL = 0.12;
   const BOB_HZ = 0.8;
-  /** In fila: distanza fra i centri (misure) e quanto più svelto recupera chi segue. */
-  const LINE_GAP = 0.9;
-  const CATCH_UP = 1.6;
-  /** Sotto questo spostamento (misure) chi segue è fermo: zampetta solo se si muove davvero. */
-  const STILL = 0.001;
   /** Rana: salti al secondo e altezza in misure. Sta in aria metà del tempo. */
   const HOP_HZ = 1.2;
   const HOP_HEIGHT = 0.6;
@@ -102,25 +89,10 @@
   const isVanishing = (p) => Boolean(p.act && p.act.pose === 'vanish');
   const enter = (p) => act(p, 'appear');
 
-  /** Il punto del posatoio, per chi ne ha uno: la x a cui si posa. */
-  const withHome = (pet, width, size, random) => (spriteOf(pet.kind).perch ? { ...pet, home: random() * maxX(pet.kind, size, width) } : pet);
-
-  /** In fila dietro al primo, ognuno col suo lead: quello davanti. */
-  function placeLine([first, ...rest], group, width, size, random) {
-    const lead = newPet(`${group}a`, first, random() * maxX(first, size, width), random() < 0.5 ? -1 : 1, random);
-    return rest.reduce((line, kind, i) => {
-      const ahead = line[line.length - 1];
-      const x = clamp(centerOf(ahead, size) - ahead.dir * LINE_GAP * size - petWidth(kind, size) / 2, 0, maxX(kind, size, width));
-      const key = `${group}${String.fromCharCode(98 + i)}`;
-      return [...line, { ...newPet(key, kind, x, ahead.dir, random), lead: ahead.key }];
-    }, [lead]);
-  }
-
   /** I personaggi di una voce del cast; group li tiene insieme quando il cast cambia. */
   function spawn(id, group, width, size, random) {
     const kinds = Sprites.CAST[id] || [];
-    const tag = (p) => ({ ...withHome(p, width, size, random), cast: id, group });
-    if (kinds.length > 1) return placeLine(kinds, group, width, size, random).map(tag);
+    const tag = (p) => ({ ...p, cast: id, group });
     return kinds.map((kind) => tag(newPet(`${group}`, kind, random() * maxX(kind, size, width), random() < 0.5 ? -1 : 1, random)));
   }
 
@@ -202,20 +174,6 @@
   };
   const landed = (pet) => (floats(pet) ? { ...pet, y: 0 } : pet);
 
-  /** Verso il posatoio in volo; arrivato si siede sul disegno con quella posa
-   *  (chi dorme non anima). */
-  function perch(pet, pose, ctx) {
-    const reach = spriteOf(pet.kind).speed * ctx.size * ctx.mult * ctx.s;
-    const dx = pet.home - pet.x;
-    if (Math.abs(dx) > reach) {
-      const dir = Math.sign(dx);
-      return MOVES[spriteOf(pet.kind).motion]({ ...pet, x: pet.x + dir * reach, dir, pose: 'walk', act: null }, ctx);
-    }
-    const y = spriteOf(pet.kind).perch.seat * Sprites.pixel(pet.kind, ctx.size);
-    const anim = pose === 'sleep' ? pet.anim - ctx.s * 1000 * ctx.mult : pet.anim;
-    return { ...pet, x: pet.home, y, pose, anim, act: null };
-  }
-
   /** Chi soffia bolle (pets-sprites.js bubbles) chiama verso il lato dove
    *  c'è posto per le bolle: al bordo si gira, se dall'altra parte ce n'è di più. */
   function facingRoom(pet, ctx) {
@@ -241,28 +199,6 @@
     return walked.dir !== pet.dir ? act(walked, 'turn') : walked;
   }
 
-  /** Fermo con la posa del passo: la zampettata non va avanti. */
-  const standing = (pet, dir, ctx) => ({ ...pet, dir, pose: 'walk', anim: pet.anim - ctx.s * 1000 * ctx.mult });
-
-  /** Dietro a lead, dalla parte opposta al suo verso; arrivato si ferma e guarda
-   *  dove guarda lui. Se lead si gira e se lo trova davanti non gli passa
-   *  attraverso: lo aspetta guardandolo, e quando è passato gli va dietro. */
-  function follow(pet, lead, ctx) {
-    const side = Math.sign(centerOf(pet, ctx.size) - centerOf(lead, ctx.size));
-    if (side === lead.dir) return standing(pet, -lead.dir, ctx);
-    const target = centerOf(lead, ctx.size) - lead.dir * LINE_GAP * ctx.size;
-    const dx = target - centerOf(pet, ctx.size);
-    const reach = spriteOf(pet.kind).speed * CATCH_UP * ctx.size * ctx.mult * ctx.s;
-    const limit = maxX(pet.kind, ctx.size, ctx.width);
-    if (Math.abs(dx) <= reach) {
-      // Lead in cammino si sposta un po' ogni fotogramma: chi gli sta dietro lo segue zampettando
-      const kept = { ...pet, x: clamp(pet.x + dx, 0, limit), dir: lead.dir, pose: 'walk' };
-      return Math.abs(dx) > STILL * ctx.size ? kept : standing(kept, lead.dir, ctx);
-    }
-    const dir = Math.sign(dx);
-    return { ...pet, x: clamp(pet.x + dir * reach, 0, limit), dir, pose: 'walk' };
-  }
-
   /** Ondeggio: y è quanto sta sollevata da terra. */
   function float(jelly, ctx) {
     const phase = (jelly.phase + ctx.s * BOB_HZ * Math.PI * 2) % (Math.PI * 2);
@@ -270,11 +206,10 @@
   }
 
   /** Il personaggio più vicino al centro che chiama quando una sessione
-   *  aspetta. La medusa solo se non c'è nessun altro: per chiamare deve posarsi.
-   *  Chi sta in fila dietro a qualcuno mai: chiama il primo. */
+   *  aspetta. La medusa solo se non c'è nessun altro: per chiamare deve posarsi. */
   function callerOf(pets, ctx) {
     const mid = ctx.width / 2;
-    const present = pets.filter((p) => !isVanishing(p) && !p.lead);
+    const present = pets.filter((p) => !isVanishing(p));
     const others = present.filter((p) => p.kind !== 'medusa');
     return (others.length ? others : present)
       .reduce((best, p) => (!best || Math.abs(centerOf(p, ctx.size) - mid) < Math.abs(centerOf(best, ctx.size) - mid) ? p : best), null);
@@ -305,9 +240,8 @@
   /** Nessuno resta fuori se la striscia si è stretta. */
   function inside(pet, ctx) {
     const limit = maxX(pet.kind, ctx.size, ctx.width);
-    const home = pet.home === undefined ? {} : { home: clamp(pet.home, 0, limit) };
     const puffs = pet.puffs ? { puffs: pet.puffs.map((p) => ({ ...p, x: clamp(p.x, 0, ctx.width) })) } : {};
-    return { ...pet, ...home, ...puffs, x: clamp(pet.x, 0, limit) };
+    return { ...pet, ...puffs, x: clamp(pet.x, 0, limit) };
   }
 
   /** Solo il rientro nei bordi, per quando la striscia cambia misura a ciclo fermo. */
@@ -336,23 +270,19 @@
     const attentionMs = mood === 'attention' ? (state.attentionMs || 0) + s * 1000 : 0;
     const pets = state.pets.map((p) => ({ ...inside(p, ctx), anim: p.anim + s * 1000 * ctx.mult }));
     const caller = mood === 'attention' ? callerOf(pets, ctx) : null;
-    const byKey = new Map(pets.map((p) => [p.key, p]));
     const moved = pets.map((p0) => {
       const p = startActs(p0, state, mood);
       if (isVanishing(p)) return tickAct(p, ctx);
       const calling = caller && p.key === caller.key;
       const pose = mood === 'sleep' ? 'sleep' : calling && (attentionMs >= SAD_AFTER_MS && has(p.kind, 'sad') ? 'sad' : 'call');
-      if (pose && p.home !== undefined) return perch(p, pose, ctx);
       if (mood === 'sleep') return { ...landed(p), pose, anim: p0.anim - s * 1000 * ctx.mult, act: null };
       if (calling) return { ...facingRoom(landed(p), ctx), act: null, pose };
       if (p.act) return tickAct(p, ctx);
-      const lead = p.lead ? byKey.get(p.lead) : null;
-      if (lead) return follow(p, lead, ctx);
       if (p.kind === 'medusa') return float(wander(p, ctx), ctx);
       return wander(p, ctx);
     });
     return { ...state, mood, attentionMs, caller: caller ? caller.key : state.caller || null, pets: moved.filter((p) => !p.gone).map((p) => smoke(p, ctx)) };
   }
 
-  return { createPets, recast, step, fit, moodOf, frameIndex, petWidth, FRAME_MS, MAX_DT, SLEEP_AFTER_MS, SAD_AFTER_MS, PAUSE_MS, LINE_GAP, PUFF_LIFE_MS, MAX_PUFFS };
+  return { createPets, recast, step, fit, moodOf, frameIndex, petWidth, FRAME_MS, MAX_DT, SLEEP_AFTER_MS, SAD_AFTER_MS, PAUSE_MS, PUFF_LIFE_MS, MAX_PUFFS };
 });

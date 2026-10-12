@@ -19,7 +19,7 @@
 (function (root, factory) {
   const api = root
     ? factory(root.AisessPetsPack)
-    : factory(Object.assign({}, ...['pizza', 'fizzo', 'rotolacampo', 'babbo', 'morte', 'zucca', 'fantasmino', 'ape', 'chiocciola', 'papera', 'anatroccolo', 'robottino', 'tazzina', 'pesce', 'trenino', 'granchio', 'barchetta'].map((k) => require(`./pets-sprite-${k}`))));
+    : factory(Object.assign({}, ...['pizza', 'fizzo', 'rotolacampo', 'babbo', 'morte', 'zucca', 'fantasmino', 'chiocciola', 'robottino', 'tazzina', 'pesce', 'trenino', 'granchio', 'barchetta'].map((k) => require(`./pets-sprite-${k}`))));
   if (root) root.AisessPetsSprites = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : null, function (pack) {
@@ -158,8 +158,6 @@
    *  motion: come si muove (pets.js MOTIONS): cammina, salta, vola, nuota.
    *  height: altezza come frazione della taglia, per chi non segue la regola di GRID.
    *  shadow: ombra a terra per chi vola, un frame per frame di walk (facoltativa).
-   *  perch: dove si posa per dormire e chiamare, un disegno fermo a terra (grid)
-   *    e l'altezza in righe a cui si siede (seat). Facoltativo.
    *  bubbles: disegni davanti alla bocca mentre chiama, alti quanto il
    *    personaggio, uno dopo l'altro. Facoltativi.
    *  trail: scia di sbuffi (la tazzina, il trenino): i frame di uno sbuffo, dal più
@@ -221,8 +219,7 @@
   };
   const MOTIONS = ['walk', 'hop', 'fly', 'swim'];
 
-  /** Voci che si scelgono nelle impostazioni: quasi sempre un personaggio,
-   *  a volte un gruppetto (la papera con gli anatroccoli). */
+  /** Voci che si scelgono nelle impostazioni, un personaggio ciascuna. */
   const CAST = {
     medusa: ['medusa'],
     gatto: ['gatto'],
@@ -236,9 +233,7 @@
     morte: ['morte'],
     zucca: ['zucca'],
     fantasmino: ['fantasmino'],
-    ape: ['ape'],
     chiocciola: ['chiocciola'],
-    papera: ['papera', 'anatroccolo', 'anatroccolo'],
     robottino: ['robottino'],
     tazzina: ['tazzina'],
     trenino: ['trenino'],
@@ -258,9 +253,7 @@
     morte: 'La Morte',
     zucca: 'Zucco, la zucca',
     fantasmino: 'Fantasmino',
-    ape: 'Ape',
     chiocciola: 'Chiocciola',
-    papera: 'Papera e anatroccoli',
     robottino: 'Robbo, il robottino',
     tazzina: 'Tazzi, la tazzina',
     trenino: 'Trenino',

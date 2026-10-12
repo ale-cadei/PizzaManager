@@ -54,7 +54,7 @@
     b.type = 'button';
     b.title = title;
     b.setAttribute('aria-label', title);
-    b.onclick = () => onClick();
+    b.onclick = (e) => onClick(e);
     return b;
   }
 
@@ -63,15 +63,16 @@
     box.replaceChildren(...parts.map((p) => el(doc, 'span', `changes-n-${p.kind}`, p.text)));
   }
 
-  /* `rc` sono i commenti del file (docs/plans/44), null se non si commenta:
-     { path, notes, editing, open(anchor, draft), draft(text), save(), cancel(), remove(id) } */
-  function diffLine(doc, line, rc) {
+  /* `rc` sono i commenti del file (docs/plans/44 e 49), null se non si commenta:
+     { path, notes, editing, open(anchor, draft, replaces), extend(hunk, line), draft(text),
+       save(), cancel(), remove(id) }. `place` dice dove stanno note e gruppo in modifica. */
+  function diffLine(doc, line, rc, hunk, place) {
     const row = el(doc, 'div', `changes-line ${line.kind}`);
     if (rc) {
       const anchor = R.anchorOf(rc.path, line);
-      row.appendChild(anchor
-        ? button(doc, 'changes-note-add', '＋', 'Commenta questa riga', () => rc.open(anchor, ''))
-        : el(doc, 'span', 'changes-note-gap'));
+      row.appendChild(anchor ? noteAddButton(doc, rc, anchor, hunk, line) : el(doc, 'span', 'changes-note-gap'));
+      if (place.covered.has(line)) row.classList.add('has-note');
+      if (place.editing && place.editing.lines.has(line)) row.classList.add('is-selecting');
     }
     const no = line.kind === 'del' ? line.oldNo : line.newNo;
     row.appendChild(el(doc, 'span', 'changes-ln', no === null || no === undefined ? '' : String(no)));
@@ -80,10 +81,24 @@
     return row;
   }
 
+  /* Clic: commenta la riga. Shift+clic con la textarea aperta: il commento
+     copre le righe fino a questa (docs/plans/49) */
+  function noteAddButton(doc, rc, anchor, hunk, line) {
+    const b = button(doc, 'changes-note-add', '＋', 'Commenta questa riga (Shift+clic: fin qui)', (e) => {
+      if (e && e.shiftKey && rc.editing) rc.extend(hunk, line);
+      else rc.open(anchor, '');
+    });
+    // Shift+clic estenderebbe anche la selezione del testo della pagina
+    b.addEventListener('mousedown', (e) => { if (e.shiftKey) e.preventDefault(); });
+    return b;
+  }
+
   function commentBox(doc, n, rc) {
     const box = el(doc, 'div', 'changes-comment');
+    if (n.lines.length > 1) box.appendChild(el(doc, 'span', 'changes-comment-range', R.linesLabel(n.lines)));
     box.appendChild(el(doc, 'span', 'changes-comment-body', n.body));
-    box.appendChild(button(doc, 'changes-comment-edit', '✎', 'Modifica il commento', () => rc.open(n, n.body)));
+    box.appendChild(button(doc, 'changes-comment-edit', '✎', 'Modifica il commento',
+      () => rc.open({ path: n.path, lines: n.lines }, n.body, n.id)));
     box.appendChild(button(doc, 'changes-comment-remove', '✕', 'Togli il commento', () => rc.remove(n.id)));
     return box;
   }
@@ -91,6 +106,8 @@
   /* Ctrl+Invio (⌘+Invio) salva, Esc annulla: Esc non arriva al pannello, che si chiuderebbe */
   function commentEditor(doc, rc) {
     const box = el(doc, 'div', 'changes-comment-editor');
+    const range = el(doc, 'div', 'changes-comment-lines', R.linesLabel(rc.editing.anchor.lines));
+    if (rc.editing.hint) range.appendChild(el(doc, 'span', 'changes-comment-warn', ` · ${rc.editing.hint}`));
     const input = el(doc, 'textarea', 'changes-comment-input');
     input.value = rc.editing.draft;
     input.setAttribute('aria-label', 'Commento per l\'agente');
@@ -101,35 +118,53 @@
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); rc.cancel(); }
     });
     const actions = el(doc, 'div', 'changes-comment-actions');
-    actions.appendChild(el(doc, 'span', 'changes-comment-hint', 'Ctrl+Invio salva · Esc annulla'));
+    actions.appendChild(el(doc, 'span', 'changes-comment-hint', 'Shift+clic su un ＋: più righe · Ctrl+Invio salva · Esc annulla'));
     actions.appendChild(button(doc, 'btn btn--ghost changes-comment-cancel', 'Annulla', 'Annulla', () => rc.cancel()));
     actions.appendChild(button(doc, 'btn btn--primary changes-comment-save', 'Salva', 'Salva il commento', () => rc.save()));
+    box.appendChild(range);
     box.appendChild(input);
     box.appendChild(actions);
     return box;
   }
 
-  const isEditing = (rc, id) => Boolean(rc && rc.editing && rc.editing.id === id);
+  /* La nota che si sta riscrivendo non si mostra due volte: c'è la textarea */
+  const hiddenWhileEditing = (rc, n) => Boolean(rc.editing) && (n.id === rc.editing.id || n.id === rc.editing.replaces);
 
-  /* Le note di una riga, o la textarea se la si sta commentando */
-  function lineComments(doc, line, rc) {
+  /* Le note che finiscono su questa riga, e la textarea se il gruppo in modifica finisce qui */
+  function lineComments(doc, line, rc, place) {
     if (!rc) return [];
-    const anchor = R.anchorOf(rc.path, line);
-    if (!anchor) return [];
-    const notes = R.notesAt(rc.notes, rc.path, line).filter((n) => !isEditing(rc, n.id));
-    const editing = isEditing(rc, R.noteId(anchor)) && rc.editing.anchor.text === anchor.text;
+    const notes = (place.endsAt.get(line) || []).filter((n) => !hiddenWhileEditing(rc, n));
+    const editing = Boolean(place.editing) && place.editing.last === line;
     return [...notes.map((n) => commentBox(doc, n, rc)), ...(editing ? [commentEditor(doc, rc)] : [])];
   }
 
-  /* Note la cui riga non c'è più: l'agente ha cambiato il file sotto */
-  function orphanBox(doc, orphans, rc) {
+  /* Prima riga citata di una nota orfana, e quante altre ne aveva */
+  function orphanQuote(n) {
+    const first = n.lines[0];
+    const others = n.lines.length - 1;
+    const more = others === 0 ? '' : `  (${others === 1 ? 'e un\'altra riga' : `e altre ${others} righe`})`;
+    return `${first.side === 'old' ? '−' : '+'}${first.no}  ${first.text}${more}`;
+  }
+
+  /* Note la cui riga non c'è più: l'agente ha cambiato il file sotto. Se
+     si stava riscrivendo una di queste, la textarea resta al suo posto */
+  function orphanBox(doc, orphans, rc, place) {
     const box = el(doc, 'div', 'changes-orphan');
     box.appendChild(el(doc, 'div', 'changes-orphan-title', 'Righe non più nel diff'));
     for (const n of orphans) {
-      box.appendChild(el(doc, 'div', 'changes-comment-quote', `${n.side === 'old' ? '−' : '+'}${n.no}  ${n.text}`));
-      box.appendChild(isEditing(rc, n.id) ? commentEditor(doc, rc) : commentBox(doc, n, rc));
+      box.appendChild(el(doc, 'div', 'changes-comment-quote', orphanQuote(n)));
+      const here = !place.editing && rc.editing && rc.editing.replaces === n.id;
+      box.appendChild(here ? commentEditor(doc, rc) : commentBox(doc, n, rc));
     }
     return box;
+  }
+
+  /* Dove stanno le note del file e il gruppo in modifica, in un passaggio solo */
+  function placeAll(diff, rc) {
+    const empty = { endsAt: new Map(), covered: new Set(), orphans: [], editing: null };
+    if (!rc) return empty;
+    const editing = rc.editing && rc.editing.anchor.path === rc.path ? R.placeOf(rc.editing.anchor, diff) : null;
+    return { ...R.placeNotes(rc.notes, rc.path, diff), editing };
   }
 
   function diffBody(doc, diff, rc) {
@@ -137,15 +172,15 @@
     const note = (text) => box.appendChild(el(doc, 'div', 'changes-diff-note', text));
     if (diff.loading) { note(DIFF_NOTES.loading); return box; }
     if (diff.ok === false) { note(diff.error || 'Diff non disponibile.'); return box; }
-    const orphans = rc ? R.orphansOf(rc.notes, rc.path, diff) : [];
-    if (orphans.length) box.appendChild(orphanBox(doc, orphans, rc));
+    const place = placeAll(diff, rc);
+    if (place.orphans.length) box.appendChild(orphanBox(doc, place.orphans, rc, place));
     if (diff.binary) { note(DIFF_NOTES.binary); return box; }
     if (!diff.hunks.length) { note(DIFF_NOTES.empty); return box; }
     for (const hunk of diff.hunks) {
       box.appendChild(el(doc, 'div', 'changes-hunk', hunk.header));
       for (const line of hunk.lines) {
-        box.appendChild(diffLine(doc, line, rc));
-        for (const c of lineComments(doc, line, rc)) box.appendChild(c);
+        box.appendChild(diffLine(doc, line, rc, hunk, place));
+        for (const c of lineComments(doc, line, rc, place)) box.appendChild(c);
       }
     }
     if (diff.truncated) note(DIFF_NOTES.truncated);
@@ -238,7 +273,7 @@
    * @param {{doc: Document, host: Element, shortcut: string,
    *   onToggle: () => void, onClose: () => void, onFile: (path: string) => void,
    *   onMerge?: (confirmed: boolean) => void, onMode?: (mode: 'commit'|'turn'|'staging') => void,
-   *   onReview?: (action: {type: 'save', anchor: object, body: string}|{type: 'remove', id: string}
+   *   onReview?: (action: {type: 'save', anchor: object, body: string, replaces: string|null}|{type: 'remove', id: string}
    *     |{type: 'clear'}|{type: 'send'}) => boolean|void,
    *   onCommit?: (action: {type: 'stage'|'unstage', paths: string[]}|{type: 'stage-all'|'unstage-all'|'commit'}
    *     |{type: 'message', text: string}|{type: 'discard-ask', path: string, untracked: boolean}
@@ -336,17 +371,36 @@
     let editing = null;
     let focusEditor = false;
     const redraw = () => { if (last) render(last); };
+    const notesNow = () => (last && last.review && last.review.notes) || [];
     const review = {
-      open: (anchor, draft) => {
+      /* `replaces`: la nota che si sta riscrivendo (✎), che al salvataggio
+         sparisce anche se nel frattempo si è cambiato il gruppo (docs/plans/49) */
+      open: (anchor, draft, replaces = null) => {
         const key = last && last.review ? last.review.key : null;
-        editing = { key, id: R.noteId(anchor), anchor, draft };
+        const id = R.noteId(anchor);
+        editing = { key, id, origin: id, anchor, start: anchor.lines[0], draft, replaces, hint: null };
+        focusEditor = true;
+        redraw();
+      },
+      /* Shift+clic su un ＋: il gruppo va dalla prima riga scelta a questa */
+      extend: (path, hunk, line) => {
+        if (!editing) return;
+        const to = R.anchorOf(path, line);
+        const range = to && path === editing.anchor.path
+          ? R.rangeAnchor(path, hunk, editing.start, to.lines[0])
+          : { ok: false, error: 'Solo righe dello stesso file.' };
+        const id = range.ok ? R.noteId(range.anchor) : null;
+        const taken = range.ok && id !== editing.origin && id !== editing.replaces && notesNow().some((n) => n.id === id);
+        if (taken) editing = { ...editing, hint: R.TAKEN };
+        else if (range.ok) editing = { ...editing, anchor: range.anchor, id, hint: null };
+        else editing = { ...editing, hint: range.error };
         focusEditor = true;
         redraw();
       },
       draft: (text) => { editing = editing && { ...editing, draft: text }; },
       save: () => {
         if (!editing) return;
-        const saved = onReview({ type: 'save', anchor: editing.anchor, body: editing.draft });
+        const saved = onReview({ type: 'save', anchor: editing.anchor, body: editing.draft, replaces: editing.replaces });
         if (saved !== false) editing = null;
         redraw();
       },
@@ -354,7 +408,7 @@
       remove: (id) => onReview({ type: 'remove', id }),
     };
     const reviewOf = (state) => (path) => (state.review && state.review.enabled
-      ? { ...review, path, notes: state.review.notes, editing }
+      ? { ...review, extend: (hunk, line) => review.extend(path, hunk, line), path, notes: state.review.notes, editing }
       : null);
     host.appendChild(tab);
     host.appendChild(panel);

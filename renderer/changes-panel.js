@@ -309,7 +309,7 @@ function handleReview(action) {
   if (!ChangesModel.reviewAvailable(tab, Boolean(changesState.merge))) return false;
   const notes = tab.reviewNotes || [];
   if (action.type === 'save') {
-    const res = ReviewNotes.addNote(notes, action.anchor, action.body);
+    const res = ReviewNotes.addNote(notes, action.anchor, action.body, { replaces: action.replaces || null });
     setReviewNotes(tab, res.notes, res.ok ? null : res.error);
     return res.ok;
   }

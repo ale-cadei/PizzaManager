@@ -309,7 +309,8 @@ ok('commenti: ＋ su ogni riga con un numero; si scrive, Ctrl+Invio salva', () =
   fire(input, 'input');
   const e = fire(input, 'keydown', { key: 'Enter', ctrlKey: true });
   assert.ok(e.defaultPrevented);
-  assert.deepStrictEqual(actions, [{ type: 'save', anchor: { path: 'a.js', side: 'new', no: 2, text: 'tre' }, body: 'manca il controllo' }]);
+  assert.deepStrictEqual(actions, [{ type: 'save', anchor: { path: 'a.js', lines: [{ side: 'new', no: 2, kind: 'add', text: 'tre' }] },
+    body: 'manca il controllo', replaces: null }]);
   assert.strictEqual(byClass(host, 'changes-comment-input').length, 0, 'salvata, la textarea si chiude');
 });
 
@@ -417,6 +418,115 @@ ok('commenti: piè di pagina con conteggio, Svuota e Invia; l\'errore si vede', 
   assert.strictEqual(one(foot, 'changes-review-error').hidden, true);
   view.render(reviewState({ enabled: true, notes: [], error: null }));
   assert.strictEqual(foot.hidden, true);
+});
+
+/* Commento su un gruppo di righe (docs/plans/49) */
+const groupDiff = () => ({ ok: true, binary: false, truncated: false, hunks: [
+  { header: '@@ -1,3 +1,3 @@', lines: [
+    { kind: 'ctx', oldNo: 1, newNo: 1, text: 'uno' },
+    { kind: 'del', oldNo: 2, newNo: null, text: 'due' },
+    { kind: 'add', oldNo: null, newNo: 2, text: 'tre' },
+    { kind: 'ctx', oldNo: 3, newNo: 3, text: 'quattro' },
+  ] },
+  { header: '@@ -20 +20 @@', lines: [{ kind: 'add', oldNo: null, newNo: 20, text: 'lontana' }] },
+] });
+const groupState = (review) => baseState({ files: [file('a.js')], expanded: { 'a.js': groupDiff() }, review });
+const rowsOf = (host) => byClass(host, 'changes-line');
+const shiftClick = (b) => { fire(b, 'mousedown', { shiftKey: true }); b.onclick({ shiftKey: true }); };
+
+ok('gruppo: Shift+clic allarga, le righe si evidenziano, la textarea va sotto l\'ultima', () => {
+  const actions = [];
+  const { host, view } = setup({ onReview: (a) => { actions.push(a); return true; } });
+  view.render(groupState({ enabled: true, notes: [], error: null }));
+  byClass(host, 'changes-note-add')[0].onclick();
+  shiftClick(byClass(host, 'changes-note-add')[3]);
+  const selected = rowsOf(host).filter((r) => r.classes.has('is-selecting'));
+  assert.deepStrictEqual(selected.map((r) => textOf(one(r, 'changes-code'))), ['uno', 'due', 'tre', 'quattro']);
+  const lines = byClass(host, 'changes-diff')[0].children;
+  const editor = one(host, 'changes-comment-editor');
+  assert.strictEqual(lines.indexOf(editor), lines.indexOf(selected[3]) + 1);
+  assert.strictEqual(textOf(one(editor, 'changes-comment-lines')), 'Righe 1–3 e 1 tolta');
+  assert.strictEqual(one(host, 'changes-comment-input').focused, true);
+  one(host, 'changes-comment-input').value = 'tutto il blocco';
+  fire(one(host, 'changes-comment-input'), 'input');
+  one(host, 'changes-comment-save').onclick();
+  assert.strictEqual(actions[0].anchor.lines.length, 4);
+  assert.strictEqual(actions[0].body, 'tutto il blocco');
+});
+
+ok('gruppo: Shift+clic all\'indietro e Shift+clic su un altro blocco lo dice', () => {
+  const { host, view } = setup({ onReview: () => true });
+  view.render(groupState({ enabled: true, notes: [], error: null }));
+  byClass(host, 'changes-note-add')[2].onclick();
+  shiftClick(byClass(host, 'changes-note-add')[1]);
+  assert.strictEqual(rowsOf(host).filter((r) => r.classes.has('is-selecting')).length, 2);
+  shiftClick(byClass(host, 'changes-note-add')[4]);
+  assert.ok(textOf(one(host, 'changes-comment-lines')).includes('stesso blocco'));
+  assert.strictEqual(rowsOf(host).filter((r) => r.classes.has('is-selecting')).length, 2, 'il gruppo resta quello di prima');
+});
+
+ok('gruppo: Shift+clic senza textarea aperta è un clic normale', () => {
+  const { host, view } = setup({ onReview: () => true });
+  view.render(groupState({ enabled: true, notes: [], error: null }));
+  shiftClick(byClass(host, 'changes-note-add')[1]);
+  assert.strictEqual(textOf(one(host, 'changes-comment-lines')), 'Riga 2 tolta');
+});
+
+ok('gruppo: Shift sul ＋ non seleziona il testo della pagina', () => {
+  const { host, view } = setup({ onReview: () => true });
+  view.render(groupState({ enabled: true, notes: [], error: null }));
+  const plus = byClass(host, 'changes-note-add')[0];
+  assert.strictEqual(fire(plus, 'mousedown', { shiftKey: true }).defaultPrevented, true);
+  assert.notStrictEqual(fire(plus, 'mousedown', {}).defaultPrevented, true);
+});
+
+ok('gruppo: la nota salvata segna le sue righe e sta sotto l\'ultima; ✎ la riapre e la sostituisce', () => {
+  const actions = [];
+  const { host, view } = setup({ onReview: (a) => { actions.push(a); return true; } });
+  const hunk = groupDiff().hunks[0];
+  const range = R.rangeAnchor('a.js', hunk, R.anchorOf('a.js', hunk.lines[0]).lines[0], R.anchorOf('a.js', hunk.lines[2]).lines[0]);
+  const notes = R.addNote([], range.anchor, 'tre righe').notes;
+  view.render(groupState({ enabled: true, notes, error: null }));
+  assert.deepStrictEqual(rowsOf(host).map((r) => r.classes.has('has-note')), [true, true, true, false, false]);
+  const lines = byClass(host, 'changes-diff')[0].children;
+  const box = one(host, 'changes-comment');
+  assert.strictEqual(lines.indexOf(box), lines.indexOf(rowsOf(host)[2]) + 1);
+  assert.strictEqual(textOf(one(box, 'changes-comment-range')), 'Righe 1–2 e 1 tolta');
+  one(box, 'changes-comment-edit').onclick();
+  assert.strictEqual(byClass(host, 'changes-comment').length, 0, 'la nota in modifica non si vede due volte');
+  assert.strictEqual(rowsOf(host).filter((r) => r.classes.has('is-selecting')).length, 3);
+  shiftClick(byClass(host, 'changes-note-add')[3]);
+  one(host, 'changes-comment-save').onclick();
+  assert.strictEqual(actions[0].replaces, notes[0].id);
+  assert.strictEqual(actions[0].anchor.lines.length, 4);
+  assert.strictEqual(actions[0].body, 'tre righe');
+});
+
+ok('gruppo: allargare fin sulle righe esatte di un altro commento non lo cancella', () => {
+  const actions = [];
+  const { host, view } = setup({ onReview: (a) => { actions.push(a); return true; } });
+  const hunk = groupDiff().hunks[0];
+  const ref = (i) => R.anchorOf('a.js', hunk.lines[i]).lines[0];
+  const other = R.rangeAnchor('a.js', hunk, ref(0), ref(3)).anchor;
+  const notes = R.addNote(R.addNote([], R.anchorOf('a.js', hunk.lines[0]), 'mia').notes, other, 'altra').notes;
+  view.render(groupState({ enabled: true, notes, error: null }));
+  byClass(host, 'changes-comment-edit')[0].onclick();
+  shiftClick(byClass(host, 'changes-note-add')[3]);
+  assert.ok(textOf(one(host, 'changes-comment-lines')).includes('già un altro commento'));
+  assert.strictEqual(rowsOf(host).filter((r) => r.classes.has('is-selecting')).length, 1, 'il gruppo resta quello di prima');
+  assert.ok(byClass(host, 'changes-comment').some((c) => textOf(c).includes('altra')), 'l\'altro commento resta visibile');
+  one(host, 'changes-comment-save').onclick();
+  assert.strictEqual(actions[0].anchor.lines.length, 1);
+});
+
+ok('gruppo: una nota orfana cita la prima riga e quante altre', () => {
+  const { host, view } = setup({ onReview: () => true });
+  const gone = { path: 'a.js', lines: [{ side: 'new', no: 40, kind: 'add', text: 'via' }, { side: 'new', no: 41, kind: 'add', text: 'via2' }] };
+  const notes = R.addNote([], gone, 'dove?').notes;
+  view.render(groupState({ enabled: true, notes, error: null }));
+  assert.ok(textOf(one(host, 'changes-orphan')).includes('+40  via  (e un\'altra riga)'));
+  one(host, 'changes-comment-edit').onclick();
+  assert.ok(one(one(host, 'changes-orphan'), 'changes-comment-input'), 'la textarea resta fra le orfane');
 });
 
 /* ---------- Stage, unstage e commit (docs/plans/45) ---------- */

@@ -1,4 +1,4 @@
-# 49 — `feat/commenti-righe`: un commento su un gruppo di righe
+# 57 — `feat/commenti-righe`: un commento su un gruppo di righe
 
 Chiesto dall'utente il 2026-10-09. I commenti del piano 44 stanno su una
 riga sola: per dire «questo blocco va rifatto» oggi si commenta l'ultima

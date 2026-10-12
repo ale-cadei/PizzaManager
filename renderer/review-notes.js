@@ -4,7 +4,7 @@
  * changes-panel.js.
  *
  * Una nota sta su una riga, o su un gruppo di righe consecutive dello
- * stesso hunk (docs/plans/49), finché a quei numeri c'è ancora quel testo:
+ * stesso hunk (docs/plans/57), finché a quei numeri c'è ancora quel testo:
  * l'agente intanto lavora, e se una riga cambia la nota diventa «orfana» ma
  * non si perde. Il testo citato basta all'agente a ritrovarla.
  *
@@ -63,7 +63,7 @@
 
   /**
    * L'ancora delle righe di un hunk fra `from` e `to`, estremi compresi, in
-   * qualunque ordine (docs/plans/49). Fra due hunk ci sono righe che il diff
+   * qualunque ordine (docs/plans/57). Fra due hunk ci sono righe che il diff
    * non mostra: un gruppo sta in un hunk solo.
    * @returns {{ok: true, anchor: object}|{ok: false, error: string}}
    */

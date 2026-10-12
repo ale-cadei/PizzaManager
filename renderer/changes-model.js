@@ -43,7 +43,7 @@
   }
 
   /**
-   * La conferma di un merge dal selettore dei branch (docs/plans/46): quello
+   * La conferma di un merge dal selettore dei branch (docs/plans/54): quello
    * che `name` porta in `into`, dal punto in cui si è staccato alla sua punta.
    * @param {{cwd: string, name: string, into: string}} merge
    */
@@ -233,7 +233,7 @@
   }
 
   /**
-   * Stage, unstage e commit dal pannello (docs/plans/45): cosa si può fare
+   * Stage, unstage e commit dal pannello (docs/plans/53): cosa si può fare
    * adesso, e perché no. Solo in «Da committare», mai durante Unisci.
    * @param {{id: string, running?: boolean}|null} tab la scheda in primo piano
    * @param {Array<{id: string, cwd?: string, name?: string, running?: boolean}>} tabs tutte
@@ -257,7 +257,7 @@
   }
 
   /**
-   * Il piè di pagina della conferma di un merge dal selettore (docs/plans/46).
+   * Il piè di pagina della conferma di un merge dal selettore (docs/plans/54).
    * Si spegne con file non committati (lib/git-merge.js rifiuterebbe) o con
    * una sessione che lavora nello stesso repository.
    * @param {{name: string, into: string}} merge
@@ -285,7 +285,7 @@
   }
 
   /**
-   * Il piè di pagina dello scarto di un file (docs/plans/48): prima la
+   * Il piè di pagina dello scarto di un file (docs/plans/56): prima la
    * conferma, poi l'Annulla dell'ultimo scarto, finché il pannello è aperto.
    * @param {{phase: 'confirm'|'done', path: string, untracked: boolean, undo?: object|null}|null} discard
    * @param {boolean} canWrite si può scrivere adesso (commitChoice)

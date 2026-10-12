@@ -5,9 +5,9 @@
  * Il lavoro vero (git switch) lo fa il main (lib/git-branches.js): qui si
  * sceglie e si mostra l'esito. Nomi dei branch sempre con textContent.
  * Da ogni riga che non è il corrente si unisce quel branch nel corrente
- * (⤵, docs/plans/46): la conferma la dà il pannello delle modifiche.
+ * (⤵, docs/plans/54): la conferma la dà il pannello delle modifiche.
  * Un branch locale con commit che il remoto non ha, o senza upstream, si
- * pusha da ⇡ (docs/plans/47).
+ * pusha da ⇡ (docs/plans/55).
  *
  * Wrapper UMD come gli altri moduli del renderer: globale nella pagina,
  * module.exports sotto Node per i test. */

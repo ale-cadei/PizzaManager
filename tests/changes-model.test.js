@@ -206,7 +206,7 @@ ok('commenti: solo nelle sessioni con un agente, e non in modalità Unisci', () 
   assert.strictEqual(M.reviewAvailable(null, false), false);
 });
 
-/* ---------- Stage, unstage e commit (docs/plans/45) ---------- */
+/* ---------- Stage, unstage e commit (docs/plans/53) ---------- */
 
 ok('commit: si scrive solo in «Da committare», e mai in modalità Unisci', () => {
   const tab = { id: 't1', type: 'shell', cwd: '/r' };
@@ -269,7 +269,7 @@ ok('commit: un merge che comincia o finisce cambia la firma', () => {
   assert.notStrictEqual(M.signature(r), M.signature({ ...r, busy: 'merge' }));
 });
 
-/* ---------- Unire un branch dal selettore (docs/plans/46) ---------- */
+/* ---------- Unire un branch dal selettore (docs/plans/54) ---------- */
 
 const incoming = (files, extra = {}) => result(files, { incoming: 'feat/x', tip: 'bbb222', uncommitted: 0, ...extra });
 
@@ -317,7 +317,7 @@ ok('unisci branch: un branch già contenuto nel corrente non si unisce', () => {
   assert.match(f.warning, /già contenuto/);
 });
 
-ok('modifiche: lo scarto chiede conferma, poi offre l\'Annulla (piano 48)', () => {
+ok('modifiche: lo scarto chiede conferma, poi offre l\'Annulla (piano 56)', () => {
   assert.strictEqual(M.discardFooter(null, true), null);
   const ask = M.discardFooter({ phase: 'confirm', path: 'lib/a.js', untracked: false }, true);
   assert.match(ask.text, /Scartare le modifiche non staged a lib\/a\.js\?/);

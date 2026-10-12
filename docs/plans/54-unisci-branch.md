@@ -1,7 +1,7 @@
-# 46 — `feat/unisci-branch`: unire un branch qualsiasi nel corrente
+# 54 — `feat/unisci-branch`: unire un branch qualsiasi nel corrente
 
 Terzo pezzo della «Review attiva» (`idee.md`), dopo i commenti sul diff (44)
-e il commit dal pannello (45). Poi la PR (47).
+e il commit dal pannello (53). Poi la PR (55).
 
 ## Cosa
 
@@ -27,7 +27,7 @@ cui è la cartella.
   fondo «Unisci in `main`» / Annulla. Chiudere il pannello vale Annulla.
 - **Merge**: `git merge --no-edit <branch>` dalla radice. Default di git:
   fast-forward quando si può, altrimenti commit di merge col messaggio
-  standard. Hook come da terminale, tempo massimo 60 s (come il commit, 45).
+  standard. Hook come da terminale, tempo massimo 60 s (come il commit, 53).
 - **Esito**: nel selettore, «`feat/login` unito in `main` (fast-forward)»
   oppure «… (commit `abc1234`)»; la timeline della scheda si rilegge.
 - **Conflitti**: `git merge --abort` subito, la cartella torna com'era;
@@ -43,7 +43,7 @@ cui è la cartella.
   mescolerebbe e un abort non saprebbe rimetterle a posto. Il pannello lo
   avvisa già nella conferma e spegne «Unisci»;
 - merge o rebase a metà (`busyWith`);
-- una sessione sta lavorando nello stesso repository (`t.running`, come 45);
+- una sessione sta lavorando nello stesso repository (`t.running`, come 53);
 - niente da unire: il branch è già contenuto nel corrente
   (`merge-base --is-ancestor`);
 - il branch si è spostato fra la conferma e il merge: la conferma mostrava

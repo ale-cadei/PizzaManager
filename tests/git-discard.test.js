@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-/* Scartare le modifiche non staged di un file, e annullare (docs/plans/48).
+/* Scartare le modifiche non staged di un file, e annullare (docs/plans/56).
    I file stanno su disco in una cartella temporanea; git è finto: risponde
    allo stato delle sezioni, salva i blob in una mappa e `restore` scrive il
    contenuto dell'indice. Il caso con git vero sta in tests/integration.test.js. */

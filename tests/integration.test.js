@@ -884,7 +884,7 @@ ok('tmux: lo stato scritto ad app chiusa arriva alla scheda al riattacco', async
   } finally { s.kill(); }
 });
 
-// ---------- git: stage, unstage e commit dal pannello con git vero (piano 45) ----------
+// ---------- git: stage, unstage e commit dal pannello con git vero (piano 53) ----------
 ok('git: stage, unstage e commit dal pannello, hook compresi, con il git installato', async (t) => {
   const { execFileSync } = require('child_process');
   const os = require('os');
@@ -958,7 +958,7 @@ ok('git: stage, unstage e commit dal pannello, hook compresi, con il git install
   }
 });
 
-// ---------- git: scartare un file e annullare con git vero (piano 48) ----------
+// ---------- git: scartare un file e annullare con git vero (piano 56) ----------
 ok('git: scarta il non staged di un file e lo rimette, con il git installato', async (t) => {
   const { execFileSync } = require('child_process');
   const os = require('os');
@@ -1048,7 +1048,7 @@ ok('git: scarta il non staged di un file e lo rimette, con il git installato', a
   }
 });
 
-// ---------- git: unire un branch qualsiasi con git vero (piano 46) ----------
+// ---------- git: unire un branch qualsiasi con git vero (piano 54) ----------
 ok('git: unire un branch nel corrente, fast-forward, merge e conflitti, con il git installato', async (t) => {
   const { execFileSync } = require('child_process');
   const os = require('os');

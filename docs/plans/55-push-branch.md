@@ -1,7 +1,7 @@
-# 47 — `feat/push-branch`: push di un branch dal selettore
+# 55 — `feat/push-branch`: push di un branch dal selettore
 
 Ultimo pezzo della «Review attiva» (`idee.md`), dopo i commenti sul diff (44),
-il commit dal pannello (45) e il merge di un branch (46). Doveva essere «PR:
+il commit dal pannello (53) e il merge di un branch (54). Doveva essere «PR:
 push e apertura»; deciso con l'utente il 2026-10-09: **ci si ferma al push**.
 Le PR si aprono a mano su GitHub, o le apre l'agente (che ha già `gh` o il
 browser). Niente token, niente `gh` nell'app.

@@ -1,7 +1,7 @@
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
 
-/* Stage, unstage e commit dal pannello (docs/plans/45): lib/git-commit.js è
+/* Stage, unstage e commit dal pannello (docs/plans/53): lib/git-commit.js è
    la prima scrittura del pannello. Qui argv e controlli con un git finto; il
    caso con git vero sta in tests/integration.test.js. */
 const C = require('../lib/git-commit');

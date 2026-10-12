@@ -880,7 +880,7 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 }
 .changes-comment-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--gap-sm); margin-top: 6px; }
 .changes-comment-hint { margin-right: auto; font-size: 11px; color: var(--text-faint); }
-/* Gruppo di righe (docs/plans/49). Il bordo sinistro è già del verde/rosso
+/* Gruppo di righe (docs/plans/57). Il bordo sinistro è già del verde/rosso
    della riga: il segno del commento è una seconda barra subito dentro.
    Il gruppo in modifica si vela sopra il fondo, che resta verde o rosso */
 .changes-line.has-note { box-shadow: inset 3px 0 0 var(--action-text); }
@@ -905,7 +905,7 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .changes-review-count { margin-right: auto; align-self: center; font-size: 12px; color: var(--text-muted); }
 .changes-review-error { margin: 0; font-size: 12px; color: var(--accent); white-space: pre-wrap; }
 .changes-review-foot .btn[disabled] { opacity: .45; cursor: not-allowed; }
-/* Stage, unstage e commit (docs/plans/45): ＋/− accanto alla riga del file,
+/* Stage, unstage e commit (docs/plans/53): ＋/− accanto alla riga del file,
    «tutti» a destra nell'intestazione di sezione, il messaggio in fondo */
 .changes-file-head { display: flex; align-items: center; }
 .changes-file-head .changes-file-row { flex: 1; min-width: 0; }
@@ -940,7 +940,7 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
   color: var(--state-ok); white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .changes-commit-outcome.is-error { color: var(--state-error); }
-/* Scartare un file (docs/plans/48): conferma e Annulla nel piede */
+/* Scartare un file (docs/plans/56): conferma e Annulla nel piede */
 .changes-discard-foot {
   display: flex; flex-direction: column; gap: var(--gap-sm);
   padding: 10px 14px; border-top: 1px solid var(--border); background: var(--surface-2);
@@ -1290,7 +1290,7 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 }
 .git-picker-delete svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
 .git-picker-row:hover .git-picker-delete, .git-picker-delete:focus-visible { opacity: 1; }
-/* ⤵ unisci nel corrente (docs/plans/46): stesso riserbo del cestino, colore dell'azione */
+/* ⤵ unisci nel corrente (docs/plans/54): stesso riserbo del cestino, colore dell'azione */
 .git-picker-merge { font-size: 15px; line-height: 1; }
 .git-picker-row:hover .git-picker-merge, .git-picker-merge:focus-visible { opacity: 1; }
 .git-picker-merge:hover, .git-picker-merge:focus-visible { color: var(--action-text); background: color-mix(in srgb, var(--action-text) 14%, transparent); }
@@ -1299,7 +1299,7 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
   border-radius: var(--radius); cursor: pointer; font: inherit; font-size: 12px; font-variant-numeric: tabular-nums;
   color: var(--action-text); transition: background-color .12s ease;
 }
-/* ⇡ push (docs/plans/47): sempre visibile, dice che ci sono commit da mandare */
+/* ⇡ push (docs/plans/55): sempre visibile, dice che ci sono commit da mandare */
 .git-picker-push:hover, .git-picker-push:focus-visible { background: color-mix(in srgb, var(--action-text) 14%, transparent); }
 .git-picker-delete:hover, .git-picker-delete:focus-visible { color: var(--state-error); background: color-mix(in srgb, var(--state-error) 14%, transparent); }
 .git-picker-confirm {

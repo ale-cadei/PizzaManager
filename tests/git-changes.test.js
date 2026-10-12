@@ -203,7 +203,7 @@ ok('changes: con una base conta a parte i file non ancora committati', async () 
   assert.strictEqual(r.uncommitted, 2, 'c.js modificato e nuovo.txt non tracciato; b.js è nei commit');
 });
 
-/* «Unisci un branch» (docs/plans/46): due commit, il disco non c'entra */
+/* «Unisci un branch» (docs/plans/54): due commit, il disco non c'entra */
 function incomingAnswers(extra = {}) {
   return repoAnswers({
     'rev-parse --verify': (args) => {

@@ -61,17 +61,17 @@ function registerGitHandlers(ipcMain, { userDataDir } = {}) {
   // «Da committare» (docs/plans/43): sezione e percorso li ricontrolla lib/git-staging.js
   ipcMain.handle('git-staging', guard(({ cwd }) => readStaging({ cwd })));
   ipcMain.handle('git-staging-diff', guard(({ cwd, path, side }) => readStagingDiff({ cwd, path, side })));
-  // Stage, unstage e commit (docs/plans/45): i percorsi devono essere adesso
+  // Stage, unstage e commit (docs/plans/53): i percorsi devono essere adesso
   // nella sezione giusta, lo ricontrolla lib/git-commit.js. `all` vale solo se è true.
   ipcMain.handle('git-stage', guard(({ cwd, paths, all }) => (all === true ? stageAll({ cwd }) : stagePaths({ cwd, paths }))));
   ipcMain.handle('git-unstage', guard(({ cwd, paths, all }) => (all === true ? unstageAll({ cwd }) : unstagePaths({ cwd, paths }))));
   ipcMain.handle('git-commit', guard(({ cwd, message }) => commitStaged({ cwd, message })));
-  // Unire un branch nel corrente (docs/plans/46): nome, tipo e controlli li
+  // Unire un branch nel corrente (docs/plans/54): nome, tipo e controlli li
   // rifà lib/git-merge.js; `expect` è la punta che la conferma ha mostrato.
   ipcMain.handle('git-merge', guard(({ cwd, name, kind, expect }) => mergeBranch({ cwd, name, kind, expect: typeof expect === 'string' ? expect : null })));
-  // Push di un branch locale (docs/plans/47): upstream o `-u`, mai forzato
+  // Push di un branch locale (docs/plans/55): upstream o `-u`, mai forzato
   ipcMain.handle('git-push', guard(({ cwd, name }) => pushBranch({ cwd, name })));
-  // Scartare il non staged di un file, e annullare (docs/plans/48): percorso
+  // Scartare il non staged di un file, e annullare (docs/plans/56): percorso
   // e gettone li ricontrolla lib/git-discard.js
   ipcMain.handle('git-discard', guard(({ cwd, path }) => discardFile({ cwd, path })));
   ipcMain.handle('git-discard-undo', guard(({ cwd, token }) => undoDiscard({ cwd, token })));

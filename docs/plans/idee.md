@@ -70,9 +70,9 @@ worktree. Quattro pezzi, un piano e un branch ciascuno, in quest'ordine:
 
 - [x] studio — fatto con l'utente il 2026-10-08: ordine sopra; commenti per
       riga, in memoria, solo schede agente
-- [x] piano — 44 (commenti, fatto), 45 (commit, fatto), 46 (unisci un
-      branch, fatto), 47 (push dal selettore dei branch, fatto); poi,
-      chiesti il 2026-10-09: 48 (scartare un file, fatto), 49 (commento su più
+- [x] piano — 44 (commenti, fatto), 53 (commit, fatto), 54 (unisci un
+      branch, fatto), 55 (push dal selettore dei branch, fatto); poi,
+      chiesti il 2026-10-09: 56 (scartare un file, fatto), 57 (commento su più
       righe, fatto)
 - [ ] fatto
 - [ ] provato

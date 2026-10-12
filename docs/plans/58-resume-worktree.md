@@ -1,4 +1,4 @@
-# 53 — `feat/resume-worktree`: ⟲ sulla riga del worktree
+# 58 — `feat/resume-worktree`: ⟲ sulla riga del worktree
 
 Dipende da: 36 (sessioni nei worktree), 8 (Resume per progetto). Taglia ~2h.
 

@@ -61,3 +61,73 @@ ok('ipc: il pannello delle modifiche risponde con un errore a un payload vuoto, 
   const badBase = await handlers.get('git-changes')({}, { cwd: __dirname, base: '--output=/tmp/x' });
   assert.strictEqual(badBase.ok, false);
 });
+
+ok('ipc: stage, unstage e commit rifiutano payload vuoti, percorsi fuori e un `all` che non è true', async () => {
+  const { handlers, ipcMain } = fakeIpc();
+  registerGitHandlers(ipcMain, { userDataDir: () => '/non/usata' });
+  for (const channel of ['git-stage', 'git-unstage', 'git-commit']) {
+    for (const payload of [undefined, null, {}]) {
+      const r = await handlers.get(channel)({}, payload);
+      assert.strictEqual(r.ok, false, `${channel} con ${JSON.stringify(payload)}`);
+      assert.ok(r.error, `${channel} senza messaggio`);
+    }
+  }
+  // cwd è questo repository: nessuna di queste richieste deve arrivare a scrivere
+  for (const channel of ['git-stage', 'git-unstage']) {
+    const outside = await handlers.get(channel)({}, { cwd: __dirname, paths: ['../../etc/passwd'] });
+    assert.deepStrictEqual(outside, { ok: false, error: 'Percorsi non validi.' });
+    const notTrue = await handlers.get(channel)({}, { cwd: __dirname, all: 'true' });
+    assert.deepStrictEqual(notTrue, { ok: false, error: 'Percorsi non validi.' });
+  }
+  const noMessage = await handlers.get('git-commit')({}, { cwd: __dirname, message: '   ' });
+  assert.strictEqual(noMessage.ok, false);
+});
+
+ok('ipc: git-merge rifiuta payload vuoti, nomi che sembrano opzioni e tipi sconosciuti', async () => {
+  const { handlers, ipcMain } = fakeIpc();
+  registerGitHandlers(ipcMain, { userDataDir: () => '/non/usata' });
+  const merge = handlers.get('git-merge');
+  for (const payload of [undefined, null, {}]) {
+    const r = await merge({}, payload);
+    assert.strictEqual(r.ok, false, JSON.stringify(payload));
+    assert.ok(r.error);
+  }
+  // cwd è questo repository: nessuna di queste richieste deve arrivare a unire
+  assert.strictEqual((await merge({}, { cwd: __dirname, name: '--abort', kind: 'local' })).ok, false);
+  assert.strictEqual((await merge({}, { cwd: __dirname, name: 'main', kind: 'tag' })).ok, false);
+  const badIncoming = await handlers.get('git-changes')({}, { cwd: __dirname, incoming: '-X' });
+  assert.strictEqual(badIncoming.ok, false);
+});
+
+ok('ipc: git-push rifiuta payload vuoti e nomi che sembrano opzioni, senza pushare', async () => {
+  const { handlers, ipcMain } = fakeIpc();
+  registerGitHandlers(ipcMain, { userDataDir: () => '/non/usata' });
+  const push = handlers.get('git-push');
+  for (const payload of [undefined, null, {}, { cwd: __dirname }]) {
+    const r = await push({}, payload);
+    assert.strictEqual(r.ok, false, JSON.stringify(payload));
+    assert.ok(r.error);
+  }
+  // cwd è questo repository: nessuna di queste richieste deve arrivare a git push
+  for (const name of ['--all', '--mirror', '-f', 'non/esiste/davvero-47']) {
+    assert.strictEqual((await push({}, { cwd: __dirname, name })).ok, false, name);
+  }
+});
+
+ok('ipc: scarta e annulla rifiutano payload vuoti, percorsi fuori e gettoni finti', async () => {
+  const { handlers, ipcMain } = fakeIpc();
+  registerGitHandlers(ipcMain, { userDataDir: () => '/non/usata' });
+  for (const channel of ['git-discard', 'git-discard-undo']) {
+    for (const payload of [undefined, null, {}, { cwd: __dirname }]) {
+      const r = await handlers.get(channel)({}, payload);
+      assert.strictEqual(r.ok, false, `${channel} con ${JSON.stringify(payload)}`);
+      assert.ok(r.error, `${channel} senza messaggio`);
+    }
+  }
+  // cwd è questo repository: nessuna di queste richieste deve arrivare a scrivere
+  const discard = handlers.get('git-discard');
+  assert.deepStrictEqual(await discard({}, { cwd: __dirname, path: '../../etc/passwd' }), { ok: false, error: 'Percorso non valido.' });
+  assert.strictEqual((await discard({}, { cwd: __dirname, path: 'non-esiste-piano-48.txt' })).ok, false);
+  const token = { path: '../../etc/passwd', blob: 'a'.repeat(40), mode: 0o644, after: null };
+  assert.strictEqual((await handlers.get('git-discard-undo')({}, { cwd: __dirname, token })).ok, false);
+});

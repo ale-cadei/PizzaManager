@@ -883,3 +883,318 @@ ok('tmux: lo stato scritto ad app chiusa arriva alla scheda al riattacco', async
     app2.closeAll();
   } finally { s.kill(); }
 });
+
+// ---------- git: stage, unstage e commit dal pannello con git vero (piano 53) ----------
+ok('git: stage, unstage e commit dal pannello, hook compresi, con il git installato', async (t) => {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const path = require('path');
+  const { resolveBinary } = require('../lib/binaries');
+  const { readStaging } = require('../lib/git-staging');
+  const C = require('../lib/git-commit');
+  const bin = resolveBinary('git');
+  if (!bin.path) return t.skip('git non installato su questa macchina');
+  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-commit-')));
+  const git = (...args) => String(execFileSync(bin.path, args, { cwd: root })).trim();
+  const write = (file, text) => fs.writeFileSync(path.join(root, file), text);
+  const rows = async () => (await readStaging({ cwd: root })).files.map((f) => [f.side, f.status, f.path]);
+  try {
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.name', 'Prova');
+    git('config', 'user.email', 'p@x');
+    // Hook e firma solo quelli di questo repository, non quelli dell'utente
+    git('config', 'core.hooksPath', '.git/hooks');
+    git('config', 'commit.gpgsign', 'false');
+
+    // Senza commit: − passa da rm --cached, «Togli tutti» pure
+    write('a.txt', 'uno\n');
+    write('b.txt', 'resto uguale\nper il rename\ne ancora\n');
+    assert.deepStrictEqual(await C.stagePaths({ cwd: root, paths: ['a.txt'] }), { ok: true });
+    assert.deepStrictEqual(await rows(), [['staged', 'A', 'a.txt'], ['unstaged', '?', 'b.txt']]);
+    assert.deepStrictEqual(await C.unstagePaths({ cwd: root, paths: ['a.txt'] }), { ok: true });
+    assert.deepStrictEqual(await rows(), [['unstaged', '?', 'a.txt'], ['unstaged', '?', 'b.txt']]);
+    await C.stageAll({ cwd: root });
+    assert.deepStrictEqual(await C.unstageAll({ cwd: root }), { ok: true });
+    assert.deepStrictEqual((await rows()).map((r) => r[0]), ['unstaged', 'unstaged']);
+    assert.strictEqual((await C.commitStaged({ cwd: root, message: 'x' })).ok, false, 'niente di staged');
+
+    await C.stageAll({ cwd: root });
+    const first = await C.commitStaged({ cwd: root, message: 'primo\n\ncorpo' });
+    assert.deepStrictEqual(first, { ok: true, commit: git('rev-parse', '--short', 'HEAD'), branch: 'main' });
+    assert.strictEqual(git('log', '-1', '--format=%B'), 'primo\n\ncorpo');
+
+    // Con HEAD: − su un rinominato rimette a posto tutti e due i nomi
+    git('mv', 'b.txt', 'c.txt');
+    assert.deepStrictEqual(await C.unstagePaths({ cwd: root, paths: ['c.txt'] }), { ok: true });
+    assert.deepStrictEqual(await rows(), [['unstaged', 'D', 'b.txt'], ['unstaged', '?', 'c.txt']]);
+    assert.strictEqual((await C.unstagePaths({ cwd: root, paths: ['c.txt'] })).ok, false, 'non è staged');
+
+    // Un hook che fallisce: il commit non c'è, il suo output sì, lo staged resta
+    write('a.txt', 'uno\ndue\n');
+    await C.stagePaths({ cwd: root, paths: ['a.txt'] });
+    const hook = path.join(root, '.git', 'hooks', 'pre-commit');
+    fs.writeFileSync(hook, '#!/bin/sh\necho "lint: 2 errori"\nexit 1\n', { mode: 0o755 });
+    const head = git('rev-parse', 'HEAD');
+    const failed = await C.commitStaged({ cwd: root, message: 'secondo' });
+    assert.strictEqual(failed.ok, false);
+    assert.match(failed.error, /lint: 2 errori/);
+    assert.strictEqual(git('rev-parse', 'HEAD'), head);
+    assert.strictEqual(git('diff', '--cached', '--name-only'), 'a.txt');
+    fs.rmSync(hook);
+
+    // Un altro git al lavoro, o un merge a metà: niente scritture
+    const lock = path.join(root, '.git', 'index.lock');
+    fs.writeFileSync(lock, '');
+    assert.match((await C.stageAll({ cwd: root })).error, /riprova/);
+    fs.rmSync(lock);
+    fs.writeFileSync(path.join(root, '.git', 'MERGE_HEAD'), `${head}\n`);
+    assert.match((await C.commitStaged({ cwd: root, message: 'secondo' })).error, /merge/);
+    fs.rmSync(path.join(root, '.git', 'MERGE_HEAD'));
+
+    assert.strictEqual((await C.commitStaged({ cwd: root, message: 'secondo' })).ok, true);
+    assert.strictEqual(git('log', '-1', '--format=%s'), 'secondo');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// ---------- git: scartare un file e annullare con git vero (piano 56) ----------
+ok('git: scarta il non staged di un file e lo rimette, con il git installato', async (t) => {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const path = require('path');
+  const { resolveBinary } = require('../lib/binaries');
+  const { readStaging } = require('../lib/git-staging');
+  const { discardFile, undoDiscard } = require('../lib/git-discard');
+  const bin = resolveBinary('git');
+  if (!bin.path) return t.skip('git non installato su questa macchina');
+  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-discard-')));
+  const git = (...args) => String(execFileSync(bin.path, args, { cwd: root })).trim();
+  const file = (rel) => path.join(root, rel);
+  const read = (rel) => fs.readFileSync(file(rel), 'utf8');
+  const rows = async () => (await readStaging({ cwd: root })).files.map((f) => [f.side, f.status, f.path]);
+  try {
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.name', 'Prova');
+    git('config', 'user.email', 'p@x');
+    git('config', 'commit.gpgsign', 'false');
+    fs.writeFileSync(file('a.txt'), 'uno\n');
+    fs.writeFileSync(file('via.txt'), 'resta\n');
+    fs.writeFileSync(file('run.sh'), 'echo ciao\n');
+    git('add', '.');
+    git('commit', '-q', '-m', 'primo');
+
+    // Parzialmente staged: lo staged resta, il non staged se ne va
+    fs.writeFileSync(file('a.txt'), 'uno\ndue\n');
+    git('add', 'a.txt');
+    fs.writeFileSync(file('a.txt'), 'uno\ndue\ntre\n');
+    const a = await discardFile({ cwd: root, path: 'a.txt' });
+    assert.strictEqual(a.ok, true, a.error);
+    assert.strictEqual(read('a.txt'), 'uno\ndue\n');
+    assert.deepStrictEqual(await rows(), [['staged', 'M', 'a.txt']]);
+    assert.strictEqual(git('cat-file', '-p', a.undo.blob), 'uno\ndue\ntre', 'il contenuto è salvato in git');
+    assert.deepStrictEqual(await undoDiscard({ cwd: root, token: a.undo }), { ok: true, path: 'a.txt' });
+    assert.strictEqual(read('a.txt'), 'uno\ndue\ntre\n');
+    assert.deepStrictEqual(await rows(), [['staged', 'M', 'a.txt'], ['unstaged', 'M', 'a.txt']]);
+
+    // Il bit eseguibile torna con l'Annulla
+    fs.writeFileSync(file('run.sh'), 'echo altro\n');
+    fs.chmodSync(file('run.sh'), 0o755);
+    const sh = await discardFile({ cwd: root, path: 'run.sh' });
+    assert.strictEqual(fs.statSync(file('run.sh')).mode & 0o111, 0, 'come nell\'indice');
+    await undoDiscard({ cwd: root, token: sh.undo });
+    assert.strictEqual(fs.statSync(file('run.sh')).mode & 0o777, 0o755);
+    assert.strictEqual(read('run.sh'), 'echo altro\n');
+
+    // Cancellato: torna; l'Annulla lo ricancella
+    fs.rmSync(file('via.txt'));
+    const via = await discardFile({ cwd: root, path: 'via.txt' });
+    assert.strictEqual(read('via.txt'), 'resta\n');
+    await undoDiscard({ cwd: root, token: via.undo });
+    assert.ok(!fs.existsSync(file('via.txt')));
+
+    // Non tracciato, binario, in una sottocartella: cancellato e rimesso byte per byte
+    fs.mkdirSync(file('dati'));
+    const bytes = Buffer.from([0, 0xff, 0x0a, 0x0d, 0x80, 0x41]);
+    fs.writeFileSync(file('dati/blob.bin'), bytes);
+    const bin1 = await discardFile({ cwd: root, path: 'dati/blob.bin' });
+    assert.strictEqual(bin1.untracked, true);
+    assert.ok(!fs.existsSync(file('dati/blob.bin')));
+    await undoDiscard({ cwd: root, token: bin1.undo });
+    assert.deepStrictEqual(fs.readFileSync(file('dati/blob.bin')), bytes);
+
+    // L'agente riscrive dopo lo scarto: l'Annulla rifiuta e non tocca niente
+    const again = await discardFile({ cwd: root, path: 'a.txt' });
+    fs.writeFileSync(file('a.txt'), 'nuovo lavoro\n');
+    const refused = await undoDiscard({ cwd: root, token: again.undo });
+    assert.strictEqual(refused.ok, false);
+    assert.match(refused.error, /cambiato dopo lo scarto/);
+    assert.strictEqual(read('a.txt'), 'nuovo lavoro\n');
+
+    // Un nome che git leggerebbe come opzione o come pattern resta un nome
+    fs.writeFileSync(file('-n'), 'x\n');
+    fs.writeFileSync(file('*.txt'), 'y\n');
+    git('add', '--', '-n', '*.txt');
+    git('commit', '-q', '-m', 'strani', '--', '-n', '*.txt');
+    fs.writeFileSync(file('-n'), 'cambiato\n');
+    fs.writeFileSync(file('*.txt'), 'cambiato\n');
+    assert.strictEqual((await discardFile({ cwd: root, path: '*.txt' })).ok, true);
+    assert.strictEqual(read('*.txt'), 'y\n');
+    assert.strictEqual(read('a.txt'), 'nuovo lavoro\n', 'il pattern non ha preso altri file');
+    assert.strictEqual((await discardFile({ cwd: root, path: '-n' })).ok, true);
+    assert.strictEqual(read('-n'), 'x\n');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// ---------- git: unire un branch qualsiasi con git vero (piano 54) ----------
+ok('git: unire un branch nel corrente, fast-forward, merge e conflitti, con il git installato', async (t) => {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const path = require('path');
+  const { resolveBinary } = require('../lib/binaries');
+  const { readChanges } = require('../lib/git-changes');
+  const { mergeBranch } = require('../lib/git-merge');
+  const bin = resolveBinary('git');
+  if (!bin.path) return t.skip('git non installato su questa macchina');
+  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-merge-')));
+  const git = (...args) => String(execFileSync(bin.path, args, { cwd: root })).trim();
+  const write = (file, text) => fs.writeFileSync(path.join(root, file), text);
+  const commit = (file, text, msg) => { write(file, text); git('add', file); git('commit', '-q', '-m', msg); };
+  try {
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.name', 'Prova');
+    git('config', 'user.email', 'p@x');
+    git('config', 'core.hooksPath', '.git/hooks');
+    git('config', 'commit.gpgsign', 'false');
+    commit('a.txt', 'uno\n', 'init');
+
+    // Fast-forward: feat/ff va avanti, main no
+    git('switch', '-q', '-c', 'feat/ff');
+    commit('b.txt', 'bi\n', 'b');
+    git('switch', '-q', 'main');
+    const seen = await readChanges({ cwd: root, incoming: 'feat/ff' });
+    assert.deepStrictEqual(seen.files.map((f) => [f.status, f.path]), [['A', 'b.txt']]);
+    const ff = await mergeBranch({ cwd: root, name: 'feat/ff', kind: 'local', expect: seen.tip });
+    assert.strictEqual(ff.ok, true, ff.error);
+    assert.strictEqual(ff.fastForward, true);
+    assert.strictEqual(git('rev-parse', 'HEAD'), seen.tip);
+    assert.match((await mergeBranch({ cwd: root, name: 'feat/ff', kind: 'local' })).error, /già contenuto/);
+
+    // Divergenti senza conflitti: commit di merge col messaggio standard
+    git('switch', '-q', '-c', 'feat/div');
+    commit('c.txt', 'ci\n', 'c');
+    git('switch', '-q', 'main');
+    commit('d.txt', 'di\n', 'd');
+    const div = await mergeBranch({ cwd: root, name: 'feat/div', kind: 'local' });
+    assert.strictEqual(div.ok, true, div.error);
+    assert.strictEqual(div.fastForward, false);
+    assert.strictEqual(git('log', '-1', '--format=%s'), "Merge branch 'feat/div'");
+    assert.strictEqual(git('rev-parse', '--short', 'HEAD'), div.commit);
+
+    // Conflitto: annullato, la cartella com'era, il file elencato
+    git('switch', '-q', '-c', 'feat/conf');
+    commit('a.txt', 'dal branch\n', 'a branch');
+    git('switch', '-q', 'main');
+    commit('a.txt', 'da main\n', 'a main');
+    const before = git('rev-parse', 'HEAD');
+    const conf = await mergeBranch({ cwd: root, name: 'feat/conf', kind: 'local' });
+    assert.strictEqual(conf.conflict, true, conf.error);
+    assert.deepStrictEqual(conf.files, ['a.txt']);
+    assert.strictEqual(git('rev-parse', 'HEAD'), before);
+    assert.strictEqual(git('status', '--porcelain'), '');
+    assert.strictEqual(fs.readFileSync(path.join(root, 'a.txt'), 'utf8'), 'da main\n');
+
+    // Con file tracciati non committati non si comincia nemmeno
+    write('a.txt', 'a metà\n');
+    assert.match((await mergeBranch({ cwd: root, name: 'feat/conf', kind: 'local' })).error, /non committate/);
+    assert.strictEqual(fs.readFileSync(path.join(root, 'a.txt'), 'utf8'), 'a metà\n');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+ok('git: push di un branch su un remoto bare, nuovo upstream, push dopo, rifiuto senza force', async (t) => {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const path = require('path');
+  const { resolveBinary } = require('../lib/binaries');
+  const { pushBranch } = require('../lib/git-push');
+  const { listBranches } = require('../lib/git-branches');
+  const bin = resolveBinary('git');
+  if (!bin.path) return t.skip('git non installato su questa macchina');
+  const dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-push-')));
+  const remote = path.join(dir, 'remoto.git');
+  const root = path.join(dir, 'w');
+  const other = path.join(dir, 'altro');
+  const gitIn = (cwd) => (...args) => String(execFileSync(bin.path, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] })).trim();
+  const setup = (git) => {
+    git('config', 'user.name', 'Prova');
+    git('config', 'user.email', 'p@x');
+    git('config', 'core.hooksPath', '.git/hooks');
+    git('config', 'commit.gpgsign', 'false');
+  };
+  const commit = (cwd, git, file, msg) => { fs.writeFileSync(path.join(cwd, file), msg); git('add', file); git('commit', '-q', '-m', msg); };
+  const local = async (name) => (await listBranches({ cwd: root })).local.find((b) => b.name === name);
+  try {
+    fs.mkdirSync(root);
+    gitIn(dir)('init', '-q', '--bare', remote);
+    const git = gitIn(root);
+    git('init', '-q', '-b', 'main');
+    setup(git);
+    git('remote', 'add', 'origin', remote);
+    commit(root, git, 'a.txt', 'init');
+
+    // Nessun upstream: si pubblica con -u e il branch poi segue il remoto
+    git('switch', '-q', '-c', 'feat/x');
+    commit(root, git, 'b.txt', 'b');
+    assert.strictEqual((await local('feat/x')).upstream, '');
+    const first = await pushBranch({ cwd: root, name: 'feat/x' });
+    assert.deepStrictEqual(first, { ok: true, branch: 'feat/x', remote: 'origin', upstream: 'origin/feat/x', created: true });
+    assert.strictEqual(gitIn(dir)('--git-dir', remote, 'rev-parse', 'refs/heads/feat/x'), git('rev-parse', 'feat/x'));
+    assert.strictEqual(git('rev-parse', '--abbrev-ref', 'feat/x@{upstream}'), 'origin/feat/x');
+    assert.deepStrictEqual((({ ahead, behind }) => ({ ahead, behind }))(await local('feat/x')), { ahead: 0, behind: 0 });
+
+    // Un commit in più: ⇡1, poi il push normale sull'upstream
+    commit(root, git, 'c.txt', 'c');
+    assert.strictEqual((await local('feat/x')).ahead, 1);
+    const second = await pushBranch({ cwd: root, name: 'feat/x' });
+    assert.strictEqual(second.ok, true, second.error);
+    assert.strictEqual(second.created, false);
+    assert.strictEqual(gitIn(dir)('--git-dir', remote, 'rev-parse', 'refs/heads/feat/x'), git('rev-parse', 'feat/x'));
+    assert.strictEqual((await local('feat/x')).ahead, 0);
+
+    // Qualcun altro pusha prima: rifiutato, il remoto resta com'era (niente force)
+    gitIn(dir)('clone', '-q', '-b', 'feat/x', remote, other);
+    const git2 = gitIn(other);
+    setup(git2);
+    commit(other, git2, 'd.txt', 'd da altro');
+    git2('push', '-q', 'origin', 'feat/x');
+    const theirs = git2('rev-parse', 'HEAD');
+    commit(root, git, 'e.txt', 'e mio');
+    const refused = await pushBranch({ cwd: root, name: 'feat/x' });
+    assert.strictEqual(refused.ok, false);
+    assert.strictEqual(refused.rejected, true, refused.error);
+    assert.match(refused.error, /pull o rebase/);
+    assert.strictEqual(gitIn(dir)('--git-dir', remote, 'rev-parse', 'refs/heads/feat/x'), theirs);
+
+    // Un branch che non è quello estratto si pusha lo stesso, HEAD non conta
+    git('branch', 'feat/altro', 'main');
+    const other2 = await pushBranch({ cwd: root, name: 'feat/altro' });
+    assert.strictEqual(other2.ok, true, other2.error);
+    assert.strictEqual(gitIn(dir)('--git-dir', remote, 'rev-parse', 'refs/heads/feat/altro'), git('rev-parse', 'main'));
+    assert.strictEqual(git('rev-parse', '--abbrev-ref', 'HEAD'), 'feat/x');
+
+    // Un hook pre-push che rifiuta ferma il push e il suo messaggio arriva
+    git('switch', '-q', '-c', 'feat/hook');
+    const hook = path.join(root, '.git', 'hooks', 'pre-push');
+    fs.writeFileSync(hook, '#!/bin/sh\necho "pre-push: no grazie" >&2\nexit 1\n', { mode: 0o755 });
+    const hooked = await pushBranch({ cwd: root, name: 'feat/hook' });
+    assert.strictEqual(hooked.ok, false);
+    assert.match(hooked.error, /no grazie/);
+    assert.throws(() => gitIn(dir)('--git-dir', remote, 'rev-parse', '--verify', '--quiet', 'refs/heads/feat/hook'));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

@@ -381,7 +381,7 @@
     granchio: {
       speed: 0.8,
       motion: 'walk',
-      height: 0.969,
+      height: 0.823,
       palette: { a: '#FF9F7A', b: '#E4553D', c: '#241A33', d: '#241A33FF', e: '#FFF6EA', f: '#A8352A' },
       frames: {
         walk: [GRANCHIO_WALK_1, GRANCHIO_WALK_2, GRANCHIO_WALK_1, GRANCHIO_WALK_2],

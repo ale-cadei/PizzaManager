@@ -39,11 +39,10 @@ ok('sprites: ogni personaggio ha le pose che il motore usa, walk con almeno due 
 });
 
 ok('sprites: i personaggi del pacchetto Spritelli sono voci del cast', () => {
-  for (const id of ['ape', 'chiocciola', 'papera', 'robottino', 'tazzina']) {
+  for (const id of ['chiocciola', 'robottino', 'tazzina']) {
     assert.ok(CAST[id], `${id} non è nel cast`);
     assert.strictEqual(CAST[id][0], id);
   }
-  assert.strictEqual(SPRITES.ape.motion, 'fly');
 });
 
 ok('sprites: granchio e barchetta (pacchetto Pixel Reef) sono voci del cast, fini quanto i pacchetti a 32 righe', () => {
@@ -63,6 +62,13 @@ ok('sprites: nei Pixel Reef le «z» del sonno non ci sono (le mette la vista)',
   for (const id of ['granchio', 'barchetta']) {
     const z = Object.keys(SPRITES[id].palette).find((ch) => SPRITES[id].palette[ch].toUpperCase() === '#9FD3E6');
     for (const grid of SPRITES[id].frames.sleep) assert.ok(!z || !grid.join('').includes(z), `${id}: «z» nel sonno`);
+  }
+});
+
+ok('sprites: ape, papera con anatroccoli, clessidra e lampadina non ci sono più', () => {
+  for (const id of ['ape', 'papera', 'anatroccolo', 'clessidra', 'lampadina']) {
+    assert.strictEqual(CAST[id], undefined, `${id} nel cast`);
+    assert.strictEqual(SPRITES[id], undefined, `${id} fra i disegni`);
   }
 });
 
@@ -122,7 +128,7 @@ ok('sprites: le ruote del trenino girano: a ogni tempo del passo cambiano', () =
 });
 
 ok('sprites: gli Spritelli sono ingranditi a 2x, coi pixel fini quanto i pacchetti a 32 righe', () => {
-  for (const kind of ['ape', 'chiocciola', 'papera', 'anatroccolo', 'robottino', 'pesce']) {
+  for (const kind of ['chiocciola', 'robottino', 'pesce']) {
     assert.ok(dims(kind).rows >= 18, `${kind}: ${dims(kind).rows} righe`);
     assert.ok(Math.abs(pixel(kind, 48) - 48 / 32) < 0.01, `${kind}: pixel ${pixel(kind, 48)}`);
   }
@@ -131,7 +137,7 @@ ok('sprites: gli Spritelli sono ingranditi a 2x, coi pixel fini quanto i pacchet
 ok('sprites: nessun personaggio ha il contorno scuro attorno alla sagoma (i pacchetti ce l avevano)', () => {
   // Il colore del bordo che ogni pacchetto disegnava attorno alla sagoma
   const OUTLINE = {
-    ape: '#2B2233', chiocciola: '#2B2233', papera: '#2B2233', anatroccolo: '#2B2233', robottino: '#2B2233',
+    chiocciola: '#2B2233', robottino: '#2B2233',
     pesce: '#2B2233', tazzina: '#2B2233', pizza: '#3A1F14', fizzo: '#2B1418', zucca: '#3A1A0A',
     babbo: '#1F1420', morte: '#050307', fantasmino: '#222034',
     granchio: '#241A33', barchetta: '#241A33',
@@ -153,33 +159,6 @@ ok('sprites: nessun personaggio ha il contorno scuro attorno alla sagoma (i pacc
       assert.ok(outlined <= edge.length / 2, `${kind} ${pose}: ${outlined} pixel scuri su ${edge.length} di bordo`);
     }
   }
-});
-
-ok('sprites: papera e anatroccoli camminano a quattro tempi, e a ogni tempo le zampe cambiano', () => {
-  for (const kind of ['papera', 'anatroccolo']) {
-    const { walk } = SPRITES[kind].frames;
-    const dark = Object.keys(SPRITES[kind].palette).find((ch) => SPRITES[kind].palette[ch] === '#2B2233');
-    // Le zampe: le righe sotto l'ultima con la pancia piena
-    const legs = (frame) => frame.slice(-4).join('\n');
-    assert.strictEqual(walk.length, 4, `${kind}: ${walk.length} tempi`);
-    walk.forEach((frame, i) => {
-      assert.notStrictEqual(legs(frame), legs(walk[(i + 1) % 4]), `${kind}: zampe ferme fra il tempo ${i} e il successivo`);
-      assert.ok(!legs(frame).includes(dark), `${kind}: zampe col bordo scuro al tempo ${i}`);
-    });
-  }
-});
-
-ok('sprites: gli anatroccoli hanno le zampe lunghe quanto quelle della papera', () => {
-  // Righe in fondo con solo zampe: nessun colore della pancia
-  const legRows = (kind) => {
-    const { palette, frames } = SPRITES[kind];
-    const leg = new Set(Object.keys(palette).filter((ch) => ['#F39A36', '#E3A92C'].includes(palette[ch])));
-    const [frame] = frames.walk;
-    let n = 0;
-    while ([...frame[frame.length - 1 - n]].every((ch) => ch === '.' || leg.has(ch))) n += 1;
-    return n;
-  };
-  assert.ok(legRows('anatroccolo') >= legRows('papera'), `anatroccolo ${legRows('anatroccolo')} righe di zampe, papera ${legRows('papera')}`);
 });
 
 ok('sprites: il gatto dorme sdraiato, basso e lungo quanto in piedi', () => {
@@ -215,18 +194,6 @@ ok('sprites: le bolle stanno a parte, alte quanto chi le soffia, coi colori in p
       }
     }
   }
-});
-
-ok('sprites: il fiore dell ape è un disegno a parte, col posto dove si posa', () => {
-  const { perch } = SPRITES.ape;
-  assert.ok(perch && Array.isArray(perch.grid), 'l ape non ha il fiore');
-  const cols = perch.grid[0].length;
-  for (const row of perch.grid) {
-    assert.strictEqual(row.length, cols);
-    for (const ch of row) if (ch !== '.') assert.ok(SPRITES.ape.palette[ch], `${ch} del fiore senza colore`);
-  }
-  assert.ok(perch.seat > 0 && perch.seat <= perch.grid.length, `posto fuori dal fiore: ${perch.seat}`);
-  assert.deepStrictEqual(Object.entries(SPRITES).filter(([, s]) => s.perch).map(([k]) => k), ['ape']);
 });
 
 ok('sprites: nessuna posa che il motore non conosca; le opzionali ci sono dove i pacchetti le danno', () => {

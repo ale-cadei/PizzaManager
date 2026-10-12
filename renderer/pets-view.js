@@ -12,8 +12,7 @@
  * sommano al transform del div invece di sovrascriverlo). Chi ha un'ombra
  * nel disegno ne ha una seconda, <div class="pet-shadow">, che resta a
  * terra sotto di lui e sparisce quando si posa. Allo stesso modo, fuori
- * dal div del personaggio: il posatoio (<div class="pet-perch">, il fiore
- * dell'ape), fermo a terra nel suo punto, le bolle (<div class="pet-bubbles">)
+ * dal div del personaggio: le bolle (<div class="pet-bubbles">)
  * davanti alla bocca, solo mentre chiama, e gli sbuffi di fumo della tazzina
  * (<div class="pet-puff">, uno per posto della scia), dove il motore li tiene.
  *
@@ -90,12 +89,6 @@
     layer.el.style.transform = `translate(${(pet.x + layer.offset).toFixed(1)}px, 0px)`;
   }
 
-  /** Il posatoio: fermo a terra nel suo punto, sotto dove si siede. */
-  function drawPerch(pet, layer) {
-    show(layer, layer.frames[0]);
-    layer.el.style.transform = `translate(${(pet.home + layer.offset).toFixed(1)}px, 0px)`;
-  }
-
   /** Le bolle: davanti alla bocca, alla quota del personaggio, solo mentre chiama. */
   function drawBubbles(pet, layer, petWidth) {
     layer.el.hidden = pet.pose !== 'call';
@@ -121,11 +114,10 @@
 
   /** I disegni a parte che ha il personaggio, nell'ordine in cui vanno sotto di lui. */
   function buildLayers(doc, pet, size) {
-    const { shadow, perch, bubbles, trail } = Sprites.SPRITES[pet.kind];
+    const { shadow, bubbles, trail } = Sprites.SPRITES[pet.kind];
     const puffs = trail ? Array.from({ length: Pets.MAX_PUFFS }, (_, i) => buildLayer(doc, pet, size, trail.frames, 'pet-puff', drawPuff(i))) : [];
     return [
       shadow && buildLayer(doc, pet, size, shadow, 'pet-shadow', drawShadow),
-      perch && buildLayer(doc, pet, size, [perch.grid], 'pet-perch', drawPerch),
       bubbles && buildLayer(doc, pet, size, bubbles, 'pet-bubbles', drawBubbles),
       ...puffs,
     ].filter(Boolean);

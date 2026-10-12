@@ -67,8 +67,8 @@ PALETTE_FIX = {
 # Per personaggio: cartella, pose → nomi dei fotogrammi, speed, motion, commento,
 # e i fotogrammi derivati che il pacchetto non ha: base, righe ritoccate
 # (coordinate della cella) e altri fotogrammi sovrapposti in (x, y);
-# in fondo, facoltativi, i disegni a parte (layers): 'perch' (fotogramma,
-# riga a cui si siede) e 'bubbles' (larghezza, sovrapposizioni per frame).
+# in fondo, facoltativi, i disegni a parte (layers): 'bubbles' (larghezza,
+# sovrapposizioni per frame).
 SPRITELLI_DIR = '/tmp/spiritelli/spritelli'
 # I fotogrammi Spritelli sono a 16 px, gli altri pacchetti a 24-32: si
 # raddoppiano con EPX (arrotonda le diagonali, tiene i bordi dritti) così
@@ -78,63 +78,13 @@ SPRITELLI_SCALE = 2
 # I PNG Spritelli hanno un contorno di 1 px di questo colore attorno a ogni
 # sagoma: si toglie (unoutlined) prima di ingrandire, come per gli altri.
 SPRITELLI_OUTLINE = '#2B2233'
-# Le zampe di papera e anatroccolo, rifatte: nel pacchetto i due passi
-# spostavano entrambe di un pixel nello stesso verso (scivolavano) e avevano
-# sotto la pancia il bordo scuro, che a 2x diventava una fascia. Passo a
-# quattro tempi come Fizzo: una zampa avanti, l'incrocio con l'altra alzata,
-# l'altra avanti, l'incrocio. La zampa lontana (f, il giallo scuro del
-# pacchetto) è più scura della vicina (c), così si capisce quale va avanti.
-# Righe della cella a 1x, dalla fine della pancia in giù. Gli anatroccoli
-# hanno zampe di tre righe come la papera: la loro cella cresce di una riga.
-DUCK_LEGS = {
-    'step-1': {13: '.....f..c.......', 14: '....f....c......', 15: '....ff...cc.....'},
-    'pass-1': {13: '......f.c.......', 14: '......ffc.......', 15: '........cc......'},
-    'step-2': {13: '.....c..f.......', 14: '....c....f......', 15: '....cc...ff.....'},
-    'pass-2': {13: '......f.c.......', 14: '......f.cc......', 15: '......ff........'},
-    'stand': {13: '.....f..c.......', 14: '.....f..c.......', 15: '.....ff.cc......'},
-}
-DUCKLING_LEGS = {
-    'step-1': {9: '....f..c...', 10: '...f....c..', 11: '...ff...cc.'},
-    'pass-1': {9: '.....f.c...', 10: '.....ffc...', 11: '.......cc..'},
-    'step-2': {9: '....c..f...', 10: '...c....f..', 11: '...cc...ff.'},
-    'pass-2': {9: '.....f.c...', 10: '.....f.cc..', 11: '.....ff....'},
-    'stand': {9: '....f..c...', 10: '....f..c...', 11: '....ff.cc..'},
-}
-
-
-def legs(who, base, rows):
-    """I fotogrammi derivati con le zampe nuove: <who>-step-1, <who>-stand…"""
-    return {f'{who}-{name}': (base, r, []) for name, r in rows.items()}
-
-
 SPRITELLI = [
-    ('ape', 'ape-fiore',
-     {'walk': ['bee-fly-1', 'bee-fly-2'], 'sleep': ['bee-rest'], 'call': ['bee-fly-1', 'bee-rest']},
-     0.9, 'fly', "L'ape: vola, e si posa sul suo fiore per dormire e per chiamare", {},
-     # Il fiore resta a terra; l'ape si posa a 13 righe d'altezza, tra i petali
-     {'perch': ('flower', 13)}),
     ('chiocciola', 'chiocciola',
      {'walk': ['snail-walk-1', 'snail-walk-2'], 'sleep': ['snail-sleep'],
       'call': ['snail-walk-1', 'snail-walk-2']},
      0.2, 'walk', 'La chiocciola: lenta, e per chiamare dondola le antenne', {
          # Senza le «z» disegnate: quelle di chi dorme le mette la vista, per tutti
          'snail-sleep': ('snail-sleep-1', {i: '.' * 16 for i in range(5)}, []),
-     }),
-    ('papera', 'papera-anatroccoli',
-     {'walk': ['duck-step-1', 'duck-pass-1', 'duck-step-2', 'duck-pass-2'], 'sleep': ['duck-sleep'],
-      'call': ['duck-stand', 'duck-quack']},
-     0.7, 'walk', 'La papera: cammina con gli anatroccoli dietro, e chiama facendo qua qua', {
-         **legs('duck', 'duck-walk-1', DUCK_LEGS),
-         'duck-sleep': ('duck-walk-1', {4: '......abbbdbcca.', **DUCK_LEGS['stand']}, []),
-         'duck-quack': ('duck-walk-1', {2: '.......abbbaaa..', 3: '......abbbbbcca.', 4: '......abbbaba...',
-                                        5: '......abbbbbcca.', 6: '.......abbbaaa..', **DUCK_LEGS['stand']}, []),
-     }),
-    ('anatroccolo', 'papera-anatroccoli',
-     {'walk': ['duckling-step-1', 'duckling-pass-1', 'duckling-step-2', 'duckling-pass-2'],
-      'sleep': ['duckling-sleep'], 'call': ['duckling-stand']},
-     0.7, 'walk', "L'anatroccolo: va dietro alla papera", {
-         **legs('duckling', 'duckling-walk-1', DUCKLING_LEGS),
-         'duckling-sleep': ('duckling-walk-1', {2: '...aeeefeca', **DUCKLING_LEGS['stand']}, []),
      }),
     ('robottino', 'robottino',
      {'walk': ['robot-walk-1-on', 'robot-walk-2-on', 'robot-walk-1-off', 'robot-walk-2-off'],
@@ -408,7 +358,7 @@ def spritelli_frames(folder):
 
 def derive(frames, base, rows, over):
     """Un fotogramma nuovo: righe ritoccate, poi altri fotogrammi sopra (i '.' non coprono).
-    Una riga ritoccata oltre la fine allunga la cella in giù (le zampe degli anatroccoli)."""
+    Una riga ritoccata oltre la fine allunga la cella in giù."""
     src = frames[base]
     height = max([len(src), *(i + 1 for i in rows)])
     padded = [*src, *['.' * len(src[0])] * (height - len(src))]
@@ -479,13 +429,10 @@ def crop(grids):
 
 
 def layer_grids(frames, layers, height, rows, scale):
-    """I disegni a parte, per nome, ingranditi come il personaggio: il posatoio
-    ritagliato da solo, le bolle disegnate su una tela alta quanto la cella e
-    tagliate sulle righe (rows, già ingrandite) del personaggio."""
+    """I disegni a parte, per nome, ingranditi come il personaggio: le bolle
+    disegnate su una tela alta quanto la cella e tagliate sulle righe (rows,
+    già ingrandite) del personaggio."""
     out = {}
-    if 'perch' in layers:
-        out['perch'], _ = crop({'perch': scaled(frames[layers['perch'][0]], scale)})
-        out['perch'] = out['perch']['perch']
     if 'bubbles' in layers:
         width, steps = layers['bubbles']
         blank = {'.': ['.' * width] * height}
@@ -495,10 +442,8 @@ def layer_grids(frames, layers, height, rows, scale):
 
 
 def layers_js(kind, layers, names, scale):
-    """I campi perch e bubbles del personaggio, coi nomi delle costanti."""
+    """Il campo bubbles del personaggio, coi nomi delle costanti."""
     js = ''
-    if 'perch' in layers:
-        js += f"\n      perch: {{ grid: {names('perch')}, seat: {layers['perch'][1] * scale} }},"
     if 'bubbles' in layers:
         js += f"\n      bubbles: [{', '.join(names(f'bolle-{i + 1}') for i in range(len(layers['bubbles'][1])))}],"
     return js

@@ -5,7 +5,7 @@ const { test: ok } = require('node:test');
    lib/git-branches.js con un finto `git`: si verifica cosa gli si chiede. */
 const { parseBranches, validateBranchName, listBranches, switchBranch, createBranch, deleteBranch, FIELD_SEP } = require('../lib/git-branches');
 
-const line = (ref, head = ' ', upstream = '') => [ref, head, upstream].join(FIELD_SEP);
+const line = (ref, head = ' ', upstream = '', track = '', remote = '') => [ref, head, upstream, track, remote].join(FIELD_SEP);
 
 function fakeGit(handler) {
   const calls = [];
@@ -21,20 +21,46 @@ const gitError = (stderr) => Object.assign(new Error('Command failed: git'), { s
 ok('branch: parseBranches separa locali e remoti e segna il corrente', () => {
   const text = [
     line('refs/heads/feat/x'),
-    line('refs/heads/main', '*', 'origin/main'),
+    line('refs/heads/main', '*', 'origin/main', '', 'origin'),
     line('refs/remotes/origin/HEAD'),
     line('refs/remotes/origin/main'),
     line('refs/remotes/origin/fix/y'),
   ].join('\n') + '\n';
   const b = parseBranches(text);
   assert.deepStrictEqual(b.local, [
-    { name: 'feat/x', current: false, upstream: '' },
-    { name: 'main', current: true, upstream: 'origin/main' },
+    { name: 'feat/x', current: false, upstream: '', upstreamRemote: '', ahead: 0, behind: 0, gone: false },
+    { name: 'main', current: true, upstream: 'origin/main', upstreamRemote: 'origin', ahead: 0, behind: 0, gone: false },
   ]);
   // origin/HEAD non è un branch: è un puntatore al branch di default
   assert.deepStrictEqual(b.remote.map((r) => r.name), ['origin/main', 'origin/fix/y']);
   assert.deepStrictEqual(b.remote[1], { name: 'origin/fix/y', remote: 'origin', short: 'fix/y', hasLocal: false });
   assert.strictEqual(b.remote[0].hasLocal, true, 'origin/main ha già il suo main locale');
+});
+
+ok('branch: parseBranches legge quanti commit mancano all\'upstream (docs/plans/47)', () => {
+  const b = parseBranches([
+    line('refs/heads/a', ' ', 'origin/a', '[ahead 2]', 'origin'),
+    line('refs/heads/b', ' ', 'origin/b', '[behind 3]', 'origin'),
+    line('refs/heads/c', ' ', 'origin/c', '[ahead 1, behind 4]', 'origin'),
+    line('refs/heads/d', ' ', 'origin/d', '[gone]', 'origin'),
+    line('refs/heads/e', ' ', 'main', '[ahead 5]', '.'),
+  ].join('\n'));
+  const pick = ({ ahead, behind, gone, upstreamRemote }) => ({ ahead, behind, gone, upstreamRemote });
+  assert.deepStrictEqual(b.local.map(pick), [
+    { ahead: 2, behind: 0, gone: false, upstreamRemote: 'origin' },
+    { ahead: 0, behind: 3, gone: false, upstreamRemote: 'origin' },
+    { ahead: 1, behind: 4, gone: false, upstreamRemote: 'origin' },
+    { ahead: 0, behind: 0, gone: true, upstreamRemote: 'origin' },
+    { ahead: 5, behind: 0, gone: false, upstreamRemote: '.' },
+  ]);
+});
+
+ok('branch: listBranches chiede a git il tracking e il remoto dell\'upstream', async () => {
+  const { run, calls } = fakeGit(() => '');
+  await listBranches({ cwd: '/repo', run });
+  const format = calls[0].find((a) => a.startsWith('--format='));
+  assert.match(format, /%\(upstream:track\)/);
+  assert.match(format, /%\(upstream:remotename\)/);
 });
 
 ok('branch: parseBranches con output vuoto o spazzatura non esplode', () => {
@@ -222,4 +248,151 @@ ok('branch: la larghezza del selettore resta fra il minimo e lo spazio disponibi
   assert.strictEqual(clampPickerWidth('boh', 1000), PICKER_DEFAULT_W);
   assert.strictEqual(clampPickerWidth('512', 1000), 512, 'da localStorage arriva una stringa');
   assert.strictEqual(clampPickerWidth(333.6, 1000), 334);
+});
+
+/* ⤵ nel selettore (docs/plans/46): il codice vero col DOM finto */
+const { createElement, fire } = require('./fake-dom');
+const { createBranchPicker } = require('../renderer/git-branch-picker');
+
+const BRANCHES = {
+  ok: true,
+  local: [{ name: 'main', current: true, upstream: null }, { name: 'feat/x', current: false, upstream: 'origin/feat/x' }],
+  remote: [{ name: 'origin/fix/y', remote: 'origin', short: 'fix/y', hasLocal: false }],
+};
+const settle = () => new Promise((r) => setImmediate(r));
+
+async function openPicker({ branches = BRANCHES, onMerge, onPush } = {}) {
+  const doc = createElement('html');
+  doc.createElement = createElement;
+  doc.createElementNS = (ns, tag) => createElement(tag);
+  doc.body = createElement('body');
+  const host = createElement('div');
+  host.clientWidth = 900;
+  const calls = { switch: [], loads: 0 };
+  const picker = createBranchPicker({
+    document: doc, host, onMerge, onPush,
+    load: async () => { calls.loads += 1; return branches; },
+    onSwitch: async (name, kind) => { calls.switch.push([name, kind]); return { ok: true }; },
+    onCreate: async () => ({ ok: true }), onDelete: async () => ({ ok: true }),
+  });
+  await picker.open();
+  const merges = () => host.querySelectorAll('.git-picker-merge');
+  const pushes = () => host.querySelectorAll('.git-picker-push');
+  const text = (cls) => { const [n] = host.querySelectorAll(cls); return n.hidden ? '' : n.textContent; };
+  return { picker, host, calls, merges, pushes, text };
+}
+
+ok('selettore: ⤵ sulle righe che non sono il corrente, locali e remote', async () => {
+  const p = await openPicker({ onMerge: async () => ({ cancelled: true }) });
+  const titles = p.merges().map((b) => b.title);
+  assert.deepStrictEqual(titles, ['Unisci feat/x in main', 'Unisci origin/fix/y in main']);
+  assert.strictEqual(p.merges()[0].getAttribute('aria-label'), 'Unisci feat/x in main');
+  // senza onMerge, o con la cartella su un commit staccato: nessun ⤵
+  assert.strictEqual((await openPicker()).merges().length, 0);
+  const detached = { ...BRANCHES, local: BRANCHES.local.map((b) => ({ ...b, current: false })) };
+  assert.strictEqual((await openPicker({ branches: detached, onMerge: async () => ({}) })).merges().length, 0);
+});
+
+ok('selettore: ⤵ chiede il merge, aspetta la conferma e mostra l\'esito', async () => {
+  let answer;
+  const asked = [];
+  const p = await openPicker({ onMerge: (...args) => { asked.push(args); return new Promise((r) => { answer = r; }); } });
+  fire(p.merges()[1], 'click');
+  assert.deepStrictEqual(asked, [['origin/fix/y', 'remote', 'main']]);
+  assert.match(p.text('.git-picker-notice'), /pannello delle modifiche/);
+  assert.strictEqual(p.picker.isOpen(), true);
+  // un secondo clic mentre aspetta non chiede un altro merge
+  fire(p.merges()[0], 'click');
+  assert.strictEqual(asked.length, 1);
+  const loads = p.calls.loads;
+  answer({ ok: true, text: 'origin/fix/y unito in main (fast-forward).' });
+  await settle(); await settle();
+  assert.strictEqual(p.text('.git-picker-notice'), 'origin/fix/y unito in main (fast-forward).');
+  assert.strictEqual(p.calls.loads, loads + 1, 'i branch si rileggono');
+  assert.strictEqual(p.picker.isOpen(), true);
+});
+
+ok('selettore: merge annullato o rifiutato, il selettore lo dice', async () => {
+  const cancelled = await openPicker({ onMerge: async () => ({ cancelled: true }) });
+  fire(cancelled.merges()[0], 'click');
+  await settle();
+  assert.deepStrictEqual([cancelled.text('.git-picker-notice'), cancelled.text('.git-picker-error')], ['', '']);
+  const conflict = 'Conflitti fra feat/x e main: il merge è stato annullato, la cartella è com\'era.\n\nFile in conflitto:\n  a.js';
+  const refused = await openPicker({ onMerge: async () => ({ ok: false, conflict: true, error: conflict }) });
+  fire(refused.merges()[0], 'click');
+  await settle();
+  assert.strictEqual(refused.text('.git-picker-error'), conflict);
+  assert.strictEqual(refused.text('.git-picker-notice'), '');
+  const thrown = await openPicker({ onMerge: async () => { throw new Error('ipc giù'); } });
+  fire(thrown.merges()[0], 'click');
+  await settle();
+  assert.match(thrown.text('.git-picker-error'), /ipc giù/);
+});
+
+/* ⇡ nel selettore (docs/plans/47) */
+const { pushLabel } = require('../renderer/git-branch-picker');
+
+ok('selettore: ⇡ solo dove c\'è qualcosa da pushare', () => {
+  const b = (extra) => ({ name: 'feat/x', upstream: 'origin/feat/x', upstreamRemote: 'origin', ahead: 0, behind: 0, gone: false, ...extra });
+  assert.deepStrictEqual(pushLabel(b({ upstream: '', upstreamRemote: '' })), { text: '⇡', title: 'Pubblica feat/x sul remoto (nuovo upstream)' });
+  assert.deepStrictEqual(pushLabel(b({ ahead: 2 })), { text: '⇡2', title: 'Push feat/x su origin/feat/x (2 commit)' });
+  assert.strictEqual(pushLabel(b()), null, 'allineato: niente da pushare');
+  assert.strictEqual(pushLabel(b({ behind: 3 })), null, 'solo indietro: niente da pushare');
+  assert.strictEqual(pushLabel(b({ upstream: 'main', upstreamRemote: '.', ahead: 4 })), null, 'upstream locale');
+  assert.match(pushLabel(b({ ahead: 1, behind: 2 })).title, /git rifiuterà/);
+  assert.match(pushLabel(b({ gone: true })).title, /non c'è più/);
+  assert.strictEqual(pushLabel(null), null);
+});
+
+const PUSHABLE = {
+  ok: true,
+  local: [
+    { name: 'main', current: true, upstream: 'origin/main', upstreamRemote: 'origin', ahead: 2, behind: 0, gone: false },
+    { name: 'feat/x', current: false, upstream: 'origin/feat/x', upstreamRemote: 'origin', ahead: 0, behind: 0, gone: false },
+    { name: 'feat/nuovo', current: false, upstream: '', upstreamRemote: '', ahead: 0, behind: 0, gone: false },
+  ],
+  remote: [{ name: 'origin/main', remote: 'origin', short: 'main', hasLocal: true }],
+};
+
+ok('selettore: ⇡ sui locali da pushare, corrente compreso, mai sui remoti', async () => {
+  const p = await openPicker({ branches: PUSHABLE, onPush: async () => ({ ok: true, text: '' }) });
+  assert.deepStrictEqual(p.pushes().map((b) => [b.textContent, b.title]), [
+    ['⇡2', 'Push main su origin/main (2 commit)'],
+    ['⇡', 'Pubblica feat/nuovo sul remoto (nuovo upstream)'],
+  ]);
+  assert.strictEqual(p.pushes()[1].getAttribute('aria-label'), p.pushes()[1].title);
+  assert.strictEqual((await openPicker({ branches: PUSHABLE })).pushes().length, 0, 'senza onPush nessun ⇡');
+});
+
+ok('selettore: ⇡ pusha, mostra l\'esito e rilegge i branch', async () => {
+  let answer;
+  const asked = [];
+  const p = await openPicker({ branches: PUSHABLE, onPush: (name) => { asked.push(name); return new Promise((r) => { answer = r; }); } });
+  fire(p.pushes()[1], 'click');
+  assert.deepStrictEqual(asked, ['feat/nuovo']);
+  assert.match(p.text('.git-picker-notice'), /Push di feat\/nuovo/);
+  assert.ok(p.picker.element.classList.contains('loading'));
+  fire(p.pushes()[0], 'click');
+  assert.strictEqual(asked.length, 1, 'un push alla volta');
+  const loads = p.calls.loads;
+  answer({ ok: true, text: 'feat/nuovo pubblicato su origin/feat/nuovo.' });
+  await settle(); await settle();
+  assert.strictEqual(p.text('.git-picker-notice'), 'feat/nuovo pubblicato su origin/feat/nuovo.');
+  assert.strictEqual(p.calls.loads, loads + 1);
+  assert.ok(!p.picker.element.classList.contains('loading'));
+  assert.strictEqual(p.picker.isOpen(), true);
+});
+
+ok('selettore: push rifiutato o in errore, il selettore lo dice e non rilegge', async () => {
+  const rejected = await openPicker({ branches: PUSHABLE, onPush: async () => ({ ok: false, rejected: true, error: '! [rejected] main -> main (fetch first)' }) });
+  const loads = rejected.calls.loads;
+  fire(rejected.pushes()[0], 'click');
+  await settle();
+  assert.match(rejected.text('.git-picker-error'), /rejected/);
+  assert.strictEqual(rejected.text('.git-picker-notice'), '');
+  assert.strictEqual(rejected.calls.loads, loads);
+  const thrown = await openPicker({ branches: PUSHABLE, onPush: async () => { throw new Error('ipc giù'); } });
+  fire(thrown.pushes()[0], 'click');
+  await settle();
+  assert.match(thrown.text('.git-picker-error'), /ipc giù/);
 });

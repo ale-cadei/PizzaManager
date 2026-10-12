@@ -6,6 +6,10 @@ const { listWorktrees, worktreeStart, createWorktree, mergeWorktree, removeWorkt
 const { readChanges, readFileDiff } = require('../lib/git-changes');
 const { snapshotTree } = require('../lib/git-snapshot');
 const { readStaging, readStagingDiff } = require('../lib/git-staging');
+const { stagePaths, unstagePaths, stageAll, unstageAll, commitStaged } = require('../lib/git-commit');
+const { mergeBranch } = require('../lib/git-merge');
+const { pushBranch } = require('../lib/git-push');
+const { discardFile, undoDiscard } = require('../lib/git-discard');
 
 /**
  * Canali IPC della sessione di tipo git (docs/plans/25), dei worktree
@@ -50,13 +54,27 @@ function registerGitHandlers(ipcMain, { userDataDir } = {}) {
   // Pannello delle modifiche (docs/plans/32): base, fotografia e percorso li
   // ricontrolla lib/git-changes.js, il renderer non può far leggere un file
   // qualsiasi né passare opzioni a git.
-  ipcMain.handle('git-changes', guard(({ cwd, base, since }) => readChanges({ cwd, base, since })));
-  ipcMain.handle('git-file-diff', guard(({ cwd, base, path, since }) => readFileDiff({ cwd, base, path, since })));
+  ipcMain.handle('git-changes', guard(({ cwd, base, since, incoming }) => readChanges({ cwd, base, since, incoming })));
+  ipcMain.handle('git-file-diff', guard(({ cwd, base, path, since, incoming }) => readFileDiff({ cwd, base, path, since, incoming })));
   // «Ultimo giro»: la fotografia dei file all'invio di un prompt
   ipcMain.handle('git-snapshot', guard(({ cwd }) => snapshotTree({ cwd })));
   // «Da committare» (docs/plans/43): sezione e percorso li ricontrolla lib/git-staging.js
   ipcMain.handle('git-staging', guard(({ cwd }) => readStaging({ cwd })));
   ipcMain.handle('git-staging-diff', guard(({ cwd, path, side }) => readStagingDiff({ cwd, path, side })));
+  // Stage, unstage e commit (docs/plans/45): i percorsi devono essere adesso
+  // nella sezione giusta, lo ricontrolla lib/git-commit.js. `all` vale solo se è true.
+  ipcMain.handle('git-stage', guard(({ cwd, paths, all }) => (all === true ? stageAll({ cwd }) : stagePaths({ cwd, paths }))));
+  ipcMain.handle('git-unstage', guard(({ cwd, paths, all }) => (all === true ? unstageAll({ cwd }) : unstagePaths({ cwd, paths }))));
+  ipcMain.handle('git-commit', guard(({ cwd, message }) => commitStaged({ cwd, message })));
+  // Unire un branch nel corrente (docs/plans/46): nome, tipo e controlli li
+  // rifà lib/git-merge.js; `expect` è la punta che la conferma ha mostrato.
+  ipcMain.handle('git-merge', guard(({ cwd, name, kind, expect }) => mergeBranch({ cwd, name, kind, expect: typeof expect === 'string' ? expect : null })));
+  // Push di un branch locale (docs/plans/47): upstream o `-u`, mai forzato
+  ipcMain.handle('git-push', guard(({ cwd, name }) => pushBranch({ cwd, name })));
+  // Scartare il non staged di un file, e annullare (docs/plans/48): percorso
+  // e gettone li ricontrolla lib/git-discard.js
+  ipcMain.handle('git-discard', guard(({ cwd, path }) => discardFile({ cwd, path })));
+  ipcMain.handle('git-discard-undo', guard(({ cwd, token }) => undoDiscard({ cwd, token })));
 }
 
 module.exports = { registerGitHandlers };

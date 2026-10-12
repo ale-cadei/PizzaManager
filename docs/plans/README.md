@@ -60,6 +60,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 50 | [`fix/segnalazioni-rifiniture`](50-segnalazioni-rifiniture.md) — titolo cliccabile, tipo visibile, etichette `stato:*`, e il testo che non arrivava su GitHub | 48 | ~1h | ✅ mergiato (PR #53) |
 | 51 | [fork di psmux](51-fork-psmux.md) (`JackGrieco/psmux`) — barra di scorrimento fluida, con PR all'autore | 40 | ~1 g | idea, non bloccante ([idee](idee.md)) |
 | 52 | [`feat/psmux-backend`](52-psmux-backend.md) — psmux nel pacchetto, sessioni persistenti su Windows | 40, 26 | ~1½ g + ½ g CI | proposto, da fare sul fisso Windows |
+| 53 | [`feat/resume-worktree`](53-resume-worktree.md) — ⟲ sulla riga del worktree, Resume delle sole sue chat | 36, 8 | ~2h | fatto, da provare nell'app |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

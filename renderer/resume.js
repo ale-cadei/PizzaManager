@@ -20,17 +20,35 @@ async function openResumeModal({ projectRoot = null, dir = null } = {}) {
   // Le chat di un worktree starebbero tutte in un gruppo solo
   $('#resume-group-projects').checked = Boolean(resumeProjectFilterRoot);
   $('#resume-search').value = '';
-  if (resumeScope() && resumeTab === 'search') {
-    resumeTab = 'opencode';
-    $$('.tab').forEach((tab) => {
-      tab.classList.toggle('active', tab.dataset.tab === resumeTab);
-      tab.setAttribute('aria-selected', String(tab.dataset.tab === resumeTab));
-    });
-  }
+  const recent = resumeDirFilter ? await recentResumeTabIn(resumeDirFilter) : null;
+  if (recent) selectResumeTab(recent);
+  else if (resumeScope() && resumeTab === 'search') selectResumeTab('opencode');
   updateResumeProjectScope();
   $('#modal-resume').hidden = false;
   await updateResumeAccountRow();
   await renderResumeList();
+}
+
+function selectResumeTab(name) {
+  resumeTab = name;
+  $$('.tab').forEach((tab) => {
+    tab.classList.toggle('active', tab.dataset.tab === resumeTab);
+    tab.setAttribute('aria-selected', String(tab.dataset.tab === resumeTab));
+  });
+}
+
+/* La linguetta del ⟲ di un worktree: il tipo dell'ultima sessione aperta lì.
+   La cronologia si rilegge ogni volta (la cache del Resume può essere vecchia
+   di una sessione); se non si legge, resta la linguetta di prima. */
+const RESUME_SOURCE_TABS = ['opencode', 'claude', 'codex', 'antigravity'];
+
+async function recentResumeTabIn(dir) {
+  try {
+    return window.AisessResumeProjects.recentTypeIn(await window.aisess.getHistory(), dir, RESUME_SOURCE_TABS);
+  } catch (e) {
+    console.warn('cronologia non letta per il Resume del worktree', e);
+    return null;
+  }
 }
 
 async function ensureResumeData(tab) {

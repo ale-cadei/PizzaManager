@@ -24,6 +24,14 @@
     return key === base || key.startsWith(base.endsWith('/') ? base : base + '/');
   }
 
+  /** Il tipo della sessione più recente nata dentro `dir`, fra quelli che hanno
+   *  una linguetta. `history` è la cronologia dell'app, dalla voce più nuova. */
+  function recentTypeIn(history, dir, types) {
+    const hit = (Array.isArray(history) ? history : [])
+      .find((entry) => entry && types.includes(entry.type) && isInside(dir, entry.cwd));
+    return hit ? hit.type : null;
+  }
+
   /**
    * `filterRoot` tiene le conversazioni di un progetto (radice risolta),
    * `filterDir` quelle nate dentro una cartella (il ⟲ di un worktree).
@@ -52,5 +60,5 @@
       .map((group) => ({ ...group, items: group.items.map((entry) => entry.item) }));
   }
 
-  return { arrange, pathOf, pathKey, isInside };
+  return { arrange, pathOf, pathKey, isInside, recentTypeIn };
 });

@@ -114,3 +114,22 @@ test('Resume aperto da un worktree mostra solo le sue chat, senza raggruppare', 
   assert.equal(ids.get('resume-project-scope').hidden, true);
   assert.equal(ids.get('resume-list').children.length, 2);
 });
+
+test('Resume aperto da un worktree passa alla linguetta della sua ultima sessione', async () => {
+  const { ctx, ids } = createPage();
+  ctx.resumeTab = 'opencode';
+  ctx.aisess.getHistory = async () => [{ type: 'codex', cwd: '/repo.worktrees/feat-x' }];
+  ctx.aisess.listCodex = async () => ({ ok: true, sessions: [{ id: 'a', title: 'Nel worktree', cwd: '/repo.worktrees/feat-x' }] });
+  await vm.runInContext("openResumeModal({ dir: '/repo.worktrees/feat-x' })", ctx);
+  assert.equal(ctx.resumeTab, 'codex');
+  assert.equal(ids.get('resume-list').children.length, 1);
+  const active = vm.runInContext('$$(".tab")', ctx).filter((tab) => tab.classes.has('active')).map((tab) => tab.dataset.tab);
+  assert.deepEqual(active, ['codex']);
+});
+
+test('Resume da un worktree senza cronologia resta sulla linguetta di prima', async () => {
+  const { ctx } = createPage();
+  ctx.aisess.getHistory = async () => [];
+  await vm.runInContext("openResumeModal({ dir: '/repo.worktrees/feat-x' })", ctx);
+  assert.equal(ctx.resumeTab, 'codex');
+});

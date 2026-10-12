@@ -42,6 +42,19 @@
     };
   }
 
+  /**
+   * La conferma di un merge dal selettore dei branch (docs/plans/46): quello
+   * che `name` porta in `into`, dal punto in cui si è staccato alla sua punta.
+   * @param {{cwd: string, name: string, into: string}} merge
+   */
+  function incomingTarget({ cwd, name, into }) {
+    if (typeof cwd !== 'string' || !cwd || typeof name !== 'string' || !name) return null;
+    return {
+      cwd, base: null, branch: null, path: null, since: null, staging: false, incoming: name, into: into || null,
+      key: `${cwd}\0incoming\0${name}`,
+    };
+  }
+
   const isRepo = (result) => Boolean(result && result.ok);
 
   /* I pezzi di un contatore, ciascuno col suo colore: file, aggiunte (verde),
@@ -60,6 +73,7 @@
 
   /** Di cosa parla il pannello, sotto la parola «Modifiche». `turnTime`: ora dell'ultimo prompt */
   function headerTitle(target, result, { turnTime = null } = {}) {
+    if (target && target.incoming) return target.into ? `${target.incoming} in ${target.into}` : target.incoming;
     if (result && result.ok && result.since) return turnTime ? `ultimo giro · dalle ${turnTime}` : 'ultimo giro';
     const branch = target && target.branch;
     if (result && result.ok && result.staging) return branch ? `${branch} · ${STAGING}` : STAGING;
@@ -118,7 +132,7 @@
     if (!result.ok) return `ko:${result.reason || result.error || ''}`;
     // `uncommitted` decide se «Unisci» si può confermare: un commit lo cambia
     // senza toccare l'elenco dei file
-    return [result.against, result.base || '', result.staging ? 'staging' : '', result.truncated ? 1 : 0,
+    return [result.against, result.base || '', result.staging ? 'staging' : '', result.busy || '', result.truncated ? 1 : 0,
       result.totals.files, result.uncommitted,
       ...result.files.map(fileKey)].join('\x1e');
   }
@@ -194,13 +208,115 @@
     return Boolean(tab) && tab.type !== 'shell' && tab.type !== 'git' && !merging;
   }
 
+  /* Una cartella dentro la radice del repository (separatori di Windows compresi) */
+  const slashes = (p) => String(p || '').replace(/\\/g, '/').replace(/\/+$/, '');
+  function insideRoot(cwd, root) {
+    const c = slashes(cwd);
+    const r = slashes(root);
+    return Boolean(r) && (c === r || c.startsWith(`${r}/`));
+  }
+
+  const BUSY_REASONS = {
+    merge: 'C\'è un merge a metà nel repository: finiscilo o annullalo dal terminale.',
+    rebase: 'C\'è un rebase a metà nel repository: finiscilo o annullalo dal terminale.',
+  };
+
+  /* Perché adesso non si scrive nell'indice, o null. Una sessione che lavora
+     (renderer/running.js) committerebbe file a metà e si scontrerebbe con
+     l'agente sull'index.lock: vale anche per le altre schede nello stesso repository. */
+  function writeBlock(tab, tabs, result, writing) {
+    if (writing) return 'Operazione in corso…';
+    if (result.busy) return BUSY_REASONS[result.busy] || BUSY_REASONS.merge;
+    if (tab && tab.running) return 'La sessione sta lavorando: aspetta che si fermi.';
+    const other = (tabs || []).find((t) => t && t.running && (!tab || t.id !== tab.id) && insideRoot(t.cwd, result.root));
+    return other ? `«${other.name || 'Un\'altra sessione'}» sta lavorando nello stesso repository: aspetta che si fermi.` : null;
+  }
+
+  /**
+   * Stage, unstage e commit dal pannello (docs/plans/45): cosa si può fare
+   * adesso, e perché no. Solo in «Da committare», mai durante Unisci.
+   * @param {{id: string, running?: boolean}|null} tab la scheda in primo piano
+   * @param {Array<{id: string, cwd?: string, name?: string, running?: boolean}>} tabs tutte
+   * @param {object|null} result la lettura di readStaging
+   * @param {{merging?: boolean, writing?: boolean, message?: string}} state
+   * @returns {{canWrite: boolean, reason: string|null, canCommit: boolean,
+   *   commitReason: string|null, commitLabel: string}|null}
+   */
+  function commitChoice(tab, tabs, result, { merging = false, writing = false, message = '' } = {}) {
+    if (!isRepo(result) || !result.staging || merging) return null;
+    const reason = writeBlock(tab, tabs, result, writing);
+    const stagedCount = result.totals.staged || 0;
+    const commitReason = reason
+      || (!stagedCount ? 'Niente di staged: aggiungi i file con ＋.' : null)
+      || (!String(message || '').trim() ? 'Scrivi il messaggio del commit.' : null);
+    return {
+      canWrite: !reason, reason,
+      canCommit: !commitReason, commitReason,
+      commitLabel: `Committa ${stagedCount} file`,
+    };
+  }
+
+  /**
+   * Il piè di pagina della conferma di un merge dal selettore (docs/plans/46).
+   * Si spegne con file non committati (lib/git-merge.js rifiuterebbe) o con
+   * una sessione che lavora nello stesso repository.
+   * @param {{name: string, into: string}} merge
+   * @param {object|null} result la lettura di readChanges con `incoming`
+   * @param {Array<{id: string, cwd?: string, name?: string, running?: boolean}>} tabs
+   * @returns {{text: string, confirmLabel: string, warning: string|null, canConfirm: boolean}}
+   */
+  function branchMergeFooter({ name, into }, result, tabs) {
+    const text = `Unisce ${name} in ${into}: fast-forward se ${into} non è andato avanti, altrimenti un commit di merge. `
+      + 'Ai conflitti si annulla tutto e la cartella resta com\'era.';
+    const base = { text, confirmLabel: `Unisci in ${into}` };
+    if (!isRepo(result)) return { ...base, warning: null, canConfirm: false };
+    const pending = result.uncommitted > 0 ? result.uncommitted : 0;
+    // Punta già nel corrente: lib/git-merge.js direbbe «niente da unire»
+    const contained = Boolean(result.tip) && result.tip === result.against;
+    const block = writeBlock(null, tabs, result, false)
+      || (contained ? `${name} è già contenuto in ${into}: niente da unire.` : null);
+    const warning = (pending
+      ? `${pending === 1 ? '1 file tracciato ha' : `${pending} file tracciati hanno`} modifiche non committate: `
+        + 'committale (o mettile da parte) prima di unire.'
+      : null)
+      || block
+      || (!result.totals.files ? `${name} non cambia nessun file rispetto a ${into}.` : null);
+    return { ...base, warning, canConfirm: !pending && !block };
+  }
+
+  /**
+   * Il piè di pagina dello scarto di un file (docs/plans/48): prima la
+   * conferma, poi l'Annulla dell'ultimo scarto, finché il pannello è aperto.
+   * @param {{phase: 'confirm'|'done', path: string, untracked: boolean, undo?: object|null}|null} discard
+   * @param {boolean} canWrite si può scrivere adesso (commitChoice)
+   * @returns {{text: string, confirmLabel: string|null, undoLabel: string|null, canAct: boolean}|null}
+   */
+  function discardFooter(discard, canWrite) {
+    if (!discard) return null;
+    const { path, untracked } = discard;
+    if (discard.phase === 'confirm') {
+      const text = untracked
+        ? `Cancellare ${path}? Non è in git.`
+        : `Scartare le modifiche non staged a ${path}? Torna com'è nello stage: quello già staged resta.`;
+      return {
+        text: `${text} Subito dopo si può annullare, finché il pannello resta aperto.`,
+        confirmLabel: untracked ? 'Cancella' : 'Scarta', undoLabel: null, canAct: canWrite,
+      };
+    }
+    const text = untracked ? `Cancellato ${path}.` : `Scartate le modifiche a ${path}.`;
+    if (!discard.undo) return { text: `${text} Era un collegamento: non si può annullare.`, confirmLabel: null, undoLabel: null, canAct: canWrite };
+    return { text, confirmLabel: null, undoLabel: 'Annulla lo scarto', canAct: canWrite };
+  }
+
   function emptyText(result) {
+    if (result && result.incoming) return 'Nessun file cambiato.';
     if (result && result.staging) return 'Niente da committare: indice e cartella come all\'ultimo commit.';
     return result && result.since ? 'Nessuna modifica dall\'ultimo prompt.' : 'Nessuna modifica: tutto come all\'ultimo commit.';
   }
 
   return {
     targetFor, tabLabel, headerTitle, summary, summaryParts, notice, modeChoice, emptyText, fileCounts, signature,
-    diffsToReload, splitPath, displayPath, itemId, splitItemId, sections, reviewAvailable,
+    diffsToReload, splitPath, displayPath, itemId, splitItemId, sections, reviewAvailable, commitChoice,
+    incomingTarget, branchMergeFooter, discardFooter,
   };
 });

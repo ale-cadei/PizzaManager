@@ -256,7 +256,7 @@ ok('da committare: le righe stanno sotto la loro sezione, un file a metà in tut
   const files = [file('a.js', { side: 'staged' }), file('a.js', { side: 'unstaged', added: 7 }), file('n.md', { side: 'unstaged', status: '?' })];
   view.render(baseState({ files, sections: SECTIONS }));
   const body = one(host, 'changes-body');
-  const order = body.children.map((c) => (c.classes.has('changes-section') ? `# ${textOf(c)}` : c.children[0].dataset.item));
+  const order = body.children.map((c) => (c.classes.has('changes-section') ? `# ${textOf(c)}` : one(c, 'changes-file-row').dataset.item));
   assert.deepStrictEqual(order, ['# Staged1', 'staged:a.js', '# Non staged2', 'unstaged:a.js', 'unstaged:n.md']);
   assert.strictEqual(one(host, 'changes-section').title, 'nell\'indice');
 });
@@ -309,7 +309,8 @@ ok('commenti: ＋ su ogni riga con un numero; si scrive, Ctrl+Invio salva', () =
   fire(input, 'input');
   const e = fire(input, 'keydown', { key: 'Enter', ctrlKey: true });
   assert.ok(e.defaultPrevented);
-  assert.deepStrictEqual(actions, [{ type: 'save', anchor: { path: 'a.js', side: 'new', no: 2, text: 'tre' }, body: 'manca il controllo' }]);
+  assert.deepStrictEqual(actions, [{ type: 'save', anchor: { path: 'a.js', lines: [{ side: 'new', no: 2, kind: 'add', text: 'tre' }] },
+    body: 'manca il controllo', replaces: null }]);
   assert.strictEqual(byClass(host, 'changes-comment-input').length, 0, 'salvata, la textarea si chiude');
 });
 
@@ -417,4 +418,256 @@ ok('commenti: piè di pagina con conteggio, Svuota e Invia; l\'errore si vede', 
   assert.strictEqual(one(foot, 'changes-review-error').hidden, true);
   view.render(reviewState({ enabled: true, notes: [], error: null }));
   assert.strictEqual(foot.hidden, true);
+});
+
+/* Commento su un gruppo di righe (docs/plans/49) */
+const groupDiff = () => ({ ok: true, binary: false, truncated: false, hunks: [
+  { header: '@@ -1,3 +1,3 @@', lines: [
+    { kind: 'ctx', oldNo: 1, newNo: 1, text: 'uno' },
+    { kind: 'del', oldNo: 2, newNo: null, text: 'due' },
+    { kind: 'add', oldNo: null, newNo: 2, text: 'tre' },
+    { kind: 'ctx', oldNo: 3, newNo: 3, text: 'quattro' },
+  ] },
+  { header: '@@ -20 +20 @@', lines: [{ kind: 'add', oldNo: null, newNo: 20, text: 'lontana' }] },
+] });
+const groupState = (review) => baseState({ files: [file('a.js')], expanded: { 'a.js': groupDiff() }, review });
+const rowsOf = (host) => byClass(host, 'changes-line');
+const shiftClick = (b) => { fire(b, 'mousedown', { shiftKey: true }); b.onclick({ shiftKey: true }); };
+
+ok('gruppo: Shift+clic allarga, le righe si evidenziano, la textarea va sotto l\'ultima', () => {
+  const actions = [];
+  const { host, view } = setup({ onReview: (a) => { actions.push(a); return true; } });
+  view.render(groupState({ enabled: true, notes: [], error: null }));
+  byClass(host, 'changes-note-add')[0].onclick();
+  shiftClick(byClass(host, 'changes-note-add')[3]);
+  const selected = rowsOf(host).filter((r) => r.classes.has('is-selecting'));
+  assert.deepStrictEqual(selected.map((r) => textOf(one(r, 'changes-code'))), ['uno', 'due', 'tre', 'quattro']);
+  const lines = byClass(host, 'changes-diff')[0].children;
+  const editor = one(host, 'changes-comment-editor');
+  assert.strictEqual(lines.indexOf(editor), lines.indexOf(selected[3]) + 1);
+  assert.strictEqual(textOf(one(editor, 'changes-comment-lines')), 'Righe 1–3 e 1 tolta');
+  assert.strictEqual(one(host, 'changes-comment-input').focused, true);
+  one(host, 'changes-comment-input').value = 'tutto il blocco';
+  fire(one(host, 'changes-comment-input'), 'input');
+  one(host, 'changes-comment-save').onclick();
+  assert.strictEqual(actions[0].anchor.lines.length, 4);
+  assert.strictEqual(actions[0].body, 'tutto il blocco');
+});
+
+ok('gruppo: Shift+clic all\'indietro e Shift+clic su un altro blocco lo dice', () => {
+  const { host, view } = setup({ onReview: () => true });
+  view.render(groupState({ enabled: true, notes: [], error: null }));
+  byClass(host, 'changes-note-add')[2].onclick();
+  shiftClick(byClass(host, 'changes-note-add')[1]);
+  assert.strictEqual(rowsOf(host).filter((r) => r.classes.has('is-selecting')).length, 2);
+  shiftClick(byClass(host, 'changes-note-add')[4]);
+  assert.ok(textOf(one(host, 'changes-comment-lines')).includes('stesso blocco'));
+  assert.strictEqual(rowsOf(host).filter((r) => r.classes.has('is-selecting')).length, 2, 'il gruppo resta quello di prima');
+});
+
+ok('gruppo: Shift+clic senza textarea aperta è un clic normale', () => {
+  const { host, view } = setup({ onReview: () => true });
+  view.render(groupState({ enabled: true, notes: [], error: null }));
+  shiftClick(byClass(host, 'changes-note-add')[1]);
+  assert.strictEqual(textOf(one(host, 'changes-comment-lines')), 'Riga 2 tolta');
+});
+
+ok('gruppo: Shift sul ＋ non seleziona il testo della pagina', () => {
+  const { host, view } = setup({ onReview: () => true });
+  view.render(groupState({ enabled: true, notes: [], error: null }));
+  const plus = byClass(host, 'changes-note-add')[0];
+  assert.strictEqual(fire(plus, 'mousedown', { shiftKey: true }).defaultPrevented, true);
+  assert.notStrictEqual(fire(plus, 'mousedown', {}).defaultPrevented, true);
+});
+
+ok('gruppo: la nota salvata segna le sue righe e sta sotto l\'ultima; ✎ la riapre e la sostituisce', () => {
+  const actions = [];
+  const { host, view } = setup({ onReview: (a) => { actions.push(a); return true; } });
+  const hunk = groupDiff().hunks[0];
+  const range = R.rangeAnchor('a.js', hunk, R.anchorOf('a.js', hunk.lines[0]).lines[0], R.anchorOf('a.js', hunk.lines[2]).lines[0]);
+  const notes = R.addNote([], range.anchor, 'tre righe').notes;
+  view.render(groupState({ enabled: true, notes, error: null }));
+  assert.deepStrictEqual(rowsOf(host).map((r) => r.classes.has('has-note')), [true, true, true, false, false]);
+  const lines = byClass(host, 'changes-diff')[0].children;
+  const box = one(host, 'changes-comment');
+  assert.strictEqual(lines.indexOf(box), lines.indexOf(rowsOf(host)[2]) + 1);
+  assert.strictEqual(textOf(one(box, 'changes-comment-range')), 'Righe 1–2 e 1 tolta');
+  one(box, 'changes-comment-edit').onclick();
+  assert.strictEqual(byClass(host, 'changes-comment').length, 0, 'la nota in modifica non si vede due volte');
+  assert.strictEqual(rowsOf(host).filter((r) => r.classes.has('is-selecting')).length, 3);
+  shiftClick(byClass(host, 'changes-note-add')[3]);
+  one(host, 'changes-comment-save').onclick();
+  assert.strictEqual(actions[0].replaces, notes[0].id);
+  assert.strictEqual(actions[0].anchor.lines.length, 4);
+  assert.strictEqual(actions[0].body, 'tre righe');
+});
+
+ok('gruppo: allargare fin sulle righe esatte di un altro commento non lo cancella', () => {
+  const actions = [];
+  const { host, view } = setup({ onReview: (a) => { actions.push(a); return true; } });
+  const hunk = groupDiff().hunks[0];
+  const ref = (i) => R.anchorOf('a.js', hunk.lines[i]).lines[0];
+  const other = R.rangeAnchor('a.js', hunk, ref(0), ref(3)).anchor;
+  const notes = R.addNote(R.addNote([], R.anchorOf('a.js', hunk.lines[0]), 'mia').notes, other, 'altra').notes;
+  view.render(groupState({ enabled: true, notes, error: null }));
+  byClass(host, 'changes-comment-edit')[0].onclick();
+  shiftClick(byClass(host, 'changes-note-add')[3]);
+  assert.ok(textOf(one(host, 'changes-comment-lines')).includes('già un altro commento'));
+  assert.strictEqual(rowsOf(host).filter((r) => r.classes.has('is-selecting')).length, 1, 'il gruppo resta quello di prima');
+  assert.ok(byClass(host, 'changes-comment').some((c) => textOf(c).includes('altra')), 'l\'altro commento resta visibile');
+  one(host, 'changes-comment-save').onclick();
+  assert.strictEqual(actions[0].anchor.lines.length, 1);
+});
+
+ok('gruppo: una nota orfana cita la prima riga e quante altre', () => {
+  const { host, view } = setup({ onReview: () => true });
+  const gone = { path: 'a.js', lines: [{ side: 'new', no: 40, kind: 'add', text: 'via' }, { side: 'new', no: 41, kind: 'add', text: 'via2' }] };
+  const notes = R.addNote([], gone, 'dove?').notes;
+  view.render(groupState({ enabled: true, notes, error: null }));
+  assert.ok(textOf(one(host, 'changes-orphan')).includes('+40  via  (e un\'altra riga)'));
+  one(host, 'changes-comment-edit').onclick();
+  assert.ok(one(one(host, 'changes-orphan'), 'changes-comment-input'), 'la textarea resta fra le orfane');
+});
+
+/* ---------- Stage, unstage e commit (docs/plans/45) ---------- */
+
+const stagingSections = (staged, unstaged) => [
+  { side: 'staged', title: 'Staged', hint: 'h', count: staged },
+  { side: 'unstaged', title: 'Non staged', hint: 'h', count: unstaged },
+];
+const commitOf = (over = {}) => ({
+  key: 't1', message: '', canWrite: true, reason: null, canCommit: false,
+  commitReason: 'Scrivi il messaggio del commit.', commitLabel: 'Committa 1 file', outcome: null, ...over,
+});
+const stagingView = (commit, over = {}) => baseState({
+  files: [file('a.js', { side: 'staged' }), file('a.js', { side: 'unstaged' }), file('n.md', { side: 'unstaged', status: '?' })],
+  sections: stagingSections(1, 2), commit, ...over,
+});
+
+ok('commit: ＋ sulle righe non staged, − sulle staged, e «tutti» nelle sezioni', () => {
+  const actions = [];
+  const { host, view } = setup({ onCommit: (a) => { actions.push(a); } });
+  view.render(stagingView(commitOf()));
+  const add = byClass(host, 'changes-stage');
+  const remove = byClass(host, 'changes-unstage');
+  assert.deepStrictEqual([add.length, remove.length], [2, 1]);
+  assert.ok(byClass(host, 'changes-file-row').every((r) => !descendants(r).some((n) => n.tag === 'button')), 'niente pulsanti dentro un pulsante');
+  add[1].onclick();
+  remove[0].onclick();
+  one(host, 'changes-stage-all').onclick();
+  one(host, 'changes-unstage-all').onclick();
+  assert.deepStrictEqual(actions, [
+    { type: 'stage', paths: ['n.md'] }, { type: 'unstage', paths: ['a.js'] },
+    { type: 'stage-all' }, { type: 'unstage-all' },
+  ]);
+  assert.strictEqual(add[0].getAttribute('aria-label'), 'Aggiungi a.js allo stage');
+});
+
+ok('commit: fuori da «Da committare» niente pulsanti, niente casella', () => {
+  const { host, view } = setup({ onCommit: () => {} });
+  view.render(baseState({ files: [file('a.js')] }));
+  assert.deepStrictEqual([byClass(host, 'changes-stage').length, byClass(host, 'changes-unstage').length], [0, 0]);
+  assert.strictEqual(one(host, 'changes-commit-foot').hidden, true);
+});
+
+ok('commit: con la sessione che lavora tutto spento, e il motivo si legge', () => {
+  const actions = [];
+  const { host, view } = setup({ onCommit: (a) => { actions.push(a); } });
+  const reason = 'La sessione sta lavorando: aspetta che si fermi.';
+  view.render(stagingView(commitOf({ canWrite: false, reason, commitReason: reason, message: 'x' })));
+  const buttons = [...byClass(host, 'changes-stage'), ...byClass(host, 'changes-unstage'),
+    one(host, 'changes-stage-all'), one(host, 'changes-unstage-all'), one(host, 'changes-commit-btn')];
+  assert.ok(buttons.every((b) => b.disabled), 'un pulsante acceso');
+  assert.ok(byClass(host, 'changes-stage').every((b) => b.title === reason));
+  assert.strictEqual(textOf(one(host, 'changes-commit-reason')), reason);
+  fire(one(host, 'changes-commit-input'), 'keydown', { key: 'Enter', ctrlKey: true });
+  assert.deepStrictEqual(actions, [], 'Ctrl+Invio non committa');
+});
+
+ok('commit: il messaggio va al pannello, Ctrl+Invio e il pulsante committano', () => {
+  const actions = [];
+  const { host, view } = setup({ onCommit: (a) => { actions.push(a); } });
+  view.render(stagingView(commitOf()));
+  const foot = one(host, 'changes-commit-foot');
+  assert.strictEqual(foot.hidden, false);
+  const input = one(foot, 'changes-commit-input');
+  assert.strictEqual(input.maxLength, 10000);
+  input.value = 'fix: <b>x</b>';
+  fire(input, 'input');
+  assert.deepStrictEqual(actions, [{ type: 'message', text: 'fix: <b>x</b>' }]);
+  view.renderCommit(commitOf({ message: 'fix: <b>x</b>', canCommit: true, commitReason: null, commitLabel: 'Committa 2 file' }));
+  const btn = one(foot, 'changes-commit-btn');
+  assert.deepStrictEqual([btn.disabled, btn.textContent], [false, 'Committa 2 file']);
+  assert.strictEqual(input.value, 'fix: <b>x</b>');
+  fire(input, 'keydown', { key: 'Enter', ctrlKey: true, preventDefault() {} });
+  btn.onclick();
+  assert.deepStrictEqual(actions.slice(1), [{ type: 'commit' }, { type: 'commit' }]);
+});
+
+ok('commit: la riga dell\'esito, e l\'output di un hook che fallisce resta testo', () => {
+  const { host, view } = setup({ onCommit: () => {} });
+  view.render(stagingView(commitOf({ outcome: { ok: true, text: 'Commit abc1234 su main' } })));
+  const outcome = one(host, 'changes-commit-outcome');
+  assert.deepStrictEqual([outcome.hidden, textOf(outcome), outcome.classes.has('is-error')], [false, 'Commit abc1234 su main', false]);
+  view.render(stagingView(commitOf({ outcome: { ok: false, text: '<img src=x onerror=alert(1)>\nlint: 2 errori' } })));
+  assert.ok(outcome.classes.has('is-error'));
+  assert.ok(textOf(outcome).includes('<img src=x'));
+  assert.ok(descendants(host).every((n) => !n.html));
+  view.render(stagingView(commitOf()));
+  assert.strictEqual(outcome.hidden, true);
+});
+
+ok('commit: cambiando scheda il messaggio è quello della scheda, non quello di prima', () => {
+  const { host, view } = setup({ onCommit: () => {} });
+  view.render(stagingView(commitOf({ key: 't1', message: 'uno' })));
+  const input = one(host, 'changes-commit-input');
+  assert.strictEqual(input.value, 'uno');
+  view.render(stagingView(commitOf({ key: 't2', message: '' })));
+  assert.strictEqual(input.value, '');
+});
+
+/* ---------- Scartare un file (docs/plans/48) ---------- */
+
+ok('scarta: ↶ solo sulle righe non staged, accanto a ＋, e chiede conferma al pannello', () => {
+  const actions = [];
+  const { host, view } = setup({ onCommit: (a) => { actions.push(a); } });
+  view.render(stagingView(commitOf()));
+  const discard = byClass(host, 'changes-discard');
+  assert.strictEqual(discard.length, 2, 'le due righe non staged');
+  assert.ok(byClass(host, 'changes-file-row').every((r) => !descendants(r).some((n) => n.tag === 'button')), 'niente pulsanti dentro un pulsante');
+  assert.strictEqual(discard[0].getAttribute('aria-label'), 'Scarta le modifiche non staged a a.js');
+  assert.strictEqual(discard[1].getAttribute('aria-label'), 'Cancella n.md (non è in git)');
+  discard[0].onclick();
+  discard[1].onclick();
+  assert.deepStrictEqual(actions, [
+    { type: 'discard-ask', path: 'a.js', untracked: false }, { type: 'discard-ask', path: 'n.md', untracked: true },
+  ]);
+  view.render(stagingView(commitOf({ canWrite: false, reason: 'La sessione sta lavorando.' })));
+  assert.ok(byClass(host, 'changes-discard').every((b) => b.disabled && b.title === 'La sessione sta lavorando.'));
+  view.render(baseState({ files: [file('a.js')] }));
+  assert.strictEqual(byClass(host, 'changes-discard').length, 0, 'fuori da «Da committare» niente ↶');
+});
+
+ok('scarta: il piè di pagina conferma o annulla, poi offre «Annulla lo scarto»', () => {
+  const actions = [];
+  const { host, view } = setup({ onCommit: (a) => { actions.push(a); } });
+  view.render(stagingView(commitOf()));
+  const foot = one(host, 'changes-discard-foot');
+  assert.strictEqual(foot.hidden, true);
+  const ask = { text: 'Scartare <b>a.js</b>?', confirmLabel: 'Scarta', undoLabel: null, canAct: true };
+  view.render(stagingView(commitOf(), { discard: ask }));
+  assert.strictEqual(foot.hidden, false);
+  assert.strictEqual(textOf(one(foot, 'changes-discard-text')), 'Scartare <b>a.js</b>?', 'resta testo');
+  assert.strictEqual(one(foot, 'changes-discard-undo').hidden, true);
+  one(foot, 'changes-discard-cancel').onclick();
+  one(foot, 'changes-discard-confirm').onclick();
+  view.render(stagingView(commitOf(), { discard: { ...ask, canAct: false } }));
+  assert.strictEqual(one(foot, 'changes-discard-confirm').disabled, true);
+
+  view.render(stagingView(commitOf(), { discard: { text: 'Scartate le modifiche a a.js.', confirmLabel: null, undoLabel: 'Annulla lo scarto', canAct: true } }));
+  assert.strictEqual(one(foot, 'changes-discard-confirm').hidden, true);
+  assert.strictEqual(textOf(one(foot, 'changes-discard-undo')), 'Annulla lo scarto');
+  one(foot, 'changes-discard-undo').onclick();
+  one(foot, 'changes-discard-cancel').onclick();
+  assert.deepStrictEqual(actions.map((a) => a.type), ['discard-cancel', 'discard', 'discard-undo', 'discard-cancel']);
 });

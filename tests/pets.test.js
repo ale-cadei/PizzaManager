@@ -304,15 +304,15 @@ ok('pets: recast tiene chi resta dov\'è, fa svanire chi esce e fa apparire chi 
   assert.strictEqual(gone.pets[1].pose, 'walk');
 });
 
-ok('pets: recast, chi non sa svanire sparisce subito; un gruppetto esce intero; le chiavi restano uniche', () => {
-  const state = onStage(['papera', 'gatto', 'gatto']);
+ok('pets: recast, chi non sa svanire sparisce subito; le chiavi restano uniche', () => {
+  const state = onStage(['medusa', 'gatto', 'gatto']);
   const next = recast(state, { cast: ['gatto'], width: WIDTH, random: never });
-  assert.deepStrictEqual(next.pets.map((p) => p.kind), ['gatto'], 'la papera se ne va con gli anatroccoli');
-  assert.strictEqual(next.pets[0].key, state.pets[3].key, 'tiene il primo dei due gatti');
-  const more = recast(next, { cast: ['gatto', 'papera', 'gatto'], width: WIDTH, random: never });
-  assert.deepStrictEqual(more.pets.map((p) => p.kind).sort(), ['anatroccolo', 'anatroccolo', 'gatto', 'gatto', 'papera']);
+  assert.deepStrictEqual(next.pets.map((p) => p.kind), ['gatto'], 'la medusa non se ne va subito');
+  assert.strictEqual(next.pets[0].key, state.pets[1].key, 'tiene il primo dei due gatti');
+  const more = recast(next, { cast: ['gatto', 'medusa', 'gatto'], width: WIDTH, random: never });
+  assert.deepStrictEqual(more.pets.map((p) => p.kind).sort(), ['gatto', 'gatto', 'medusa']);
   assert.strictEqual(more.pets[0].key, next.pets[0].key, 'il gatto di prima non è più il primo');
-  assert.strictEqual(new Set(more.pets.map((p) => p.key)).size, 5);
+  assert.strictEqual(new Set(more.pets.map((p) => p.key)).size, 3);
   assert.strictEqual(recast(more, { cast: [], width: WIDTH, random: never }).pets.length, 0);
 });
 
@@ -395,73 +395,6 @@ ok('pets: la medusa chiama solo se non c è nessun altro che possa farlo, e per 
   const both = step(onStage(['medusa', 'gatto']), { dt: 16, width: WIDTH, mood: 'attention', random: never });
   assert.strictEqual(byKind(both, 'gatto').pose, 'call');
   assert.notStrictEqual(byKind(both, 'medusa').pose, 'call');
-});
-
-ok('pets: la papera arriva con due anatroccoli in fila, ognuno dietro a quello davanti', () => {
-  const { CAST } = require('../renderer/pets-sprites');
-  assert.deepStrictEqual(CAST.papera, ['papera', 'anatroccolo', 'anatroccolo']);
-  const state = createPets({ cast: ['papera'], width: WIDTH, size: SIZE, random: seeded(7) });
-  const [duck, first, second] = state.pets;
-  assert.deepStrictEqual(state.pets.map((p) => p.kind), ['papera', 'anatroccolo', 'anatroccolo']);
-  assert.strictEqual(new Set(state.pets.map((p) => p.key)).size, 3, 'chiavi doppie');
-  assert.strictEqual(duck.lead, undefined);
-  assert.strictEqual(first.lead, duck.key);
-  assert.strictEqual(second.lead, first.key);
-  for (const p of state.pets) assert.ok(p.x >= 0 && p.x <= WIDTH - petWidth(p.kind, SIZE), `${p.kind} fuori: ${p.x}`);
-});
-
-ok('pets: gli anatroccoli stanno dietro alla papera mentre gironzola', () => {
-  let state = onStage(['papera'], seeded(3));
-  const random = seeded(11);
-  let moved = 0;
-  for (let i = 0; i < 1500; i += 1) {
-    const next = step(state, { dt: 16, width: WIDTH, random });
-    moved += Math.abs(next.pets[1].x - state.pets[1].x);
-    state = next;
-    if (i > 300) {
-      const [duck, first, second] = state.pets;
-      assert.ok(Math.abs(center(first) - center(duck)) < 2 * SIZE, `il primo si è perso: ${center(first) - center(duck)}`);
-      assert.ok(Math.abs(center(second) - center(first)) < 2 * SIZE, `il secondo si è perso: ${center(second) - center(first)}`);
-    }
-  }
-  assert.ok(moved > SIZE, 'gli anatroccoli non camminano');
-});
-
-ok('pets: arrivato dietro a chi segue, l anatroccolo si ferma col suo verso e non zampetta sul posto', () => {
-  const base = onStage(['papera']);
-  const duck = { ...base.pets[0], x: 400, dir: 1 };
-  const gap = center(duck) - Pets.LINE_GAP * SIZE;
-  const first = { ...base.pets[1], x: gap - petWidth('anatroccolo', SIZE) / 2, dir: -1, anim: 500 };
-  const state = { ...base, pets: [duck, first] };
-  const next = step(state, { dt: 16, width: WIDTH, random: never });
-  const settled = next.pets[1];
-  assert.ok(Math.abs(settled.x - first.x) < 1, 'si è mosso');
-  assert.strictEqual(settled.dir, 1, 'non guarda dove va la papera');
-  assert.strictEqual(settled.anim, first.anim, 'zampetta fermo');
-});
-
-ok('pets: dietro alla papera che cammina, l anatroccolo le tiene il passo zampettando', () => {
-  const base = onStage(['papera']);
-  const duck = { ...base.pets[0], x: 400, dir: 1 };
-  const gap = center(duck) - Pets.LINE_GAP * SIZE;
-  // La papera ha fatto il suo passetto nel fotogramma prima (16 ms): lui è indietro di tanto
-  const stride = require('../renderer/pets-sprites').SPRITES.papera.speed * SIZE * 0.016;
-  const first = { ...base.pets[1], x: gap - petWidth('anatroccolo', SIZE) / 2 - stride, dir: 1, anim: 500 };
-  const next = step({ ...base, pets: [duck, first] }, { dt: 16, width: WIDTH, random: never });
-  const walking = next.pets[1];
-  assert.ok(walking.x > first.x, 'non le va dietro');
-  assert.strictEqual(walking.pose, 'walk');
-  assert.ok(walking.anim > first.anim, 'scivola con le zampe ferme');
-});
-
-ok('pets: a chiamare è la papera, mai un anatroccolo', () => {
-  const base = onStage(['papera']);
-  const [duck, first, second] = base.pets;
-  const mid = WIDTH / 2 - petWidth('anatroccolo', SIZE) / 2;
-  const state = { ...base, pets: [{ ...duck, x: 20 }, { ...first, x: mid }, { ...second, x: mid - SIZE }] };
-  const next = step(state, { dt: 16, width: WIDTH, mood: 'attention', random: never });
-  assert.strictEqual(byKind(next, 'papera').pose, 'call');
-  assert.ok(next.pets.filter((p) => p.kind === 'anatroccolo').every((p) => p.pose !== 'call'));
 });
 
 ok('pets: la tazzina cammina a terra come Fizzo, senza saltare', () => {
@@ -547,88 +480,6 @@ ok('pets: se la striscia si stringe gli sbuffi rientrano, e quando la tazzina es
 ok('pets: chi non fuma non ha sbuffi', () => {
   const state = stillFor(onStage(['fizzo', 'gatto']), 1000);
   for (const pet of state.pets) assert.strictEqual(pet.puffs, undefined);
-});
-
-ok('pets: quando la papera si gira, l anatroccolo che si trova davanti non le passa attraverso: la aspetta', () => {
-  const base = onStage(['papera']);
-  const duck = { ...base.pets[0], x: 400, dir: 1 };
-  const ahead = { ...base.pets[1], x: 400 + SIZE, dir: 1, anim: 500 };
-  const next = step({ ...base, pets: [duck, ahead] }, { dt: 16, width: WIDTH, random: never }).pets[1];
-  assert.strictEqual(next.x, ahead.x, 'le va incontro');
-  assert.strictEqual(next.dir, -1, 'non guarda la papera che arriva');
-  assert.strictEqual(next.anim, ahead.anim, 'zampetta fermo');
-
-  let state = onStage(['papera'], seeded(3));
-  const random = seeded(11);
-  for (let i = 0; i < 1500; i += 1) {
-    const next2 = step(state, { dt: 16, width: WIDTH, random });
-    next2.pets.slice(1).forEach((p, k) => {
-      const was = state.pets[k + 1];
-      const lead = state.pets[k];
-      const inFront = Math.sign(center(was) - center(lead)) === lead.dir;
-      if (inFront) assert.ok(Math.sign(p.x - was.x) !== -lead.dir, `passo ${i}: ${p.kind} va incontro a chi segue`);
-    });
-    state = next2;
-  }
-});
-
-ok('pets: la fila entra ed esce dal cast tutta insieme', () => {
-  const state = createPets({ cast: ['gatto', 'papera'], width: WIDTH, size: SIZE, random: seeded(2) });
-  const without = recast(state, { cast: ['gatto'], width: WIDTH, random: seeded(3) });
-  const settled = run(without, 200, { random: never });
-  assert.deepStrictEqual(settled.pets.map((p) => p.kind), ['gatto']);
-  const back = recast(settled, { cast: ['gatto', 'papera'], width: WIDTH, random: seeded(4) });
-  const line = back.pets.filter((p) => p.cast === 'papera');
-  assert.deepStrictEqual(line.map((p) => p.kind), ['papera', 'anatroccolo', 'anatroccolo']);
-  assert.strictEqual(line[1].lead, line[0].key);
-  assert.strictEqual(line[2].lead, line[1].key);
-  assert.strictEqual(new Set(back.pets.map((p) => p.key)).size, back.pets.length, 'chiavi doppie');
-});
-
-const perchY = (kind) => require('../renderer/pets-sprites').SPRITES[kind].perch.seat * require('../renderer/pets-sprites').pixel(kind, SIZE);
-
-ok('pets: l ape ha il suo fiore in un punto della striscia', () => {
-  for (const seed of [1, 2, 3, 4]) {
-    const [bee] = createPets({ cast: ['ape'], width: WIDTH, size: SIZE, random: seeded(seed) }).pets;
-    assert.ok(bee.home >= 0 && bee.home <= WIDTH - petWidth('ape', SIZE), `fiore fuori: ${bee.home}`);
-  }
-  assert.strictEqual(createPets({ cast: ['gatto'], width: WIDTH, size: SIZE }).pets[0].home, undefined);
-});
-
-ok('pets: per dormire l ape vola al suo fiore e ci si posa sopra', () => {
-  const base = onStage(['ape']);
-  let state = { ...base, pets: [{ ...base.pets[0], x: 600, home: 100 }] };
-  let dist = 500;
-  for (let i = 0; i < 2000 && state.pets[0].pose !== 'sleep'; i += 1) {
-    state = step(state, { dt: 16, width: WIDTH, mood: 'sleep', random: never });
-    const bee = state.pets[0];
-    assert.ok(Math.abs(bee.x - 100) <= dist, 'si allontana dal fiore');
-    dist = Math.abs(bee.x - 100);
-  }
-  const bee = state.pets[0];
-  assert.deepStrictEqual([bee.x, bee.pose], [100, 'sleep']);
-  assert.ok(Math.abs(bee.y - perchY('ape')) < 1e-9, `non è sul fiore: ${bee.y}`);
-  const later = run(state, 50, { mood: 'sleep', random: never }).pets[0];
-  assert.deepStrictEqual([later.x, later.y, later.anim], [bee.x, bee.y, bee.anim], 'dorme ma si muove');
-});
-
-ok('pets: l ape chiama dal suo fiore', () => {
-  const base = onStage(['ape']);
-  let state = { ...base, pets: [{ ...base.pets[0], x: 500, home: 300 }] };
-  state = step(state, { dt: 16, width: WIDTH, mood: 'attention', random: never });
-  assert.notStrictEqual(state.pets[0].pose, 'call', 'chiama ancora lontana dal fiore');
-  state = run(state, 1000, { mood: 'attention', random: never });
-  const bee = state.pets[0];
-  assert.deepStrictEqual([bee.x, bee.pose], [300, 'call']);
-  assert.ok(Math.abs(bee.y - perchY('ape')) < 1e-9);
-});
-
-ok('pets: se la striscia si stringe il fiore resta dentro', () => {
-  const base = onStage(['ape']);
-  const state = { ...base, pets: [{ ...base.pets[0], x: 700, home: 750 }] };
-  const narrow = 300;
-  const [bee] = Pets.fit(state, narrow).pets;
-  assert.ok(bee.home <= narrow - petWidth('ape', SIZE), `fiore fuori: ${bee.home}`);
 });
 
 ok('pets: il pesce che chiama in una striscia senza posto per le bolle non si gira a ogni passo', () => {

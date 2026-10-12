@@ -962,12 +962,12 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .pet-shadow { position: absolute; left: 0; bottom: 0; will-change: transform; }
 .pet-shadow[hidden] { display: none; }
 .pet-shadow svg { display: block; }
-/* Posatoio (il fiore dell'ape) e bolle: come l'ombra, fuori dal personaggio.
+/* Bolle: come l'ombra, fuori dal personaggio.
    Le bolle guardano dove guarda chi le soffia. */
-.pet-perch, .pet-bubbles { position: absolute; left: 0; bottom: 0; }
+.pet-bubbles { position: absolute; left: 0; bottom: 0; }
 .pet-bubbles { will-change: transform; }
 .pet-bubbles[hidden] { display: none; }
-.pet-perch svg, .pet-bubbles svg { display: block; }
+.pet-bubbles svg { display: block; }
 .pet-bubbles--left svg { scale: -1 1; }
 /* Gli sbuffi di fumo della tazzina: fermi dove nascono, sbiadiscono con l'età */
 .pet-puff { position: absolute; left: 0; bottom: 0; will-change: transform, opacity; }

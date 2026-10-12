@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const Groups = require('../renderer/session-groups');
-const { arrange, pathOf, pathKey, isInside } = require('../renderer/resume-projects');
+const { arrange, pathOf, pathKey, isInside, recentTypeIn } = require('../renderer/resume-projects');
 
 test('Resume raggruppa per radice git e mantiene le conversazioni del progetto insieme', async () => {
   const calls = [];
@@ -88,4 +88,18 @@ test('isInside confronta i percorsi Windows senza badare a maiuscole e separator
   assert.equal(isInside('C:\\Src\\Progetto.worktrees\\feat-x', 'C:\\Src\\Progetto.worktrees\\feat-x2'), false);
   assert.equal(isInside('/', '/qualsiasi'), true);
   assert.equal(isInside('/repo', ''), false);
+});
+
+test('la linguetta del Resume di un worktree è il tipo della sua sessione più recente', () => {
+  const wt = '/src/progetto.worktrees/feat-x';
+  const tabs = ['opencode', 'claude', 'codex', 'antigravity'];
+  const history = [
+    { type: 'codex', cwd: '/src/progetto' },
+    { type: 'shell', cwd: wt },
+    { type: 'claude', cwd: `${wt}/src` },
+    { type: 'opencode', cwd: wt },
+  ];
+  assert.equal(recentTypeIn(history, wt, tabs), 'claude', 'la prima voce è la più recente; le shell non hanno linguetta');
+  assert.equal(recentTypeIn(history, '/altrove', tabs), null);
+  assert.equal(recentTypeIn(null, wt, tabs), null);
 });

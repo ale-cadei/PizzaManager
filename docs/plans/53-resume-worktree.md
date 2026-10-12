@@ -36,6 +36,9 @@ menu raccoglie le azioni che chiudono il worktree (Unisci, Tieni, Butta).
   stato in `resumeDirFilter` (`app-state.js`). L'etichetta «Solo …» mostra la
   cartella; la ✕ dell'etichetta toglie l'uno e l'altro filtro. Il
   raggruppamento per progetto resta spento: sarebbe un gruppo solo.
+- Linguetta: il Resume si apre su quella dell'ultima sessione aperta nel
+  worktree (`recentTypeIn` sulla cronologia dell'app, riletta a ogni ⟲).
+  Senza cronologia, o se non si legge, resta quella di prima.
 - `renderer/worktree-section.js`: `onResume` → bottone `worktree-resume`.
 - `renderer/sidebar.js`: `onResumeInWorktree(path, projectRoot)`.
 - `renderer/session-list.js`: lo collega a `openResumeModal({ dir: path })`.

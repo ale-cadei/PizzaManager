@@ -111,3 +111,13 @@ test('plugin opencode: senza env non scrive e non rompe', async () => {
     if (prev !== undefined) process.env.AISESS_SIGNAL_FILE = prev;
   }
 });
+
+/* Il segnale lo mette solo signalInjection, per la sua sessione (piano 59):
+   quello dell'app (avviata da una scheda) non deve passare alle altre. */
+test('withoutSignal: toglie AISESS_SIGNAL_FILE, lascia il resto, non tocca l originale', () => {
+  const env = { PATH: '/bin', HOME: '/h', [H.SIGNAL_ENV]: '/tmp/fuori' };
+  const out = H.withoutSignal(env);
+  assert.deepStrictEqual(out, { PATH: '/bin', HOME: '/h' });
+  assert.strictEqual(env[H.SIGNAL_ENV], '/tmp/fuori');
+  assert.deepStrictEqual(H.withoutSignal({ PATH: '/bin' }), { PATH: '/bin' });
+});

@@ -41,7 +41,7 @@ async function afterBranchChange(tab, request) {
   return r;
 }
 
-/* ⇡ nel selettore (docs/plans/47): la timeline si rilegge, i ref del remoto
+/* ⇡ nel selettore (docs/plans/55): la timeline si rilegge, i ref del remoto
    si spostano */
 async function pushFromPicker(tab, name) {
   const r = await afterBranchChange(tab, window.aisess.gitPush(tab.cwd, name));
@@ -49,7 +49,7 @@ async function pushFromPicker(tab, name) {
   return { ok: true, text: r.created ? `${r.branch} pubblicato su ${r.upstream} (nuovo upstream).` : `${r.branch} pushato su ${r.upstream}.` };
 }
 
-/* ⤵ nel selettore (docs/plans/46): il pannello delle modifiche mostra cosa
+/* ⤵ nel selettore (docs/plans/54): il pannello delle modifiche mostra cosa
    porta il branch e chiede conferma; il merge ricontrolla che la punta sia
    ancora quella guardata. Il testo dell'esito lo mostra il selettore. */
 async function mergeIntoCurrent(tab, name, kind, into) {

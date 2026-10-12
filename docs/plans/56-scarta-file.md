@@ -1,7 +1,7 @@
-# 48 — `feat/scarta-file`: scartare le modifiche non staged di un file
+# 56 — `feat/scarta-file`: scartare le modifiche non staged di un file
 
-Chiesto dall'utente il 2026-10-09, dopo la «Review attiva» (44–47). In «Da
-committare» (piano 45) si mette e si toglie dallo stage, ma per buttare via
+Chiesto dall'utente il 2026-10-09, dopo la «Review attiva» (44, 53–55). In «Da
+committare» (piano 53) si mette e si toglie dallo stage, ma per buttare via
 quello che l'agente ha scritto in un file serve il terminale.
 
 ## Cosa
@@ -35,13 +35,13 @@ Non staged
 ## Quando no
 
 - percorso non valido o non più fra le modifiche non staged (stesso
-  controllo di `stagePaths`, piano 45: `pathsInSide(..., 'unstaged', ...)`);
+  controllo di `stagePaths`, piano 53: `pathsInSide(..., 'unstaged', ...)`);
 - merge o rebase a metà (`BUSY`, come il commit);
 - un non tracciato che non è un file regolare (symlink, cartella): si
   rifiuta, da terminale;
 - un file tracciato che è un symlink: si scarta, ma senza Annulla (il
   contenuto salvato sarebbe il bersaglio, non il link).
-- scheda non git o pannello in sola lettura (diff di un branch, piano 46):
+- scheda non git o pannello in sola lettura (diff di un branch, piano 54):
   nessun ↶, come per ＋.
 
 ## Annulla, nel dettaglio
@@ -65,7 +65,7 @@ un blob che è già nel repository.
 
 ## Sicurezza
 
-- Solo argv, `--literal-pathspecs` e `--` prima dei percorsi (come 45).
+- Solo argv, `--literal-pathspecs` e `--` prima dei percorsi (come 53).
 - La cancellazione di un non tracciato passa da `fs.rmSync` su
   `path.join(root, p)` dopo `isSafeRelative` e il controllo che sia un file
   regolare (`lstat`): mai fuori dal repository, mai una cartella.

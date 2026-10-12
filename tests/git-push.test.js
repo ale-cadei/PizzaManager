@@ -1,7 +1,7 @@
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
 
-/* Push di un branch dal selettore (docs/plans/47): lib/git-push.js con un
+/* Push di un branch dal selettore (docs/plans/55): lib/git-push.js con un
    finto `git`, per vedere cosa gli si chiede e cosa arriva all'utente. */
 const { pushBranch, PUSH_TIMEOUT_MS } = require('../lib/git-push');
 

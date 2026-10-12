@@ -1,7 +1,7 @@
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
 
-/* Commenti sulle righe del diff, inviati all'agente (docs/plans/44 e 49): il
+/* Commenti sulle righe del diff, inviati all'agente (docs/plans/44 e 57): il
    modello puro. Il testo delle righe è quello dei file dell'utente e arriva
    nel pty: non deve poter contenere sequenze di controllo. */
 const R = require('../renderer/review-notes');

@@ -420,7 +420,7 @@ ok('commenti: piè di pagina con conteggio, Svuota e Invia; l\'errore si vede', 
   assert.strictEqual(foot.hidden, true);
 });
 
-/* Commento su un gruppo di righe (docs/plans/49) */
+/* Commento su un gruppo di righe (docs/plans/57) */
 const groupDiff = () => ({ ok: true, binary: false, truncated: false, hunks: [
   { header: '@@ -1,3 +1,3 @@', lines: [
     { kind: 'ctx', oldNo: 1, newNo: 1, text: 'uno' },
@@ -529,7 +529,7 @@ ok('gruppo: una nota orfana cita la prima riga e quante altre', () => {
   assert.ok(one(one(host, 'changes-orphan'), 'changes-comment-input'), 'la textarea resta fra le orfane');
 });
 
-/* ---------- Stage, unstage e commit (docs/plans/45) ---------- */
+/* ---------- Stage, unstage e commit (docs/plans/53) ---------- */
 
 const stagingSections = (staged, unstaged) => [
   { side: 'staged', title: 'Staged', hint: 'h', count: staged },
@@ -626,7 +626,7 @@ ok('commit: cambiando scheda il messaggio è quello della scheda, non quello di 
   assert.strictEqual(input.value, '');
 });
 
-/* ---------- Scartare un file (docs/plans/48) ---------- */
+/* ---------- Scartare un file (docs/plans/56) ---------- */
 
 ok('scarta: ↶ solo sulle righe non staged, accanto a ＋, e chiede conferma al pannello', () => {
   const actions = [];

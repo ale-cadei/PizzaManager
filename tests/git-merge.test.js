@@ -1,7 +1,7 @@
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
 
-/* Unire un branch qualsiasi nel corrente (docs/plans/46): argv e controlli
+/* Unire un branch qualsiasi nel corrente (docs/plans/54): argv e controlli
    con un git finto; il caso con git vero sta in tests/integration.test.js. */
 const M = require('../lib/git-merge');
 

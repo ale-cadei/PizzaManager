@@ -1,7 +1,7 @@
-# 45 — `feat/commit-pannello`: stage, unstage e commit dal pannello
+# 53 — `feat/commit-pannello`: stage, unstage e commit dal pannello
 
 Secondo pezzo della «Review attiva» (`idee.md`), dopo i commenti sul diff
-(44). Poi merge di un branch qualsiasi (46) e PR (47).
+(44). Poi merge di un branch qualsiasi (54) e PR (55).
 
 ## Cosa
 
@@ -88,7 +88,7 @@ committa lo staged.
 ## Fuori
 
 - Stage per blocco o per riga, `--amend`, scegliere l'autore, push: il push
-  sta nel piano 47 (PR).
+  sta nel piano 55 (PR).
 - Scartare modifiche (`git restore`): distruttivo, va pensato a parte.
 - Generare il messaggio con l'agente.
 

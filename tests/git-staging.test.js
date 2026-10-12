@@ -56,7 +56,7 @@ ok('da committare: staged e non staged in due sezioni, un file a metà in tutte 
   assert.strictEqual(r.uncommitted, 3, 'a.js conta una volta');
 });
 
-ok('da committare: dice se c\'è un merge o un rebase a metà (il pannello non scrive, piano 45)', async () => {
+ok('da committare: dice se c\'è un merge o un rebase a metà (il pannello non scrive, piano 53)', async () => {
   const clean = await readStaging({ cwd: ROOT, run: fakeGit(), fsp: noDisk, exists: () => false });
   assert.strictEqual(clean.busy, null);
   const merging = await readStaging({ cwd: ROOT, run: fakeGit({ merging: true }), fsp: noDisk, exists: () => false });

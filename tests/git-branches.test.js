@@ -37,7 +37,7 @@ ok('branch: parseBranches separa locali e remoti e segna il corrente', () => {
   assert.strictEqual(b.remote[0].hasLocal, true, 'origin/main ha già il suo main locale');
 });
 
-ok('branch: parseBranches legge quanti commit mancano all\'upstream (docs/plans/47)', () => {
+ok('branch: parseBranches legge quanti commit mancano all\'upstream (docs/plans/55)', () => {
   const b = parseBranches([
     line('refs/heads/a', ' ', 'origin/a', '[ahead 2]', 'origin'),
     line('refs/heads/b', ' ', 'origin/b', '[behind 3]', 'origin'),
@@ -250,7 +250,7 @@ ok('branch: la larghezza del selettore resta fra il minimo e lo spazio disponibi
   assert.strictEqual(clampPickerWidth(333.6, 1000), 334);
 });
 
-/* ⤵ nel selettore (docs/plans/46): il codice vero col DOM finto */
+/* ⤵ nel selettore (docs/plans/54): il codice vero col DOM finto */
 const { createElement, fire } = require('./fake-dom');
 const { createBranchPicker } = require('../renderer/git-branch-picker');
 
@@ -329,7 +329,7 @@ ok('selettore: merge annullato o rifiutato, il selettore lo dice', async () => {
   assert.match(thrown.text('.git-picker-error'), /ipc giù/);
 });
 
-/* ⇡ nel selettore (docs/plans/47) */
+/* ⇡ nel selettore (docs/plans/55) */
 const { pushLabel } = require('../renderer/git-branch-picker');
 
 ok('selettore: ⇡ solo dove c\'è qualcosa da pushare', () => {

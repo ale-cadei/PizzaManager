@@ -16,7 +16,7 @@
  * In modalità «Unisci» (piano 32, momento 3) lo stesso pannello mostra il
  * diff del branch contro la base e, in fondo, la conferma del merge.
  *
- * In «Da committare» (piano 45) ogni riga ha ＋ o −, le sezioni «tutti», e in
+ * In «Da committare» (piano 53) ogni riga ha ＋ o −, le sezioni «tutti», e in
  * fondo la casella del messaggio col pulsante di commit.
  *
  * Qui solo il disegno: cosa mostrare lo decide changes-model.js, quando
@@ -63,7 +63,7 @@
     box.replaceChildren(...parts.map((p) => el(doc, 'span', `changes-n-${p.kind}`, p.text)));
   }
 
-  /* `rc` sono i commenti del file (docs/plans/44 e 49), null se non si commenta:
+  /* `rc` sono i commenti del file (docs/plans/44 e 57), null se non si commenta:
      { path, notes, editing, open(anchor, draft, replaces), extend(hunk, line), draft(text),
        save(), cancel(), remove(id) }. `place` dice dove stanno note e gruppo in modifica. */
   function diffLine(doc, line, rc, hunk, place) {
@@ -82,7 +82,7 @@
   }
 
   /* Clic: commenta la riga. Shift+clic con la textarea aperta: il commento
-     copre le righe fino a questa (docs/plans/49) */
+     copre le righe fino a questa (docs/plans/57) */
   function noteAddButton(doc, rc, anchor, hunk, line) {
     const b = button(doc, 'changes-note-add', '＋', 'Commenta questa riga (Shift+clic: fin qui)', (e) => {
       if (e && e.shiftKey && rc.editing) rc.extend(hunk, line);
@@ -195,8 +195,8 @@
     return b;
   }
 
-  /* ＋ su una riga non staged, − su una staged (docs/plans/45), e ↶ per
-     scartare il non staged (docs/plans/48); `cc` è null fuori da «Da committare» */
+  /* ＋ su una riga non staged, − su una staged (docs/plans/53), e ↶ per
+     scartare il non staged (docs/plans/56); `cc` è null fuori da «Da committare» */
   function rowActions(doc, f, cc) {
     if (!cc || !f.side) return [];
     if (f.side === 'staged') {
@@ -280,7 +280,7 @@
    *     |{type: 'discard'|'discard-cancel'|'discard-undo'}) => void}} o
    *   `onReview` dei commenti (docs/plans/44): per `save`, false se il commento
    *   è stato rifiutato (la textarea resta aperta). `onCommit` di stage e
-   *   commit (docs/plans/45): `message` a ogni carattere, il pannello lo tiene
+   *   commit (docs/plans/53): `message` a ogni carattere, il pannello lo tiene
    */
   function createChangesView({
     doc, host, shortcut, onToggle, onClose, onFile, onMerge = () => {}, onMode = () => {}, onReview = () => {},
@@ -374,7 +374,7 @@
     const notesNow = () => (last && last.review && last.review.notes) || [];
     const review = {
       /* `replaces`: la nota che si sta riscrivendo (✎), che al salvataggio
-         sparisce anche se nel frattempo si è cambiato il gruppo (docs/plans/49) */
+         sparisce anche se nel frattempo si è cambiato il gruppo (docs/plans/57) */
       open: (anchor, draft, replaces = null) => {
         const key = last && last.review ? last.review.key : null;
         const id = R.noteId(anchor);
@@ -533,7 +533,7 @@
   }
 
   /**
-   * La casella del messaggio e «Committa N file» (docs/plans/45). Resta la
+   * La casella del messaggio e «Committa N file» (docs/plans/53). Resta la
    * stessa fra un ridisegno e l'altro: fuoco e cursore non si perdono mentre
    * il pannello si rilegge. Il messaggio lo tiene il pannello (per scheda):
    * qui si riscrive solo se è diverso, cioè dopo un commit o cambiando scheda.
@@ -587,7 +587,7 @@
 
   /**
    * Conferma dello scarto di un file e, dopo, «Annulla lo scarto»
-   * (docs/plans/48). I testi li sceglie changes-model.js (discardFooter).
+   * (docs/plans/56). I testi li sceglie changes-model.js (discardFooter).
    */
   function createDiscardFoot(doc, onCommit) {
     const foot = el(doc, 'footer', 'changes-discard-foot');

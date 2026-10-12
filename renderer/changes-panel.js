@@ -19,7 +19,7 @@
      così sopravvivono al pannello chiuso e al cambio di modo, e se ne vanno
      con la scheda. «Invia» li incolla nel terminale come un incolla vero
      (term.paste): l'Invio lo dà l'utente.
-   - Stage, unstage e commit (docs/plans/45): solo in «Da committare», una
+   - Stage, unstage e commit (docs/plans/53): solo in «Da committare», una
      scrittura alla volta, poi si rilegge. Spenti mentre la sessione (o
      un'altra nello stesso repository) lavora: quando una parte o si ferma
      (signals.js) il pannello aperto si ridisegna. Il messaggio a metà sta
@@ -176,7 +176,7 @@ function renderChanges() {
   });
 }
 
-/* ---------- Stage, unstage e commit (docs/plans/45) ---------- */
+/* ---------- Stage, unstage e commit (docs/plans/53) ---------- */
 function commitStateOf(tab, merge) {
   if (!tab) return null;
   const message = tab.commitMessage || '';
@@ -240,7 +240,7 @@ async function runCommitAction(tab, action) {
   await refreshChanges();
 }
 
-/* ---------- Scartare un file (docs/plans/48) ---------- */
+/* ---------- Scartare un file (docs/plans/56) ---------- */
 function discardStateOf(tab) {
   const choice = tab && commitStateOf(tab, null);
   return choice ? ChangesModel.discardFooter(changesState.discard, choice.canWrite) : null;
@@ -446,7 +446,7 @@ function reviewMerge(worktree, conf) {
 }
 
 /**
- * La conferma di un merge dal selettore dei branch (docs/plans/46, git-tab.js):
+ * La conferma di un merge dal selettore dei branch (docs/plans/54, git-tab.js):
  * il pannello mostra quello che `name` porta in `into`. Si scioglie con la
  * punta del branch che si è guardata (il merge la ricontrolla), o null.
  * @param {{cwd: string, name: string, into: string}} branch

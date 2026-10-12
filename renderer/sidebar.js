@@ -86,6 +86,7 @@
    *   WorktreeSection?: {createSection: Function},
    *   onNewWorktree?: (projectRoot: string) => void,
    *   onNewInWorktree?: (path: string, projectRoot: string) => void,
+   *   onResumeInWorktree?: (path: string, projectRoot: string) => void,
    *   onWorktreeMenu?: (worktree: object, projectRoot: string, anchor: Element) => void,
    *   changesOf?: (path: string) => ({files: number, added: number, removed: number}|null),
    *   onReorder?: (movedId: string, targetId: string, opts: {before: boolean}) => void,
@@ -112,6 +113,7 @@
     const fnOrNull = (f) => (typeof f === 'function' ? f : null);
     const onNewWorktree = fnOrNull(deps.onNewWorktree);
     const onNewInWorktree = fnOrNull(deps.onNewInWorktree);
+    const onResumeInWorktree = fnOrNull(deps.onResumeInWorktree);
     const onWorktreeMenu = fnOrNull(deps.onWorktreeMenu);
     // Righe toccate in ogni worktree (docs/plans/32): le legge il renderer
     const changesOf = fnOrNull(deps.changesOf);
@@ -571,6 +573,7 @@
           worktree: w,
           changes: changesOf ? changesOf(w.path) : null,
           onNew: onNewInWorktree ? () => onNewInWorktree(w.path, g.key) : null,
+          onResume: onResumeInWorktree ? () => onResumeInWorktree(w.path, g.key) : null,
           onMenu: onWorktreeMenu ? (el) => onWorktreeMenu(w, g.key, el) : null,
           fill: (wtBody) => {
             for (const t of w.items) wtBody.appendChild(painting(t, createSessionItem(t, activeId, dragKey, wtBody, w.path)));

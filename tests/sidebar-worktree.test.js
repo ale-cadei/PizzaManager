@@ -93,12 +93,35 @@ ok('sidebar worktree: «+» e ⋯ della riga chiamano i callback con worktree e 
   } finally { restore(); }
 });
 
+ok('sidebar worktree: ⟲ della riga chiede il Resume del worktree, fra «+» e ⋯, senza collassare il gruppo', () => {
+  const restore = installDocument();
+  try {
+    const asked = [];
+    const { list } = render({
+      onNewInWorktree: () => {}, onWorktreeMenu: () => {},
+      onResumeInWorktree: (path, root) => asked.push([path, root]),
+    });
+    const resume = byClass(list, 'worktree-resume')[0];
+    const ev = stopEvent();
+    resume.onclick(ev);
+    assert.deepStrictEqual(asked, [[FEAT.path, ROOT]]);
+    assert.ok(ev.propagationStopped);
+    assert.strictEqual(resume.textContent, '⟲');
+    assert.match(resume.title, /feat\/x/);
+    const row = resume.parentNode || byClass(list, 'worktree-row')[0];
+    const order = ['worktree-add', 'worktree-resume', 'worktree-menu'].map((cls) => row.children.indexOf(byClass(row, cls)[0]));
+    assert.deepStrictEqual([...order].sort((a, b) => a - b), order, 'ordine dei pulsanti: + ⟲ ⋯');
+    assert.strictEqual(byClass(list, 'worktree-resume').length, 2, 'anche il worktree senza sessioni ha il suo ⟲');
+  } finally { restore(); }
+});
+
 ok('sidebar worktree: senza callback la riga non ha pulsanti che non fanno niente', () => {
   const restore = installDocument();
   try {
     const { list } = render();
     assert.strictEqual(byClass(list, 'worktree-add').length, 0);
     assert.strictEqual(byClass(list, 'worktree-menu').length, 0);
+    assert.strictEqual(byClass(list, 'worktree-resume').length, 0);
   } finally { restore(); }
 });
 

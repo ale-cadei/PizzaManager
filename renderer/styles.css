@@ -688,14 +688,14 @@ img.agent-icon--node { border-radius: 2px; }
 .worktree-changes { flex: 0 0 auto; display: inline-flex; gap: 4px; font: 400 11px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
 .worktree-added { color: var(--state-ok); }
 .worktree-removed { color: var(--state-error); }
-.worktree-add, .worktree-menu {
+.worktree-add, .worktree-resume, .worktree-menu {
   flex: 0 0 auto; padding: 1px 6px; border: 0; border-radius: 6px;
   background: transparent; color: var(--text-dim); font-family: var(--font-ui);
   font-size: 14px; line-height: 1; cursor: pointer;
 }
-.worktree-row:hover .worktree-add, .worktree-row:hover .worktree-menu { color: var(--text-muted); }
-.worktree-add:hover, .worktree-menu:hover { color: var(--action); background: var(--action-soft); }
-.worktree-add:focus-visible, .worktree-menu:focus-visible { outline: 2px solid var(--action); }
+.worktree-row:hover .worktree-add, .worktree-row:hover .worktree-resume, .worktree-row:hover .worktree-menu { color: var(--text-muted); }
+.worktree-add:hover, .worktree-resume:hover, .worktree-menu:hover { color: var(--action); background: var(--action-soft); }
+.worktree-add:focus-visible, .worktree-resume:focus-visible, .worktree-menu:focus-visible { outline: 2px solid var(--action); }
 .worktree-body {
   display: flex; flex-direction: column; gap: var(--space-session-gap);
   margin-left: 10px; padding-left: 6px;

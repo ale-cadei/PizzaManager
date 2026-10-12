@@ -20,10 +20,11 @@ const sidebar = Sidebar.createSidebar({
   // radice; il tipo lo si sceglie lì come sempre.
   onNewInProject: (root) => { openNewModal(undefined, { cwd: root }).catch(() => {}); },
   onResumeInProject: (root) => { openResumeModal({ projectRoot: root }).catch(() => {}); },
-  // Worktree (docs/plans/36): sotto-sezioni nel gruppo, «+» e ⋯ sulla riga
+  // Worktree (docs/plans/36): sotto-sezioni nel gruppo, «+», ⟲ (piano 53) e ⋯ sulla riga
   WorktreeSection: window.AisessWorktreeSection,
   onNewWorktree: (root) => { openWorktreeModal(root).catch((e) => console.warn('modale worktree', e)); },
   onNewInWorktree: (path) => { openNewModal(undefined, { cwd: path }).catch(() => {}); },
+  onResumeInWorktree: (path) => { openResumeModal({ dir: path }).catch(() => {}); },
   changesOf: (path) => changesCache.get(path),
   onWorktreeMenu: (w, root, anchor) => {
     worktreeActions.openMenu(w, root, anchor).catch((e) => console.warn('menu del worktree', e));

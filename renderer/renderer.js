@@ -120,6 +120,7 @@ async function init() {
   $('#resume-group-projects').addEventListener('change', () => { renderResumeList(); });
   $('#resume-project-clear').addEventListener('click', () => {
     resumeProjectFilterRoot = null;
+    resumeDirFilter = null;
     updateResumeProjectScope();
     renderResumeList();
   });

@@ -104,10 +104,7 @@ async function init() {
   });
 
   $$('.tab').forEach(t => t.addEventListener('click', () => {
-    $$('.tab').forEach(x => { x.classList.remove('active'); x.setAttribute('aria-selected', 'false'); });
-    t.classList.add('active');
-    t.setAttribute('aria-selected', 'true');
-    resumeTab = t.dataset.tab;
+    selectResumeTab(t.dataset.tab);
     updateResumeAccountRow();
     renderResumeList();
   }));

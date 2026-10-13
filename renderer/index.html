@@ -15,12 +15,18 @@
   - script-src 'self'          solo i .js dell'app: MAI 'unsafe-inline' qui
   - style-src  'unsafe-inline' serve a xterm.js, che inietta <style> a runtime
   - fonts.googleapis/gstatic   IBM Plex Mono e Inter (con fallback locale)
+  - worker-src 'self' blob:     i web worker di Monaco (sessione editor,
+                                docs/plans/60): il loader li crea da blob:
+  - font-src ... data:         il font delle icone di Monaco (codicon) e'
+                                incorporato come data: URI nel suo CSS,
+                                nessuna rete coinvolta (smoke del piano 60)
 -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
   script-src 'self';
+  worker-src 'self' blob:;
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-  font-src 'self' https://fonts.gstatic.com;
+  font-src 'self' https://fonts.gstatic.com data:;
   img-src 'self' data:;
   connect-src 'none';
   object-src 'none';

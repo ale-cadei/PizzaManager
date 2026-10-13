@@ -1,11 +1,11 @@
 # 33 — Animaletti che camminano in fondo alla finestra
 
-> **Aggiornamento del 9 ottobre 2026 ([piano 49](49-via-personaggi-nickelodeon.md)):
-> SpongeBob, Patrick e Gary non ci sono più**, e con loro la voce di cast
-> `inseguimento` e tutto il codice della coppia (`chase`, `flee`, `placePair`,
-> `mate`). La medusa resta, da sola. Tutto quello che questo file dice
-> dell'inseguimento e del retino racconta com'era: non c'è più niente da
-> ritoccare lì. Il perché sta nel piano 49.
+> **Aggiornamento del 9 ottobre 2026 ([piano 49](49-via-personaggi-di-terzi.md)):
+> i tre personaggi che non erano nostri non ci sono più**, e con loro la voce
+> di cast `inseguimento` e tutto il codice della coppia (`chase`, `flee`,
+> `placePair`, `mate`). La medusa resta, da sola. Tutto quello che questo file
+> dice dell'inseguimento racconta com'era: non c'è più niente da ritoccare lì.
+> Il perché sta nel piano 49.
 
 
 Branch: `feat/animaletti` · Dipende da: — · Taglia: ~1 g
@@ -13,8 +13,8 @@ Branch: `feat/animaletti` · Dipende da: — · Taglia: ~1 g
 ## Obiettivo
 
 Una striscia in fondo alla finestra dove camminano dei personaggi mentre si
-lavora. Il pezzo forte è **SpongeBob che rincorre una medusa con il retino**;
-accanto, altri personaggi di Bikini Bottom e qualche animale generico. I
+lavora: una medusa che galleggia, un gatto, una rana, un uccellino e i
+personaggi dei pacchetti di sprite. I
 personaggi reagiscono allo stato delle sessioni, così la striscia dice anche
 qualcosa: corrono quando un agente lavora, dormono quando è tutto fermo, si
 fermano e chiamano quando una sessione aspetta te.
@@ -43,16 +43,14 @@ Spento di default. Si accende e si regola da `Vista › Personaggi…`.
   Ogni sprite è una griglia di caratteri + palette (`'..yy..'`, `{ y: '#f7e03c' }`)
   convertita in `<rect>`: si legge e si modifica a mano, e un test verifica
   che ogni riga abbia la stessa larghezza e ogni carattere un colore.
-- ~~**Personaggi di SpongeBob riconoscibili, con i loro nomi.**~~ Decisione
-  dell'utente (2026-09-29), sapendo che sono personaggi e marchi di
-  Nickelodeon/Paramount: il rischio di una segnalazione DMCA era accettato.
-  SpongeBob era ricopiato da uno sprite GBA ritoccato da un fan
-  (gianlucarugergr, DeviantArt); gli altri erano pixel art originale fatta
-  qui. **Decisione ribaltata il 2026-10-09** (piano 49): nel frattempo le
-  release sono diventate pubbliche e firmate col nome di due persone, quindi
-  si sono tolti. L'uscita era prevista proprio così — «si tolgono le voci da
+- ~~**Tre personaggi presi da un cartone animato.**~~ Scelta del 2026-09-29,
+  quando PizzaManager girava su due computer. **Ribaltata il 2026-10-09**
+  (piano 49): nel frattempo le release sono diventate pubbliche e firmate col
+  nome di due persone, e un'app distribuita così non contiene il personaggio
+  di qualcun altro. L'uscita era prevista proprio qui — «si tolgono le voci da
   `pets-sprites.js`: il motore non dipende da nessun personaggio» — ed è
-  andata esattamente così, più la macchina dell'inseguimento.
+  andata esattamente così, più la macchina dell'inseguimento. Il catalogo
+  adesso è chiuso e un test lo verifica.
 - **Impostazioni in `localStorage`**, come `term-font.js` e `type-colors.js`:
   sono preferenze di UI, non dati da far sopravvivere fuori dall'app. Il
   valore letto è input esterno: si valida e, se non torna, si usa il default.
@@ -133,13 +131,13 @@ nel suo `height`.
 **Senza contorno**: i pacchetti disegnano un bordo scuro di 1 px attorno a
 ogni sagoma (gli Spritelli tutti dello stesso `#2B2233`, Fizzo, la pizza,
 Zucco, Babbo, la Morte e il fantasmino ognuno del suo), che sul terminale
-scuro fa un alone; i disegni fatti a mano (Patrick, il gatto, la rana…) non
+scuro fa un alone; i disegni fatti a mano (il gatto, la rana…) non
 ce l'hanno. L'utente li vuole tutti senza: il generatore lo toglie
 (`unoutlined`, colori in `OUTLINES` e `SPRITELLI_OUTLINE`) prima di
 ingrandire, lasciando lo scuro che sta dentro (occhi, bocche, la riga fra
 due colori), le gambe e le braccia fatte solo di quel colore e il pixel a
-cui si attaccano. SpongeBob e la tazzina, disegnati a mano con lo stesso
-bordo, sono stati ritoccati una volta con la stessa funzione. Il test misura
+cui si attaccano. La tazzina, disegnata a mano con lo stesso bordo, è stata
+ritoccata una volta con la stessa funzione. Il test misura
 quanto bordo scuro resta sulla sagoma.
 
 **Disegni a parte**: come l'ombra del fantasmino, stanno fuori dal div del
@@ -164,17 +162,15 @@ personaggio, `renderer/pets-sprite-*.js`, caricato prima di
 → walk, `blink`/`occhi spenti`/`dorme` → sleep, `felice`/`falciata`/`buu` → call. Il modo di muoversi è un campo del disegno (`motion`), e il motore
 ha una funzione per ognuno (`MOVES` in `pets.js`).
 
-**La coppia SpongeBob + medusa** si sceglie come una voce sola, «SpongeBob
-e la medusa» (`inseguimento`): sono due personaggi legati. SpongeBob non ha
-una direzione sua: punta la medusa e tiene una distanza minima. La medusa
-fugge verso il lato con più spazio; messa all'angolo si alza e gli passa
-sopra. Il retino non la prende mai. Lontana non va per conto suo: oltre
-`LEASH` misure torna verso di lui, così quando SpongeBob si ferma (a
-chiamare) gli gironzola intorno invece di andarsene per la striscia.
+**La coppia** (`inseguimento`) era una voce sola con due personaggi legati:
+uno inseguiva, la medusa scappava verso il lato con più spazio e messa
+all'angolo si alzava passandogli sopra, senza farsi mai prendere. **Tolta col
+piano 49** insieme ai personaggi che la componevano; resta qui perché spiega
+`mate`, `LEASH` e `lift`, che non ci sono più.
 
-Frame per personaggio: `walk` (2 frame; SpongeBob 4, con il corpo che sale
-fra un passo e l'altro), `sleep`, `call`. SpongeBob ha anche `swing`, la
-medusa `flee`. Le «z» di chi dorme e il saltello di chi
+Frame per personaggio: `walk` (2 frame, qualcuno 4 con il corpo che sale fra
+un passo e l'altro), `sleep`, `call`, più le pose in più dichiarate in
+`EXTRA_POSES`. Le «z» di chi dorme e il saltello di chi
 chiama sono CSS sulla classe della posa, non frame in più.
 
 **Pose opzionali** (`OPTIONAL_POSES`): i pacchetti ne portano altre, e il
@@ -266,9 +262,9 @@ nessuno deve restare fuori dalla striscia.
   - `busy` raddoppia lo spostamento rispetto a `idle` a parità di `dt`.
   - `sleep` ferma tutti; `attention` ferma solo il più vicino al centro e
     gli dà il frame `call`.
-  - Inseguimento: SpongeBob si muove sempre verso la medusa; sotto la
-    distanza minima fa `swing` e la medusa passa a `flee`; dopo N passi
-    simulati la distanza non va mai a zero.
+  - Inseguimento (tolto col piano 49): chi inseguiva andava sempre verso la
+    medusa; sotto la distanza minima lei passava a `flee`; dopo N passi
+    simulati la distanza non andava mai a zero.
   - `moodOf`: tabella di precedenza.
   - Pose opzionali: pausa solo per chi ha `idle`, `turn` al bordo, spavento
     una volta sola al passaggio a `busy`, risata a fine attesa, tristezza

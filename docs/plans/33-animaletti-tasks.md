@@ -27,9 +27,9 @@ Test: `export PATH="$HOME/.nvm/versions/node/v22.22.2/bin:$PATH"; npm run test:u
 
 Interfacce prodotte:
 - `SPRITES: Record<kind, { palette: Record<char,string>, speed: number, frames: Record<pose, string[][]> }>`
-  — kind: `spongebob medusa patrick gary gatto pizza`; ogni frame è un array di righe.
-- `REQUIRED_POSES = ['walk', 'sleep', 'call']`; `spongebob` ha anche `swing`, `medusa` anche `flee`.
-- `CAST: Record<castId, kind[]>` — `inseguimento: ['spongebob','medusa']`, gli altri a un elemento.
+  — kind: `medusa gatto pizza rana…`; ogni frame è un array di righe.
+- `REQUIRED_POSES = ['walk', 'sleep', 'call']`; le pose in più per kind stanno in `EXTRA_POSES`.
+- `CAST: Record<castId, kind[]>` — quasi tutte a un elemento, `papera` porta anche gli anatroccoli.
 - `CAST_LABELS: Record<castId, string>`.
 - `GRID = 16`: righe di riferimento, un pixel vale `size / GRID`.
 - `toRects(rows, palette) → {x,y,w,fill}[]`: pixel uguali contigui sulla riga fusi in un rettangolo.
@@ -62,15 +62,15 @@ booleano; store salva e rilegge, e sopravvive a uno storage che lancia.
 
 Regole: bordi `[0, width - larghezza del pet]` con rimbalzo; `busy` ×2;
 `sleep` fermi in posa `sleep`; `attention` → il pet non-medusa più vicino
-al centro in posa `call`, gli altri come `idle`. Inseguimento: SpongeBob
-punta la medusa, sotto `SWING_DIST` posa `swing`; la medusa sotto
-`FLEE_DIST` posa `flee` e scappa più veloce di lui, verso il lato con
-spazio; se non c'è, si alza (`lift`) e gli passa sopra.
+al centro in posa `call`, gli altri come `idle`. Inseguimento (tolto col
+piano 49): chi inseguiva puntava la medusa, sotto `SWING_DIST` cambiava posa;
+la medusa sotto `FLEE_DIST` passava a `flee` e scappava più veloce verso il
+lato con spazio; se non c'era, si alzava (`lift`) e gli passava sopra.
 
 Test: `step` non muta; bordi rispettati anche quando la larghezza cala;
-`busy` sposta il doppio di `idle`; `sleep`; `attention`; SpongeBob verso la
-medusa; `swing`/`flee`; su 3000 passi simulati la medusa non è mai sotto il
-retino (distanza < metà misura) senza essere sollevata; `moodOf` precedenze.
+`busy` sposta il doppio di `idle`; `sleep`; `attention`; e, finché c'è stato
+l'inseguimento, che su 3000 passi simulati la medusa non finisse mai presa
+(distanza < metà misura) senza essersi sollevata; `moodOf` precedenze.
 
 ## Task 4 — Vista (`pets-view.js`)
 

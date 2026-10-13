@@ -11,9 +11,11 @@
  * I personaggi dei pacchetti di sprite dell'utente stanno nei file
  * pets-sprite-*.js (generati) e si fondono qui nel catalogo.
  *
- * Qui non entrano personaggi di qualcun altro: SpongeBob, Patrick e Gary
- * c'erano e sono stati tolti (piano 49), perché sono di Nickelodeon/Paramount
- * e l'app è distribuita con una licenza nostra. Non rimettiamoli.
+ * Qui non entrano personaggi di altri: ce n'erano, e sono stati tolti
+ * (piano 49). L'app si distribuisce con una licenza nostra, e un disegno che
+ * non abbiamo fatto noi non ci sta. Il catalogo è chiuso e un test lo
+ * verifica: aggiungere una voce è il momento in cui ci si chiede da dove
+ * viene il disegno.
  *
  * Wrapper UMD come gli altri moduli del renderer. */
 (function (root, factory) {

@@ -274,15 +274,19 @@ ok('sprites: la medusa non ha colonne vuote ai lati', () => {
   assert.notStrictEqual(column(dims('medusa').cols - 1).replace(/\./g, ''), '', 'colonne vuote a destra');
 });
 
-/* Il piano 49 li ha tolti: questo test è lì perché non tornino per sbaglio. */
-ok('sprites: nessun personaggio di altri nel catalogo', () => {
-  for (const id of ['pescatore', 'stella', 'lumaca', 'inseguimento']) {
-    assert.strictEqual(SPRITES[id], undefined, `${id} è tornato fra i disegni`);
-    assert.strictEqual(CAST[id], undefined, `${id} è tornato nel cast`);
-  }
-  for (const label of Object.values(CAST_LABELS)) {
-    assert.doesNotMatch(label, /pescatore|stella|lumaca/i, `etichetta «${label}»`);
-  }
+/* Il catalogo e' CHIUSO: chi aggiunge un personaggio deve aggiungerlo anche
+   qui, e quel passaggio e' il momento in cui ci si ferma a chiedersi se il
+   disegno e' roba nostra. Dei personaggi di terzi erano gia' entrati una
+   volta e sono stati tolti (piano 49): questo test serve perche' non
+   rientrino per distrazione. */
+ok('sprites: il catalogo e quello dichiarato, nessuno entra di nascosto', () => {
+  assert.deepStrictEqual(Object.keys(CAST).sort(), [
+    'babbo', 'barchetta', 'chiocciola', 'fantasmino', 'fizzo', 'gatto', 'granchio',
+    'medusa', 'morte', 'pesce', 'pizza', 'rana', 'robottino', 'rotolacampo',
+    'tazzina', 'trenino', 'uccellino', 'zucca',
+  ], 'il cast e cambiato: se e voluto, aggiorna questo elenco');
+  assert.deepStrictEqual(Object.keys(CAST_LABELS).sort(), Object.keys(CAST).sort(),
+    'ogni voce del cast ha un nome e viceversa');
 });
 
 ok('sprites: le varianti ritoccano solo colori che la palette di base conosce; paletteOf le fonde', () => {

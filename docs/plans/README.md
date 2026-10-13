@@ -56,7 +56,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 44 | [`feat/review-attiva`](44-review-commenti.md) — commenti sul diff, inviati all'agente | 32, 43 | ~1 g | fatto, provato nell'app (smoke sotto xvfb, agente finto) |
 | 48 | [`feat/segnalazioni`](48-segnalazioni.md) — bacheca di richieste e problemi nell'app | 18, 44 | ~1 g | ✅ mergiato (PR #51), nella 1.5.0 |
 | 46 | [`feat/hooks-esatti`](46-hook-esatti.md) — lavora / ha finito / chiede un permesso, dagli hook di Claude, opencode e Codex | 38 | ~1½ g | fatto, smoke da fare |
-| 49 | [`chore/via-personaggi-di-terzi`](49-via-personaggi-di-terzi.md) — il pescatore, la stella e la lumaca fuori dal catalogo degli animaletti | 33 | ~2h | ✅ mergiato (PR #52), smoke da fare |
+| 49 | [`chore/via-personaggi-di-terzi`](49-via-personaggi-di-terzi.md) — tre personaggi non nostri fuori dal catalogo degli animaletti | 33 | ~2h | ✅ mergiato (PR #52), smoke da fare |
 | 50 | [`fix/segnalazioni-rifiniture`](50-segnalazioni-rifiniture.md) — titolo cliccabile, tipo visibile, etichette `stato:*`, e il testo che non arrivava su GitHub | 48 | ~1h | ✅ mergiato (PR #53) |
 | 51 | [fork di psmux](51-fork-psmux.md) (`JackGrieco/psmux`) — barra di scorrimento fluida, con PR all'autore | 40 | ~1 g | idea, non bloccante ([idee](idee.md)) |
 | 52 | [`feat/psmux-backend`](52-psmux-backend.md) — psmux nel pacchetto, sessioni persistenti su Windows | 40, 26 | ~1½ g + ½ g CI | proposto, da fare sul fisso Windows |

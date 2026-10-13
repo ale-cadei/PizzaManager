@@ -14,7 +14,7 @@ const ANCHOR = { id: 'ancora' };
  * `choice` è la risposta al menu, `asks` le risposte alle conferme in ordine,
  * `merge` / `remove` le risposte del main (una per chiamata).
  */
-function setup({ choice, asks = [], merge = [], remove = [], open = [], reviews = null }) {
+function setup({ choice, asks = [], merge = [], remove = [], open = [], reviews = null, closeAnswers = null }) {
   const log = [];
   const reviewed = [];
   const asked = [];
@@ -38,6 +38,8 @@ function setup({ choice, asks = [], merge = [], remove = [], open = [], reviews 
     refresh: async (root) => { log.push(`refresh ${root}`); },
     // Il pannello delle modifiche (docs/plans/32): c'è solo se il test lo chiede
     ...(reviews ? { review: async (w, conf) => { log.push('review'); reviewed.push({ w, conf }); return reviews.shift(); } } : {}),
+    // Le schede editor con file non salvati (renderer/worktrees.js): una risposta per scheda
+    ...(closeAnswers ? { confirmClose: async (t) => { log.push(`confirmClose ${t.id}`); return closeAnswers.shift(); } } : {}),
   };
   return { actions: createWorktreeActions(deps), log, asked, told, reviewed };
 }
@@ -164,4 +166,28 @@ ok('azioni: col pannello, Tieni il branch e Butta restano sul fumetto', async ()
   await actions.openMenu(WT, '/p', ANCHOR);
   assert.ok(!log.includes('review'));
   assert.ok(log.includes('ask'));
+});
+
+/* Una scheda editor del worktree con file non salvati: chiuderla senza
+   chiedere li perderebbe (il merge non li prende, la rimozione li butta). */
+ok('azioni: se una scheda rifiuta la chiusura non si unisce e non si toglie niente', async () => {
+  for (const [choice, extra] of [['merge', { merge: [{ ok: true }] }], ['keep', { remove: [{ ok: true }] }], ['delete', { remove: [{ ok: true }] }]]) {
+    const open = [{ id: 'ed', type: 'editor' }, { id: 'sh', type: 'shell' }];
+    const { actions, log } = setup({ choice, asks: [true], open, closeAnswers: [false, true], ...extra });
+    await actions.openMenu(WT, '/p', ANCHOR);
+    assert.deepStrictEqual(steps(log), ['choose', 'ask', 'confirmClose ed'], `${choice}: ${log.join(' | ')}`);
+  }
+});
+
+ok('azioni: col consenso di tutte le schede si procede, e la domanda viene prima dell azione', async () => {
+  const open = [{ id: 'ed', type: 'editor' }, { id: 'sh', type: 'shell' }];
+  const merged = setup({ choice: 'merge', asks: [true], merge: [{ ok: true }], open: [...open], closeAnswers: [true, true] });
+  await merged.actions.openMenu(WT, '/p', ANCHOR);
+  assert.deepStrictEqual(steps(merged.log), ['choose', 'ask', 'confirmClose ed', 'confirmClose sh',
+    'merge /p /p.worktrees/feat-x', 'close ed,sh', 'refresh /p']);
+
+  const removed = setup({ choice: 'delete', asks: [true], remove: [{ ok: true }], open: [...open], closeAnswers: [true, true] });
+  await removed.actions.openMenu(WT, '/p', ANCHOR);
+  assert.deepStrictEqual(steps(removed.log), ['choose', 'ask', 'confirmClose ed', 'confirmClose sh',
+    'remove /p /p.worktrees/feat-x delete', 'close ed,sh', 'refresh /p']);
 });

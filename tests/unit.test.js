@@ -397,7 +397,9 @@ ok('main.js e solo cablaggio: nessuna funzione di logica definita al suo interno
   // e avvio; la logica sta in lib/agent-signals.js e app/pty.js.
   // 232: altre 2 per la bacheca delle segnalazioni (piano 48): un require e la
   // registrazione; rete, cache e contesto stanno in app/feedback.js.
-  assert.ok(main.split('\n').length < 232, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
+  // 234: altre 2 per la sessione editor (piano 60): un require e la
+  // registrazione; file, watch e conferma d'uscita stanno in app/editor*.js.
+  assert.ok(main.split('\n').length < 234, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
 });
 
 /* I file che un PROGRAMMA ESTERNO deve aprire non bastano dentro app.asar:

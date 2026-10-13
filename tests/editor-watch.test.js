@@ -118,20 +118,45 @@ ok('close: ferma i watcher e le notifiche in attesa', async (t) => {
   assert.strictEqual(fake.live(p).length, 0);
 });
 
-ok('leak: se watch è chiamato durante notify che aspetta stat, il vecchio watcher non è orfano', async (t) => {
+ok('leak: arm riarma anche se notify sta aspettando stat; il watcher vecchio si chiude', async (t) => {
   const p = tmpFile(t);
   const fake = fakeWatch();
+
+  // Gate per controllare quando stat risolve
+  let resolveGate;
+  const gate = new Promise((r) => { resolveGate = r; });
+  const originalStat = fs.promises.stat;
+  fs.promises.stat = async (path) => {
+    if (path === p) await gate;
+    return originalStat(path);
+  };
+  t.after(() => { fs.promises.stat = originalStat; });
+
   const w = createEditorWatch({ onChange: () => {}, debounceMs: 10, watchFn: fake.watchFn });
+
+  // Arma il primo watcher
   w.watch(p);
+  assert.strictEqual(fake.watchers.length, 1);
+  const firstWatcher = fake.watchers[0];
+
+  // Scatena l'evento: debounce + notify bloccato su stat
   fake.fire(p);
-  // Aspetta che notify inizi (debounce scaduto) ma non finisca ancora
-  await sleep(15);
-  // In questo punto notify sta aspettando fs.promises.stat
-  // Richiama watch dello stesso path
+  await sleep(20);  // Debounce scade, notify in attesa del gate su stat
+
+  // A questo punto notify sta aspettando stat
+  // Richiama watch: arm() deve disarmare il watcher vecchio e crearne uno nuovo
   w.watch(p);
-  // Aspetta che notify finisca
-  await sleep(30);
-  // Deve esserci solo 1 watcher live (non chiuso), non 2
+
+  // Deve esserci un secondo watcher creato (arm lo crea quando richiamato)
+  assert.strictEqual(fake.watchers.length, 2);
+  // Il primo deve essere chiuso (disarmed da arm all'inizio)
+  assert.strictEqual(firstWatcher.closed, true);
+
+  // Libera il gate: notify completa
+  resolveGate();
+  await sleep(10);
+
+  // Deve restare solo 1 watcher live (non chiuso)
   assert.strictEqual(fake.live(p).length, 1);
   w.close();
 });

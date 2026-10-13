@@ -158,7 +158,8 @@ async function init() {
   ensureClaudeAccounts();
   await reattachLiveSessions();
   const gitToOffer = await restoreGitSessions();
-  await offerRestore(gitToOffer);
+  const editorToOffer = await restoreEditorSessions();
+  await offerRestore(gitToOffer, editorToOffer);
 }
 
 document.addEventListener('DOMContentLoaded', init);

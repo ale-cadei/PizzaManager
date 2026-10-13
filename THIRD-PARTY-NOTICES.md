@@ -21,6 +21,7 @@ and are used here only to refer to those products.
 | argparse | 2.0.1 | Python-2.0 |
 | builder-util-runtime | 9.7.0 | MIT |
 | debug | 4.4.3 | MIT |
+| dompurify (bundled inside monaco-editor) | 3.4.15 | MPL-2.0 OR Apache-2.0 |
 | electron | 33.4.11 | MIT |
 | electron-updater | 6.8.9 | MIT |
 | fs-extra | 10.1.0 | MIT |
@@ -427,6 +428,29 @@ LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE A
 IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
+### dompurify 3.4.15 — MPL-2.0 OR Apache-2.0
+
+<https://github.com/cure53/DOMPurify>
+
+Non è una dipendenza dichiarata: Monaco la incorpora nel suo bundle `min/`
+(`node_modules/monaco-editor/min/vs/editor-*.js`, che dichiara
+`version="3.4.15"`). La nota sotto è quella che Monaco porta con il
+sorgente (`esm/vs/base/browser/dompurify/dompurify.js`). La si usa sotto la
+Apache License 2.0; i testi completi delle due licenze sono in
+<https://github.com/cure53/DOMPurify/blob/3.4.15/LICENSE>.
+
+```
+@license DOMPurify 3.4.15 | (c) Cure53 and other contributors | Released under
+the Apache license 2.0 and Mozilla Public License 2.0 |
+github.com/cure53/DOMPurify/blob/3.4.15/LICENSE
+
+DOMPurify is free software; you can redistribute it and/or modify it under the
+terms of either:
+
+a) the Apache License Version 2.0, or
+b) the Mozilla Public License Version 2.0
 ```
 
 ### electron 33.4.11 — MIT

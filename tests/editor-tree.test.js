@@ -92,6 +92,23 @@ ok('promptName: Invio dà il nome ripulito, Esc e blur null', async () => {
   } finally { restore(); }
 });
 
+ok('promptName: un render dell albero che toglie l input chiude la domanda con null', async () => {
+  const restore = installDocument();
+  try {
+    const root = createElement('div');
+    const view = T.createTreeView({ root, document, onOpenFile() {}, onToggleDir() {}, onContextMenu() {} });
+    const tree = T.setChildren(T.emptyTree(), '', entries('src/', 'a.js'));
+    view.render(T.visibleRows(tree), null);
+    const asked = T.promptName({ document, host: view.element, after: view.rowOf('src'), depth: 1 });
+    assert.ok(view.element.children.some((c) => c.classList.contains('editor-tree-input')));
+    // Un evento del watch o una cartella caricata nel frattempo ridisegna
+    view.render(T.visibleRows(tree), null);
+    const answer = await Promise.race([asked, new Promise((r) => setTimeout(() => r('appesa'), 50))]);
+    assert.strictEqual(answer, null, 'la promise resta appesa per sempre');
+    assert.strictEqual(view.element.children.length, 2);
+  } finally { restore(); }
+});
+
 ok('showMenu: una voce esegue e chiude, Esc chiude', () => {
   const restore = installDocument();
   try {

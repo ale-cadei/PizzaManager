@@ -279,9 +279,14 @@ function ensureEditorHost(tab) {
   return ed.hostPending;
 }
 
+/* Una rinomina, un salvataggio o una ricarica possono finire dopo
+   disposeEditorTab: una scheda chiusa non arma watch (e uno armato mentre
+   si chiudeva si toglie). */
 async function watchEditorFile(tab, rel) {
+  if (!tabs.has(tab.id)) return;
   const r = await callEditor(() => window.aisess.editorWatch(tab.cwd, rel));
   if (!r.ok) { console.warn('editor-watch fallito:', r.error); return; }
+  if (!tabs.has(tab.id)) { unwatchEditorFile(tab, rel); return; }
   if (tab.editor.files.files[rel]) tab.editor.files = EditorFiles.update(tab.editor.files, rel, { path: r.path });
 }
 

@@ -81,9 +81,8 @@ app.whenReady().then(() => {
   // gli handler che hanno bisogno del PATH completo la aspettano (await).
   primeLoginPath();
   // Il testo delle shell: via i file orfani, poi si salva a intervalli (un
-  // riavvio non avvisa) e un'ultima volta prima di uscire.
+  // riavvio non avvisa); l'ultima volta prima di uscire la fa quitCapture.
   ptys.startCapture();
-  installQuitCapture({ app, ptys });
   // Lo stato esatto che gli hook degli agenti scrivono su file (piano 46)
   ptys.startSignals();
   mainWindow = createWindow({ onRendererReload: () => ptys.closeAll() });
@@ -226,7 +225,8 @@ registerClipboardHandlers(ipcMain);
 registerUpdateHandlers(ipcMain, { electron: { app, shell }, sendToRenderer });
 registerFeedbackHandlers(ipcMain, { electron: { app, shell }, viaTmux: () => ptys.viaTmux });
 registerGitHandlers(ipcMain, { userDataDir: () => app.getPath('userData') });
-registerEditorHandlers(ipcMain, { electron: { app, shell, BrowserWindow } });
+const quitCapture = installQuitCapture({ app, ptys }); // un quit annullato dall'editor la fa ripartire
+registerEditorHandlers(ipcMain, { electron: { app, shell, BrowserWindow }, onQuitCancelled: quitCapture.reset });
 
 // ---------- Notifiche di sistema e badge (docs/plans/38) ----------
 registerNotifyHandlers(ipcMain, { electron: { app, Notification, Menu }, getWindow: () => mainWindow, sendToRenderer });

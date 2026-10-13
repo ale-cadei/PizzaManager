@@ -57,6 +57,11 @@
 
   const isRepo = (result) => Boolean(result && result.ok);
 
+  /* Tipi senza un agente (e senza pty): shell (nessun agente dentro) e i
+     pannelli git/editor (nessun processo). Niente «ultimo giro», niente commenti. */
+  const NON_AGENT_TYPES = ['shell', 'git', 'editor'];
+  const isAgentTab = (tab) => Boolean(tab) && !NON_AGENT_TYPES.includes(tab.type);
+
   /* I pezzi di un contatore, ciascuno col suo colore: file, aggiunte (verde),
      rimozioni (rosso). `text` è la stessa cosa in una riga, per i titoli. */
   function countParts({ files, added, removed }, filesText = String(files)) {
@@ -194,7 +199,7 @@
    * @returns {{current: 'commit'|'turn'|'staging', turnAvailable: boolean, turnHint: string}}
    */
   function modeChoice(tab, wanted) {
-    const isAgent = Boolean(tab) && tab.type !== 'shell' && tab.type !== 'git';
+    const isAgent = isAgentTab(tab);
     const turnAvailable = isAgent && Boolean(tab.turnTree);
     const turnHint = !isAgent ? 'L\'ultimo giro c\'è solo nelle sessioni con un agente.'
       : turnAvailable ? 'Solo quello che è cambiato dopo l\'ultimo prompt inviato.'
@@ -205,7 +210,7 @@
 
   /** I commenti sul diff (docs/plans/44) vanno a un agente: non a shell e git, non durante Unisci */
   function reviewAvailable(tab, merging) {
-    return Boolean(tab) && tab.type !== 'shell' && tab.type !== 'git' && !merging;
+    return isAgentTab(tab) && !merging;
   }
 
   /* Una cartella dentro la radice del repository (separatori di Windows compresi) */

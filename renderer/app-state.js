@@ -47,6 +47,8 @@ const ShellIcons = window.AisessShellIcons;
 const titleStore = Titles.createTitleStore(window.localStorage);
 // Tipi con un binario esterno da risolvere (lo shell è sempre disponibile)
 const AI_TYPES = ['opencode', 'claude', 'codex', 'antigravity'];
+// Tipi senza pty: niente kill alla chiusura, niente domanda «processo in corso»
+const PANEL_TYPES = ['git', 'editor'];
 
 // Corpo del testo dei terminali: una dimensione per tutte le schede, scelta
 // dal menu Vista e ricordata (renderer/term-font.js)

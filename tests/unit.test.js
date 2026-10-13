@@ -397,7 +397,9 @@ ok('main.js e solo cablaggio: nessuna funzione di logica definita al suo interno
   // e avvio; la logica sta in lib/agent-signals.js e app/pty.js.
   // 232: altre 2 per la bacheca delle segnalazioni (piano 48): un require e la
   // registrazione; rete, cache e contesto stanno in app/feedback.js.
-  assert.ok(main.split('\n').length < 232, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
+  // 234: altre 2 per la sessione editor (piano 60): un require e la
+  // registrazione; file, watch e conferma d'uscita stanno in app/editor*.js.
+  assert.ok(main.split('\n').length < 234, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
 });
 
 /* I file che un PROGRAMMA ESTERNO deve aprire non bastano dentro app.asar:
@@ -425,4 +427,38 @@ ok('la licenza dichiarata e quella dei termini scritti, non una standard', () =>
   assert.match(testo, /Giacomo Grieco and Alessandro Cadei/, 'manca la nota di copyright');
   assert.match(testo, /NO WARRANTY/, 'la clausola che protegge gli autori non c e');
   assert.match(testo, /THIRD-PARTY-NOTICES\.md/, 'il rimando alle note di terze parti non c e');
+});
+
+ok('build: di monaco-editor nel pacchetto resta solo min/, senza mappe (piano 60)', () => {
+  const root = path.join(__dirname, '..');
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  assert.strictEqual(pkg.dependencies['monaco-editor'], '0.57.0', 'monaco-editor va bloccato a 0.57.0 esatta');
+  const files = pkg.build.files;
+  const dir = path.join(root, 'node_modules', 'monaco-editor');
+  if (!fs.existsSync(dir)) return; // senza node_modules si controlla solo la versione
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isDirectory() || entry.name === 'min') continue;
+    assert.ok(files.includes(`!node_modules/monaco-editor/${entry.name}/**`), `manca l'esclusione di monaco-editor/${entry.name}`);
+  }
+  assert.ok(files.includes('!node_modules/monaco-editor/**/*.map'), 'mancano le mappe fra le esclusioni');
+  assert.ok(!files.some((f) => f.startsWith('!node_modules/monaco-editor/min')), 'min/ non va escluso');
+});
+
+/* min/vs è un bundle AMD autosufficiente (il renderer non importa mai
+   monaco-editor via require/import Node): le dipendenze npm di
+   monaco-editor (oggi dompurify, marked) servono solo a costruire il
+   pacchetto, non girano nell'app. Si derivano dal suo package.json, non si
+   scrivono a mano, cosi' un futuro bump di monaco-editor che ne aggiunge
+   una non passa inosservato. */
+ok('build: le dipendenze npm di monaco-editor (dompurify, marked…) non viaggiano nel pacchetto', () => {
+  const root = path.join(__dirname, '..');
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  const files = pkg.build.files;
+  const monacoPkgPath = path.join(root, 'node_modules', 'monaco-editor', 'package.json');
+  if (!fs.existsSync(monacoPkgPath)) return; // senza node_modules si controlla solo al passo precedente
+  const monacoPkg = JSON.parse(fs.readFileSync(monacoPkgPath, 'utf8'));
+  const transitiveDeps = Object.keys(monacoPkg.dependencies || {});
+  for (const dep of transitiveDeps) {
+    assert.ok(files.includes(`!node_modules/${dep}/**`), `manca l'esclusione della dipendenza transitiva di monaco-editor: ${dep}`);
+  }
 });

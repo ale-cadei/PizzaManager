@@ -9,6 +9,11 @@
  * deve MAI poter impedire la chiusura: meglio perdere mezzo minuto di testo
  * che avere un'app che non si chiude.
  *
+ * Un quit si puo' annullare: il beforeunload dell'editor lo ferma se ci sono
+ * file non salvati (app/editor-close.js). Allora `reset()` rimette tutto come
+ * prima: la cattura a intervalli riparte e il quit successivo rifa' quella
+ * finale.
+ *
  * Sta in app/ perche' vive sul ciclo di vita di Electron.
  */
 const GRACE_MS = 1000;
@@ -24,6 +29,13 @@ function installQuitCapture({ app, ptys, graceMs = GRACE_MS }) {
     const entro = new Promise((r) => setTimeout(r, graceMs));
     Promise.race([ptys.captureDirty(), entro]).catch(() => {}).then(() => app.quit());
   });
+  return {
+    /** Il quit e' stato annullato: si torna a catturare. */
+    reset() {
+      quitting = false;
+      ptys.startCapture();
+    },
+  };
 }
 
 module.exports = { installQuitCapture, GRACE_MS };

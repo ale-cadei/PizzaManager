@@ -14,6 +14,7 @@ const RENDERER_APP_FILES = [
   'tabs.js',
   'shell-icon-ui.js',
   'git-tab.js',
+  'editor-tab.js',
   'tab-names.js',
   'worktrees.js',
   'session-list.js',

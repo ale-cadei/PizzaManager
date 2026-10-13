@@ -27,36 +27,36 @@
   const THEMES = Object.freeze([
     {
       id: 'forno', name: 'Forno', isDefault: true,
-      colors: { action: '#f04e23', shell: '#f2c14e', git: '#f1502f', opencode: '#4ade80', claude: '#ff9147', codex: '#5aa2ff', antigravity: '#ff6b6b' },
+      colors: { action: '#f04e23', shell: '#f2c14e', git: '#f1502f', editor: '#b48ef0', opencode: '#4ade80', claude: '#ff9147', codex: '#5aa2ff', antigravity: '#ff6b6b' },
     },
     {
       id: 'mare', name: 'Mare di notte',
-      colors: { action: '#2bb3c0', shell: '#f5d76e', git: '#ff7a59', opencode: '#7ee081', claude: '#ffb070', codex: '#6fa8ff', antigravity: '#f78fb3' },
+      colors: { action: '#2bb3c0', shell: '#f5d76e', git: '#ff7a59', editor: '#c9a7ff', opencode: '#7ee081', claude: '#ffb070', codex: '#6fa8ff', antigravity: '#f78fb3' },
     },
     {
       id: 'bosco', name: 'Bosco',
-      colors: { action: '#5faf5a', shell: '#e8c468', git: '#d9734e', opencode: '#9be36d', claude: '#e8a15c', codex: '#6cb7d9', antigravity: '#c98bdb' },
+      colors: { action: '#5faf5a', shell: '#e8c468', git: '#d9734e', editor: '#b9a3e3', opencode: '#9be36d', claude: '#e8a15c', codex: '#6cb7d9', antigravity: '#c98bdb' },
     },
     {
       id: 'lavanda', name: 'Lavanda',
-      colors: { action: '#9b7bff', shell: '#f2d16b', git: '#ff8a80', opencode: '#7fe0b0', claude: '#ffb38a', codex: '#8cb8ff', antigravity: '#f48fd0' },
+      colors: { action: '#9b7bff', shell: '#f2d16b', git: '#ff8a80', editor: '#e0c3fc', opencode: '#7fe0b0', claude: '#ffb38a', codex: '#8cb8ff', antigravity: '#f48fd0' },
     },
     {
       id: 'neon', name: 'Neon',
-      colors: { action: '#ff2e88', shell: '#ffe14d', git: '#ff6b3d', opencode: '#39ff88', claude: '#ff9f1c', codex: '#00d1ff', antigravity: '#b266ff' },
+      colors: { action: '#ff2e88', shell: '#ffe14d', git: '#ff6b3d', editor: '#d58bff', opencode: '#39ff88', claude: '#ff9f1c', codex: '#00d1ff', antigravity: '#b266ff' },
     },
     {
       id: 'ambra', name: 'Ambra',
-      colors: { action: '#e0a030', shell: '#f4d58d', git: '#e07a3f', opencode: '#a8d672', claude: '#f2a65a', codex: '#7fb3d5', antigravity: '#e57373' },
+      colors: { action: '#e0a030', shell: '#f4d58d', git: '#e07a3f', editor: '#c7a2e8', opencode: '#a8d672', claude: '#f2a65a', codex: '#7fb3d5', antigravity: '#e57373' },
     },
     {
       // Grigi soli: i tipi si distinguono per chiarezza, dal più chiaro al più scuro.
       id: 'bianco-nero', name: 'Bianco e nero',
-      colors: { action: '#e6e6e6', shell: '#d6d6d6', git: '#808080', opencode: '#adadad', claude: '#f2f2f2', codex: '#969696', antigravity: '#c4c4c4' },
+      colors: { action: '#e6e6e6', shell: '#d6d6d6', git: '#808080', editor: '#d0d0d0', opencode: '#adadad', claude: '#f2f2f2', codex: '#969696', antigravity: '#c4c4c4' },
     },
     {
       id: 'ghiaccio', name: 'Ghiaccio',
-      colors: { action: '#7fb8e6', shell: '#ebd98a', git: '#f08a6c', opencode: '#8fe3c4', claude: '#f5b98a', codex: '#9cc9ff', antigravity: '#d9a6f5' },
+      colors: { action: '#7fb8e6', shell: '#ebd98a', git: '#f08a6c', editor: '#b8b5ff', opencode: '#8fe3c4', claude: '#f5b98a', codex: '#9cc9ff', antigravity: '#d9a6f5' },
     },
   ].map((t) => Object.freeze({ ...t, colors: Object.freeze(t.colors) })));
 

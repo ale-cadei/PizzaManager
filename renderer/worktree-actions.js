@@ -58,11 +58,15 @@
    *   sessionsIn: (path: string) => Array<{id: string}>,
    *   closeSessions: (sessions: Array<{id: string}>) => Promise<void>,
    *   refresh: (root: string) => Promise<void>,
-   *   review?: (w: object, conf: {title: string, text: string, confirmLabel: string}) => Promise<boolean>}} deps
+   *   review?: (w: object, conf: {title: string, text: string, confirmLabel: string}) => Promise<boolean>,
+   *   confirmClose?: (session: {id: string}) => Promise<boolean>}} deps
    *   `review`: Unisci si conferma guardando il diff del branch nel pannello
    *   delle modifiche (docs/plans/32), invece che dal fumetto.
+   *   `confirmClose`: chiede, per una sessione che verrà chiusa, se si può
+   *   (una scheda editor con file non salvati: salva o scarta). Un no annulla
+   *   tutto. Di default non chiede.
    */
-  function createWorktreeActions({ api, bubble, sessionsIn, closeSessions, refresh, review = null }) {
+  function createWorktreeActions({ api, bubble, sessionsIn, closeSessions, refresh, review = null, confirmClose = async () => true }) {
     /* Chiamata al main che non lancia mai: un canale giù diventa un errore da dire */
     const call = (fn) => fn().catch((e) => ({ ok: false, error: messageOf(e) }));
 
@@ -101,6 +105,9 @@
       const conf = confirmation(choice, w, open.length);
       const confirmed = choice === 'merge' && review ? await review(w, conf) : await bubble.ask({ ...ctx, ...conf });
       if (!confirmed) return;
+      // Prima di toccare il worktree: dopo, chiudere le schede non chiede più
+      // niente e le modifiche non salvate andrebbero perse in silenzio
+      for (const t of open) if (!(await confirmClose(t))) return;
 
       const res = choice === 'merge'
         ? await call(() => api.merge(root, w.path))

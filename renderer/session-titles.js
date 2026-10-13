@@ -109,11 +109,11 @@
    * serve a tutte (è ciò che rende la scheda ripristinabile dopo un riavvio),
    * quindi si cerca anche per chi ha già un nome suo: rinominata a mano, nome
    * dato nel dialog, etichetta di un ripristino. Il titolo automatico invece
-   * riguarda solo chi non è stato rinominato. Le shell e le schede git non
-   * hanno conversazioni.
+   * riguarda solo chi non è stato rinominato. Le shell e le schede git ed
+   * editor non hanno conversazioni.
    */
   function needsAutoRefresh(tab) {
-    if (!tab || tab.type === 'shell' || tab.type === 'git') return false;
+    if (!tab || tab.type === 'shell' || tab.type === 'git' || tab.type === 'editor') return false;
     return Boolean(tab.autoNamed) || !tab.resumeId;
   }
 

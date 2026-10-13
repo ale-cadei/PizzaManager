@@ -40,15 +40,16 @@ async function reattachLiveSessions() {
  * di ricreare quelle sessioni. Con l'id della conversazione si riprende
  * (`--resume`); senza, si riparte pulita nella stessa directory. Si chiede,
  * non si fa da soli: N processi che partono senza permesso sono invadenti.
- * Nella stessa lista le schede git aperte al riavvio (restoreGitSessions),
- * che si propongono anche senza tmux.
+ * Nella stessa lista le schede git (restoreGitSessions) ed editor
+ * (restoreEditorSessions) aperte al riavvio, che si propongono anche senza
+ * tmux.
  */
-async function offerRestore(gitLost = []) {
+async function offerRestore(gitLost = [], editorLost = []) {
   let lost = [];
   if (tmuxAvailable) {
     try { lost = await window.aisess.restorable(); } catch (e) { console.warn('restorable-sessions fallito', e); }
   }
-  const items = [...lost.map(sessionRestoreItem), ...gitLost.map(gitRestoreItem)];
+  const items = [...lost.map(sessionRestoreItem), ...gitLost.map(gitRestoreItem), ...editorLost.map(editorRestoreItem)];
   if (!items.length) return;
 
   const backdrop = $('#modal-restore');
@@ -69,6 +70,7 @@ async function offerRestore(gitLost = []) {
   // delle schede git si riscrive con quelle riaperte (nessuna, se "Non ora").
   const forget = () => (lost.length ? window.aisess.discardRestorable() : Promise.resolve());
   const saveGit = () => (gitLost.length ? saveGitSessions() : Promise.resolve());
+  const saveEditor = () => (editorLost.length ? saveEditorSessions() : Promise.resolve());
   await new Promise((resolve) => {
     const done = () => { backdrop.hidden = true; confirmBtn.onclick = null; dismissBtn.onclick = null; resolve(); };
     const confirmBtn = $('#restore-confirm');
@@ -79,8 +81,9 @@ async function offerRestore(gitLost = []) {
       await forget();
       for (const item of chosen) await item.restore();
       await saveGit();
+      await saveEditor();
     };
-    dismissBtn.onclick = async () => { done(); await forget(); await saveGit(); };
+    dismissBtn.onclick = async () => { done(); await forget(); await saveGit(); await saveEditor(); };
     backdrop.hidden = false;
   });
 }
@@ -102,6 +105,16 @@ function gitRestoreItem(s) {
   return {
     type: 'git', name: s.name || repoName || 'git', cwd: s.cwd, how: 'timeline git',
     restore: () => createGitTab({ name: s.name, cwd: s.cwd, startedAt: s.startedAt, reveal: false }),
+  };
+}
+
+function editorRestoreItem(s) {
+  const folder = String(s.cwd || '').split(/[\\/]/).filter(Boolean).pop();
+  const count = s.files.length;
+  return {
+    type: 'editor', name: s.name || folder || 'editor', cwd: s.cwd,
+    how: count === 1 ? 'editor, 1 file' : `editor, ${count} file`,
+    restore: () => restoreEditorTab(s),
   };
 }
 

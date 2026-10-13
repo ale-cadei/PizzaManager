@@ -117,3 +117,55 @@ ok('close: ferma i watcher e le notifiche in attesa', async (t) => {
   assert.deepStrictEqual(seen, []);
   assert.strictEqual(fake.live(p).length, 0);
 });
+
+ok('leak: se watch è chiamato durante notify che aspetta stat, il vecchio watcher non è orfano', async (t) => {
+  const p = tmpFile(t);
+  const fake = fakeWatch();
+  const w = createEditorWatch({ onChange: () => {}, debounceMs: 10, watchFn: fake.watchFn });
+  w.watch(p);
+  fake.fire(p);
+  // Aspetta che notify inizi (debounce scaduto) ma non finisca ancora
+  await sleep(15);
+  // In questo punto notify sta aspettando fs.promises.stat
+  // Richiama watch dello stesso path
+  w.watch(p);
+  // Aspetta che notify finisca
+  await sleep(30);
+  // Deve esserci solo 1 watcher live (non chiuso), non 2
+  assert.strictEqual(fake.live(p).length, 1);
+  w.close();
+});
+
+ok('errors: ENOENT è silenzioso, altri errori si loggano', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'aisess-watch-err-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const p = path.join(dir, 'a.txt');
+
+  // Test ENOENT: non deve loggare
+  const errorsCalled = [];
+  const originalError = console.error;
+  console.error = (...args) => { errorsCalled.push(args); };
+  t.after(() => { console.error = originalError; });
+
+  const w = createEditorWatch({
+    onChange: () => {},
+    watchFn: (path) => {
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    }
+  });
+  assert.strictEqual(w.watch(p), false);
+  assert.strictEqual(errorsCalled.length, 0);
+
+  // Test EACCES: deve loggare
+  errorsCalled.length = 0;
+  const w2 = createEditorWatch({
+    onChange: () => {},
+    watchFn: (path) => {
+      throw Object.assign(new Error('Permission denied'), { code: 'EACCES' });
+    }
+  });
+  assert.strictEqual(w2.watch(p), false);
+  assert.strictEqual(errorsCalled.length, 1);
+  assert(errorsCalled[0][0].includes('[editor-watch]'));
+  assert(errorsCalled[0][0].includes('watch fallito'));
+});

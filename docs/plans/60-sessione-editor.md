@@ -353,6 +353,13 @@ dallo smoke headless di questo task, che ha aperto un solo file di prova):
   i prompt di chiusura con file sporchi, l'errore di dialogo su una cartella
   non apribile.
 - **Task 10, punto 6**: file sporco + chiusura scheda / Ctrl+Q / Ctrl+R.
+- **Revisione finale**: con un file sporco, Ctrl+Q e poi Annulla; la cattura
+  dello scrollback deve continuare (una shell con output nuovo: entro
+  30 secondi il suo file in `scrollback/` si aggiorna) e un Ctrl+Q successivo
+  deve rifare la cattura finale.
+- **Revisione finale**: rimuovere (Butta / Tieni il branch) e unire un
+  worktree con dentro una scheda editor sporca: deve chiedere Salva tutto /
+  Scarta prima di toccare il worktree; chiudendo la domanda non succede niente.
 
 ## Commit
 

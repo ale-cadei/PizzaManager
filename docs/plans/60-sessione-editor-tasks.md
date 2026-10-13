@@ -3647,10 +3647,13 @@ git commit --file=/tmp/msg.txt
 
 - **Niente Ctrl+W** per le sotto-schede: nel menu Ctrl+W è del ruolo
   `close` e chiuderebbe la finestra. Si chiude con la × o col tasto centrale.
-- **Worktree**: rimuovere un worktree chiude le sue sessioni con
-  `terminateTab` senza domande (`renderer/worktrees.js`); una scheda editor
-  lì dentro perde le modifiche non salvate, ma i file stessi spariscono col
-  worktree. Accettato; se serve, è un piano a parte.
+- **Worktree** (*corretto dopo la revisione finale*): rimuovere o unire un
+  worktree chiudeva le sue sessioni con `terminateTab` senza domande, e una
+  scheda editor lì dentro perdeva le modifiche non salvate (nel merge non
+  entravano). Ora `createWorktreeActions` riceve `confirmClose`: dopo la
+  conferma e prima di `api.merge`/`api.remove` chiede `confirmEditorClose`
+  per ogni scheda editor del worktree, e un no annulla tutto
+  (`renderer/worktree-actions.js`, `renderer/worktrees.js`).
 - **Corpo del testo**: l'editor parte con la dimensione dei terminali
   (`termFont.get()`) e non segue i cambi da menu Vista. Se lo si vuole, è un
   piano a parte.

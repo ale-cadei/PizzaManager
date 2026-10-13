@@ -63,6 +63,55 @@ multi-cursore). Il prezzo:
   `app.asar`. Va comunque verificato nel `.deb` (lezione di `tmux.conf`): se
   non partono, `min/vs/**` in `build.asarUnpack`.
 
+### Verifica nel `.deb` (Task 11)
+
+Build reale (`npm run dist:linux`), `.deb` estratto con `dpkg-deb -x` (niente
+`sudo`: mai installato sul sistema) e avviato headless con `xvfb-run -a
+<estratto>/opt/PizzaManager/aisessionmanager --no-sandbox
+--remote-debugging-port=…`, `HOME` isolato in una cartella temporanea (così
+`userData` non tocca `~/.config/AISessionManager` vero) e `TMUX_TMPDIR`
+isolato (così un eventuale `tmux -L aisession` non cade nel socket reale
+dell'utente: verificato, `ps aux` durante lo smoke mostra solo i processi
+tmux reali dell'utente, nessuno nato dalla cartella isolata — la sessione
+editor comunque non usa affatto tmux, non avendo un pty). Guidato da fuori
+con Chrome DevTools Protocol (`--remote-debugging-port`, `WebSocket` globale
+di Node) su `runtime.evaluate`: creata una scheda editor
+(`createTab('editor', {cwd: …})`), aperto un `.ts` di prova
+(`openEditorFile`), verificato che `innerHTML` del model contenga più classi
+`mtk*` distinte (evidenziazione vera), chiamato
+`monaco.languages.typescript.getTypeScriptWorker()` e fatto un giro di andata
+e ritorno completo (`getSemanticDiagnostics`) per provare che il worker *di
+linguaggio* (non solo il tokenizzatore) risponda davvero da dentro
+`app.asar`, e infine `editor.trigger(…, 'actions.find', …)` per aprire il
+widget di ricerca (`.find-widget.visible`).
+
+Risultato: **nessun `asarUnpack` necessario**. Nessun errore in console
+(`Runtime.consoleAPICalled` / `Log.entryAdded` vuoti durante tutta
+l'interazione), nessuna violazione CSP, il worker TypeScript risponde
+(`getSemanticDiagnostics` torna un array), il widget di ricerca si apre. La
+nota di `getWorkerUrl` (Task 8, sopra) resta confermata anche nel pacchetto:
+non è mai servito un `MonacoEnvironment.getWorkerUrl` esplicito, né qui né
+nello smoke con `npm start` — `renderer/editor-monaco.js` non lo imposta e
+non è stato necessario aggiungerlo. `package.json` **non è stato toccato**.
+
+**Peso**, due misure indipendenti che si confermano a vicenda:
+
+1. `.deb` di questo branch vs un `.deb` costruito da `main` (worktree
+   temporaneo in `/tmp`, rimosso a fine misura): 92 281 300 byte contro
+   87 761 180 byte → **+4 520 120 byte (+4,3 MiB, +5,1%)** sul pacchetto
+   compresso.
+2. Cartella `resources` dell'app installata (non compressa): 35 491 951 byte
+   contro 9 821 896 byte → **+25 670 055 byte (+24,5 MiB)**, quasi tutta
+   dentro `app.asar` (32 966 590 contro 7 218 278 byte, +24,6 MiB). Coerente
+   con la dimensione di `node_modules/monaco-editor/min` da solo
+   (25 613 413 byte, 24,4 MiB): è quello che `build.files` lascia nel
+   pacchetto, il resto di Monaco (esm, dev, mappe, dipendenze transitive di
+   `dompurify`/`marked`) resta fuori come da piano.
+
+La differenza fra le due misure (+24,5 MiB non compressi ma solo +4,3 MiB
+nel `.deb`) è la compressione del pacchetto Debian: JS e CSS minificati di
+Monaco comprimono bene.
+
 Un solo modulo tocca Monaco (`renderer/editor-monaco.js`): il resto del
 renderer parla con lui, così il motore resta sostituibile.
 
@@ -276,6 +325,35 @@ modificare lo stesso file da una shell → ricarica / barra; nuovo, rinomina,
 elimina (finisce nel cestino); chiudere con file sporchi; riavviare l'app →
 scheda e file tornano. Poi lo stesso nel `.deb` per i worker di Monaco.
 
+`npm run test:unit && npm run test:coverage` (Task 11): 1493 test, 1 saltato,
+0 falliti. Copertura di riga dei moduli nuovi, tutti sopra l'80% tranne
+`renderer/editor-tab.js` (cablaggio, nessun test diretto — coperto solo
+indirettamente da `tests/renderer-load.test.js`, che verifica l'ordine di
+caricamento):
+
+| modulo | riga % |
+|---|---|
+| `lib/editor-paths.js` | 100.00 |
+| `lib/editor-fs.js` | 99.59 |
+| `lib/editor-watch.js` | 97.87 |
+| `lib/editor-sessions.js` | 97.92 |
+| `renderer/editor-files.js` | 100.00 |
+| `renderer/editor-tree.js` | 98.17 |
+| `renderer/editor-monaco.js` | 80.49 |
+| `app/editor.js` | 100.00 |
+| `app/editor-close.js` | 100.00 |
+| `renderer/editor-tab.js` | — (non in tabella: mai importato da un test) |
+
+### Da verificare a mano
+
+Lasciato alla prossima prova nell'app vera (non coperto da unit test né
+dallo smoke headless di questo task, che ha aperto un solo file di prova):
+
+- **Task 9, punti 3-8**: salvataggio, barra di conflitto, rinomina, cestino,
+  i prompt di chiusura con file sporchi, l'errore di dialogo su una cartella
+  non apribile.
+- **Task 10, punto 6**: file sporco + chiusura scheda / Ctrl+Q / Ctrl+R.
+
 ## Commit
 
 Separati, nell'ordine:
@@ -285,3 +363,4 @@ Separati, nell'ordine:
 3. `feat: lib/editor-watch e lib/editor-sessions` + test
 4. `feat: scheda editor nel renderer` (albero, sotto-schede, Monaco)
 5. `feat: ripristino delle schede editor`
+6. `docs: piano 60 chiuso, note dal pacchetto`

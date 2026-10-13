@@ -73,6 +73,10 @@ async function init() {
       const problem = await gitRepoProblem(cwd);
       if (problem) { showNewError(problem); return; }
     }
+    if (pendingNewType === 'editor') {
+      const problem = await editorFolderProblem(cwd);
+      if (problem) { showNewError(problem); return; }
+    }
     showNewError('');
     const claudeAccountId = pendingNewType === 'claude' ? ($('#new-claude-account') || {}).value || null : null;
     if (claudeAccountId) { try { localStorage.setItem('aisess.claudeAccount', claudeAccountId); } catch {} }
@@ -147,6 +151,7 @@ async function init() {
   });
 
   window.addEventListener('resize', () => fitActive());
+  initEditorTabs();
   watchWorktrees();
   renderSidebar();
   updateEmpty();

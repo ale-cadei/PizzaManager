@@ -197,3 +197,8 @@ ok('worktree: worktreeOf dice in quale worktree sta una sessione, o null', () =>
   for (const bad of [null, undefined, {}]) assert.strictEqual(worktreeOf(bad, WORKTREES), null);
   assert.strictEqual(worktreeOf({ cwd: '/x', projectRoot: '/x' }, null), null);
 });
+
+ok('il tipo editor ha posto e nome nei gruppi (piano 60)', () => {
+  assert.strictEqual(TYPE_ORDER.indexOf('editor'), TYPE_ORDER.indexOf('git') + 1);
+  assert.strictEqual(TYPE_LABELS.editor, 'Editor');
+});

@@ -200,6 +200,7 @@ img.agent-icon { object-fit: contain; }
 .agent-icon--antigravity { color: var(--brand-antigravity); }
 .agent-icon--shell    { color: var(--type-shell); }
 .agent-icon--git      { color: var(--type-git); }
+.agent-icon--editor   { color: var(--type-editor); }
 img.agent-icon--github { filter: invert(1); }
 img.agent-icon--node { border-radius: 2px; }
 /* Contenitori: l'icona eredita la dimensione dal font del contesto */
@@ -237,6 +238,7 @@ img.agent-icon--node { border-radius: 2px; }
 /* Colore identità del tipo, ereditato da barra laterale e marker selezione */
 .type-shell    { --type-color: var(--type-shell); }
 .type-git      { --type-color: var(--type-git); }
+.type-editor   { --type-color: var(--type-editor); }
 .type-opencode { --type-color: var(--type-opencode); }
 .type-claude   { --type-color: var(--type-claude); }
 .type-codex    { --type-color: var(--type-codex); }
@@ -518,6 +520,7 @@ img.agent-icon--node { border-radius: 2px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
 .dot.shell { background: var(--type-shell); }
 .dot.git { background: var(--type-git); }
+.dot.editor { background: var(--type-editor); }
 .dot.opencode { background: var(--type-opencode); }
 .dot.claude { background: var(--type-claude); }
 .dot.codex { background: var(--type-codex); }
@@ -1149,6 +1152,58 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
    (--git-row-h), così pallini e testo restano allineati. */
 .term-wrap.git-wrap { padding: 0; }
 .term-wrap.git-wrap.active { display: flex; }
+
+/* ---------- Sessione editor (docs/plans/60) ---------- */
+.term-wrap.editor-wrap { padding: 0; }
+.term-wrap.editor-wrap.active { display: flex; }
+.editor-side {
+  width: 240px; min-width: 160px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--border); background: var(--surface);
+}
+.editor-side-tools { display: flex; gap: 4px; padding: 6px; border-bottom: 1px solid var(--divider); }
+.editor-tool { font-size: 12px; padding: 2px 8px; }
+.editor-tree-host { flex: 1; overflow: auto; padding: 4px 0; }
+.editor-tree-row {
+  display: flex; align-items: center; gap: 4px; height: 22px; padding-right: 8px;
+  font: 13px var(--font-ui); color: var(--text-2); cursor: pointer; white-space: nowrap;
+}
+.editor-tree-row:hover { background: var(--surface-2); }
+.editor-tree-row.is-selected { background: var(--surface-3); color: var(--text); }
+.editor-tree-row.is-ignored { color: var(--text-faint); }
+.editor-tree-twisty { width: 12px; flex-shrink: 0; color: var(--text-dim); }
+.editor-tree-name { overflow: hidden; text-overflow: ellipsis; }
+.editor-tree-input {
+  display: block; width: calc(100% - 24px); height: 22px; font: 13px var(--font-ui);
+  background: var(--bg); color: var(--text); border: 1px solid var(--border-strong);
+}
+.editor-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.editor-subtabs { display: flex; overflow-x: auto; border-bottom: 1px solid var(--border); background: var(--surface); }
+.editor-subtab {
+  display: flex; align-items: center; gap: 6px; padding: 0 6px 0 12px; height: 30px;
+  font: 13px var(--font-ui); color: var(--text-muted); cursor: pointer; white-space: nowrap;
+  border-right: 1px solid var(--divider);
+}
+.editor-subtab.is-active { color: var(--text); background: var(--bg); box-shadow: inset 0 2px 0 var(--type-editor); }
+.editor-subtab.is-deleted .editor-subtab-name { text-decoration: line-through; }
+.editor-subtab-dot { display: none; color: var(--type-editor); font-size: 10px; }
+.editor-subtab.is-dirty .editor-subtab-dot { display: inline; }
+.editor-subtab-close { background: none; border: 0; color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 0 4px; }
+.editor-subtab-close:hover { color: var(--text); }
+.editor-bar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font: 13px var(--font-ui); }
+.editor-bar.is-warn { background: var(--surface-3); color: var(--text); }
+.editor-bar.is-error { background: var(--surface-3); color: var(--state-error); }
+.editor-bar-text { flex: 1; }
+.editor-message { padding: 10px 12px; font: 13px var(--font-ui); color: var(--state-error); border-bottom: 1px solid var(--divider); }
+.editor-host { flex: 1; min-height: 0; }
+.editor-menu {
+  position: fixed; z-index: 1000; display: flex; flex-direction: column; min-width: 160px; padding: 4px;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: 6px;
+}
+.editor-menu-item { text-align: left; background: none; border: 0; color: var(--text); padding: 6px 10px; font: 13px var(--font-ui); cursor: pointer; border-radius: 4px; }
+.editor-menu-item:hover { background: var(--surface-3); }
+.editor-menu-item.is-danger { color: var(--state-error); }
+
 .git-view { flex: 1; min-width: 0; display: flex; flex-direction: column; font-family: var(--font-ui); position: relative; outline: none; }
 .git-head {
   display: flex; align-items: center; gap: var(--gap); padding: 10px 16px;

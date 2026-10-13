@@ -443,3 +443,22 @@ ok('build: di monaco-editor nel pacchetto resta solo min/, senza mappe (piano 60
   assert.ok(files.includes('!node_modules/monaco-editor/**/*.map'), 'mancano le mappe fra le esclusioni');
   assert.ok(!files.some((f) => f.startsWith('!node_modules/monaco-editor/min')), 'min/ non va escluso');
 });
+
+/* min/vs è un bundle AMD autosufficiente (il renderer non importa mai
+   monaco-editor via require/import Node): le dipendenze npm di
+   monaco-editor (oggi dompurify, marked) servono solo a costruire il
+   pacchetto, non girano nell'app. Si derivano dal suo package.json, non si
+   scrivono a mano, cosi' un futuro bump di monaco-editor che ne aggiunge
+   una non passa inosservato. */
+ok('build: le dipendenze npm di monaco-editor (dompurify, marked…) non viaggiano nel pacchetto', () => {
+  const root = path.join(__dirname, '..');
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  const files = pkg.build.files;
+  const monacoPkgPath = path.join(root, 'node_modules', 'monaco-editor', 'package.json');
+  if (!fs.existsSync(monacoPkgPath)) return; // senza node_modules si controlla solo al passo precedente
+  const monacoPkg = JSON.parse(fs.readFileSync(monacoPkgPath, 'utf8'));
+  const transitiveDeps = Object.keys(monacoPkg.dependencies || {});
+  for (const dep of transitiveDeps) {
+    assert.ok(files.includes(`!node_modules/${dep}/**`), `manca l'esclusione della dipendenza transitiva di monaco-editor: ${dep}`);
+  }
+});

@@ -8,7 +8,7 @@ const { registerEditorHandlers } = require('../app/editor');
 
 /* app/editor.js non chiede Electron: riceve ipcMain e quello che serve di
    Electron come parametri, quindi dei finti bastano. */
-function setup(t) {
+function setup(t, extra = {}) {
   const handlers = new Map();
   const ipcMain = { handle: (channel, fn) => handlers.set(channel, fn) };
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'aisess-edipc-'));
@@ -19,10 +19,11 @@ function setup(t) {
   registerEditorHandlers(ipcMain, {
     electron: { app, shell: {}, BrowserWindow: { fromWebContents: () => null } },
     trash: async (p) => { trashed.push(p); },
+    ...extra,
   });
   const sender = Object.assign(new EventEmitter(), { id: 7, sent: [], isDestroyed: () => false, send(ch, v) { this.sent.push([ch, v]); } });
   const call = (channel, payload) => handlers.get(channel)({ sender }, payload);
-  return { handlers, call, root, trashed, sender };
+  return { handlers, call, root, trashed, sender, app };
 }
 
 ok('ipc editor: ogni canale editor del preload ha il suo handler', (t) => {
@@ -87,4 +88,16 @@ ok('ipc editor: sessioni salvate e rilette, ask dopo un riavvio', async (t) => {
   assert.strictEqual(r.ok, true);
   assert.deepStrictEqual(r.sessions, list);
   assert.strictEqual(r.ask, false); // salvato adesso: la macchina non si è riavviata
+});
+
+ok('ipc editor: un quit fermato dalla pagina arriva a onQuitCancelled (la cattura riparte)', (t) => {
+  let cancelled = 0;
+  const { app } = setup(t, { onQuitCancelled: () => { cancelled += 1; } });
+  const webContents = Object.assign(new EventEmitter(), { id: 9 });
+  app.emit('browser-window-created', {}, Object.assign(new EventEmitter(), { webContents }));
+  webContents.emit('will-prevent-unload', {}); // una ricarica: non è un quit
+  assert.strictEqual(cancelled, 0);
+  app.emit('before-quit');
+  webContents.emit('will-prevent-unload', {});
+  assert.strictEqual(cancelled, 1);
 });

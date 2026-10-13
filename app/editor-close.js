@@ -6,12 +6,14 @@
  * fermato (l'uscita dall'app, la chiusura della finestra, una ricarica) e,
  * quando il renderer conferma, si rifà quella. Non si chiama preventDefault
  * su will-prevent-unload: vorrebbe dire ignorare il beforeunload.
- * app/quit-capture.js non c'entra: cattura lo scrollback e non blocca mai. */
+ * app/quit-capture.js non blocca mai, ma al quit ferma la cattura dello
+ * scrollback: se la pagina annulla un quit, `onQuitCancelled` la fa ripartire. */
 
 /**
- * @param {{app: Electron.App, ipcMain: Electron.IpcMain, BrowserWindow: typeof Electron.BrowserWindow}} o
+ * @param {{app: Electron.App, ipcMain: Electron.IpcMain, BrowserWindow: typeof Electron.BrowserWindow,
+ *   onQuitCancelled?: () => void}} o
  */
-function installEditorCloseGuard({ app, ipcMain, BrowserWindow }) {
+function installEditorCloseGuard({ app, ipcMain, BrowserWindow, onQuitCancelled = () => {} }) {
   let quitting = false;
   const closing = new Set();
   const pending = new Map(); // webContents.id → 'quit' | 'close' | 'reload'
@@ -22,10 +24,12 @@ function installEditorCloseGuard({ app, ipcMain, BrowserWindow }) {
     // 'close' arriva prima del beforeunload della pagina
     win.on('close', () => closing.add(id));
     win.webContents.on('will-prevent-unload', () => {
-      pending.set(id, quitting ? 'quit' : closing.has(id) ? 'close' : 'reload');
+      const what = quitting ? 'quit' : closing.has(id) ? 'close' : 'reload';
+      pending.set(id, what);
       // Fermato: se l'utente annulla, la prossima richiesta è un'altra storia
       quitting = false;
       closing.delete(id);
+      if (what === 'quit') onQuitCancelled();
     });
   });
 

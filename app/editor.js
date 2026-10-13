@@ -13,11 +13,14 @@ const { installEditorCloseGuard } = require('./editor-close');
  *
  * @param {Electron.IpcMain} ipcMain
  * @param {{electron: {app: Electron.App, shell: Electron.Shell, BrowserWindow: typeof Electron.BrowserWindow},
- *   userDataDir?: () => string, trash?: (absPath: string) => Promise<void>}} opts
- *   `userDataDir` e `trash` si sostituiscono nei test
+ *   userDataDir?: () => string, trash?: (absPath: string) => Promise<void>,
+ *   onQuitCancelled?: () => void}} opts
+ *   `userDataDir` e `trash` si sostituiscono nei test; `onQuitCancelled`
+ *   va a app/editor-close.js (un quit fermato dai file non salvati)
  */
 function registerEditorHandlers(ipcMain, {
   electron,
+  onQuitCancelled,
   userDataDir = () => electron.app.getPath('userData'),
   trash = (p) => electron.shell.trashItem(p),
 } = {}) {
@@ -86,7 +89,7 @@ function registerEditorHandlers(ipcMain, {
   }));
   ipcMain.handle('editor-sessions-save', guard(({ sessions: list }) => ({ ok: true, sessions: sessions().write(list) })));
 
-  installEditorCloseGuard({ app: electron.app, ipcMain, BrowserWindow: electron.BrowserWindow });
+  installEditorCloseGuard({ app: electron.app, ipcMain, BrowserWindow: electron.BrowserWindow, onQuitCancelled });
 }
 
 module.exports = { registerEditorHandlers };

@@ -24,6 +24,7 @@
     "@xterm/addon-web-links": "^0.11.0",
     "@xterm/xterm": "^5.5.0",
     "electron-updater": "^6.8.9",
+    "monaco-editor": "0.57.0",
     "node-pty": "^1.0.0"
   },
   "devDependencies": {
@@ -50,7 +51,10 @@
       "package.json",
       "LICENSE",
       "THIRD-PARTY-NOTICES.md",
-      "!node_modules/.cache/**/*"
+      "!node_modules/.cache/**/*",
+      "!node_modules/monaco-editor/dev/**",
+      "!node_modules/monaco-editor/esm/**",
+      "!node_modules/monaco-editor/**/*.map"
     ],
     "npmRebuild": true,
     "artifactBuildCompleted": "scripts/notarize-dmg.js",

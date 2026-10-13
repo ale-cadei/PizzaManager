@@ -428,3 +428,18 @@ ok('la licenza dichiarata e quella dei termini scritti, non una standard', () =>
   assert.match(testo, /NO WARRANTY/, 'la clausola che protegge gli autori non c e');
   assert.match(testo, /THIRD-PARTY-NOTICES\.md/, 'il rimando alle note di terze parti non c e');
 });
+
+ok('build: di monaco-editor nel pacchetto resta solo min/, senza mappe (piano 60)', () => {
+  const root = path.join(__dirname, '..');
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  assert.strictEqual(pkg.dependencies['monaco-editor'], '0.57.0', 'monaco-editor va bloccato a 0.57.0 esatta');
+  const files = pkg.build.files;
+  const dir = path.join(root, 'node_modules', 'monaco-editor');
+  if (!fs.existsSync(dir)) return; // senza node_modules si controlla solo la versione
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isDirectory() || entry.name === 'min') continue;
+    assert.ok(files.includes(`!node_modules/monaco-editor/${entry.name}/**`), `manca l'esclusione di monaco-editor/${entry.name}`);
+  }
+  assert.ok(files.includes('!node_modules/monaco-editor/**/*.map'), 'mancano le mappe fra le esclusioni');
+  assert.ok(!files.some((f) => f.startsWith('!node_modules/monaco-editor/min')), 'min/ non va escluso');
+});

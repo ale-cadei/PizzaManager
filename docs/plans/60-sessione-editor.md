@@ -50,6 +50,15 @@ multi-cursore). Il prezzo:
   aggiunge `worker-src 'self' blob:`. `script-src` resta `'self'`, **mai**
   `'unsafe-inline'`. Se il loader chiede altro, la console del renderer lo
   dice: si allarga la policy il minimo, con un commento sul perché.
+  Verificato con uno smoke headless in Electron (xvfb-run, task 8): coi soli
+  `worker-src 'self' blob:` i worker si creano senza errori (nessun «Could
+  not create web worker», nessun fallback a `MonacoEnvironment.getWorkerUrl`
+  servito) e il model `.ts` tokenizza con più classi `mtkN` (evidenziazione
+  vera, non testo piatto) dopo ~3-4s dall'apertura — il tempo che la grammatica
+  TypeScript impiega a caricarsi lazy. L'unica cosa in più servita è stata
+  `font-src ... data:`: il font delle icone di Monaco (codicon) è incorporato
+  come `data:` URI nel suo CSS, bloccato altrimenti. Il widget di ricerca
+  (`actions.find`) si apre regolarmente.
 - **asar**: i worker si caricano dal renderer, che sa leggere dentro
   `app.asar`. Va comunque verificato nel `.deb` (lezione di `tmux.conf`): se
   non partono, `min/vs/**` in `build.asarUnpack`.

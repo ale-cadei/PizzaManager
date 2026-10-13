@@ -1,6 +1,7 @@
 # 60 — `feat/sessione-editor`: una sessione per leggere e modificare i file
 
 Dipende da: 25 (sessione git, il modello di scheda senza pty). Taglia: ~2-3 giorni.
+Passi di implementazione, test e codice: `60-sessione-editor-tasks.md`.
 
 ## Perché
 
@@ -36,9 +37,15 @@ Scelto dall'utente su CodeMirror 6 e su un editor da terminale: è il motore
 di VS Code, copre tutto il perimetro senza codice nostro (sintassi, ricerca,
 multi-cursore). Il prezzo:
 
-- **Peso**: `monaco-editor` come dipendenza, si carica
-  `node_modules/monaco-editor/min/vs` col suo loader AMD. `min/vs/**` va nei
-  `files` del build, il resto del pacchetto no.
+- **Versione bloccata**: `monaco-editor` **`0.57.0` esatta** (niente `^`).
+  Si carica `node_modules/monaco-editor/min/vs` col suo loader AMD, che dal
+  README di Monaco è «deprecated and will be removed in future versions»: un
+  aggiornamento di Monaco è un lavoro a sé (passare all'ESM con un bundler),
+  non un `npm update`.
+- **Peso**: il pacchetto npm è ~100 MB scompattati, e electron-builder mette
+  nell'app tutte le dipendenze di produzione. In `build.files` si escludono
+  tutte le cartelle di `node_modules/monaco-editor` tranne `min/` e le mappe
+  (`*.map`): nell'app resta solo quello che il renderer carica.
 - **CSP**: Monaco crea web worker per i linguaggi. In `renderer/index.html` si
   aggiunge `worker-src 'self' blob:`. `script-src` resta `'self'`, **mai**
   `'unsafe-inline'`. Se il loader chiede altro, la console del renderer lo
@@ -58,16 +65,21 @@ renderer parla con lui, così il motore resta sostituibile.
   - `list(rel)` → voci `{ name, kind: 'file'|'dir', ignored }`, cartelle
     prima, ordine alfabetico; `.git` non compare. `ignored` lo dice git
     (`check-ignore` via `lib/git-run.js`), fuori da un repo è sempre `false`.
-  - `read(rel)` → `{ ok, text, mtime, eol, bom }` o `{ ok:false, reason }` con
+  - `read(rel)` → `{ ok, text, mtime, bom, path }` (`path` assoluto, serve a
+    riconoscere gli eventi del watch) o `{ ok:false, reason }` con
     `reason` fra `binary` (byte NUL nei primi 8 KB), `too-large` (> 5 MB),
-    `not-utf8`, `outside`, `missing`.
-  - `write(rel, text, { expectedMtime, eol, bom })` → `{ ok, mtime }` o
-    `{ ok:false, conflict:true, mtime }` se il file sul disco è più nuovo di
+    `not-utf8`, `outside`, `missing`, `not-file` (una cartella) o `error`
+    (con `error`: permessi e simili).
+  - `write(rel, text, { expectedMtime, bom })` → `{ ok, mtime }` o
+    `{ ok:false, conflict:true, mtime }` se il `mtime` sul disco è diverso da
     `expectedMtime`. Scrittura atomica: temporaneo nella stessa cartella +
     `rename`, mode dell'originale conservato. `expectedMtime: null` = file
     nuovo o ricreato.
+  - `stat(rel)` → `{ ok, exists, mtime }`: il ricontrollo in primo piano.
   - `create(rel)`, `mkdir(rel)`, `rename(rel, newName)`: falliscono se la
     destinazione esiste.
+  - `ignored` passa i nomi a `git check-ignore -z --stdin`: `runGit`
+    (`lib/git-run.js`) prende un'opzione `input` per lo stdin.
   - **Confinamento**: ogni percorso passa da `resolveInside(rel)`:
     `path.resolve(root, rel)` poi `realpath` (della cartella padre, se il file
     non esiste ancora) e verifica che stia sotto `realpath(root)`. Rifiuta
@@ -84,24 +96,38 @@ renderer parla con lui, così il motore resta sostituibile.
   `{ savedAt, sessions: [{ name, cwd, files: [rel…], active }] }`, scritto per
   intero dal renderer, sanificato in lettura (limiti su numero, lunghezze,
   `rel` che non escono), file corrotto → nessuna sessione.
-- **`lib/editor-language.js`** (UMD, usato anche dal renderer) — estensione /
-  nome file → id linguaggio Monaco (`Dockerfile`, `Makefile`, `.mjs`…),
-  `plaintext` di default.
+- **`lib/editor-paths.js`** — funzioni pure su percorsi e nomi, con
+  `platform`: `validName(name, platform)`, `isInside(root, target, platform)`,
+  `safeRel(rel)` (relativo, senza `..`, senza caratteri di controllo). Le usano
+  `editor-fs` e `editor-sessions`.
+
+Il linguaggio di un file non ha un modulo: Monaco lo deduce dall'URI del
+`model` (`aisess://h<scheda>/<rel>`: l'estensione del percorso basta, e due
+schede sulla stessa cartella non si pestano i `model`), con le estensioni che
+conosce lui.
 
 ### Main — `app/`
 
-- **`app/editor.js`** — elimina con `shell.trashItem` (mai `unlink`/`rm`):
-  il percorso passa prima da `resolveInside` di `editor-fs`. Tiene un
+- **`app/editor.js`** — riceve da `main.js` `{ electron: { app, shell,
+  BrowserWindow } }` come `registerUpdateHandlers`; ne ricava la cartella dei
+  dati e il cestino (`trash`, di default `shell.trashItem`; mai
+  `unlink`/`rm`), che i test sostituiscono: il modulo si prova da Node senza
+  Electron. Il percorso da eliminare passa prima da `editor-fs`. Tiene un
   `editor-watch` per finestra e manda gli eventi al renderer
-  (`editor-file-changed`).
-- **`app/window.js`** — conferma d'uscita con file sporchi (vedi Chiusura).
+  (`editor-file-changed`). Il watch si chiede con `{ root, rel }`: il main
+  risolve e confina anche quello.
+- **`app/editor-close.js`** — la conferma d'uscita con file sporchi (vedi
+  Chiusura): `will-prevent-unload` e il canale `editor-close-confirmed`.
+  Riceve `app`, `ipcMain`, `BrowserWindow`: si prova con finti.
 
 ### `main.js`
 
-Solo handler IPC: `editor-list`, `editor-read`, `editor-write`,
-`editor-create`, `editor-mkdir`, `editor-rename`, `editor-trash`,
-`editor-watch`, `editor-unwatch`, `editor-sessions`, `editor-sessions-save`.
-Ogni handler riceve `root` dal renderer e costruisce `createEditorFs({ root })`:
+Solo `registerEditorHandlers(ipcMain, …)` (`app/editor.js`, come
+`registerGitHandlers`), che registra: `editor-list`, `editor-read`, `editor-write`,
+`editor-stat`, `editor-create`, `editor-mkdir`, `editor-rename`, `editor-trash`,
+`editor-watch`, `editor-unwatch`, `editor-sessions`, `editor-sessions-save`;
+e chiama `installEditorCloseGuard(…)` (`app/editor-close.js`), che registra
+`editor-close-confirmed`. Ogni handler riceve `root` dal renderer e costruisce `createEditorFs({ root })`:
 `root` deve esistere ed essere una cartella, altrimenti errore.
 
 ### `preload.js`
@@ -114,19 +140,20 @@ Le funzioni corrispondenti sotto `window.aisess.editor*` e
 - **`renderer/editor-monaco.js`** — carica Monaco una volta (loader AMD,
   lazy alla prima scheda editor), crea un'istanza per scheda, un `model` per
   file, tema dai token dell'app, font dell'app (`term-font.js`). Espone
-  `open(file, text, language)`, `activate(file)`, `getText(file)`,
-  `isDirty(file)`, `markSaved(file)`, `replaceText(file, text)` (conserva
+  `open(rel, text)`, `activate(rel)`, `getText(rel)`, `isDirty(rel)`,
+  `markSaved(rel)`, `replaceText(rel, text)`, `rename(old, new)`, `close(rel)` (conserva
   cursore e scroll), `dispose()`.
 - **`renderer/editor-tree.js`** (UMD) — modello dell'albero: cartelle aperte,
   figli letti in modo lazy, selezione; vista separata. Menu contestuale:
   nuovo file / cartella, rinomina (input inline), elimina (conferma con
   `confirm-bubble.js`). File ignorati da git attenuati.
 - **`renderer/editor-files.js`** (UMD) — stato dei file aperti per scheda:
-  ordine, attivo, `mtime`, `eol`, `bom`, sporco, `deleted`, `conflict`.
+  ordine, attivo, `mtime`, `bom`, sporco, `deleted`, `conflict`.
   Funzioni pure, testate: apri/attiva/chiudi/rinomina/segna-eliminato.
 - **`renderer/editor-tab.js`** — cablaggio: `createEditorTab({ name, cwd })`
   chiamata da `tabs.js` come `createGitTab`; sotto-schede, barre di avviso,
-  scorciatoie (Ctrl+S, Ctrl+Shift+S, Ctrl+W sulla sotto-scheda).
+  scorciatoie (Ctrl+S, Ctrl+Shift+S). Niente Ctrl+W: nel menu è del ruolo
+  `close` e chiuderebbe la finestra; la sotto-scheda si chiude con la ×.
 - **Aggiunte ai file esistenti**: `tabs.js` (tipo `editor`, niente `kill`),
   `new-session.js` (voce nel dialogo), `session-groups.js` (`TYPE_ORDER`,
   etichetta), `type-color-themes.js` (colore `editor` in ogni tema),
@@ -145,12 +172,14 @@ pannello del file (perché non si apre), non un toast che sparisce. Già
 aperto → si attiva la sua sotto-scheda. Si avvia il watch sul file.
 
 **Salvataggio.** Ctrl+S (file attivo), Ctrl+Shift+S (tutti i sporchi) →
-`editor-write` con `expectedMtime`, `eol`, `bom` letti all'apertura:
+`editor-write` con `expectedMtime` e `bom` letti all'apertura:
 - ok → nuovo `mtime`, pallino via;
 - `conflict` → barra «Cambiato sul disco: Sovrascrivi / Ricarica»;
 - errore (permessi, disco pieno) → barra rossa col messaggio di sistema.
 
-EOL e BOM rimessi come erano: un salvataggio senza modifiche non produce diff.
+BOM rimesso com'era. Gli a capo li conserva Monaco: il `model` adotta quelli
+che trova (LF o CRLF) e `getValue()` li restituisce uguali. Un file con a
+capo misti esce uniformato al prevalente: caso raro, accettato.
 
 **Cambi esterni.** Evento del watch, o ricontrollo dei `mtime` quando la
 scheda torna in primo piano (come la timeline git):
@@ -170,11 +199,14 @@ toccata.
 editor con file sporchi → la stessa domanda per l'insieme. Uscita dall'app
 con file sporchi → oggi non c'è una conferma d'uscita da agganciare
 (`app/quit-capture.js` cattura lo scrollback e non deve mai bloccare la
-chiusura), quindi è nuova: `app/window.js` intercetta il `close` della
-finestra, chiede al renderer se ci sono file sporchi (`editor-dirty`) e, se
-sì, il renderer mostra «Salva tutto / Esci senza salvare / Annulla» e
-risponde. Tetto di tempo sulla risposta: un renderer bloccato non deve
-impedire la chiusura.
+chiusura), quindi è nuova, col meccanismo del browser: il renderer ha un
+`beforeunload` che, se ci sono file sporchi e l'uscita non è già confermata,
+annulla la chiusura (`e.returnValue = false`, Electron non mostra dialoghi)
+e apre «Salva tutto / Esci senza salvare / Annulla». Il main
+(`app/editor-close.js`) ascolta `will-prevent-unload` solo per ricordare se a
+chiedere era un'uscita dall'app (`before-quit`) o la chiusura della finestra;
+alla conferma il renderer chiama `editor-close-confirmed` e il main rifà
+quella stessa cosa (`app.quit()` o `win.close()`).
 
 **Ripristino.** A ogni apertura/chiusura di file o scheda e a ogni rinomina,
 il renderer riscrive `editor-sessions.json`. All'avvio, come le schede git:
@@ -207,7 +239,7 @@ Unitari (codice vero, tmpdir, fixture in `tests/fixtures/editor/`):
 
 - `tests/editor-fs.test.js` — confinamento (`..`, assoluti, symlink verso
   fuori, symlink dentro ammesso); `read` di binario / > 5 MB / non UTF-8 /
-  mancante; EOL CRLF e BOM rimessi da `write`; scrittura atomica e mode
+  mancante; CRLF intatto e BOM rimesso da `write`; scrittura atomica e mode
   conservato (`0o600` resta `0o600`); conflitto su `mtime`; `create`/`mkdir`/
   `rename` su destinazione esistente; `list` ordinato, `.git` escluso,
   `ignored` dentro e fuori da un repo.
@@ -215,9 +247,17 @@ Unitari (codice vero, tmpdir, fixture in `tests/fixtures/editor/`):
   debounce che raggruppa, `close` ferma tutto.
 - `tests/editor-sessions.test.js` — andata e ritorno, file corrotto,
   sanificazione (`rel` che escono scartati), `savedAt`.
-- `tests/editor-language.test.js` — estensioni e nomi speciali.
+- `tests/editor-paths.test.js` — `validName`, `isInside`, `safeRel`, anche
+  con `platform: 'win32'`.
 - `tests/editor-files.test.js` — stato dei file aperti: apri/attiva/chiudi,
   rinomina, eliminato, sporco.
+- `tests/editor-tree.test.js` — modello dell'albero e vista col DOM finto
+  (`tests/fake-dom.js`): nomi come testo, input inline.
+- `tests/editor-ipc.test.js` — ogni canale del preload ha un handler,
+  payload mancanti → errore, cestino chiamato col percorso confinato.
+- `tests/editor-close.test.js` — `will-prevent-unload` ricorda uscita /
+  chiusura / ricarica, `editor-close-confirmed` rifà quella giusta.
+- `tests/git-run.test.js` — `input` arriva sullo stdin di git.
 - `tests/windows.test.js` — `validName` e confinamento su `win32`.
 - `tests/renderer-load.test.js` — nuovi script nell'ordine giusto.
 

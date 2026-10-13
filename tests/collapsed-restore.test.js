@@ -87,6 +87,29 @@ test('ripristino: le schede git riaperte da sole non riaprono i gruppi', async (
   assert.strictEqual(opened[0].reveal, false);
 });
 
+test('ripristino: editorRestoreItem propone la scheda editor con conteggio file e la riapre via restoreEditorTab', async () => {
+  const calls = [];
+  const ctx = {
+    console, window: {},
+    restoreEditorTab: async (s) => { calls.push(s); return true; },
+  };
+  load('restore.js', ctx);
+
+  const single = ctx.editorRestoreItem({ cwd: '/p/proj', files: ['a.js'], active: 'a.js' });
+  assert.strictEqual(single.type, 'editor');
+  assert.strictEqual(single.name, 'proj');
+  assert.strictEqual(single.how, 'editor, 1 file');
+
+  const multi = ctx.editorRestoreItem({ name: 'mia scheda', cwd: '/p/proj', files: ['a.js', 'b.js'] });
+  assert.strictEqual(multi.name, 'mia scheda');
+  assert.strictEqual(multi.how, 'editor, 2 file');
+
+  const ok = await multi.restore();
+  assert.strictEqual(ok, true);
+  assert.strictEqual(calls.length, 1);
+  assert.strictEqual(calls[0].cwd, '/p/proj');
+});
+
 test('createTab e createGitTab passano reveal a setActive', () => {
   const tabs = fs.readFileSync(path.join(RENDERER_DIR, 'tabs.js'), 'utf8');
   const git = fs.readFileSync(path.join(RENDERER_DIR, 'git-tab.js'), 'utf8');

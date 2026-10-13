@@ -164,6 +164,7 @@ async function renameTab(tab) {
   if (clean) { tab.name = clean.slice(0, 40); tab.autoNamed = false; syncLabel(tab); }
   else { tab.autoNamed = true; }
   if (tab.type === 'git') saveGitSessions();
+  if (tab.type === 'editor') saveEditorSessions();
   renderSidebar();
   if (!clean) refreshAutoTitles().catch(() => {});
 }

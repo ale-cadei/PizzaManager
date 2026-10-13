@@ -63,6 +63,7 @@
      del pomodoro --action e meno rosa di --state-error. */
   --type-shell:    #F2C14E;  /* giallo crosta */
   --type-git:      #F1502F;  /* arancio-rosso del marchio Git */
+  --type-editor:   #B48EF0;  /* lilla: un foglio, non un processo */
   --type-opencode: #4ADE80;  /* verde */
   --type-claude:   #FF9147;  /* arancione */
   --type-codex:    #5AA2FF;  /* blu */

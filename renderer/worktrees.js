@@ -29,6 +29,13 @@ const worktreeActions = window.AisessWorktreeActions.createWorktreeActions({
   refresh: (root) => worktreeCache.refresh(root),
   // Unisci si conferma guardando il diff nel pannello delle modifiche (changes-panel.js)
   review: (w, conf) => reviewMerge(w, conf),
+  // terminateTab non chiede: i file non salvati delle schede editor si
+  // salvano o si scartano prima, mostrando la scheda (come all'uscita)
+  confirmClose: async (t) => {
+    if (t.type !== 'editor') return true;
+    setActive(t.id);
+    return confirmEditorClose(t);
+  },
 });
 
 /** Un worktree creato o tolto fuori dall'app (un terminale, un agente) si vede al rientro. */

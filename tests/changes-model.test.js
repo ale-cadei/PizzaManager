@@ -123,6 +123,8 @@ ok('ultimo giro: il selettore si accende solo per un agente con una fotografia',
   assert.match(none.turnHint, /nessun prompt/);
   assert.match(M.modeChoice({ type: 'shell' }, 'turn').turnHint, /agente/);
   assert.strictEqual(M.modeChoice({ type: 'codex', turnTree: 'x' }, 'commit').current, 'commit');
+  // Una scheda editor non ha un agente: stesso esito di una scheda git
+  assert.deepStrictEqual(M.modeChoice({ type: 'editor', turnTree: 'abc' }, 'turn'), M.modeChoice({ type: 'git', turnTree: 'abc' }, 'turn'));
 });
 
 ok('ultimo giro: titolo e messaggio vuoto lo dicono', () => {
@@ -203,6 +205,8 @@ ok('commenti: solo nelle sessioni con un agente, e non in modalità Unisci', () 
   assert.strictEqual(M.reviewAvailable({ type: 'claude' }, true), false);
   assert.strictEqual(M.reviewAvailable({ type: 'shell' }, false), false);
   assert.strictEqual(M.reviewAvailable({ type: 'git' }, false), false);
+  // Una scheda editor non ha processi: niente commenti, come git
+  assert.strictEqual(M.reviewAvailable({ type: 'editor' }, false), false);
   assert.strictEqual(M.reviewAvailable(null, false), false);
 });
 

@@ -46,6 +46,8 @@ async function resolveProjectRoot(cwd) {
 async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null, previousSession = null, startedAt = Date.now(), iconKey = 'shell', iconMode = 'auto', turnTree = null, turnAt = null, reveal = true } = {}) {
   // La sessione git non ha pty: è un pannello (renderer/git-tab.js)
   if (type === 'git') return createGitTab({ name, cwd, startedAt, reveal });
+  // La sessione editor non ha pty: è un pannello (renderer/editor-tab.js)
+  if (type === 'editor') return createEditorTab({ name, cwd, startedAt, reveal });
   // attachSession: riaggancio di una sessione tmux gia' viva. Il comando e' gia'
   // stato risolto quando e' nata, quindi niente scelta del profilo.
   const picked = attachSession
@@ -220,6 +222,8 @@ function setActive(id, { reveal = true } = {}) {
   if (t && reveal) sidebar.expandGroupOf(t);
   // La timeline git si rilegge tornando in primo piano: intanto si è lavorato
   if (t && t.git && id !== previousId) refreshGitTab(t);
+  // Anche i file aperti nell'editor: un agente può averli toccati intanto
+  if (t && t.editor && id !== previousId) refreshEditorTab(t);
   renderSidebar();
   setTimeout(() => fitActive(), 30);
   refreshUsage(); // il riquadro SESSIONE parla della scheda in primo piano
@@ -242,7 +246,7 @@ function fitActive() {
 async function closeTab(id) {
   const t = tabs.get(id);
   if (!t) return;
-  if (t.type !== 'git') await window.aisess.kill(id);
+  if (!PANEL_TYPES.includes(t.type)) await window.aisess.kill(id);
   clearAttention(id);
   attention.forget(id);
   agentState.forget(id);
@@ -251,6 +255,7 @@ async function closeTab(id) {
   try { if (t.ro) t.ro.disconnect(); } catch {}
   try { if (t.term) t.term.dispose(); } catch {}
   try { if (t.git) t.git.picker.destroy(); } catch {}
+  if (t.editor) disposeEditorTab(t);
   t.wrap.remove();
   tabs.delete(id);
   if (activeId === id) {
@@ -263,6 +268,7 @@ async function closeTab(id) {
   renderSidebar();
   refreshChanges().catch(() => {});
   if (t.type === 'git') saveGitSessions();
+  if (t.type === 'editor') saveEditorSessions();
 }
 
 /** Termina davvero: uccide la sessione tmux e poi chiude la scheda. */
@@ -298,8 +304,13 @@ const closeConfirm = ConfirmBubble.createConfirmBubble();
 async function requestClose(id, anchor) {
   const t = tabs.get(id);
   if (!t) return;
+  // Una scheda editor non ha processi: chiede solo per i file non salvati
+  if (t.type === 'editor') {
+    if (await confirmEditorClose(t, anchor)) await terminateTab(id);
+    return;
+  }
   // Una scheda git non ha processi da perdere: niente domanda
-  if (t.alive && anchor && t.type !== 'git') {
+  if (t.alive && anchor && !PANEL_TYPES.includes(t.type)) {
     const yes = await closeConfirm.ask({
       anchor,
       key: id,

@@ -21,6 +21,7 @@ and are used here only to refer to those products.
 | argparse | 2.0.1 | Python-2.0 |
 | builder-util-runtime | 9.7.0 | MIT |
 | debug | 4.4.3 | MIT |
+| dompurify (bundled inside monaco-editor) | 3.4.15 | MPL-2.0 OR Apache-2.0 |
 | electron | 33.4.11 | MIT |
 | electron-updater | 6.8.9 | MIT |
 | fs-extra | 10.1.0 | MIT |
@@ -30,6 +31,7 @@ and are used here only to refer to those products.
 | lazy-val | 1.0.5 | MIT |
 | lodash.escaperegexp | 4.1.2 | MIT |
 | lodash.isequal | 4.5.0 | MIT |
+| monaco-editor | 0.57.0 | MIT |
 | ms | 2.1.3 | MIT |
 | node-addon-api | 7.1.1 | MIT |
 | node-pty | 1.1.0 | MIT |
@@ -428,6 +430,29 @@ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN 
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
+### dompurify 3.4.15 — MPL-2.0 OR Apache-2.0
+
+<https://github.com/cure53/DOMPurify>
+
+Non è una dipendenza dichiarata: Monaco la incorpora nel suo bundle `min/`
+(`node_modules/monaco-editor/min/vs/editor-*.js`, che dichiara
+`version="3.4.15"`). La nota sotto è quella che Monaco porta con il
+sorgente (`esm/vs/base/browser/dompurify/dompurify.js`). La si usa sotto la
+Apache License 2.0; i testi completi delle due licenze sono in
+<https://github.com/cure53/DOMPurify/blob/3.4.15/LICENSE>.
+
+```
+@license DOMPurify 3.4.15 | (c) Cure53 and other contributors | Released under
+the Apache license 2.0 and Mozilla Public License 2.0 |
+github.com/cure53/DOMPurify/blob/3.4.15/LICENSE
+
+DOMPurify is free software; you can redistribute it and/or modify it under the
+terms of either:
+
+a) the Apache License Version 2.0, or
+b) the Mozilla Public License Version 2.0
+```
+
 ### electron 33.4.11 — MIT
 
 ```
@@ -673,6 +698,42 @@ maintained libraries used by this software which have their own
 licenses; we recommend you read them, as their terms may differ from the
 terms above.
 ```
+
+### monaco-editor 0.57.0 — MIT
+
+<https://github.com/microsoft/monaco-editor>
+
+```
+The MIT License (MIT)
+
+Copyright (c) 2016 - present Microsoft Corporation
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+Monaco include componenti di terze parti (grammatiche dei linguaggi, parti
+del tokenizzatore, ecc.): le loro licenze sono nel file che il pacchetto
+distribuisce come `node_modules/monaco-editor/ThirdPartyNotices.txt`. Sta
+alla radice del pacchetto `monaco-editor`, non dentro `min/`, ma non è
+comunque in una cartella esclusa da `build.files` (si escludono solo
+`dev/`, `esm/`, le mappe e le dipendenze transitive non usate a runtime):
+resta incluso nel pacchetto.
 
 ### ms 2.1.3 — MIT
 

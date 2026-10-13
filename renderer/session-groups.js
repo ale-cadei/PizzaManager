@@ -12,9 +12,9 @@
   if (root) root.AisessGroups = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : null, function () {
-  const TYPE_ORDER = ['shell', 'git', 'opencode', 'claude', 'codex', 'antigravity'];
+  const TYPE_ORDER = ['shell', 'git', 'editor', 'opencode', 'claude', 'codex', 'antigravity'];
   const TYPE_LABELS = {
-    shell: 'Terminale', git: 'Git', opencode: 'OpenCode', claude: 'Claude',
+    shell: 'Terminale', git: 'Git', editor: 'Editor', opencode: 'OpenCode', claude: 'Claude',
     codex: 'Codex', antigravity: 'Antigravity',
   };
   const NO_PROJECT_KEY = '';

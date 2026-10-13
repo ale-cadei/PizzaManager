@@ -356,3 +356,19 @@ ok('win: il JSON vero di claudeSettings passa intatto nella riga di cmd.exe', ()
   }
   assert.ok(r.commandLine.includes('permission_prompt'), r.commandLine);
 });
+
+// ---------- lib/editor-paths (docs/plans/60) ----------
+const editorPaths = require('../lib/editor-paths');
+
+ok('win: validName rifiuta nomi riservati, caratteri vietati, punti e spazi finali', () => {
+  for (const n of ['CON', 'nul.txt', 'com1', 'LPT9.log', 'a<b', 'a:b', 'a?', 'a"b', 'a|b', 'a*', 'fine.', 'fine ']) {
+    assert.strictEqual(editorPaths.validName(n, 'win32'), false, n);
+  }
+  assert.strictEqual(editorPaths.validName('console.js', 'win32'), true);
+});
+
+ok('win: isInside non bada alle maiuscole e non confonde le unità', () => {
+  assert.strictEqual(editorPaths.isInside('C:\\Prog\\App', 'c:\\prog\\app\\src\\a.js', 'win32'), true);
+  assert.strictEqual(editorPaths.isInside('C:\\Prog\\App', 'C:\\Prog\\AppX\\a.js', 'win32'), false);
+  assert.strictEqual(editorPaths.isInside('C:\\Prog\\App', 'D:\\Prog\\App\\a.js', 'win32'), false);
+});

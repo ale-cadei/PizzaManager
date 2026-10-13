@@ -705,9 +705,11 @@ SOFTWARE.
 
 Monaco include componenti di terze parti (grammatiche dei linguaggi, parti
 del tokenizzatore, ecc.): le loro licenze sono nel file che il pacchetto
-distribuisce come `node_modules/monaco-editor/ThirdPartyNotices.txt`,
-incluso nel pacchetto insieme al resto di `min/` (non è in una cartella
-esclusa da `build.files`).
+distribuisce come `node_modules/monaco-editor/ThirdPartyNotices.txt`. Sta
+alla radice del pacchetto `monaco-editor`, non dentro `min/`, ma non è
+comunque in una cartella esclusa da `build.files` (si escludono solo
+`dev/`, `esm/`, le mappe e le dipendenze transitive non usate a runtime):
+resta incluso nel pacchetto.
 
 ### ms 2.1.3 — MIT
 

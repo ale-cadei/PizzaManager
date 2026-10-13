@@ -54,7 +54,9 @@
       "!node_modules/.cache/**/*",
       "!node_modules/monaco-editor/dev/**",
       "!node_modules/monaco-editor/esm/**",
-      "!node_modules/monaco-editor/**/*.map"
+      "!node_modules/monaco-editor/**/*.map",
+      "!node_modules/dompurify/**",
+      "!node_modules/marked/**"
     ],
     "npmRebuild": true,
     "artifactBuildCompleted": "scripts/notarize-dmg.js",

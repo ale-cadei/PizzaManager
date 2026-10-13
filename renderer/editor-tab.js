@@ -402,9 +402,15 @@ async function saveEditorFile(tab, rel) {
 
 async function saveAllEditorFiles(tab) {
   let allSaved = true;
+  let firstFailed = null;
   for (const rel of EditorFiles.dirtyFiles(tab.editor.files)) {
-    allSaved = (await saveEditorFile(tab, rel)) && allSaved;
+    const ok = await saveEditorFile(tab, rel);
+    allSaved = ok && allSaved;
+    if (!ok && !firstFailed) firstFailed = rel;
   }
+  // Un fallimento su un file non attivo non si vedrebbe: la barra disegna
+  // solo il file attivo (renderEditorBar). Si porta in primo piano quello.
+  if (firstFailed) activateEditorFile(tab, firstFailed, { save: false });
   return allSaved;
 }
 

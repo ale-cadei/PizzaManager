@@ -46,7 +46,11 @@ function registerEditorHandlers(ipcMain, {
       onChange: (change) => { if (!sender.isDestroyed()) sender.send('editor-file-changed', change); },
     });
     watchers.set(sender.id, w);
+    // Scatta una sola delle due: l'altra si toglie, o a ogni ricarica si
+    // aggiungerebbe un listener 'destroyed' al webContents
     const forget = () => {
+      sender.removeListener('destroyed', forget);
+      sender.removeListener('did-start-loading', forget);
       w.close();
       if (watchers.get(sender.id) === w) watchers.delete(sender.id);
     };

@@ -251,3 +251,23 @@ ok('scheda editor: il beforeunload ferma l uscita solo con file non salvati, e c
   assert.strictEqual(confirmed.prevented, false, 'dopo la conferma l uscita passa');
   assert.strictEqual(asked, 1);
 });
+
+/* ---------- watch dopo la chiusura ---------- */
+
+ok('scheda editor: chiusa la scheda, un watch che arriva tardi non resta armato', async () => {
+  // Un salvataggio, una rinomina o una ricarica finiti dopo disposeEditorTab
+  const { tab, fn, run, sent } = setup({ files: { 'a.js': { text: 'A', mtime: 1 } } });
+  run('tabs').delete(tab.id);
+  await fn('watchEditorFile')(tab, 'a.js');
+  assert.deepStrictEqual(sent('editorWatch'), [], 'scheda chiusa: niente watch');
+
+  // In volo quando la scheda si chiude: armato nel main, si toglie subito
+  const watch = deferred();
+  const s = setup({ files: { 'a.js': { text: 'A', mtime: 1 } }, main: { editorWatch: () => watch.promise } });
+  const pending = s.fn('watchEditorFile')(s.tab, 'a.js');
+  s.run('tabs').delete(s.tab.id);
+  watch.resolve({ ok: true, path: '/w/a.js' });
+  await pending;
+  await settle();
+  assert.deepStrictEqual(s.sent('editorUnwatch').map((c) => c.slice(1)), [['/w', 'a.js']]);
+});

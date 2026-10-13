@@ -59,6 +59,11 @@
     return rows;
   }
 
+  // Input di promptName ancora aperti → come chiuderli. Un render dell'albero
+  // li toglie (replaceChildren) senza blur: la domanda si chiude con null,
+  // invece di restare appesa per sempre.
+  const openPrompts = new WeakMap();
+
   function createTreeView({ root, document: doc, onOpenFile, onToggleDir, onContextMenu }) {
     const list = doc.createElement('div');
     list.className = 'editor-tree';
@@ -91,7 +96,10 @@
 
     return {
       element: list,
-      render(rows, selected) { list.replaceChildren(...rows.map((r) => rowElement(r, selected))); },
+      render(rows, selected) {
+        for (const child of [...list.children]) { const cancel = openPrompts.get(child); if (cancel) cancel(); }
+        list.replaceChildren(...rows.map((r) => rowElement(r, selected)));
+      },
       rowOf(rel) { return [...list.children].find((c) => c.dataset.rel === rel) || null; },
     };
   }
@@ -99,7 +107,8 @@
   /**
    * Input inline per un nome (nuovo file o cartella, rinomina), sotto la riga
    * `after` o in cima all'albero.
-   * @returns {Promise<string|null>} il nome scritto; null con Esc, blur o vuoto
+   * @returns {Promise<string|null>} il nome scritto; null con Esc, blur, vuoto
+   *   o se un render dell'albero toglie l'input
    */
   function promptName({ document: doc, host, after = null, depth = 0, initial = '' }) {
     return new Promise((resolve) => {
@@ -111,9 +120,11 @@
       const finish = (value) => {
         if (done) return;
         done = true;
+        openPrompts.delete(input);
         input.remove();
         resolve(value);
       };
+      openPrompts.set(input, () => finish(null));
       input.addEventListener('keydown', (e) => {
         e.stopPropagation(); // le scorciatoie dell'app non devono vedere i tasti del nome
         if (e.key === 'Enter') { e.preventDefault(); finish(input.value.trim() || null); }

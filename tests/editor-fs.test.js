@@ -114,6 +114,23 @@ ok('write: mtime diverso sul disco = conflitto, il file non si tocca', async (t)
   assert.strictEqual(fs.readFileSync(path.join(root, 'nuovo.txt'), 'utf8'), 'x');
 });
 
+ok('write: un file in sola lettura non si sovrascrive, si dice Permesso negato', async (t) => {
+  // Il rename passa sopra ai permessi del file (contano quelli della cartella).
+  // Su Windows 0444 non vale per chmod; root scrive comunque.
+  if (process.platform === 'win32') return t.skip('permessi POSIX');
+  if (typeof process.getuid === 'function' && process.getuid() === 0) return t.skip('root scrive anche sui file in sola lettura');
+  const root = tmp(t);
+  const p = put(root, 'ro.txt', 'uno');
+  fs.chmodSync(p, 0o444);
+  const efs = createEditorFs({ root });
+  const r = await efs.read('ro.txt');
+  const w = await efs.write('ro.txt', 'due', { expectedMtime: r.mtime });
+  assert.deepStrictEqual(w, { ok: false, error: 'Permesso negato.' });
+  assert.strictEqual(fs.readFileSync(p, 'utf8'), 'uno');
+  assert.strictEqual(fs.statSync(p).mode & 0o777, 0o444);
+  assert.deepStrictEqual(fs.readdirSync(root), ['ro.txt'], 'nessun temporaneo lasciato');
+});
+
 ok('stat: esiste o no, col suo mtime', async (t) => {
   const root = tmp(t);
   const p = put(root, 'a.txt', 'x');

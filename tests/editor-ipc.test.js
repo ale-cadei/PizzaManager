@@ -80,6 +80,20 @@ ok('ipc editor: watch risponde col percorso e unwatch lo toglie; fuori si rifiut
   sender.emit('destroyed'); // non deve lanciare
 });
 
+ok('ipc editor: le ricariche della pagina non accumulano listener sul webContents', async (t) => {
+  const { call, root, sender } = setup(t);
+  fs.writeFileSync(path.join(root, 'a.txt'), '');
+  for (let i = 0; i < 3; i++) {
+    assert.strictEqual((await call('editor-watch', { root, rel: 'a.txt' })).ok, true);
+    sender.emit('did-start-loading'); // una ricarica: il watch della pagina si butta
+  }
+  assert.strictEqual(sender.listenerCount('destroyed'), 0);
+  assert.strictEqual(sender.listenerCount('did-start-loading'), 0);
+  assert.strictEqual((await call('editor-watch', { root, rel: 'a.txt' })).ok, true);
+  sender.emit('destroyed');
+  assert.strictEqual(sender.listenerCount('did-start-loading'), 0, 'chiusa la finestra non resta niente');
+});
+
 ok('ipc editor: sessioni salvate e rilette, ask dopo un riavvio', async (t) => {
   const { call } = setup(t);
   const list = [{ name: null, cwd: '/p', files: ['a.js'], active: 'a.js', startedAt: 1 }];

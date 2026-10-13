@@ -29,6 +29,7 @@ const { registerClipboardHandlers } = require('./app/clipboard');
 const { installQuitCapture } = require('./app/quit-capture');
 const { registerExportHandlers } = require('./app/export');
 const { registerGitHandlers } = require('./app/git');
+const { registerEditorHandlers } = require('./app/editor');
 const { registerNotifyHandlers } = require('./app/notify');
 const { registerUpdateHandlers } = require('./app/updater');
 const { registerFeedbackHandlers } = require('./app/feedback');
@@ -225,6 +226,7 @@ registerClipboardHandlers(ipcMain);
 registerUpdateHandlers(ipcMain, { electron: { app, shell }, sendToRenderer });
 registerFeedbackHandlers(ipcMain, { electron: { app, shell }, viaTmux: () => ptys.viaTmux });
 registerGitHandlers(ipcMain, { userDataDir: () => app.getPath('userData') });
+registerEditorHandlers(ipcMain, { electron: { app, shell, BrowserWindow } });
 
 // ---------- Notifiche di sistema e badge (docs/plans/38) ----------
 registerNotifyHandlers(ipcMain, { electron: { app, Notification, Menu }, getWindow: () => mainWindow, sendToRenderer });

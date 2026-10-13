@@ -31,14 +31,17 @@ Regole (scelte dall'utente):
   Sostituire manda l'elemento esistente nel **cestino**, mai cancellato.
 - **Cartelle** ricorsive, con tutto il contenuto. I link simbolici si
   copiano come link, non si seguono.
-- **Limiti**: oltre 10.000 file o 1 GB in totale la copia si rifiuta prima
-  di cominciare, dicendo quanto sarebbe.
+- **Limiti**: oltre 10.000 elementi (file, cartelle e link) o 1 GB in
+  totale la copia si rifiuta prima di cominciare, dicendo quale limite passa
+  («Troppi file e cartelle: più di 10000.», «Troppo grande: più di 1 GB.»).
+  Il conteggio si ferma appena passa il limite: dire il totale vorrebbe dire
+  contare tutto anche quando è enorme.
 
 ## Fuori
 
 - Spostare file trascinandoli dentro l'albero stesso.
 - Barra di avanzamento e annullamento: durante la copia la barra della
-  scheda dice «Copio N file…». Se copie grandi lo chiedono, è un piano a parte.
+  scheda dice «Copio N elementi…». Se copie grandi lo chiedono, è un piano a parte.
 - Copiare dall'albero verso l'esterno (trascinare fuori, Ctrl+C).
 
 ## Come: due fasi decise dal main
@@ -65,7 +68,8 @@ a ogni conflitto»: IPC nei due sensi, più fragile, nessun guadagno.
 
 - **`lib/editor-copy.js`** (puro, niente electron; riceve `editorFs`,
   `trash` e `platform` dalla factory):
-  - `planCopy(sources, destRel)` → `{ ok, items, conflicts, files, bytes }`
+  - `planCopy(sources, destRel)` → `{ ok, items, conflicts, count, bytes }`
+    (`count` = elementi contati ricorsivamente, file e cartelle)
     o `{ ok: false, error }`. Controlla: sorgenti assoluti ed esistenti;
     destinazione dentro la radice (`resolveInside` di `lib/editor-fs.js`)
     ed è una cartella; nessuna cartella copiata dentro se stessa o dentro
@@ -87,36 +91,49 @@ a ogni conflitto»: IPC nei due sensi, più fragile, nessun guadagno.
   dei `%xx`, percorsi assoluti.
 - **`app/editor.js`**: canali `editor-copy-plan`, `editor-copy-run`,
   `editor-pick-files` (apre `dialog.showOpenDialog` dal main, con
-  `openFile`, `openDirectory` dove il sistema lo permette e
-  `multiSelections`: i percorsi scelti non passano dalla UI prima di essere
-  usati), `editor-clipboard-files` (legge gli appunti nel main con
-  `clipboard.readBuffer` e li passa a `lib/clipboard-files.js`).
+  `openFile` e `multiSelections`, più `openDirectory` solo su macOS: Linux e
+  Windows non mescolano file e cartelle nella stessa finestra),
+  `editor-clipboard-files` (legge gli appunti nel main con
+  `clipboard.readBuffer` e li passa a `lib/clipboard-files.js`). Gli ultimi
+  due restituiscono i percorsi al renderer, che li passa al piano come
+  quelli del drop: un solo giro per le tre sorgenti, e il main li rivalida.
 - **`preload.js`**: `editorPathForFile(file)` → `webUtils.getPathForFile`
   (in Electron 33 `File.path` non c'è più) e le quattro chiamate nuove.
-- **`renderer/editor-tree.js`**: drop sulle righe-cartella e sullo spazio
-  vuoto (radice), evidenziazione durante il `dragover`; voci di menu
-  «Copia qui file…» e «Incolla» sulle cartelle e sulla radice; Ctrl+V con
-  l'albero a fuoco. Il modulo emette un'azione (`copy-into`, con la `rel`
-  della cartella e la sorgente: `drop` con i percorsi, `pick`, `paste`);
-  non fa IPC.
-- **`renderer/editor-tab.js`**: gestisce l'azione: ottiene i percorsi (drop:
-  già nell'azione; pick/paste: chiamata al main), chiede il piano, le
-  decisioni, lancia la copia, ricarica la cartella, scrive l'esito nella
-  barra («Copiati 12 file, 1 saltato, 2 non copiati: …»).
+- **`renderer/editor-tree.js`**: drop sulle righe (una riga-file vale la
+  sua cartella) e sullo spazio vuoto (radice), evidenziazione durante il
+  `dragover`; Ctrl+V con l'albero a fuoco. Emette
+  `onCopyInto(dir, source)`, con `source` `{kind:'drop', files}` (gli
+  oggetti `File`) o `{kind:'paste'}`; non fa IPC.
+- **`renderer/editor-tab.js`**: voci «Copia qui file…» e «Incolla» nel menu
+  dell'albero (`editorTreeMenu`, cartelle e radice); `showEditorNotice` per
+  i messaggi che non sono errori; una guardia sul `document` che rifiuta i
+  file lasciati fuori dall'albero (altrimenti Electron apre il file al
+  posto della pagina).
+- **`renderer/editor-copy-ui.js`** (nuovo, caricato dopo `editor-tab.js`):
+  il giro. Ottiene i percorsi (drop: `editorPathForFile` sui `File`;
+  pick/paste: chiamata al main), chiede il piano, le decisioni, lancia la
+  copia, apre e ricarica la cartella, scrive l'esito nella barra
+  («Copiati 12 elementi, 1 saltato, 2 non copiati: …»). Una copia alla
+  volta per scheda.
 
 ## Sicurezza
 
-- I percorsi sorgente arrivano dal renderer solo nel caso del drop (dal
-  preload, `webUtils`); negli altri due casi li ottiene il main. Il modello
-  di fiducia è quello del piano 60: il renderer già sceglie la radice
-  dell'editor e lancia comandi nei pty. Il main comunque valida: sorgenti
-  assoluti, esistenti; destinazione dentro la radice con `realpath`.
+- I percorsi sorgente arrivano sempre dal renderer al piano: dal drop (via
+  preload, `webUtils`) o dopo un giro nel main (finestra di scelta,
+  appunti). Il modello di fiducia è quello del piano 60: il renderer già
+  sceglie la radice dell'editor e lancia comandi nei pty. Il main comunque
+  valida a ogni fase: sorgenti assoluti, esistenti; destinazione dentro la
+  radice con `realpath`.
 - Nessuna sovrascrittura silenziosa: chi sostituisce passa dal cestino.
 - Nomi dei file nella UI via `textContent`.
 
 ## Windows
 
-- `FileNameW` dagli appunti; percorsi con separatori `[\\/]`.
+- `FileNameW` dagli appunti; percorsi con separatori `[\\/]`. `FileNameW`
+  porta un solo file (quello che Electron sa leggere): incollarne più di
+  uno su Windows ne copia il primo.
+- Nomi confrontati senza maiuscole (anche su macOS): `A.txt` e `a.txt`
+  dallo stesso drop si rifiutano come doppioni.
 - `dialog.showOpenDialog` su Windows non mescola file e cartelle nella
   stessa finestra: si offrono i file (le cartelle si portano col drop o
   incollando).

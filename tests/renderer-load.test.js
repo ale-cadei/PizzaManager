@@ -62,7 +62,8 @@ ok('renderer: tutti gli script si caricano insieme e init parte al DOMContentLoa
   assert.strictEqual(listeners.DOMContentLoaded.name, 'init');
   // Una funzione per file: se uno script manca o non si carica, qui si vede
   const expected = ['escapeHtml', 'flagAttention', 'createTab', 'renameTab', 'renderSidebar', 'openNewModal',
-    'fillAccountSelect', 'openResumeModal', 'offerRestore', 'runEditAction', 'refreshDeps', 'init'];
+    'fillAccountSelect', 'openResumeModal', 'offerRestore', 'runEditAction', 'refreshDeps', 'init',
+    'createEditorTab', 'initEditorTabs'];
   const missing = expected.filter((n) => vm.runInContext(`typeof ${n}`, ctx) !== 'function');
   assert.deepStrictEqual(missing, []);
 });

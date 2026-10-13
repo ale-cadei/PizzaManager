@@ -32,6 +32,15 @@
         { d: 'M18 4.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5Z', stroke: true, width: 2 },
       ],
     },
+    editor: {
+      label: 'Editor',
+      paths: [
+        { d: 'M14 2.5H6.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8Z', stroke: true, width: 2 },
+        { d: 'M14 2.5V8h5.5', stroke: true, width: 2 },
+        { d: 'M10 12.5l-2 2l2 2', stroke: true, width: 2 },
+        { d: 'M14 12.5l2 2l-2 2', stroke: true, width: 2 },
+      ],
+    },
     docker: {
       label: 'Docker',
       image: '../assets/shell-icons/docker.webp',

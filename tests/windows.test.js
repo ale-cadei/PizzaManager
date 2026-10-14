@@ -16,6 +16,8 @@ const ENV = { APPDATA: 'C:\\Users\\jack\\AppData\\Roaming', USERPROFILE: HOME };
 // ---------- lib/login-path ----------
 const { computeLoginPath, computeLoginPathAsync, dedupePath } = require('../lib/login-path');
 const { filesFromClipboard, fileUriToPath, formatsFor } = require('../lib/clipboard-files');
+const { createEditorFs } = require('../lib/editor-fs');
+const { createEditorCopy, pickProperties } = require('../lib/editor-copy');
 
 ok('win: dedupePath spezza sul ; e non sul :', () => {
   const out = dedupePath('C:\\a;C:\\b;C:\\a', { delimiter: ';' });
@@ -383,4 +385,18 @@ ok('windows: dagli appunti FileNameW (UTF-16, chiuso da zero), solo percorsi ass
   assert.deepStrictEqual(filesFromClipboard(() => Buffer.from('relativo.txt\0', 'utf16le'), 'win32'), []);
   assert.deepStrictEqual(filesFromClipboard(() => Buffer.alloc(0), 'win32'), []);
   assert.strictEqual(fileUriToPath('file:///C:/a%20b/x.txt', 'win32'), 'C:\\a b\\x.txt');
+});
+
+ok('windows: editor-copy confronta i nomi senza maiuscole e il dialog offre solo file', async (t) => {
+  const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'aisess-wcopy-')));
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const root = path.join(base, 'root');
+  fs.mkdirSync(root);
+  for (const d of ['x', 'y']) fs.mkdirSync(path.join(base, d));
+  fs.writeFileSync(path.join(base, 'x', 'A.txt'), '');
+  fs.writeFileSync(path.join(base, 'y', 'a.txt'), '');
+  const copy = createEditorCopy({ editorFs: createEditorFs({ root }), trash: async () => {}, platform: 'win32' });
+  const r = await copy.planCopy([path.join(base, 'x', 'A.txt'), path.join(base, 'y', 'a.txt')], '');
+  assert.deepStrictEqual(r, { ok: false, error: 'Due elementi si chiamano «a.txt»: copiali uno alla volta.' });
+  assert.deepStrictEqual(pickProperties('win32'), ['openFile', 'multiSelections']);
 });

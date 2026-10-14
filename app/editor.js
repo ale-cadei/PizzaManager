@@ -4,6 +4,8 @@ const { createEditorWatch } = require('../lib/editor-watch');
 const { createEditorSessionsStore } = require('../lib/editor-sessions');
 const { savedBeforeBoot } = require('../lib/git-sessions');
 const { installEditorCloseGuard } = require('./editor-close');
+const { createEditorCopy, pickProperties } = require('../lib/editor-copy');
+const { filesFromClipboard } = require('../lib/clipboard-files');
 
 /**
  * Canali IPC della sessione editor (docs/plans/60). La logica sta in lib/;
@@ -12,9 +14,10 @@ const { installEditorCloseGuard } = require('./editor-close');
  * risolve e li confina ogni volta, il renderer non è creduto sulla parola.
  *
  * @param {Electron.IpcMain} ipcMain
- * @param {{electron: {app: Electron.App, shell: Electron.Shell, BrowserWindow: typeof Electron.BrowserWindow},
+ * @param {{electron: {app: Electron.App, shell: Electron.Shell, BrowserWindow: typeof Electron.BrowserWindow,
+ *   dialog?: Electron.Dialog, clipboard?: Electron.Clipboard},
  *   userDataDir?: () => string, trash?: (absPath: string) => Promise<void>,
- *   onQuitCancelled?: () => void}} opts
+ *   onQuitCancelled?: () => void, platform?: string}} opts
  *   `userDataDir` e `trash` si sostituiscono nei test; `onQuitCancelled`
  *   va a app/editor-close.js (un quit fermato dai file non salvati)
  */
@@ -23,10 +26,12 @@ function registerEditorHandlers(ipcMain, {
   onQuitCancelled,
   userDataDir = () => electron.app.getPath('userData'),
   trash = (p) => electron.shell.trashItem(p),
+  platform = process.platform,
 } = {}) {
   let store = null;
   const sessions = () => (store = store || createEditorSessionsStore({ dir: userDataDir() }));
   const files = (root) => createEditorFs({ root });
+  const copier = (root) => createEditorCopy({ editorFs: files(root), trash, platform });
   const guard = (fn) => async (event, payload = {}) => {
     try {
       return await fn(payload || {}, event);
@@ -85,6 +90,22 @@ function registerEditorHandlers(ipcMain, {
     if (w) w.unwatch(files(root).resolveInside(rel));
     return { ok: true };
   }));
+  // Copiare da fuori (docs/plans/61): il piano trova i conflitti, il
+  // renderer chiede, la copia rifà i controlli e copia
+  ipcMain.handle('editor-copy-plan', guard(({ root, rel, sources }) => copier(root).planCopy(sources, rel)));
+  ipcMain.handle('editor-copy-run', guard(({ root, rel, sources, decisions }) => copier(root).runCopy({ sources, destRel: rel }, decisions)));
+  // Percorsi scelti nella finestra del sistema o copiati nel file manager:
+  // tornano al renderer, che li manda al piano come quelli del drop
+  ipcMain.handle('editor-pick-files', guard(async (_payload, event) => {
+    const win = electron.BrowserWindow.fromWebContents(event.sender);
+    const opts = { title: 'Copia qui', buttonLabel: 'Copia qui', properties: pickProperties(platform) };
+    const r = await (win ? electron.dialog.showOpenDialog(win, opts) : electron.dialog.showOpenDialog(opts));
+    return { ok: true, paths: r.canceled ? [] : r.filePaths };
+  }));
+  ipcMain.handle('editor-clipboard-files', guard(() => ({
+    ok: true,
+    paths: filesFromClipboard((format) => electron.clipboard.readBuffer(format), platform),
+  })));
   // Schede editor da riaprire (lib/editor-sessions.js); dopo un riavvio
   // della macchina `ask`: si propongono, non si riaprono da sole.
   ipcMain.handle('editor-sessions', guard(() => {

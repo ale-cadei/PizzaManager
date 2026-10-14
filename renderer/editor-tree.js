@@ -3,6 +3,8 @@
  * selezione. La vista lo disegna con textContent (i nomi dei file arrivano
  * dal disco) e passa i click a chi la usa (editor-tab.js). Qui anche
  * l'input inline per i nomi e il menu contestuale.
+ * Anche il drop di file da fuori e Ctrl+V (docs/plans/61): la vista dice
+ * in quale cartella copiare, la copia la fa chi la usa.
  *
  * Wrapper UMD come sidebar.js: globale nella pagina, module.exports sotto Node. */
 (function (root, factory) {
@@ -21,9 +23,15 @@
     expanded: isExpanded(tree, dir) ? tree.expanded.filter((d) => d !== dir) : [...tree.expanded, dir],
   });
   const select = (tree, rel) => ({ ...tree, selected: rel });
+  const deselect = (tree) => ({ ...tree, selected: null });
 
   const under = (rel, base) => rel === base || rel.startsWith(base + '/');
   const moved = (rel, from, to) => (under(rel, from) ? to + rel.slice(from.length) : rel);
+
+  const parentOf = (rel) => (rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : '');
+  const dirOf = (row) => (row.kind === 'dir' ? row.rel : parentOf(row.rel));
+  // Solo i drag che portano file del sistema: non il testo, non le righe
+  const carriesFiles = (e) => Boolean(e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files'));
 
   function renamePath(tree, from, to) {
     const children = {};
@@ -64,13 +72,62 @@
   // invece di restare appesa per sempre.
   const openPrompts = new WeakMap();
 
-  function createTreeView({ root, document: doc, onOpenFile, onToggleDir, onContextMenu }) {
+  function createTreeView({ root, document: doc, onOpenFile, onToggleDir, onContextMenu, onCopyInto = () => {}, onDeselect = () => {} }) {
     const list = doc.createElement('div');
     list.className = 'editor-tree';
     list.setAttribute('role', 'tree');
+    list.tabIndex = 0; // per Ctrl+V
     // Click destro sul vuoto: le voci per creare nella radice
     list.oncontextmenu = (e) => { e.preventDefault(); onContextMenu(null, e); };
     root.appendChild(list);
+
+    let shown = { rows: [], selected: null };
+    let lit = null; // l'elemento evidenziato durante il drag
+
+    const rowOf = (rel) => [...list.children].find((c) => c.dataset.rel === rel) || null;
+    function highlight(el) {
+      if (lit === el) return;
+      if (lit) lit.classList.remove('is-drop-target');
+      lit = el;
+      if (el) el.classList.add('is-drop-target');
+    }
+    const targetOf = (dir) => (dir ? rowOf(dir) || list : list);
+    const within = (node) => { for (let n = node; n; n = n.parentNode) if (n === list) return true; return false; };
+    function onDragOver(dir) {
+      return (e) => {
+        if (!carriesFiles(e)) return;
+        e.preventDefault(); // senza, il drop non arriva
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = 'copy';
+        highlight(targetOf(dir));
+      };
+    }
+    function onDrop(dir) {
+      return (e) => {
+        if (!carriesFiles(e)) return;
+        e.preventDefault(); // senza, Electron apre il file al posto della pagina
+        e.stopPropagation();
+        highlight(null);
+        const files = Array.from(e.dataTransfer.files || []);
+        if (files.length) onCopyInto(dir, { kind: 'drop', files });
+      };
+    }
+    list.addEventListener('dragover', onDragOver(''));
+    list.addEventListener('drop', onDrop(''));
+    list.addEventListener('dragleave', (e) => { if (!within(e.relatedTarget)) highlight(null); });
+    // Solo il click che arriva sul vuoto della lista stessa (non su una riga,
+    // un suo testo o un input aperto, che arrivano per bolla con un altro
+    // bersaglio): toglie la selezione, così Ctrl+V torna a incollare nella
+    // radice (docs/plans/61)
+    list.addEventListener('click', (e) => { if (e.target === list) onDeselect(); });
+    list.addEventListener('keydown', (e) => {
+      const paste = (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 'v' || e.key === 'V');
+      if (!paste) return;
+      e.preventDefault();
+      e.stopPropagation(); // non è l'incolla del terminale
+      const row = shown.rows.find((r) => r.rel === shown.selected);
+      onCopyInto(row ? dirOf(row) : '', { kind: 'paste' });
+    });
 
     function rowElement(r, selected) {
       const el = doc.createElement('div');
@@ -91,6 +148,8 @@
       el.append(twisty, name);
       el.onclick = () => (r.kind === 'dir' ? onToggleDir(r.rel) : onOpenFile(r.rel));
       el.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(r, e); };
+      el.addEventListener('dragover', onDragOver(dirOf(r)));
+      el.addEventListener('drop', onDrop(dirOf(r)));
       return el;
     }
 
@@ -98,9 +157,11 @@
       element: list,
       render(rows, selected) {
         for (const child of [...list.children]) { const cancel = openPrompts.get(child); if (cancel) cancel(); }
+        shown = { rows, selected };
+        highlight(null);
         list.replaceChildren(...rows.map((r) => rowElement(r, selected)));
       },
-      rowOf(rel) { return [...list.children].find((c) => c.dataset.rel === rel) || null; },
+      rowOf,
     };
   }
 
@@ -171,5 +232,5 @@
     return { element: menu, close };
   }
 
-  return { emptyTree, setChildren, isExpanded, toggle, select, renamePath, removePath, visibleRows, createTreeView, promptName, showMenu };
+  return { emptyTree, setChildren, isExpanded, toggle, select, deselect, renamePath, removePath, visibleRows, createTreeView, promptName, showMenu };
 });

@@ -437,3 +437,65 @@ ok('copia: l avanzamento conta gli elementi in cima che si copiano davvero, come
   await s.copyInto('', s.drop('/x/a.txt', '/x/b.txt', '/x/c.txt', '/x/e.txt'));
   assert.deepStrictEqual(during, ['Copio 1 elemento…'], 'i saltati non si contano');
 });
+
+/* ---------- pannello dell'albero (docs/plans/62) ---------- */
+
+/** Un document di fake-dom al posto dello stub della pagina: per guardare il layout. */
+function fakeDocument() {
+  const doc = createElement('html');
+  doc.createElement = createElement;
+  doc.body = createElement('body');
+  return doc;
+}
+
+/** Il layout di una scheda editor disegnato in un wrap di fake-dom. */
+function layout() {
+  const env = setup();
+  env.page.ctx.document = fakeDocument();
+  const wrap = createElement('div');
+  const ui = env.fn('buildEditorLayout')({ ...env.tab, wrap });
+  const head = wrap.children[2].children[0];
+  return { ...env, wrap, ui, head, toggle: head.children[0] };
+}
+
+ok('pannello: la striscia sta fra albero ed editor, il bottone fuori dalle sotto-schede', () => {
+  const { wrap, ui, head, toggle } = layout();
+  assert.deepStrictEqual(wrap.children.map((c) => c.className), ['editor-side', 'editor-resizer', 'editor-main']);
+  assert.ok(toggle.classList.contains('editor-tree-toggle'));
+  assert.strictEqual(toggle.title, 'Mostra/nascondi file (Ctrl+B)');
+  assert.strictEqual(head.children[1], ui.subtabs, 'le sotto-schede si ridisegnano da sole, il bottone resta');
+});
+
+ok('pannello: il bottone apre e chiude l albero e se lo ricorda', () => {
+  const { page, run, toggle } = layout();
+  toggle.onclick();
+  assert.strictEqual(run('editorPanel.prefs().hidden'), true);
+  assert.strictEqual(page.ctx.localStorage.getItem('aisess.editorTreeHidden'), '1');
+  toggle.onclick();
+  assert.strictEqual(run('editorPanel.prefs().hidden'), false);
+});
+
+ok('pannello: Ctrl+B apre e chiude solo con una scheda editor davanti', () => {
+  const { page, fn, run } = setup();
+  fn('initEditorTabs')();
+  const key = (props = {}) => ({
+    ctrlKey: true, shiftKey: false, altKey: false, metaKey: false, key: 'b',
+    prevented: false, preventDefault() { this.prevented = true; }, ...props,
+  });
+  run("activeId = 'tab-ed'");
+  const onEditor = key();
+  page.listeners.keydown(onEditor);
+  assert.strictEqual(onEditor.prevented, true);
+  assert.strictEqual(run('editorPanel.prefs().hidden'), true);
+
+  const plain = key({ ctrlKey: false });
+  page.listeners.keydown(plain);
+  assert.strictEqual(plain.prevented, false, 'una b scritta resta una b');
+  assert.strictEqual(run('editorPanel.prefs().hidden'), true);
+
+  run("tabs.set('tab-term', { id: 'tab-term', type: 'shell' }); activeId = 'tab-term'");
+  const onTerm = key();
+  page.listeners.keydown(onTerm);
+  assert.strictEqual(onTerm.prevented, false, 'nei terminali Ctrl+B resta della shell');
+  assert.strictEqual(run('editorPanel.prefs().hidden'), true);
+});

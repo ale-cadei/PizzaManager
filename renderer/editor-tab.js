@@ -10,6 +10,10 @@
 const EditorFiles = window.AisessEditorFiles;
 const EditorTree = window.AisessEditorTree;
 const EditorMonaco = window.AisessEditorMonaco;
+const EditorPanel = window.AisessEditorPanel;
+// Larghezza e aperto/chiuso dell'albero, uguali per tutte le schede editor
+// e ricordati al riavvio (docs/plans/62): applicati subito alla pagina
+const editorPanel = EditorPanel.createPanel({ doc: document, storage: localStorage });
 // Domande appese all'editor (sotto-schede, albero): un fumetto suo, che i
 // render della sidebar non spostano (closeConfirm segue le card)
 const editorConfirm = ConfirmBubble.createConfirmBubble();
@@ -66,8 +70,18 @@ function buildEditorLayout(tab) {
     onCopyInto: (dir, source) => copyIntoEditor(tab, dir, source),
     onDeselect: () => clearEditorSelection(tab),
   });
+  const resizer = el('div', 'editor-resizer', tab.wrap);
+  resizer.title = `Trascina per allargare l'albero, doppio click per tornare a ${EditorPanel.DEFAULT_W}px`;
+  editorPanel.attachResizer(resizer, { side, wrap: tab.wrap, win: window });
   const main = el('section', 'editor-main', tab.wrap);
-  const subtabs = el('div', 'editor-subtabs', main);
+  // Il bottone sta fuori dal tablist: renderEditorSubtabs ne rimpiazza i figli
+  const head = el('div', 'editor-head', main);
+  const toggle = el('button', 'btn btn--ghost editor-tree-toggle', head);
+  toggle.textContent = '☰';
+  toggle.title = 'Mostra/nascondi file (Ctrl+B)';
+  toggle.setAttribute('aria-label', 'Mostra/nascondi file');
+  toggle.onclick = () => editorPanel.toggle();
+  const subtabs = el('div', 'editor-subtabs', head);
   subtabs.setAttribute('role', 'tablist');
   const bar = el('div', 'editor-bar', main);
   bar.hidden = true;
@@ -653,4 +667,12 @@ function initEditorTabs() {
     e.dataTransfer.dropEffect = 'none'; // il cursore dice «qui no»
   });
   document.addEventListener('drop', (e) => { if (isFileDrag(e)) e.preventDefault(); });
+  // Ctrl+B apre e chiude l'albero solo con una scheda editor davanti: nei
+  // terminali il tasto resta della shell. In cattura, così arriva prima di Monaco.
+  document.addEventListener('keydown', (e) => {
+    const t = activeId ? tabs.get(activeId) : null;
+    if (!t || !t.editor || !EditorPanel.isToggleKey(e)) return;
+    e.preventDefault();
+    editorPanel.toggle();
+  }, true);
 }

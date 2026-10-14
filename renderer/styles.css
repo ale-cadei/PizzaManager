@@ -1157,10 +1157,19 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .term-wrap.editor-wrap { padding: 0; }
 .term-wrap.editor-wrap.active { display: flex; }
 .editor-side {
-  width: 240px; min-width: 160px; flex-shrink: 0;
+  width: var(--editor-tree-w, 240px); min-width: 160px; max-width: 50%; flex-shrink: 0;
   display: flex; flex-direction: column;
   border-right: 1px solid var(--border); background: var(--surface);
 }
+/* Striscia per allargare l'albero e bottone per nasconderlo (docs/plans/62):
+   larghezza e stato sono della pagina, uguali per tutte le schede editor */
+.editor-resizer { position: relative; z-index: 1; flex: 0 0 6px; margin: 0 -3px; cursor: ew-resize; }
+.editor-resizer:hover, body.editor-resizing .editor-resizer { background: var(--action-ring); }
+body.editor-resizing { cursor: ew-resize; user-select: none; }
+body.editor-tree-hidden .editor-side,
+body.editor-tree-hidden .editor-resizer { display: none; }
+.editor-head { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); }
+.editor-tree-toggle { flex-shrink: 0; padding: 0 10px; border-radius: 0; border-right: 1px solid var(--divider); }
 .editor-side-tools { display: flex; gap: 4px; padding: 6px; border-bottom: 1px solid var(--divider); }
 .editor-tool { font-size: 12px; padding: 2px 8px; }
 .editor-tree-host { flex: 1; overflow: auto; padding: 4px 0; }
@@ -1184,7 +1193,7 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
   background: var(--bg); color: var(--text); border: 1px solid var(--border-strong);
 }
 .editor-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.editor-subtabs { display: flex; overflow-x: auto; border-bottom: 1px solid var(--border); background: var(--surface); }
+.editor-subtabs { flex: 1; min-width: 0; display: flex; overflow-x: auto; }
 .editor-subtab {
   display: flex; align-items: center; gap: 6px; padding: 0 6px 0 12px; height: 30px;
   font: 13px var(--font-ui); color: var(--text-muted); cursor: pointer; white-space: nowrap;

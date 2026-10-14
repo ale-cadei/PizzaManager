@@ -60,7 +60,9 @@ ridisegna da solo quando il suo contenitore cambia larghezza.
     bottone funziona anche se `localStorage` lancia), le applica subito e
     offre `toggle()`, `prefs()` e `attachResizer(resizer, { side, wrap, win })`:
     trascinamento con `pointerdown` e `pointermove`/`pointerup` sulla
-    finestra, come `changes-panel.js`, salvato al rilascio; doppio click.
+    finestra, come `changes-panel.js`, più `setPointerCapture` sulla
+    striscia (un `lostpointercapture` chiude il trascinamento come il
+    rilascio); salvato al rilascio; doppio click.
     `isToggleKey(e)` riconosce Ctrl+B.
 - **`renderer/editor-tab.js`**: in `buildEditorLayout` la striscia
   (`editor-resizer`) fra `.editor-side` e `.editor-main`; il bottone
@@ -105,3 +107,11 @@ ridisegna da solo quando il suo contenitore cambia larghezza.
   in una scheda terminale Ctrl+B arriva alla shell.
 - Chiudere e riaprire l'app: larghezza e stato restano. Due schede editor
   cambiano insieme.
+
+## Punti aperti
+
+- **Fuoco dopo Ctrl+B**: nascondere l'albero mentre il fuoco è dentro
+  l'albero lo lascia sul `body`; bisogna cliccare in Monaco per scrivere.
+- **Ctrl+B con menu o domande aperte**: non chiude il menu contestuale
+  dell'albero né il fumetto di conferma; una rinomina (`promptName`) in un
+  albero nascosto resta appesa finché non lo si riapre.

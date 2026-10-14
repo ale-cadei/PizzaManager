@@ -69,6 +69,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 59 | [`fix/codex-segnale-ereditato`](59-codex-segnale-ereditato.md) — `AISESS_SIGNAL_FILE` dell'app non passa alle sessioni | 46 | ~1h | fatto |
 | 60 | [`feat/sessione-editor`](60-sessione-editor.md) — scheda editor: albero del progetto, Monaco, più file, ripristino | 25 | ~2-3g | ✅ fatto, provato nel `.deb` (smoke sotto xvfb via CDP: evidenziazione, worker TS, Ctrl+F) |
 | 61 | [`feat/editor-copia-file`](61-editor-copia-file.md) — copiare file e cartelle dall'esterno nell'albero dell'editor: trascina, «Copia qui file…», incolla | 60 | ~1-2g | ✅ fatto, smoke su GNOME/Wayland (Nautilus: drop, finestra, Ctrl+V) |
+| 62 | [`feat/editor-pannello`](62-editor-pannello.md) — albero dell'editor ridimensionabile e nascondibile (bottone, Ctrl+B), ricordato al riavvio | 60, 61 | ~0,5-1g | da fare |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

@@ -103,7 +103,9 @@ async function copyIntoEditor(tab, dir, source) {
     if (!plan.ok) { showEditorMessage(tab, `Non si copia: ${plan.error}`); return; }
     const decisions = await askCopyConflicts(tab, plan.conflicts);
     if (!decisions || !tabs.has(tab.id)) return;
-    showEditorNotice(tab, `Copio ${copyCount(plan.count, 'elemento', 'elementi')}…`);
+    // Come l'esito: gli elementi in cima che si copiano, non plan.count (ricorsivo, per i limiti)
+    const toCopy = plan.items.filter((i) => decisions[i.name] !== 'skip').length;
+    showEditorNotice(tab, `Copio ${copyCount(toCopy, 'elemento', 'elementi')}…`);
     const r = await callEditor(() => window.aisess.editorCopyRun(tab.cwd, dir, got.paths, decisions));
     if (!tabs.has(tab.id)) return;
     if (!r.ok) showEditorMessage(tab, `Non si copia: ${r.error}`);

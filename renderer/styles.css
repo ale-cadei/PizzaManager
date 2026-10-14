@@ -1169,7 +1169,7 @@ body.editor-resizing { cursor: ew-resize; user-select: none; }
 body.editor-tree-hidden .editor-side,
 body.editor-tree-hidden .editor-resizer { display: none; }
 .editor-head { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); }
-.editor-tree-toggle { flex-shrink: 0; padding: 0 10px; border-radius: 0; border-right: 1px solid var(--divider); }
+.editor-tree-toggle { flex-shrink: 0; padding: 0 10px; border: 0; border-radius: 0; border-right: 1px solid var(--divider); }
 .editor-side-tools { display: flex; gap: 4px; padding: 6px; border-bottom: 1px solid var(--divider); }
 .editor-tool { font-size: 12px; padding: 2px 8px; }
 .editor-tree-host { flex: 1; overflow: auto; padding: 4px 0; }

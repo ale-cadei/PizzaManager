@@ -69,12 +69,17 @@
         const up = () => {
           win.removeEventListener('pointermove', move);
           win.removeEventListener('pointerup', up);
+          resizer.removeEventListener('lostpointercapture', up);
           doc.body.classList.remove('editor-resizing');
           savePanelPrefs(storage, prefs);
         };
+        // Col puntatore catturato il cursore resta ew-resize anche sopra
+        // Monaco, e un rilascio perso (fuoco altrove) chiude lo stesso
+        if (resizer.setPointerCapture) resizer.setPointerCapture(e.pointerId);
         doc.body.classList.add('editor-resizing');
         win.addEventListener('pointermove', move);
         win.addEventListener('pointerup', up);
+        resizer.addEventListener('lostpointercapture', up);
       });
     }
 

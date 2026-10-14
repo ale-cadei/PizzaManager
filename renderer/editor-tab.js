@@ -80,6 +80,7 @@ function buildEditorLayout(tab) {
   toggle.textContent = '☰';
   toggle.title = 'Mostra/nascondi file (Ctrl+B)';
   toggle.setAttribute('aria-label', 'Mostra/nascondi file');
+  toggle.onmousedown = (e) => e.preventDefault(); // il fuoco resta a Monaco
   toggle.onclick = () => editorPanel.toggle();
   const subtabs = el('div', 'editor-subtabs', head);
   subtabs.setAttribute('role', 'tablist');
@@ -673,6 +674,6 @@ function initEditorTabs() {
     const t = activeId ? tabs.get(activeId) : null;
     if (!t || !t.editor || !EditorPanel.isToggleKey(e)) return;
     e.preventDefault();
-    editorPanel.toggle();
+    if (!e.repeat) editorPanel.toggle(); // tenuto premuto non fa lampeggiare l'albero
   }, true);
 }

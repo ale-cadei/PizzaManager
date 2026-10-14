@@ -110,6 +110,20 @@ ok('striscia: trascinare allarga e stringe fra i limiti, e salva al rilascio', (
   assert.strictEqual(panel.prefs().width, 160);
 });
 
+ok('striscia: cattura il puntatore, e se la cattura si perde il trascinamento finisce e salva', () => {
+  const { doc, win, resizer, storage } = resizable();
+  const captured = [];
+  resizer.setPointerCapture = (id) => captured.push(id);
+  fire(resizer, 'pointerdown', { clientX: 240, button: 0, pointerId: 7 });
+  assert.deepStrictEqual(captured, [7]);
+  fire(win, 'pointermove', { clientX: 300 });
+  fire(resizer, 'lostpointercapture', {});
+  assert.strictEqual(storage.getItem('aisess.editorTreeW'), '300');
+  assert.ok(!doc.body.classList.contains('editor-resizing'));
+  assert.strictEqual(win.listeners.get('pointermove').length, 0);
+  assert.strictEqual(resizer.listeners.get('lostpointercapture').length, 0);
+});
+
 ok('striscia: il tasto destro non comincia un trascinamento', () => {
   const { win, resizer } = resizable();
   const down = fire(resizer, 'pointerdown', { clientX: 240, button: 2 });

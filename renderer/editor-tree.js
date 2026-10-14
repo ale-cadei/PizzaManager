@@ -23,6 +23,7 @@
     expanded: isExpanded(tree, dir) ? tree.expanded.filter((d) => d !== dir) : [...tree.expanded, dir],
   });
   const select = (tree, rel) => ({ ...tree, selected: rel });
+  const deselect = (tree) => ({ ...tree, selected: null });
 
   const under = (rel, base) => rel === base || rel.startsWith(base + '/');
   const moved = (rel, from, to) => (under(rel, from) ? to + rel.slice(from.length) : rel);
@@ -71,7 +72,7 @@
   // invece di restare appesa per sempre.
   const openPrompts = new WeakMap();
 
-  function createTreeView({ root, document: doc, onOpenFile, onToggleDir, onContextMenu, onCopyInto = () => {} }) {
+  function createTreeView({ root, document: doc, onOpenFile, onToggleDir, onContextMenu, onCopyInto = () => {}, onDeselect = () => {} }) {
     const list = doc.createElement('div');
     list.className = 'editor-tree';
     list.setAttribute('role', 'tree');
@@ -114,6 +115,9 @@
     list.addEventListener('dragover', onDragOver(''));
     list.addEventListener('drop', onDrop(''));
     list.addEventListener('dragleave', (e) => { if (!within(e.relatedTarget)) highlight(null); });
+    // Click sul vuoto (non su una riga, che ferma la propagazione): niente è
+    // selezionato, così Ctrl+V torna a incollare nella radice (docs/plans/61)
+    list.addEventListener('click', () => onDeselect());
     list.addEventListener('keydown', (e) => {
       const paste = (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 'v' || e.key === 'V');
       if (!paste) return;
@@ -140,7 +144,9 @@
       name.className = 'editor-tree-name';
       name.textContent = r.name; // testo, mai HTML: il nome viene dal disco
       el.append(twisty, name);
-      el.onclick = () => (r.kind === 'dir' ? onToggleDir(r.rel) : onOpenFile(r.rel));
+      // Ferma la propagazione: altrimenti il click sul vuoto (sopra) toglierebbe
+      // subito la selezione appena fatta (docs/plans/61)
+      el.onclick = (e) => { e.stopPropagation(); if (r.kind === 'dir') onToggleDir(r.rel); else onOpenFile(r.rel); };
       el.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(r, e); };
       el.addEventListener('dragover', onDragOver(dirOf(r)));
       el.addEventListener('drop', onDrop(dirOf(r)));
@@ -226,5 +232,5 @@
     return { element: menu, close };
   }
 
-  return { emptyTree, setChildren, isExpanded, toggle, select, renamePath, removePath, visibleRows, createTreeView, promptName, showMenu };
+  return { emptyTree, setChildren, isExpanded, toggle, select, deselect, renamePath, removePath, visibleRows, createTreeView, promptName, showMenu };
 });

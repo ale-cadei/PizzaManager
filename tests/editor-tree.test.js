@@ -203,3 +203,35 @@ ok('vista: Ctrl+V con l albero a fuoco incolla nella cartella della selezione', 
     assert.deepStrictEqual([dir.copies[0][0], none.copies[0][0]], ['src/lib', '']);
   } finally { restore(); }
 });
+
+ok('vista: click nel vuoto toglie la selezione, cosi Ctrl+V torna a incollare nella radice', () => {
+  const restore = installDocument();
+  try {
+    const root = createElement('div');
+    const copies = [];
+    let selected = 'src/x.js';
+    const view = T.createTreeView({ root, document, onOpenFile() {}, onToggleDir() {}, onContextMenu() {},
+      onCopyInto: (dir, source) => copies.push([dir, source]),
+      onDeselect: () => { selected = null; view.render(T.visibleRows(T.toggle(sample(), 'src')), selected); } });
+    view.render(T.visibleRows(T.toggle(sample(), 'src')), selected);
+    assert.ok(view.rowOf('src/x.js').classList.contains('is-selected'));
+    fire(view.element, 'click');
+    assert.ok(!view.rowOf('src/x.js').classList.contains('is-selected'), 'nessuna riga resta selezionata');
+    fire(view.element, 'keydown', { key: 'v', ctrlKey: true });
+    assert.deepStrictEqual(copies, [['', { kind: 'paste' }]], 'Ctrl+V incolla nella radice');
+  } finally { restore(); }
+});
+
+ok('vista: click su una riga non chiama onDeselect (solo il vuoto lo fa)', () => {
+  const restore = installDocument();
+  try {
+    const root = createElement('div');
+    const deselects = [];
+    const view = T.createTreeView({ root, document, onOpenFile() {}, onToggleDir() {}, onContextMenu() {},
+      onDeselect: () => deselects.push(true) });
+    view.render(T.visibleRows(T.toggle(sample(), 'src')), null);
+    fire(view.rowOf('src'), 'click');
+    fire(view.rowOf('b.js'), 'click');
+    assert.deepStrictEqual(deselects, []);
+  } finally { restore(); }
+});

@@ -64,6 +64,7 @@ function buildEditorLayout(tab) {
     onToggleDir: (rel) => toggleEditorDir(tab, rel),
     onContextMenu: (row, e) => editorTreeMenu(tab, row, e),
     onCopyInto: (dir, source) => copyIntoEditor(tab, dir, source),
+    onDeselect: () => clearEditorSelection(tab),
   });
   const main = el('section', 'editor-main', tab.wrap);
   const subtabs = el('div', 'editor-subtabs', main);
@@ -185,6 +186,13 @@ async function toggleEditorDir(tab, rel) {
   tab.editor.tree = EditorTree.select(EditorTree.toggle(tab.editor.tree, rel), rel);
   renderEditorTree(tab);
   if (EditorTree.isExpanded(tab.editor.tree, rel)) await loadEditorDir(tab, rel);
+}
+
+/** Click nel vuoto dell'albero: senza, Ctrl+V nella radice resta irraggiungibile
+ *  una volta selezionato qualcosa (piano 61). */
+function clearEditorSelection(tab) {
+  tab.editor.tree = EditorTree.deselect(tab.editor.tree);
+  renderEditorTree(tab);
 }
 
 async function reloadEditorTree(tab) {

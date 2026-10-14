@@ -16,7 +16,9 @@ function createElement(tag) {
     attrs: {},
     listeners: new Map(),
     dataset: {},
-    style: {},
+    // Le variabili CSS si scrivono con setProperty: qui finiscono nell'oggetto
+    // come le altre proprietà. Non enumerabile, così non sporca i confronti.
+    style: Object.defineProperty({}, 'setProperty', { value(k, v) { this[k] = String(v); }, writable: true, configurable: true }),
     textContent: '',
     title: '',
     hidden: false,

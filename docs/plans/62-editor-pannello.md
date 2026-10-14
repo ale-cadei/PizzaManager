@@ -56,9 +56,12 @@ ridisegna da solo quando il suo contenitore cambia larghezza.
     `savePanelPrefs(storage, prefs)`; le eccezioni di `localStorage` non
     fermano niente (come in `panels.js`).
   - DOM: `applyPanelPrefs(doc, prefs)` scrive variabile e classe;
-    `attachResizer(resizer, side, opts)` gestisce trascinamento (con
-    `pointerdown` e `setPointerCapture`, come `changes-panel.js`) e doppio
-    click; `togglePanel(doc, storage)`.
+    `createPanel({ doc, storage })` tiene le preferenze correnti (così il
+    bottone funziona anche se `localStorage` lancia), le applica subito e
+    offre `toggle()`, `prefs()` e `attachResizer(resizer, { side, wrap, win })`:
+    trascinamento con `pointerdown` e `pointermove`/`pointerup` sulla
+    finestra, come `changes-panel.js`, salvato al rilascio; doppio click.
+    `isToggleKey(e)` riconosce Ctrl+B.
 - **`renderer/editor-tab.js`**: in `buildEditorLayout` la striscia
   (`editor-resizer`) fra `.editor-side` e `.editor-main`; il bottone
   (`editor-tree-toggle`) in una riga che contiene anche le sotto-schede, ma
@@ -88,11 +91,11 @@ ridisegna da solo quando il suo contenitore cambia larghezza.
     uno storage che lancia;
   - `applyPanelPrefs` scrive variabile e classe;
   - trascinamento e doppio click con fake-dom;
-  - `togglePanel` salva.
+  - `toggle` salva, e funziona anche con uno storage che lancia.
 - `tests/editor-tab.test.js`: il layout ha striscia e bottone; il bottone
   apre e chiude; Ctrl+B con scheda editor attiva sì, con scheda terminale
   no.
-- `tests/renderer-load.test.js`: ordine di caricamento.
+- `tests/renderer-load.test.js`: la pagina si carica col modulo nuovo.
 
 ## Da verificare a mano
 

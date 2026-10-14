@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Notification, Menu, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Notification, Menu, shell, clipboard } = require('electron');
 const fs = require('fs');
 const os = require('os');
 const { getDefaultShell, platformLabel } = require('./lib/shell');
@@ -226,7 +226,7 @@ registerUpdateHandlers(ipcMain, { electron: { app, shell }, sendToRenderer });
 registerFeedbackHandlers(ipcMain, { electron: { app, shell }, viaTmux: () => ptys.viaTmux });
 registerGitHandlers(ipcMain, { userDataDir: () => app.getPath('userData') });
 const quitCapture = installQuitCapture({ app, ptys }); // un quit annullato dall'editor la fa ripartire
-registerEditorHandlers(ipcMain, { electron: { app, shell, BrowserWindow }, onQuitCancelled: quitCapture.reset });
+registerEditorHandlers(ipcMain, { electron: { app, shell, BrowserWindow, dialog, clipboard }, onQuitCancelled: quitCapture.reset });
 
 // ---------- Notifiche di sistema e badge (docs/plans/38) ----------
 registerNotifyHandlers(ipcMain, { electron: { app, Notification, Menu }, getWindow: () => mainWindow, sendToRenderer });

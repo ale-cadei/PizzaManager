@@ -133,3 +133,81 @@ ok('planCopy: un file speciale (pipe) dentro una cartella si rifiuta', async (t)
   execFileSync('mkfifo', [path.join(out, 'd', 'tubo')]);
   assert.deepStrictEqual(await copy.planCopy([path.join(out, 'd')], ''), { ok: false, error: '«tubo» non è un file né una cartella.' });
 });
+
+ok('runCopy: copia file e cartelle col contenuto, i link come link', async (t) => {
+  const { root, out, copy, write } = setup(t);
+  write(path.join(out, 'a.txt'), 'ciao');
+  write(path.join(out, 'd', 'sub', 'y.txt'), 'y');
+  fs.symlinkSync('sub/y.txt', path.join(out, 'd', 'link'));
+  const r = await copy.runCopy({ sources: [path.join(out, 'a.txt'), path.join(out, 'd')], destRel: '' }, {});
+  assert.deepStrictEqual(r, { ok: true, copied: 2, skipped: 0, failed: [] });
+  assert.strictEqual(fs.readFileSync(path.join(root, 'a.txt'), 'utf8'), 'ciao');
+  assert.strictEqual(fs.readFileSync(path.join(root, 'd', 'sub', 'y.txt'), 'utf8'), 'y');
+  assert.strictEqual(fs.readlinkSync(path.join(root, 'd', 'link')), 'sub/y.txt');
+  assert.strictEqual(fs.readFileSync(path.join(out, 'a.txt'), 'utf8'), 'ciao', 'l originale resta');
+});
+
+ok('runCopy: sostituisci passa dal cestino, tieni entrambi prende il primo nome libero, salta non tocca', async (t) => {
+  const { root, out, copy, write, trashed } = setup(t);
+  write(path.join(root, 'a.txt'), 'vecchio a');
+  write(path.join(root, 'b.txt'), 'vecchio b');
+  write(path.join(root, 'b (2).txt'), 'occupato');
+  write(path.join(root, 'c.txt'), 'vecchio c');
+  const sources = ['a.txt', 'b.txt', 'c.txt'].map((n) => write(path.join(out, n), `nuovo ${n}`));
+  const r = await copy.runCopy({ sources, destRel: '' }, { 'a.txt': 'replace', 'b.txt': 'keep-both', 'c.txt': 'skip' });
+  assert.deepStrictEqual(r, { ok: true, copied: 2, skipped: 1, failed: [] });
+  assert.deepStrictEqual(trashed, [path.join(root, 'a.txt')]);
+  assert.strictEqual(fs.readFileSync(path.join(root, 'a.txt'), 'utf8'), 'nuovo a.txt');
+  assert.strictEqual(fs.readFileSync(path.join(root, 'b.txt'), 'utf8'), 'vecchio b');
+  assert.strictEqual(fs.readFileSync(path.join(root, 'b (2).txt'), 'utf8'), 'occupato');
+  assert.strictEqual(fs.readFileSync(path.join(root, 'b (3).txt'), 'utf8'), 'nuovo b.txt');
+  assert.strictEqual(fs.readFileSync(path.join(root, 'c.txt'), 'utf8'), 'vecchio c');
+});
+
+ok('runCopy: senza decisione, o con una sconosciuta, tiene entrambi; una cartella prende «d (2)»', async (t) => {
+  const { root, out, copy, write } = setup(t);
+  write(path.join(root, 'x.txt'), 'vecchio');
+  write(path.join(root, 'd', 'vecchio.txt'));
+  const sources = [write(path.join(out, 'x.txt'), 'nuovo'), path.dirname(write(path.join(out, 'd', 'nuovo.txt')))];
+  assert.deepStrictEqual(await copy.runCopy({ sources, destRel: '' }, { d: 'boh' }), { ok: true, copied: 2, skipped: 0, failed: [] });
+  assert.strictEqual(fs.readFileSync(path.join(root, 'x (2).txt'), 'utf8'), 'nuovo');
+  assert.deepStrictEqual(fs.readdirSync(path.join(root, 'd (2)')), ['nuovo.txt']);
+  assert.deepStrictEqual(fs.readdirSync(path.join(root, 'd')), ['vecchio.txt']);
+  assert.strictEqual((await copy.runCopy({ sources: [sources[0]], destRel: '' })).copied, 1, 'decisions assenti');
+  assert.ok(fs.existsSync(path.join(root, 'x (3).txt')));
+});
+
+ok('runCopy: un sorgente sparito dopo il piano è un errore suo, gli altri si copiano', async (t) => {
+  const { root, out, copy, write } = setup(t);
+  const sources = [write(path.join(out, 'a.txt')), write(path.join(out, 'b.txt'))];
+  assert.strictEqual((await copy.planCopy(sources, '')).ok, true);
+  fs.rmSync(sources[1]);
+  assert.deepStrictEqual(await copy.runCopy({ sources, destRel: '' }, {}), { ok: true, copied: 1, skipped: 0, failed: [{ name: 'b.txt', error: 'Non esiste più.' }] });
+  assert.deepStrictEqual(fs.readdirSync(root), ['a.txt']);
+});
+
+ok('runCopy: sostituire un elemento con se stesso fa una copia accanto, non lo cestina', async (t) => {
+  const { root, copy, write, trashed } = setup(t);
+  const a = write(path.join(root, 'a.txt'), 'mio');
+  assert.deepStrictEqual(await copy.runCopy({ sources: [a], destRel: '' }, { 'a.txt': 'replace' }), { ok: true, copied: 1, skipped: 0, failed: [] });
+  assert.deepStrictEqual(trashed, []);
+  assert.strictEqual(fs.readFileSync(path.join(root, 'a (2).txt'), 'utf8'), 'mio');
+});
+
+ok('runCopy: non si sostituisce una cartella che contiene il sorgente', async (t) => {
+  const { root, copy, write, trashed } = setup(t);
+  write(path.join(root, 'd', 'd', 'x.txt'));
+  const r = await copy.runCopy({ sources: [path.join(root, 'd', 'd')], destRel: '' }, { d: 'replace' });
+  assert.deepStrictEqual(r, { ok: true, copied: 0, skipped: 0, failed: [{ name: 'd', error: 'Sta dentro l\'elemento da sostituire.' }] });
+  assert.deepStrictEqual(trashed, []);
+  assert.ok(fs.existsSync(path.join(root, 'd', 'd', 'x.txt')));
+});
+
+ok('runCopy: rifà i controlli del piano', async (t) => {
+  const { out, copy, write } = setup(t);
+  const a = write(path.join(out, 'a.txt'));
+  assert.strictEqual((await copy.runCopy({ sources: [a], destRel: '../fuori' }, {})).ok, false);
+  assert.deepStrictEqual(await copy.runCopy({}, {}), { ok: false, error: 'La destinazione non è una cartella.' });
+  assert.deepStrictEqual(await copy.runCopy({ sources: [], destRel: '' }, {}), { ok: false, error: 'Niente da copiare.' });
+  assert.deepStrictEqual(await copy.runCopy(undefined, undefined), { ok: false, error: 'La destinazione non è una cartella.' });
+});

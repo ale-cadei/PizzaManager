@@ -2,6 +2,7 @@ const vm = require('vm');
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
 const { loadPage, stub } = require('./renderer-page');
+const { createElement } = require('./fake-dom');
 
 /* La scheda editor (renderer/editor-tab.js) vive nello scope globale del
    renderer: si carica la pagina vera (renderer-page.js) e si chiamano le sue
@@ -270,4 +271,152 @@ ok('scheda editor: chiusa la scheda, un watch che arriva tardi non resta armato'
   await pending;
   await settle();
   assert.deepStrictEqual(s.sent('editorUnwatch').map((c) => c.slice(1)), [['/w', 'a.js']]);
+});
+
+/* ---------- copiare da fuori (docs/plans/61) ---------- */
+
+/** Array e oggetti nati nel contesto vm della pagina hanno altri prototipi: si confrontano in copia. */
+const plain = (v) => JSON.parse(JSON.stringify(v));
+
+/** Una scheda col main che risponde ok, un messaggio vero e le risposte della bolla. */
+function copySetup({ main = {}, answers = [] } = {}) {
+  const s = setup({ main: {
+    editorPathForFile: (f) => f.p,
+    editorCopyPlan: async () => ({ ok: true, items: [], conflicts: [], count: 2, bytes: 0 }),
+    editorCopyRun: async () => ({ ok: true, copied: 2, skipped: 0, failed: [] }),
+    editorList: async () => ({ ok: true, entries: [] }),
+    ...main,
+  } });
+  const message = createElement('div');
+  message.hidden = true;
+  s.tab.editor.ui.message = message;
+  s.tab.editor.copying = false;
+  const asked = [];
+  s.run('editorConfirm').choose = async (o) => { asked.push(o); return answers.length ? answers.shift() : null; };
+  const copyInto = (dir, source) => s.fn('copyIntoEditor')(s.tab, dir, source);
+  const drop = (...paths) => ({ kind: 'drop', files: paths.map((p) => ({ p })) });
+  return { ...s, message, asked, copyInto, drop };
+}
+
+ok('copia: un drop senza conflitti fa piano, copia, esito e rilegge la cartella', async () => {
+  const s = copySetup();
+  await s.copyInto('', s.drop('/x/a', '/x/b'));
+  assert.deepStrictEqual(plain(s.sent('editorCopyPlan').map((c) => c.slice(1))), [['/w', '', ['/x/a', '/x/b']]]);
+  assert.deepStrictEqual(plain(s.sent('editorCopyRun').map((c) => c.slice(1))), [['/w', '', ['/x/a', '/x/b'], {}]]);
+  assert.deepStrictEqual(s.asked, []);
+  assert.strictEqual(s.message.textContent, 'Copiati 2 elementi.');
+  assert.strictEqual(s.message.hidden, false);
+  assert.ok(s.message.classList.contains('is-info'));
+  assert.deepStrictEqual(s.sent('editorList').map((c) => c.slice(1)), [['/w', '']]);
+  assert.strictEqual(s.tab.editor.copying, false);
+});
+
+ok('copia: i conflitti si chiedono uno alla volta, «per tutti» chiude i rimanenti', async () => {
+  const conflicts = ['a.txt', 'b.txt', 'c.txt'].map((name) => ({ name, kind: 'file', existingKind: 'file' }));
+  const s = copySetup({
+    main: { editorCopyPlan: async () => ({ ok: true, items: [], conflicts, count: 3, bytes: 0 }) },
+    answers: ['replace', 'skip-all'],
+  });
+  await s.copyInto('src', s.drop('/x/a.txt', '/x/b.txt', '/x/c.txt'));
+  assert.strictEqual(s.asked.length, 2);
+  assert.deepStrictEqual(plain(s.asked[0].choices.map((c) => c.value)), ['replace', 'keep-both', 'skip', 'replace-all', 'keep-both-all', 'skip-all']);
+  assert.match(s.asked[0].title, /a\.txt/);
+  assert.deepStrictEqual(plain(s.sent('editorCopyRun')[0][4]), { 'a.txt': 'replace', 'b.txt': 'skip', 'c.txt': 'skip' });
+});
+
+ok('copia: annullare una domanda non copia niente', async () => {
+  const s = copySetup({ main: { editorCopyPlan: async () => ({ ok: true, items: [], conflicts: [{ name: 'a.txt', kind: 'file', existingKind: 'dir' }], count: 1, bytes: 0 }) } });
+  await s.copyInto('', s.drop('/x/a.txt'));
+  assert.strictEqual(s.asked.length, 1);
+  assert.deepStrictEqual(plain(s.asked[0].choices.map((c) => c.value)), ['replace', 'keep-both', 'skip'], 'un solo conflitto: niente «per tutti»');
+  assert.deepStrictEqual(s.sent('editorCopyRun'), []);
+  assert.strictEqual(s.tab.editor.copying, false);
+});
+
+ok('copia: appunti senza file, drop senza percorsi, finestra annullata', async () => {
+  const s = copySetup({ main: { editorClipboardFiles: async () => ({ ok: true, paths: [] }), editorPickFiles: async () => ({ ok: true, paths: [] }), editorPathForFile: () => '' } });
+  await s.copyInto('', { kind: 'paste' });
+  assert.strictEqual(s.message.textContent, 'Negli appunti non ci sono file da incollare.');
+  await s.copyInto('', s.drop('/x/a'));
+  assert.strictEqual(s.message.textContent, 'I file trascinati non hanno un percorso sul disco.');
+  s.message.textContent = '';
+  await s.copyInto('', { kind: 'pick' });
+  assert.strictEqual(s.message.textContent, '', 'annullare la finestra non dice niente');
+  assert.deepStrictEqual(s.sent('editorCopyPlan'), []);
+});
+
+ok('copia: un piano rifiutato lo dice come errore e non copia', async () => {
+  const s = copySetup({ main: { editorCopyPlan: async () => ({ ok: false, error: 'Troppo grande: più di 1 GB.' }) } });
+  await s.copyInto('', s.drop('/x/a'));
+  assert.strictEqual(s.message.textContent, 'Non si copia: Troppo grande: più di 1 GB.');
+  assert.ok(!s.message.classList.contains('is-info'));
+  assert.deepStrictEqual(s.sent('editorCopyRun'), []);
+});
+
+ok('copia: gli elementi non copiati finiscono nel messaggio, come errore', async () => {
+  const s = copySetup({ main: { editorCopyRun: async () => ({ ok: true, copied: 2, skipped: 1, failed: [{ name: 'x.txt', error: 'Non esiste più.' }] }) } });
+  await s.copyInto('', s.drop('/x/a'));
+  assert.strictEqual(s.message.textContent, 'Copiati 2 elementi, 1 saltato, 1 non copiato: x.txt (Non esiste più).');
+  assert.ok(!s.message.classList.contains('is-info'));
+});
+
+ok('copia: in una cartella chiusa la apre per mostrare cosa è arrivato', async () => {
+  const s = copySetup();
+  await s.copyInto('src', s.drop('/x/a'));
+  assert.ok(s.page.ctx.AisessEditorTree.isExpanded(s.tab.editor.tree, 'src'));
+  assert.deepStrictEqual(s.sent('editorList').map((c) => c.slice(1)), [['/w', 'src']]);
+});
+
+ok('copia: «Copia qui file…» e «Incolla» nel menu di una cartella', async () => {
+  const s = copySetup({ main: { editorPickFiles: async () => ({ ok: true, paths: ['/x/a'] }) } });
+  const menus = [];
+  s.page.ctx.AisessEditorTree.showMenu = (o) => menus.push(o);
+  s.fn('editorTreeMenu')(s.tab, { rel: 'src', kind: 'dir' }, { clientX: 0, clientY: 0 });
+  const labels = menus[0].items.map((i) => i.label);
+  assert.ok(labels.includes('Copia qui file…') && labels.includes('Incolla'), labels.join(', '));
+  await menus[0].items.find((i) => i.label === 'Copia qui file…').run();
+  assert.strictEqual(s.sent('editorPickFiles').length, 1);
+  assert.deepStrictEqual(s.sent('editorCopyPlan')[0].slice(1), ['/w', 'src', ['/x/a']]);
+});
+
+ok('copia: una seconda copia mentre la prima è in corso si rifiuta', async () => {
+  const plan = deferred();
+  const s = copySetup({ main: { editorCopyPlan: () => plan.promise } });
+  const first = s.copyInto('', s.drop('/x/a'));
+  await settle();
+  await s.copyInto('', s.drop('/x/b'));
+  assert.strictEqual(s.message.textContent, 'Una copia è già in corso.');
+  plan.resolve({ ok: true, items: [], conflicts: [], count: 1, bytes: 0 });
+  await first;
+  assert.strictEqual(s.sent('editorCopyPlan').length, 1);
+  assert.strictEqual(s.message.textContent, 'Copiati 2 elementi.');
+});
+
+ok('copia: un file lasciato fuori dall albero non apre niente nella finestra', () => {
+  const { page, fn } = setup();
+  fn('initEditorTabs')();
+  const ev = (types) => ({ prevented: false, dataTransfer: { types, dropEffect: null }, preventDefault() { this.prevented = true; } });
+  const over = ev(['Files']);
+  page.listeners.dragover(over);
+  assert.strictEqual(over.prevented, true);
+  assert.strictEqual(over.dataTransfer.dropEffect, 'none');
+  const dropped = ev(['Files']);
+  page.listeners.drop(dropped);
+  assert.strictEqual(dropped.prevented, true);
+  const text = ev(['text/plain']);
+  page.listeners.drop(text);
+  assert.strictEqual(text.prevented, false, 'gli altri drag non si toccano');
+});
+
+ok('copia: testi dell esito e scelte dei conflitti', () => {
+  const { fn } = setup();
+  const text = fn('copyOutcomeText');
+  assert.strictEqual(text({ copied: 1, skipped: 0, failed: [] }), 'Copiato 1 elemento.');
+  assert.strictEqual(text({ copied: 0, skipped: 2, failed: [] }), 'Copiati 0 elementi, 2 saltati.');
+  assert.strictEqual(text({ copied: 0, skipped: 0, failed: [{ name: 'a', error: 'Permesso negato.' }, { name: 'b', error: 'Disco pieno.' }] }),
+    'Copiati 0 elementi, 2 non copiati: a (Permesso negato), b (Disco pieno).');
+  const choices = fn('copyConflictChoices');
+  assert.strictEqual(choices(1).length, 3);
+  assert.ok(choices(1)[0].danger, '«Sostituisci» è l azione che cestina');
+  assert.deepStrictEqual(plain(choices(2).slice(3).map((c) => c.label)), ['Sostituisci tutti', 'Tieni entrambi per tutti', 'Salta tutti']);
 });

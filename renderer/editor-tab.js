@@ -63,6 +63,7 @@ function buildEditorLayout(tab) {
     onOpenFile: (rel) => openEditorFile(tab, rel),
     onToggleDir: (rel) => toggleEditorDir(tab, rel),
     onContextMenu: (row, e) => editorTreeMenu(tab, row, e),
+    onCopyInto: (dir, source) => copyIntoEditor(tab, dir, source),
   });
   const main = el('section', 'editor-main', tab.wrap);
   const subtabs = el('div', 'editor-subtabs', main);
@@ -82,8 +83,15 @@ function renderEditorTree(tab) {
 
 function showEditorMessage(tab, text) {
   const { message } = tab.editor.ui;
+  message.classList.remove('is-info');
   message.textContent = text; // può contenere nomi di file ed errori del sistema
   message.hidden = false;
+}
+
+/** Come showEditorMessage, ma non è un errore (avanzamento ed esito della copia). */
+function showEditorNotice(tab, text) {
+  showEditorMessage(tab, text);
+  tab.editor.ui.message.classList.add('is-info');
 }
 
 function hideEditorMessage(tab) {
@@ -188,6 +196,8 @@ function editorTreeMenu(tab, row, e) {
   const items = [
     { label: 'Nuovo file', run: () => newEditorEntry(tab, dir, 'file') },
     { label: 'Nuova cartella', run: () => newEditorEntry(tab, dir, 'dir') },
+    { label: 'Copia qui file…', run: () => copyIntoEditor(tab, dir, { kind: 'pick' }) },
+    { label: 'Incolla', run: () => copyIntoEditor(tab, dir, { kind: 'paste' }) },
   ];
   if (row) {
     items.push({ label: 'Rinomina', run: () => renameEditorEntry(tab, row) });
@@ -516,7 +526,7 @@ async function createEditorTab({ name, cwd, startedAt = Date.now(), files = [], 
     session: null, reattached: false, alive: true, needsAttention: false, running: false, term: null, fit: null, ro: null, wrap, editor: null };
   tab.editor = {
     ui: buildEditorLayout(tab), files: EditorFiles.empty(), tree: EditorTree.emptyTree(),
-    host: null, hostPending: null, saving: new Set(), pendingChanges: new Map(),
+    host: null, hostPending: null, saving: new Set(), pendingChanges: new Map(), copying: false,
   };
   tabs.set(id, tab);
   updateEmpty();
@@ -625,4 +635,14 @@ function initEditorTabs() {
     e.returnValue = false;
     askEditorExit();
   });
+  // Un file lasciato fuori dall'albero non deve aprirsi al posto della
+  // pagina (Electron naviga verso i file trascinati): il drop si rifiuta.
+  // L'albero li accetta da sé e non lascia salire l'evento fin qui.
+  const isFileDrag = (e) => Boolean(e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files'));
+  document.addEventListener('dragover', (e) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'none'; // il cursore dice «qui no»
+  });
+  document.addEventListener('drop', (e) => { if (isFileDrag(e)) e.preventDefault(); });
 }

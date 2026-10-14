@@ -215,7 +215,7 @@ ok('vista: click nel vuoto toglie la selezione, cosi Ctrl+V torna a incollare ne
       onDeselect: () => { selected = null; view.render(T.visibleRows(T.toggle(sample(), 'src')), selected); } });
     view.render(T.visibleRows(T.toggle(sample(), 'src')), selected);
     assert.ok(view.rowOf('src/x.js').classList.contains('is-selected'));
-    fire(view.element, 'click');
+    fire(view.element, 'click', { target: view.element });
     assert.ok(!view.rowOf('src/x.js').classList.contains('is-selected'), 'nessuna riga resta selezionata');
     fire(view.element, 'keydown', { key: 'v', ctrlKey: true });
     assert.deepStrictEqual(copies, [['', { kind: 'paste' }]], 'Ctrl+V incolla nella radice');
@@ -232,6 +232,27 @@ ok('vista: click su una riga non chiama onDeselect (solo il vuoto lo fa)', () =>
     view.render(T.visibleRows(T.toggle(sample(), 'src')), null);
     fire(view.rowOf('src'), 'click');
     fire(view.rowOf('b.js'), 'click');
+    assert.deepStrictEqual(deselects, []);
+  } finally { restore(); }
+});
+
+ok('vista: un click che arriva (per propagazione) da un figlio - riga o input aperto - non toglie la selezione', () => {
+  const restore = installDocument();
+  try {
+    const root = createElement('div');
+    const deselects = [];
+    const view = T.createTreeView({ root, document, onOpenFile() {}, onToggleDir() {}, onContextMenu() {},
+      onDeselect: () => deselects.push(true) });
+    view.render(T.visibleRows(T.toggle(sample(), 'src')), null);
+    // Il bersaglio vero del click è lo span del nome, non la lista: come
+    // bollerebbe un click reale su una riga prima di arrivare (per bolla) alla lista
+    const name = view.rowOf('src').children[1];
+    fire(view.element, 'click', { target: name });
+    // L'input per rinominare/creare: un click dentro per spostare il cursore
+    // non deve chiudere la domanda togliendo la selezione (docs/plans/61)
+    T.promptName({ document, host: view.element });
+    const input = view.element.children[0];
+    fire(view.element, 'click', { target: input });
     assert.deepStrictEqual(deselects, []);
   } finally { restore(); }
 });

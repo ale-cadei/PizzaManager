@@ -115,9 +115,11 @@
     list.addEventListener('dragover', onDragOver(''));
     list.addEventListener('drop', onDrop(''));
     list.addEventListener('dragleave', (e) => { if (!within(e.relatedTarget)) highlight(null); });
-    // Click sul vuoto (non su una riga, che ferma la propagazione): niente è
-    // selezionato, così Ctrl+V torna a incollare nella radice (docs/plans/61)
-    list.addEventListener('click', () => onDeselect());
+    // Solo il click che arriva sul vuoto della lista stessa (non su una riga,
+    // un suo testo o un input aperto, che arrivano per bolla con un altro
+    // bersaglio): toglie la selezione, così Ctrl+V torna a incollare nella
+    // radice (docs/plans/61)
+    list.addEventListener('click', (e) => { if (e.target === list) onDeselect(); });
     list.addEventListener('keydown', (e) => {
       const paste = (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 'v' || e.key === 'V');
       if (!paste) return;
@@ -144,9 +146,7 @@
       name.className = 'editor-tree-name';
       name.textContent = r.name; // testo, mai HTML: il nome viene dal disco
       el.append(twisty, name);
-      // Ferma la propagazione: altrimenti il click sul vuoto (sopra) toglierebbe
-      // subito la selezione appena fatta (docs/plans/61)
-      el.onclick = (e) => { e.stopPropagation(); if (r.kind === 'dir') onToggleDir(r.rel); else onOpenFile(r.rel); };
+      el.onclick = () => (r.kind === 'dir' ? onToggleDir(r.rel) : onOpenFile(r.rel));
       el.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(r, e); };
       el.addEventListener('dragover', onDragOver(dirOf(r)));
       el.addEventListener('drop', onDrop(dirOf(r)));

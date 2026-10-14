@@ -130,7 +130,12 @@ ok('planCopy: un file speciale (pipe) dentro una cartella si rifiuta', async (t)
   if (process.platform === 'win32') return t.skip('niente mkfifo');
   const { out, copy } = setup(t);
   fs.mkdirSync(path.join(out, 'd'));
-  execFileSync('mkfifo', [path.join(out, 'd', 'tubo')]);
+  try {
+    execFileSync('mkfifo', [path.join(out, 'd', 'tubo')]);
+  } catch (e) {
+    if (e.code === 'ENOENT') return t.skip('mkfifo non disponibile');
+    throw e;
+  }
   assert.deepStrictEqual(await copy.planCopy([path.join(out, 'd')], ''), { ok: false, error: '«tubo» non è un file né una cartella.' });
 });
 

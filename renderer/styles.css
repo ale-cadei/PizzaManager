@@ -1164,6 +1164,12 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .editor-side-tools { display: flex; gap: 4px; padding: 6px; border-bottom: 1px solid var(--divider); }
 .editor-tool { font-size: 12px; padding: 2px 8px; }
 .editor-tree-host { flex: 1; overflow: auto; padding: 4px 0; }
+/* Tutta l'altezza: lo spazio vuoto sotto le righe è la radice, per il drop
+   e per il click destro (docs/plans/61) */
+.editor-tree { min-height: 100%; }
+.editor-tree:focus:not(:focus-visible) { outline: none; }
+.editor-tree.is-drop-target,
+.editor-tree-row.is-drop-target { outline: 1px dashed var(--type-editor); outline-offset: -1px; background: var(--surface-3); }
 .editor-tree-row {
   display: flex; align-items: center; gap: 4px; height: 22px; padding-right: 8px;
   font: 13px var(--font-ui); color: var(--text-2); cursor: pointer; white-space: nowrap;
@@ -1195,6 +1201,7 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .editor-bar.is-error { background: var(--surface-3); color: var(--state-error); }
 .editor-bar-text { flex: 1; }
 .editor-message { padding: 10px 12px; font: 13px var(--font-ui); color: var(--state-error); border-bottom: 1px solid var(--divider); }
+.editor-message.is-info { color: var(--text-dim); }
 .editor-host { flex: 1; min-height: 0; }
 .editor-menu {
   position: fixed; z-index: 1000; display: flex; flex-direction: column; min-width: 160px; padding: 4px;

@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('aisess', {
   spawn: (opts) => ipcRenderer.invoke('pty-spawn', opts),
@@ -61,6 +61,13 @@ contextBridge.exposeInMainWorld('aisess', {
   saveEditorSessions: (sessions) => ipcRenderer.invoke('editor-sessions-save', { sessions }),
   editorCloseConfirmed: () => ipcRenderer.invoke('editor-close-confirmed'),
   onEditorFileChanged: (cb) => ipcRenderer.on('editor-file-changed', (_e, v) => cb(v)),
+  // Copiare da fuori (docs/plans/61): `sources` sono percorsi assoluti
+  editorCopyPlan: (root, rel, sources) => ipcRenderer.invoke('editor-copy-plan', { root, rel, sources }),
+  editorCopyRun: (root, rel, sources, decisions) => ipcRenderer.invoke('editor-copy-run', { root, rel, sources, decisions }),
+  editorPickFiles: () => ipcRenderer.invoke('editor-pick-files'),
+  editorClipboardFiles: () => ipcRenderer.invoke('editor-clipboard-files'),
+  // Il percorso di un File trascinato: in Electron 33 File.path non c'è più
+  editorPathForFile: (file) => webUtils.getPathForFile(file),
   gitChanges: (cwd, base, since, incoming) => ipcRenderer.invoke('git-changes', { cwd, base, since, incoming }),
   gitFileDiff: (cwd, base, path, since, incoming) => ipcRenderer.invoke('git-file-diff', { cwd, base, path, since, incoming }),
   gitSnapshot: (cwd) => ipcRenderer.invoke('git-snapshot', { cwd }),

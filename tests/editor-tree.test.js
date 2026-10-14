@@ -124,3 +124,135 @@ ok('showMenu: una voce esegue e chiude, Esc chiude', () => {
     assert.strictEqual(document.body.children.includes(other.element), false);
   } finally { restore(); }
 });
+
+/* ---------- copiare da fuori (docs/plans/61) ---------- */
+
+const filesDrag = (more = {}) => ({ dataTransfer: { types: ['Files'], files: [], dropEffect: null, ...more } });
+
+/** Albero con src aperta: src, src/lib, src/x.js, a.log, b.js. */
+function copyView(selected = null) {
+  const root = createElement('div');
+  const copies = [];
+  const view = T.createTreeView({ root, document, onOpenFile() {}, onToggleDir() {}, onContextMenu() {},
+    onCopyInto: (dir, source) => copies.push([dir, source]) });
+  view.render(T.visibleRows(T.toggle(sample(), 'src')), selected);
+  return { view, copies };
+}
+
+ok('vista: i file trascinati da fuori vanno nella cartella sotto il puntatore, o nella radice', () => {
+  const restore = installDocument();
+  try {
+    const { view, copies } = copyView();
+    const f = { name: 'foto.png' };
+    const e = fire(view.rowOf('src/lib'), 'drop', filesDrag({ files: [f] }));
+    assert.strictEqual(e.defaultPrevented, true, 'senza preventDefault Electron apre il file nella finestra');
+    fire(view.rowOf('src/x.js'), 'drop', filesDrag({ files: [f] }));
+    fire(view.rowOf('b.js'), 'drop', filesDrag({ files: [f] }));
+    fire(view.element, 'drop', filesDrag({ files: [f] }));
+    assert.deepStrictEqual(copies.map(([dir]) => dir), ['src/lib', 'src', '', '']);
+    assert.deepStrictEqual(copies[0][1], { kind: 'drop', files: [f] });
+    // Un drag che non porta file (testo selezionato) non copia niente
+    const text = fire(view.element, 'drop', { dataTransfer: { types: ['text/plain'], files: [] } });
+    assert.strictEqual(text.defaultPrevented, false);
+    assert.strictEqual(copies.length, 4);
+  } finally { restore(); }
+});
+
+ok('vista: durante il drag si evidenzia la cartella di arrivo; si spegne uscendo e al render', () => {
+  const restore = installDocument();
+  try {
+    const { view } = copyView();
+    const lit = (el) => el.classList.contains('is-drop-target');
+    const over = fire(view.rowOf('src/x.js'), 'dragover', filesDrag());
+    assert.strictEqual(over.defaultPrevented, true);
+    assert.strictEqual(over.dataTransfer.dropEffect, 'copy');
+    assert.ok(lit(view.rowOf('src')), 'un file evidenzia la sua cartella');
+    fire(view.rowOf('b.js'), 'dragover', filesDrag());
+    assert.ok(!lit(view.rowOf('src')));
+    assert.ok(lit(view.element), 'un file della radice evidenzia tutto l albero');
+    fire(view.element, 'dragleave', { relatedTarget: view.rowOf('src') });
+    assert.ok(lit(view.element), 'passare da una riga all altra non spegne');
+    fire(view.element, 'dragleave', { relatedTarget: null });
+    assert.ok(!lit(view.element));
+    const plain = fire(view.rowOf('src'), 'dragover', { dataTransfer: { types: ['text/plain'] } });
+    assert.strictEqual(plain.defaultPrevented, false);
+    assert.ok(!lit(view.rowOf('src')));
+    fire(view.rowOf('src/lib'), 'dragover', filesDrag());
+    const lib = view.rowOf('src/lib');
+    view.render(T.visibleRows(T.toggle(sample(), 'src')), null);
+    assert.ok(!lit(lib) && !lit(view.element));
+  } finally { restore(); }
+});
+
+ok('vista: Ctrl+V con l albero a fuoco incolla nella cartella della selezione', () => {
+  const restore = installDocument();
+  try {
+    const { view, copies } = copyView('src/x.js');
+    assert.strictEqual(view.element.tabIndex, 0, 'l albero deve poter avere il fuoco');
+    const e = fire(view.element, 'keydown', { key: 'v', ctrlKey: true });
+    assert.strictEqual(e.defaultPrevented, true);
+    fire(view.element, 'keydown', { key: 'V', metaKey: true });
+    fire(view.element, 'keydown', { key: 'v' });
+    fire(view.element, 'keydown', { key: 'v', ctrlKey: true, shiftKey: true });
+    fire(view.element, 'keydown', { key: 'v', ctrlKey: true, altKey: true });
+    assert.deepStrictEqual(copies, [['src', { kind: 'paste' }], ['src', { kind: 'paste' }]]);
+    const dir = copyView('src/lib');
+    fire(dir.view.element, 'keydown', { key: 'v', ctrlKey: true });
+    const none = copyView(null);
+    fire(none.view.element, 'keydown', { key: 'v', ctrlKey: true });
+    assert.deepStrictEqual([dir.copies[0][0], none.copies[0][0]], ['src/lib', '']);
+  } finally { restore(); }
+});
+
+ok('vista: click nel vuoto toglie la selezione, cosi Ctrl+V torna a incollare nella radice', () => {
+  const restore = installDocument();
+  try {
+    const root = createElement('div');
+    const copies = [];
+    let selected = 'src/x.js';
+    const view = T.createTreeView({ root, document, onOpenFile() {}, onToggleDir() {}, onContextMenu() {},
+      onCopyInto: (dir, source) => copies.push([dir, source]),
+      onDeselect: () => { selected = null; view.render(T.visibleRows(T.toggle(sample(), 'src')), selected); } });
+    view.render(T.visibleRows(T.toggle(sample(), 'src')), selected);
+    assert.ok(view.rowOf('src/x.js').classList.contains('is-selected'));
+    fire(view.element, 'click', { target: view.element });
+    assert.ok(!view.rowOf('src/x.js').classList.contains('is-selected'), 'nessuna riga resta selezionata');
+    fire(view.element, 'keydown', { key: 'v', ctrlKey: true });
+    assert.deepStrictEqual(copies, [['', { kind: 'paste' }]], 'Ctrl+V incolla nella radice');
+  } finally { restore(); }
+});
+
+ok('vista: click su una riga non chiama onDeselect (solo il vuoto lo fa)', () => {
+  const restore = installDocument();
+  try {
+    const root = createElement('div');
+    const deselects = [];
+    const view = T.createTreeView({ root, document, onOpenFile() {}, onToggleDir() {}, onContextMenu() {},
+      onDeselect: () => deselects.push(true) });
+    view.render(T.visibleRows(T.toggle(sample(), 'src')), null);
+    fire(view.rowOf('src'), 'click');
+    fire(view.rowOf('b.js'), 'click');
+    assert.deepStrictEqual(deselects, []);
+  } finally { restore(); }
+});
+
+ok('vista: un click che arriva (per propagazione) da un figlio - riga o input aperto - non toglie la selezione', () => {
+  const restore = installDocument();
+  try {
+    const root = createElement('div');
+    const deselects = [];
+    const view = T.createTreeView({ root, document, onOpenFile() {}, onToggleDir() {}, onContextMenu() {},
+      onDeselect: () => deselects.push(true) });
+    view.render(T.visibleRows(T.toggle(sample(), 'src')), null);
+    // Il bersaglio vero del click è lo span del nome, non la lista: come
+    // bollerebbe un click reale su una riga prima di arrivare (per bolla) alla lista
+    const name = view.rowOf('src').children[1];
+    fire(view.element, 'click', { target: name });
+    // L'input per rinominare/creare: un click dentro per spostare il cursore
+    // non deve chiudere la domanda togliendo la selezione (docs/plans/61)
+    T.promptName({ document, host: view.element });
+    const input = view.element.children[0];
+    fire(view.element, 'click', { target: input });
+    assert.deepStrictEqual(deselects, []);
+  } finally { restore(); }
+});

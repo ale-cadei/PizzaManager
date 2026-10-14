@@ -8,7 +8,7 @@ const { registerEditorHandlers } = require('../app/editor');
 
 /* app/editor.js non chiede Electron: riceve ipcMain e quello che serve di
    Electron come parametri, quindi dei finti bastano. */
-function setup(t, extra = {}) {
+function setup(t, { electron: more = {}, ...extra } = {}) {
   const handlers = new Map();
   const ipcMain = { handle: (channel, fn) => handlers.set(channel, fn) };
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'aisess-edipc-'));
@@ -17,7 +17,7 @@ function setup(t, extra = {}) {
   const trashed = [];
   const app = Object.assign(new EventEmitter(), { quit() {}, getPath: () => userData });
   registerEditorHandlers(ipcMain, {
-    electron: { app, shell: {}, BrowserWindow: { fromWebContents: () => null } },
+    electron: { app, shell: {}, BrowserWindow: { fromWebContents: () => null }, ...more },
     trash: async (p) => { trashed.push(p); },
     ...extra,
   });
@@ -37,7 +37,7 @@ ok('ipc editor: ogni canale editor del preload ha il suo handler', (t) => {
 
 ok('ipc editor: payload mancanti o radici inesistenti rispondono con un errore', async (t) => {
   const { handlers, call } = setup(t);
-  for (const channel of ['editor-list', 'editor-read', 'editor-write', 'editor-stat', 'editor-create', 'editor-mkdir', 'editor-rename', 'editor-trash', 'editor-watch']) {
+  for (const channel of ['editor-list', 'editor-read', 'editor-write', 'editor-stat', 'editor-create', 'editor-mkdir', 'editor-rename', 'editor-trash', 'editor-watch', 'editor-copy-plan', 'editor-copy-run']) {
     for (const payload of [undefined, null, {}, { root: '/non/esiste/proprio', rel: 'a' }]) {
       const r = await call(channel, payload);
       assert.strictEqual(r.ok, false, `${channel} con ${JSON.stringify(payload)}`);
@@ -114,4 +114,49 @@ ok('ipc editor: un quit fermato dalla pagina arriva a onQuitCancelled (la cattur
   app.emit('before-quit');
   webContents.emit('will-prevent-unload', {});
   assert.strictEqual(cancelled, 1);
+});
+
+ok('ipc editor: piano e copia da fuori arrivano nella cartella della sessione', async (t) => {
+  const { call, root } = setup(t);
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), 'aisess-edout-'));
+  t.after(() => fs.rmSync(out, { recursive: true, force: true }));
+  const a = path.join(out, 'a.txt');
+  fs.writeFileSync(a, 'ciao');
+  const plan = await call('editor-copy-plan', { root, rel: '', sources: [a] });
+  assert.strictEqual(plan.ok, true, plan.error);
+  assert.deepStrictEqual(plan.conflicts, []);
+  assert.deepStrictEqual(await call('editor-copy-run', { root, rel: '', sources: [a], decisions: {} }), { ok: true, copied: 1, skipped: 0, failed: [] });
+  assert.strictEqual(fs.readFileSync(path.join(root, 'a.txt'), 'utf8'), 'ciao');
+  assert.deepStrictEqual((await call('editor-copy-plan', { root, rel: '', sources: [a] })).conflicts, [{ name: 'a.txt', kind: 'file', existingKind: 'file' }]);
+  assert.strictEqual((await call('editor-copy-plan', { root, rel: '../', sources: [a] })).ok, false);
+});
+
+ok('ipc editor: «Copia qui file…» apre il dialog del sistema sulla finestra di chi chiede', async (t) => {
+  const shown = [];
+  let answer = { canceled: false, filePaths: ['/x/a.txt', '/x/b'] };
+  const win = { id: 'finestra' };
+  const { call } = setup(t, {
+    platform: 'linux',
+    electron: {
+      BrowserWindow: { fromWebContents: (wc) => (wc.id === 7 ? win : null) },
+      dialog: { showOpenDialog: async (...args) => { shown.push(args); return answer; } },
+    },
+  });
+  assert.deepStrictEqual(await call('editor-pick-files'), { ok: true, paths: ['/x/a.txt', '/x/b'] });
+  assert.strictEqual(shown[0][0], win);
+  assert.deepStrictEqual(shown[0][1].properties, ['openFile', 'multiSelections']);
+  assert.strictEqual(shown[0][1].buttonLabel, 'Copia qui');
+  answer = { canceled: true, filePaths: [] };
+  assert.deepStrictEqual(await call('editor-pick-files'), { ok: true, paths: [] });
+});
+
+ok('ipc editor: «Incolla» legge i file dagli appunti nel main', async (t) => {
+  const asked = [];
+  const readBuffer = (format) => {
+    asked.push(format);
+    return format === 'x-special/gnome-copied-files' ? Buffer.from('copy\nfile:///tmp/a%20b.txt') : Buffer.alloc(0);
+  };
+  const { call } = setup(t, { platform: 'linux', electron: { clipboard: { readBuffer } } });
+  assert.deepStrictEqual(await call('editor-clipboard-files'), { ok: true, paths: ['/tmp/a b.txt'] });
+  assert.deepStrictEqual(asked, ['x-special/gnome-copied-files']);
 });

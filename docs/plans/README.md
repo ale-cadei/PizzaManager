@@ -68,7 +68,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 58 | [`feat/resume-worktree`](58-resume-worktree.md) — ⟲ sulla riga del worktree, Resume delle sole sue chat | 36, 8 | ~2h | fatto, provato nell'app |
 | 59 | [`fix/codex-segnale-ereditato`](59-codex-segnale-ereditato.md) — `AISESS_SIGNAL_FILE` dell'app non passa alle sessioni | 46 | ~1h | fatto |
 | 60 | [`feat/sessione-editor`](60-sessione-editor.md) — scheda editor: albero del progetto, Monaco, più file, ripristino | 25 | ~2-3g | ✅ fatto, provato nel `.deb` (smoke sotto xvfb via CDP: evidenziazione, worker TS, Ctrl+F) |
-| 61 | [`feat/editor-copia-file`](61-editor-copia-file.md) — copiare file e cartelle dall'esterno nell'albero dell'editor: trascina, «Copia qui file…», incolla | 60 | ~1-2g | da fare |
+| 61 | [`feat/editor-copia-file`](61-editor-copia-file.md) — copiare file e cartelle dall'esterno nell'albero dell'editor: trascina, «Copia qui file…», incolla | 60 | ~1-2g | ✅ fatto, smoke su GNOME/Wayland (Nautilus: drop, finestra, Ctrl+V) |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

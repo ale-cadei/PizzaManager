@@ -154,6 +154,35 @@ a ogni conflitto»: IPC nei due sensi, più fragile, nessun guadagno.
 
 ## Da verificare a mano
 
-- Trascinare da Nautilus/Dolphin un file e una cartella; incollare dopo
-  Ctrl+C nel file manager su GNOME e su KDE (X11 e Wayland se possibile).
-- Sostituisci: l'originale è nel cestino del sistema.
+Verificato su GNOME/Wayland con Nautilus:
+- Trascinare un file su una cartella dell'albero: evidenziazione, copia,
+  «Copiato 1 elemento» nella barra.
+- Trascinare una cartella sullo spazio vuoto: va nella radice.
+- Conflitti: «Sostituisci» → cestino del sistema; «Tieni entrambi» →
+  `nome (2).ext`; «Salta tutti» → «0 copiati, N saltati».
+- Finestra «Copia qui file…»: apre il dialog del sistema.
+- Incolla con Ctrl+V e voce «Incolla» dal menu dopo Ctrl+C nel file manager.
+- Click nella finestra di conferma durante una copia: una sola bolla,
+  no picchi.
+- File su sotto-tab, Monaco e scheda terminale: no-op, console pulita.
+- Ctrl+V non raggiunge il terminale.
+
+Ancora da verificare (KDE/Dolphin, X11, Windows, macOS):
+- `text/uri-list` su Dolphin e X11.
+- `FileNameW` su Windows, single file.
+- macOS.
+
+## Punti aperti
+
+- **Cartella copiata parzialmente**: se una copia di cartella fallisce a metà,
+  la cartella parziale resta su disco e l'outcome dice solo «non copiato»
+  senza dettagli. Chi pulisce il disco?
+- **Windows + symlink senza Developer Mode**: copiare una cartella che
+  contiene un symlink fallisce con messaggio generico «Permesso negato»,
+  senza avvertire che serve Developer Mode.
+- **Path duplicati case-sensitive**: `isInside` confronta i percorsi per
+  caso esatto anche su win32 e darwin (dove il filesystem è case-insensitive);
+  due sorgenti da cartelle diverse riconosciute come doppioni solo su
+  case-sensitive.
+- **Case folding di `isInside` e `foldName`**: `isInside` piega il case solo
+  su win32; `foldName` anche su darwin. Inconsistente.

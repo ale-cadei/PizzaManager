@@ -420,3 +420,20 @@ ok('copia: testi dell esito e scelte dei conflitti', () => {
   assert.ok(choices(1)[0].danger, '«Sostituisci» è l azione che cestina');
   assert.deepStrictEqual(plain(choices(2).slice(3).map((c) => c.label)), ['Sostituisci tutti', 'Tieni entrambi per tutti', 'Salta tutti']);
 });
+
+ok('copia: l avanzamento conta gli elementi in cima che si copiano davvero, come l esito', async () => {
+  const during = [];
+  let s;
+  const run = async () => { during.push(s.message.textContent); return { ok: true, copied: 1, skipped: 0, failed: [] }; };
+  s = copySetup({ main: { editorCopyPlan: async () => ({ ok: true, items: [{ name: 'd', kind: 'dir' }], conflicts: [], count: 13, bytes: 0 }), editorCopyRun: run } });
+  await s.copyInto('', s.drop('/x/d'));
+  assert.deepStrictEqual(during, ['Copio 1 elemento…'], 'non i 13 file e cartelle del piano');
+  assert.strictEqual(s.message.textContent, 'Copiato 1 elemento.');
+
+  const conflicts = ['a.txt', 'b.txt', 'c.txt'].map((name) => ({ name, kind: 'file', existingKind: 'file' }));
+  const items = [...conflicts.map(({ name }) => ({ name, kind: 'file' })), { name: 'e.txt', kind: 'file' }];
+  during.length = 0;
+  s = copySetup({ main: { editorCopyPlan: async () => ({ ok: true, items, conflicts, count: 4, bytes: 0 }), editorCopyRun: run }, answers: ['skip-all'] });
+  await s.copyInto('', s.drop('/x/a.txt', '/x/b.txt', '/x/c.txt', '/x/e.txt'));
+  assert.deepStrictEqual(during, ['Copio 1 elemento…'], 'i saltati non si contano');
+});

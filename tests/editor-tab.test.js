@@ -498,4 +498,10 @@ ok('pannello: Ctrl+B apre e chiude solo con una scheda editor davanti', () => {
   page.listeners.keydown(onTerm);
   assert.strictEqual(onTerm.prevented, false, 'nei terminali Ctrl+B resta della shell');
   assert.strictEqual(run('editorPanel.prefs().hidden'), true);
+
+  run("activeId = 'tab-ed'");
+  const held = key({ repeat: true });
+  page.listeners.keydown(held);
+  assert.strictEqual(held.prevented, true);
+  assert.strictEqual(run('editorPanel.prefs().hidden'), true, 'tenuto premuto non riapre');
 });

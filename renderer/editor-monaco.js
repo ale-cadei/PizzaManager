@@ -59,13 +59,13 @@
 
   /**
    * @param {{monaco: object, container: Element, fontSize: number,
-   *   onChange: (rel: string, dirty: boolean) => void,
+   *   onChange: (rel: string, dirty: boolean, edited: boolean) => void,
    *   onSave: (rel: string|null) => void, onSaveAll: () => void}} o
    */
   function createEditorHost({ monaco, container, fontSize, onChange, onSave, onSaveAll }) {
     // Autorità diversa per host: due schede sulla stessa cartella hanno model distinti
     const authority = `h${++hosts}`;
-    const docs = new Map(); // rel → { rel, model, savedVersion, viewState, forcedDirty, sub }
+    const docs = new Map(); // rel → { rel, model, savedVersion, viewState, forcedDirty, sub, gutter }
     let current = null;
     const editor = monaco.editor.create(container, {
       model: null, theme: THEME, automaticLayout: true, fontSize, fontFamily: FONT,
@@ -78,13 +78,14 @@
     const dirtyOf = (d) => d.forcedDirty || d.model.getAlternativeVersionId() !== d.savedVersion;
 
     function track(d) {
-      d.sub = d.model.onDidChangeContent(() => onChange(d.rel, dirtyOf(d)));
+      // edited: il testo è cambiato; false da markSaved (cambia solo «sporco»)
+      d.sub = d.model.onDidChangeContent(() => onChange(d.rel, dirtyOf(d), true));
       docs.set(d.rel, d);
     }
 
     function make(rel, text, extra = {}) {
       const model = monaco.editor.createModel(text, undefined, uriOf(rel));
-      track({ rel, model, savedVersion: model.getAlternativeVersionId(), viewState: null, forcedDirty: false, sub: null, ...extra });
+      track({ rel, model, savedVersion: model.getAlternativeVersionId(), viewState: null, forcedDirty: false, sub: null, gutter: [], ...extra });
     }
 
     function activate(rel) {
@@ -107,7 +108,7 @@
       if (!d) return;
       d.savedVersion = d.model.getAlternativeVersionId();
       d.forcedDirty = false;
-      onChange(rel, false);
+      onChange(rel, false, false);
     }
 
     /* Ricarica dal disco: nella pila dell'undo (Ctrl+Z riporta il testo di
@@ -137,6 +138,49 @@
       d.model.dispose();
     }
 
+    /* Barrette delle righe cambiate (docs/plans/63): decorazioni del model
+       nel margine delle righe; `d.gutter` tiene gli id per sostituirle. */
+    /* Il margine di Monaco ha `contain: strict`: un triangolino a cavallo del
+       bordo sopra la prima riga o sotto l'ultima verrebbe tagliato a metà, lì
+       si disegna dentro la riga (-top, -end). */
+    function delClass(after, lineCount) {
+      if (after === 0) return 'editor-gutter-del editor-gutter-del-top';
+      if (after >= lineCount) return 'editor-gutter-del editor-gutter-del-end';
+      return 'editor-gutter-del';
+    }
+
+    function gutterDecoration(r, lineCount) {
+      if (r.kind === 'del') {
+        const line = Math.max(r.after, 1);
+        const cls = delClass(r.after, lineCount);
+        return {
+          range: { startLineNumber: line, startColumn: 1, endLineNumber: line, endColumn: 1 },
+          options: { isWholeLine: true, linesDecorationsClassName: cls },
+        };
+      }
+      return {
+        range: { startLineNumber: r.from, startColumn: 1, endLineNumber: r.to, endColumn: 1 },
+        options: { isWholeLine: true, linesDecorationsClassName: `editor-gutter-${r.kind}` },
+      };
+    }
+
+    /** @param {Array|null} ranges da AisessEditorGutter.changeRanges; null o [] tolgono le barrette */
+    function setGutter(rel, ranges) {
+      const d = docs.get(rel);
+      if (!d) return;
+      const lineCount = d.model.getLineCount();
+      d.gutter = d.model.deltaDecorations(d.gutter, (ranges || []).map((r) => gutterDecoration(r, lineCount)));
+    }
+
+    /** Porta il cursore all'inizio della riga e la mette al centro (piano 64). */
+    function reveal(rel, line) {
+      if (!docs.has(rel)) return;
+      if (current !== rel) activate(rel);
+      editor.setPosition({ lineNumber: line, column: 1 });
+      editor.revealLineInCenter(line);
+      editor.focus();
+    }
+
     function close(rel) {
       const d = docs.get(rel);
       if (!d) return;
@@ -152,9 +196,11 @@
     }
 
     return {
-      open, activate, markSaved, replaceText, rename, close, dispose,
+      open, activate, markSaved, replaceText, rename, close, dispose, setGutter, reveal,
       current: () => current,
       getText: (rel) => (docs.has(rel) ? docs.get(rel).model.getValue() : null),
+      // Senza copiare il testo: le barrette saltano i file troppo lunghi (docs/plans/63)
+      lineCount: (rel) => (docs.has(rel) ? docs.get(rel).model.getLineCount() : 0),
       isDirty: (rel) => docs.has(rel) && dirtyOf(docs.get(rel)),
       focus: () => editor.focus(),
     };

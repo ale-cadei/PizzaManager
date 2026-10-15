@@ -572,6 +572,7 @@ async function createEditorTab({ name, cwd, startedAt = Date.now(), files = [], 
   tab.editor = {
     ui: buildEditorLayout(tab), files: EditorFiles.empty(), tree: EditorTree.emptyTree(),
     host: null, hostPending: null, saving: new Set(), pendingChanges: new Map(), copying: false, gutterTimer: null, gutterSeq: new Map(), gutterSeqLast: 0,
+    gutterReads: new Map(),
   };
   tabs.set(id, tab);
   updateEmpty();
@@ -587,6 +588,7 @@ async function createEditorTab({ name, cwd, startedAt = Date.now(), files = [], 
   await loadEditorDir(tab, '');
   for (const rel of files) await openEditorFile(tab, rel, { quiet: true });
   if (active && tab.editor.files.files[active]) activateEditorFile(tab, active, { save: !restoring });
+  return tab;
 }
 
 /* ---------- salvataggio delle schede e ripristino ---------- */

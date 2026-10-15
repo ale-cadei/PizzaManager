@@ -329,12 +329,15 @@ function onEditorTextChange(tab, rel, dirty, edited = true) {
 /* ---------- barrette delle righe cambiate (docs/plans/63) ---------- */
 
 /* Confronta il testo nell'editor con quello di HEAD e ridisegna le barrette.
-   Senza base (fuori da git, errore, file troppo grande) niente barrette. */
+   Senza base (fuori da git, errore, file troppo grande) niente barrette.
+   Il numero di righe si chiede prima: un file oltre il tetto non si copia
+   né si spezza a ogni pausa nella scrittura. */
 function updateEditorGutter(tab, rel) {
   const ed = tab.editor;
   const f = ed.files.files[rel];
   if (!f || !ed.host) return;
-  const changes = f.gutterBase ? EditorGutter.changeRanges(f.gutterBase.text, ed.host.getText(rel)) : null;
+  const comparable = f.gutterBase && ed.host.lineCount(rel) <= EditorGutter.MAX_GUTTER_LINES;
+  const changes = comparable ? EditorGutter.changeRanges(f.gutterBase.text, ed.host.getText(rel)) : null;
   ed.files = EditorFiles.update(ed.files, rel, { changes });
   ed.host.setGutter(rel, changes);
 }

@@ -138,6 +138,13 @@ ok('Ctrl+S salva il file attivo, Ctrl+Shift+S tutti; due host non si pestano gli
   assert.notStrictEqual(other.fake.models[0].uri.authority, fake.models[0].uri.authority);
 });
 
+ok('lineCount: le righe del model, 0 per un file non aperto', () => {
+  const { h } = host();
+  h.open('a.js', '1\n2\n3\n');
+  assert.strictEqual(h.lineCount('a.js'), 4);
+  assert.strictEqual(h.lineCount('nessuno.js'), 0);
+});
+
 ok('setGutter: barrette come decorazioni del margine, sostituite a ogni chiamata', () => {
   const { h, fake } = host();
   h.open('a.js', '1\n2\n3');

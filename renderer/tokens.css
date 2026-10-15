@@ -53,6 +53,7 @@
   /* stati */
   --state-ok:      #7FC45A;  /* basilico: solo "in esecuzione" */
   --state-error:   #FF4D74;
+  --state-changed: #5AA2FF;  /* righe modificate rispetto a git (barrette dell'editor) */
 
   /* identità per tipo di sessione (barra card, marker selezione, legenda).
      Un colore per tipo, tutti sopra 5:1 sulle superfici dove compaiono.

@@ -28,3 +28,11 @@ ok('renderer: tutti gli script si caricano insieme e init parte al DOMContentLoa
   const missing = expected.filter((n) => vm.runInContext(`typeof ${n}`, ctx) !== 'function');
   assert.deepStrictEqual(missing, []);
 });
+
+ok('renderer: editor-gutter.js è nella pagina prima di editor-tab.js', () => {
+  const at = (f) => pageScripts.indexOf(f);
+  assert.ok(at('editor-gutter.js') >= 0, 'index.html non carica editor-gutter.js');
+  assert.ok(at('editor-gutter.js') < at('editor-tab.js'), 'editor-gutter.js va caricato prima di editor-tab.js');
+  const { ctx } = loadPage();
+  assert.strictEqual(typeof ctx.AisessEditorGutter.changeRanges, 'function');
+});

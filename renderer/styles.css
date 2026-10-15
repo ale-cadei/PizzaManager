@@ -1212,6 +1212,34 @@ body.editor-tree-hidden .editor-resizer { display: none; }
 .editor-message { padding: 10px 12px; font: 13px var(--font-ui); color: var(--state-error); border-bottom: 1px solid var(--divider); }
 .editor-message.is-info { color: var(--text-dim); }
 .editor-host { flex: 1; min-height: 0; }
+/* Barrette delle righe cambiate rispetto a HEAD (docs/plans/63). Monaco
+   mette la classe su un div .cldr a tutta altezza della riga, largo quanto
+   il margine: la barretta è uno pseudo-elemento, così non dipende da lui. */
+.monaco-editor .editor-gutter-add::before,
+.monaco-editor .editor-gutter-mod::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 2px; width: 3px;
+}
+.monaco-editor .editor-gutter-add::before { background: var(--state-ok); }
+.monaco-editor .editor-gutter-mod::before { background: var(--state-changed); }
+/* Righe tolte: un triangolino sul bordo sotto la riga. Il margine di Monaco
+   ha `contain: strict` e taglia quel che esce: se mancano righe in cima o
+   in fondo al file il triangolino sta dentro la prima o l'ultima riga, con
+   la base appoggiata sul bordo del file (giù in cima, su in fondo). */
+.monaco-editor .editor-gutter-del::after {
+  content: ''; position: absolute; left: 2px; bottom: -4px; z-index: 5;
+  border-top: 4px solid transparent; border-bottom: 4px solid transparent;
+  border-left: 5px solid var(--state-error);
+}
+.monaco-editor .editor-gutter-del-top::after,
+.monaco-editor .editor-gutter-del-end::after {
+  left: 1px; border-left: 4px solid transparent; border-right: 4px solid transparent;
+}
+.monaco-editor .editor-gutter-del-top::after {
+  top: 0; bottom: auto; border-bottom: none; border-top: 5px solid var(--state-error);
+}
+.monaco-editor .editor-gutter-del-end::after {
+  bottom: 0; border-top: none; border-bottom: 5px solid var(--state-error);
+}
 .editor-menu {
   position: fixed; z-index: 1000; display: flex; flex-direction: column; min-width: 160px; padding: 4px;
   background: var(--surface); border: 1px solid var(--border-strong); border-radius: 6px;

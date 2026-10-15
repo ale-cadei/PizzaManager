@@ -6,6 +6,7 @@ const { savedBeforeBoot } = require('../lib/git-sessions');
 const { installEditorCloseGuard } = require('./editor-close');
 const { createEditorCopy, pickProperties } = require('../lib/editor-copy');
 const { filesFromClipboard } = require('../lib/clipboard-files');
+const { createEditorGit } = require('../lib/editor-git');
 
 /**
  * Canali IPC della sessione editor (docs/plans/60). La logica sta in lib/;
@@ -71,6 +72,11 @@ function registerEditorHandlers(ipcMain, {
     bom: bom === true,
   })));
   ipcMain.handle('editor-stat', guard(({ root, rel }) => files(root).stat(rel)));
+  // Testo dell'ultimo commit, per le barrette delle righe cambiate (docs/plans/63)
+  ipcMain.handle('editor-head-text', guard(({ root, rel }) => {
+    const f = files(root);
+    return createEditorGit({ root: f.realRoot, resolve: f.resolveInside }).headText(rel);
+  }));
   ipcMain.handle('editor-create', guard(({ root, rel }) => files(root).create(rel)));
   ipcMain.handle('editor-mkdir', guard(({ root, rel }) => files(root).mkdir(rel)));
   ipcMain.handle('editor-rename', guard(({ root, rel, name }) => files(root).rename(rel, name)));

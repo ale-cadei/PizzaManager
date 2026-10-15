@@ -132,5 +132,16 @@
     return rangesFromOps(diffLines(oldLines, newLines, { maxSteps }));
   }
 
-  return { MAX_GUTTER_LINES, MAX_DIFF_STEPS, diffLines, changeRanges };
+  /**
+   * La riga dove portare il cursore: la più alta fra i blocchi di changeRanges
+   * (docs/plans/64). Un blocco di righe tolte sta dopo `after`, e in cima è la 1.
+   * @param {Array|null} ranges
+   * @returns {number|null} null senza blocchi
+   */
+  function firstChangedLine(ranges) {
+    if (!Array.isArray(ranges) || !ranges.length) return null;
+    return ranges.reduce((min, r) => Math.min(min, r.kind === 'del' ? Math.max(1, r.after) : r.from), Infinity);
+  }
+
+  return { MAX_GUTTER_LINES, MAX_DIFF_STEPS, diffLines, changeRanges, firstChangedLine };
 });

@@ -241,3 +241,63 @@ ok('barrette: due letture di HEAD per lo stesso file possono risolvere in ordine
   assert.strictEqual(s.file('a.txt').gutterBase.text, 'uno\n', 'la risposta vecchia non sovrascrive');
   assert.deepStrictEqual(s.host.gutters, [], 'niente ridisegnato per la risposta scartata');
 });
+
+/* ---------- aprire al primo blocco cambiato (docs/plans/64) ---------- */
+
+/** Aspetta che il main finto abbia ricevuto `n` letture di HEAD (al massimo 20 giri). */
+async function headReads(resolvers, n) {
+  for (let i = 0; i < 20 && resolvers.length < n; i++) await settle();
+  assert.strictEqual(resolvers.length, n);
+}
+
+ok('apri alla riga: apre il file e porta il cursore al primo blocco cambiato', async () => {
+  const s = gutterSetup({ main: { editorRead: read('uno\nDUE\ntre\nquattro\n'), editorHeadText: async () => ({ ok: true, text: 'uno\ndue\ntre\n' }) } });
+  assert.strictEqual(await s.fn('openEditorAt')(s.tab, 'a.txt'), true);
+  assert.strictEqual(s.tab.editor.files.active, 'a.txt');
+  assert.deepStrictEqual(plain(s.host.reveals), [['a.txt', 2]]);
+});
+
+ok('apri alla riga: uguale a HEAD o fuori da git il cursore resta dov è', async () => {
+  for (const editorHeadText of [async () => ({ ok: true, text: 'uno\n' }), async () => ({ ok: false, reason: 'not-repo' })]) {
+    const s = gutterSetup({ main: { editorRead: read('uno\n'), editorHeadText } });
+    assert.strictEqual(await s.fn('openEditorAt')(s.tab, 'a.txt'), true);
+    assert.deepStrictEqual(s.host.reveals, []);
+  }
+});
+
+ok('apri alla riga: un file che non si apre dà false, senza leggere HEAD', async () => {
+  const s = gutterSetup({ main: { editorRead: async () => ({ ok: false, reason: 'missing' }) } });
+  assert.strictEqual(await s.fn('openEditorAt')(s.tab, 'via.txt'), false);
+  assert.deepStrictEqual(s.sent('editorHeadText'), []);
+  assert.deepStrictEqual(s.host.reveals, []);
+});
+
+ok('apri alla riga: se intanto parte una lettura di HEAD più nuova, aspetta quella', async () => {
+  const resolvers = [];
+  const s = gutterSetup({ main: { editorRead: read('uno\nDUE\n'), editorHeadText: () => new Promise((r) => resolvers.push(r)) } });
+  const opened = s.fn('openEditorAt')(s.tab, 'a.txt');
+  await headReads(resolvers, 1);
+  s.fn('loadEditorGutterBase')(s.tab, 'a.txt'); // come refreshEditorTab, che setActive fa partire
+  await headReads(resolvers, 2);
+  resolvers[0]({ ok: true, text: 'uno\nDUE\n' }); // superata: si scarta, e non si salta ancora
+  await settle();
+  assert.deepStrictEqual(s.host.reveals, []);
+  resolvers[1]({ ok: true, text: 'uno\ndue\n' });
+  assert.strictEqual(await opened, true);
+  assert.deepStrictEqual(plain(s.host.reveals), [['a.txt', 2]]);
+});
+
+ok('apri alla riga: se intanto si passa a un altro file il cursore non salta', async () => {
+  const resolvers = [];
+  const s = gutterSetup({
+    files: { 'b.txt': { text: 'b', mtime: 1 } },
+    main: { editorRead: read('uno\nDUE\n'), editorHeadText: () => new Promise((r) => resolvers.push(r)) },
+  });
+  const opened = s.fn('openEditorAt')(s.tab, 'a.txt');
+  await headReads(resolvers, 1);
+  s.fn('activateEditorFile')(s.tab, 'b.txt', { save: false });
+  resolvers[0]({ ok: true, text: 'uno\ndue\n' });
+  assert.strictEqual(await opened, true);
+  assert.deepStrictEqual(s.host.reveals, []);
+  assert.deepStrictEqual(plain(s.fn('editorFileChanges')(s.tab, 'a.txt')), [{ kind: 'mod', from: 2, to: 2 }], 'le barrette ci sono lo stesso');
+});

@@ -32,6 +32,8 @@ function fakeHost(texts) {
     markSaved: (rel) => { calls.push(['markSaved', rel]); dirty.delete(rel); },
     replaceText: (rel, text) => { calls.push(['replaceText', rel, text]); texts[rel] = text; dirty.delete(rel); },
     activate: (rel) => calls.push(['activate', rel]),
+    reveals: [], // a parte come gutters: dove si è portato il cursore
+    reveal(rel, line) { this.reveals.push([rel, line]); },
     open: (rel, text) => { texts[rel] = text; }, close: () => {}, rename: () => {}, dispose: () => {},
   };
 }
@@ -70,6 +72,7 @@ function setup({ files = {}, main = {} } = {}) {
       ui: { tree: stub(), treeHost: stub(), subtabs: stub(), bar: stub(), message: stub(), host: stub() },
       files: state, tree: page.ctx.AisessEditorTree.emptyTree(),
       host, hostPending: null, saving: new Set(), pendingChanges: new Map(), gutterTimer: null, gutterSeq: new Map(), gutterSeqLast: 0,
+      gutterReads: new Map(),
     },
   };
   run('tabs').set(tab.id, tab);

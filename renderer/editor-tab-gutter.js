@@ -71,7 +71,7 @@ function warnEditorHead(root, r) {
    contatore è della scheda, non del file: chiudendo un file la sua voce si
    toglie, e riaprendolo non si riparte da 1 (una lettura di prima della
    chiusura non può passare per quella nuova). */
-async function loadEditorGutterBase(tab, rel) {
+async function readEditorGutterBase(tab, rel) {
   const ed = tab.editor;
   const seq = ++ed.gutterSeqLast;
   ed.gutterSeq.set(rel, seq);
@@ -85,8 +85,47 @@ async function loadEditorGutterBase(tab, rel) {
   updateEditorGutter(tab, rel);
 }
 
+/* Rilegge HEAD per un file (readEditorGutterBase) e tiene in `gutterReads`
+   la promise più recente, finché non risolve: chi deve aspettare le
+   barrette (openEditorAt) aspetta quella, senza lanciarne un'altra. */
+function loadEditorGutterBase(tab, rel) {
+  const reads = tab.editor.gutterReads;
+  const read = readEditorGutterBase(tab, rel);
+  reads.set(rel, read);
+  const done = () => { if (reads.get(rel) === read) reads.delete(rel); };
+  read.then(done, done);
+  return read;
+}
+
+/* Aspetta la lettura di HEAD in volo per il file, e quella che l'ha
+   sostituita se intanto ne è partita un'altra (setActive → refreshEditorTab) */
+async function editorGutterReady(tab, rel) {
+  const reads = tab.editor.gutterReads;
+  for (let p = reads.get(rel), seen = null; p && p !== seen; p = reads.get(rel)) {
+    seen = p;
+    await p.catch(() => {});
+  }
+}
+
 /** Le righe cambiate di un file aperto rispetto a HEAD; null se non si sa (piano 64). */
 function editorFileChanges(tab, rel) {
   const f = tab && tab.editor && tab.editor.files.files[rel];
   return f ? f.changes : null;
+}
+
+/**
+ * Apre un file e porta il cursore al primo blocco cambiato rispetto a HEAD
+ * (pannello modifiche, docs/plans/64). Senza barrette (uguale a HEAD, fuori
+ * da git, troppo grande) il cursore resta dov'è. Si salta solo se il file è
+ * ancora quello attivo: intanto l'utente può essere passato a un altro.
+ * @returns {Promise<boolean>} false se il file non si apre (l'errore lo mostra openEditorFile)
+ */
+async function openEditorAt(tab, rel) {
+  if (!(await openEditorFile(tab, rel))) return false;
+  await editorGutterReady(tab, rel);
+  const ed = tab.editor;
+  if (!tabs.has(tab.id) || !ed.host || ed.files.active !== rel) return true;
+  const line = EditorGutter.firstChangedLine(editorFileChanges(tab, rel));
+  if (line) ed.host.reveal(rel, line);
+  return true;
 }

@@ -533,7 +533,9 @@ function initChangesResize() {
 /* Il bottone su un file: si riusa la scheda editor attiva se contiene il
    file, se no la prima (nell'ordine della barra laterale) che lo contiene,
    altrimenti se ne apre una sulla radice del repository; poi il file si
-   apre al primo blocco cambiato. */
+   apre al primo blocco cambiato. Il pannello si chiude: sta sopra l'editor
+   e coprirebbe la riga (scelta dell'utente). Si chiude prima di aspettare
+   l'editor, così se intanto lo si riapre resta aperto. */
 async function openChangedFile(path) {
   const { result, merge } = changesState;
   if (merge || !result || !result.ok || typeof result.root !== 'string') return;
@@ -545,6 +547,7 @@ async function openChangedFile(path) {
   if (tab) setActive(tab.id);
   else tab = await createTab('editor', { cwd: target.cwd });
   if (!tab || !tabs.has(tab.id)) return;
+  if (changesState.open) toggleChangesPanel(false);
   await openEditorAt(tab, target.rel);
 }
 

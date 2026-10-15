@@ -357,12 +357,19 @@ function scheduleEditorGutter(tab, rel) {
 const sameGutterBase = (a, b) => Boolean(a && b && a.text === b.text);
 
 /* Rilegge il testo di HEAD (all'apertura, al salvataggio, tornando in primo
-   piano) e, se è cambiato, ricalcola subito. text null = file non in HEAD. */
+   piano) e, se è cambiato, ricalcola subito. text null = file non in HEAD.
+   Due letture per lo stesso file possono risolvere in ordine invertito
+   (refreshEditorTab e saveEditorFile possono rileggerlo insieme): un
+   contatore per file scarta la risposta più vecchia se ne arriva una più
+   recente nel frattempo. */
 async function loadEditorGutterBase(tab, rel) {
-  const r = await callEditor(() => window.aisess.editorHeadText(tab.cwd, rel));
   const ed = tab.editor;
+  if (!ed.gutterSeq) ed.gutterSeq = new Map();
+  const seq = (ed.gutterSeq.get(rel) || 0) + 1;
+  ed.gutterSeq.set(rel, seq);
+  const r = await callEditor(() => window.aisess.editorHeadText(tab.cwd, rel));
   const f = ed.files.files[rel];
-  if (!f || !tabs.has(tab.id)) return;
+  if (!f || !tabs.has(tab.id) || ed.gutterSeq.get(rel) !== seq) return;
   if (!r.ok && r.error) console.warn('editor-head-text fallito:', r.error);
   const base = r.ok && (typeof r.text === 'string' || r.text === null) ? { text: r.text } : null;
   if (sameGutterBase(f.gutterBase, base)) return;
@@ -442,6 +449,7 @@ function dropEditorFile(tab, rel) {
   const ed = tab.editor;
   if (!ed.files.files[rel]) return;
   ed.files = EditorFiles.close(ed.files, rel);
+  if (ed.gutterTimer && ed.gutterTimer.rel === rel) { clearTimeout(ed.gutterTimer.id); ed.gutterTimer = null; }
   if (ed.host) {
     ed.host.close(rel);
     if (ed.files.active) ed.host.activate(ed.files.active);
@@ -619,7 +627,7 @@ async function createEditorTab({ name, cwd, startedAt = Date.now(), files = [], 
     session: null, reattached: false, alive: true, needsAttention: false, running: false, term: null, fit: null, ro: null, wrap, editor: null };
   tab.editor = {
     ui: buildEditorLayout(tab), files: EditorFiles.empty(), tree: EditorTree.emptyTree(),
-    host: null, hostPending: null, saving: new Set(), pendingChanges: new Map(), copying: false, gutterTimer: null,
+    host: null, hostPending: null, saving: new Set(), pendingChanges: new Map(), copying: false, gutterTimer: null, gutterSeq: new Map(),
   };
   tabs.set(id, tab);
   updateEmpty();

@@ -52,11 +52,29 @@ ok('gutter: testo mancante o troppe righe → null', () => {
   assert.strictEqual(changeRanges('a\nb', 'a\nb\nc', { maxLines: 2 }), null);
 });
 
-ok('gutter: oltre il tetto di passi → null, sotto il risultato', () => {
-  const before = 'a\nb\nc\nd';
-  const after = 'w\nx\ny\nz';
-  assert.strictEqual(changeRanges(before, after, { maxSteps: 3 }), null);
-  assert.deepStrictEqual(changeRanges(before, after), [{ kind: 'mod', from: 1, to: 4 }]);
+ok('gutter: oltre il tetto di passi il tratto diverso è un blocco solo', () => {
+  // Sotto il tetto: due righe modificate separate da una uguale
+  assert.deepStrictEqual(changeRanges('p\na\nk\nb\ns', 'p\nA\nk\nB\ns'),
+    [{ kind: 'mod', from: 2, to: 2 }, { kind: 'mod', from: 4, to: 4 }]);
+  // Oltre: le righe uguali in cima e in fondo restano fuori, il resto è modificato
+  assert.deepStrictEqual(changeRanges('p\na\nk\nb\ns', 'p\nA\nk\nB\ns', { maxSteps: 1 }),
+    [{ kind: 'mod', from: 2, to: 4 }]);
+  // ...più aggiunte se il testo nuovo è più lungo, un triangolino se è più corto
+  assert.deepStrictEqual(changeRanges('p\na\nb\ns', 'p\nw\nx\ny\nz\ns', { maxSteps: 1 }),
+    [{ kind: 'mod', from: 2, to: 3 }, { kind: 'add', from: 4, to: 5 }]);
+  assert.deepStrictEqual(changeRanges('p\na\nb\nc\ns', 'p\nw\ns', { maxSteps: 1 }),
+    [{ kind: 'mod', from: 2, to: 2 }, { kind: 'del', after: 2 }]);
+  assert.deepStrictEqual(diffLines(['p', 'a', 's'], ['p', 'x', 'y', 's'], { maxSteps: 1 }), ['=', '-', '+', '+', '=']);
+});
+
+ok('gutter: un file grande tutto riscritto ha le sue barrette, in fretta', () => {
+  const before = Array.from({ length: 19000 }, (_, i) => `riga ${i}`);
+  const after = before.map((l, i) => (i % 3 ? l : `${l} cambiata`));
+  const started = Date.now();
+  const ranges = changeRanges(before.join('\n'), after.join('\n'));
+  assert.ok(Date.now() - started < 1000, 'diff troppo lento');
+  assert.ok(ranges.length > 0, 'un file riscritto non sembra uguale a HEAD');
+  assert.deepStrictEqual(ranges[0], { kind: 'mod', from: 1, to: ranges[0].to });
 });
 
 ok('gutter: diffLines dà le operazioni riga per riga', () => {

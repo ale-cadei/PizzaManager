@@ -73,8 +73,12 @@ Casi:
 - **`renderer/editor-gutter.js`** (nuovo, UMD, caricato prima di
   `editor-tab.js`):
   - `diffLines(oldLines, newLines)` → lista di operazioni, Myers O(ND) con
-    un tetto di passi: oltre il tetto restituisce `null` (niente barrette
-    invece di bloccare la pagina);
+    un tetto di passi per non bloccare la pagina. Oltre il tetto (un file
+    riformattato, riscritto da un agente) non si restituisce `null`, che
+    lo farebbe sembrare uguale a HEAD: tolte le righe uguali in cima e in
+    fondo, il tratto in mezzo diventa un blocco solo, `mod` per le righe
+    in comune e `add` o `del` per quelle in più (decisione dell'utente
+    dopo la review finale);
   - `changeRanges(oldText, newText)` → `[{ kind: 'add'|'mod', from, to }`
     (righe dell'editor, da 1, estremi compresi) `| { kind: 'del', after }]`
     (`after` = riga dopo cui mancano righe, 0 = in cima). Un blocco di
@@ -106,7 +110,9 @@ Casi:
 - `tests/editor-gutter.test.js`: `changeRanges` con file uguale, righe
   aggiunte in cima, in mezzo e in fondo, righe tolte (in cima, in mezzo, in
   fondo), righe modificate, misto modifica + aggiunta, `oldText` null,
-  `\r\n` contro `\n`, tetto di righe e di passi → `null`.
+  `\r\n` contro `\n`, tetto di righe → `null`, oltre il tetto di passi un
+  blocco solo fra le righe uguali in cima e in fondo (`mod` più `add` o
+  `del`).
 - `tests/editor-git.test.js` (repo di prova in una tmpdir, git vero, saltato
   se git manca): file tracciato, modificato su disco (HEAD resta quello
   vecchio), non tracciato → `null`, cartella della scheda dentro una

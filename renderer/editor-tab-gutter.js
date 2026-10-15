@@ -118,10 +118,14 @@ function editorFileChanges(tab, rel) {
  * (pannello modifiche, docs/plans/64). Senza barrette (uguale a HEAD, fuori
  * da git, troppo grande) il cursore resta dov'è. Si salta solo se il file è
  * ancora quello attivo: intanto l'utente può essere passato a un altro.
+ * Un file già aperto ha le barrette dell'ultima lettura di HEAD, che può
+ * essere di prima di un commit: se non ce n'è una in volo se ne fa partire
+ * una, e il cursore aspetta quella.
  * @returns {Promise<boolean>} false se il file non si apre (l'errore lo mostra openEditorFile)
  */
 async function openEditorAt(tab, rel) {
   if (!(await openEditorFile(tab, rel))) return false;
+  if (!tab.editor.gutterReads.has(rel)) loadEditorGutterBase(tab, rel);
   await editorGutterReady(tab, rel);
   const ed = tab.editor;
   if (!tabs.has(tab.id) || !ed.host || ed.files.active !== rel) return true;

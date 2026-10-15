@@ -133,7 +133,7 @@
   }
 
   /**
-   * La riga dove portare il cursore: la più alta fra i blocchi di changeRanges
+   * La riga dove portare il cursore: la prima (il numero di riga più basso) fra i blocchi di changeRanges
    * (docs/plans/64). Un blocco di righe tolte sta dopo `after`, e in cima è la 1.
    * @param {Array|null} ranges
    * @returns {number|null} null senza blocchi

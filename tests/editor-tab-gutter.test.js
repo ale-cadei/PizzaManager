@@ -257,6 +257,18 @@ ok('apri alla riga: apre il file e porta il cursore al primo blocco cambiato', a
   assert.deepStrictEqual(plain(s.host.reveals), [['a.txt', 2]]);
 });
 
+ok('apri alla riga: un file già aperto rilegge HEAD, e il cursore va dove dice HEAD nuovo', async () => {
+  let head = 'uno\ndue\ntre\nquattro\n';
+  const s = gutterSetup({ main: { editorRead: read('uno\nDUE\ntre\nQUATTRO\n'), editorHeadText: async () => ({ ok: true, text: head }) } });
+  assert.strictEqual(await s.fn('openEditorAt')(s.tab, 'a.txt'), true);
+  assert.deepStrictEqual(plain(s.host.reveals), [['a.txt', 2]]);
+  head = 'uno\nDUE\ntre\nquattro\n'; // l'agente ha committato la riga 2
+  const before = s.sent('editorHeadText').length;
+  assert.strictEqual(await s.fn('openEditorAt')(s.tab, 'a.txt'), true);
+  assert.strictEqual(s.sent('editorHeadText').length, before + 1, 'HEAD si rilegge');
+  assert.deepStrictEqual(plain(s.host.reveals), [['a.txt', 2], ['a.txt', 4]]);
+});
+
 ok('apri alla riga: uguale a HEAD o fuori da git il cursore resta dov è', async () => {
   for (const editorHeadText of [async () => ({ ok: true, text: 'uno\n' }), async () => ({ ok: false, reason: 'not-repo' })]) {
     const s = gutterSetup({ main: { editorRead: read('uno\n'), editorHeadText } });

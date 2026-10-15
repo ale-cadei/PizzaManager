@@ -340,3 +340,16 @@ ok('modifiche: lo scarto chiede conferma, poi offre l\'Annulla (piano 56)', () =
   assert.strictEqual(link.undoLabel, null);
   assert.match(link.text, /non si può annullare/);
 });
+
+ok('modifiche: si apre nell editor un file che c è ed è testo', () => {
+  const f = (extra) => ({ path: 'a.js', status: 'M', binary: false, ...extra });
+  assert.strictEqual(M.openableInEditor(f()), true);
+  assert.strictEqual(M.openableInEditor(f({ status: '?' })), true, 'nuovo, non tracciato');
+  assert.strictEqual(M.openableInEditor(f({ status: 'A' })), true);
+  assert.strictEqual(M.openableInEditor(f({ status: 'R', oldPath: 'b.js' })), true);
+  assert.strictEqual(M.openableInEditor(f({ status: 'D' })), false, 'cancellato');
+  assert.strictEqual(M.openableInEditor(f({ binary: true })), false, 'binario');
+  assert.strictEqual(M.openableInEditor(f({ special: true })), false, 'non è un file');
+  assert.strictEqual(M.openableInEditor(f({ path: '' })), false);
+  assert.strictEqual(M.openableInEditor(null), false);
+});

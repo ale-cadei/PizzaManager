@@ -147,3 +147,9 @@ ok('da committare: sezione o percorso non validi si rifiutano senza chiamare git
     assert.strictEqual(calls.length, 0, `${side} ${path}`);
   }
 });
+
+ok('da committare: dice la radice del repository anche aperto da una sottocartella (piano 64)', async () => {
+  const r = await readStaging({ cwd: `${ROOT}/lib`, run: fakeGit(), fsp: noDisk });
+  assert.strictEqual(r.ok, true, r.error);
+  assert.strictEqual(r.root, ROOT);
+});

@@ -139,10 +139,19 @@
 
     /* Barrette delle righe cambiate (docs/plans/63): decorazioni del model
        nel margine delle righe; `d.gutter` tiene gli id per sostituirle. */
-    function gutterDecoration(r) {
+    /* Il margine di Monaco ha `contain: strict`: un triangolino a cavallo del
+       bordo sopra la prima riga o sotto l'ultima verrebbe tagliato a metà, lì
+       si disegna dentro la riga (-top, -end). */
+    function delClass(after, lineCount) {
+      if (after === 0) return 'editor-gutter-del editor-gutter-del-top';
+      if (after >= lineCount) return 'editor-gutter-del editor-gutter-del-end';
+      return 'editor-gutter-del';
+    }
+
+    function gutterDecoration(r, lineCount) {
       if (r.kind === 'del') {
         const line = Math.max(r.after, 1);
-        const cls = r.after === 0 ? 'editor-gutter-del editor-gutter-del-top' : 'editor-gutter-del';
+        const cls = delClass(r.after, lineCount);
         return {
           range: { startLineNumber: line, startColumn: 1, endLineNumber: line, endColumn: 1 },
           options: { isWholeLine: true, linesDecorationsClassName: cls },
@@ -158,7 +167,8 @@
     function setGutter(rel, ranges) {
       const d = docs.get(rel);
       if (!d) return;
-      d.gutter = d.model.deltaDecorations(d.gutter, (ranges || []).map(gutterDecoration));
+      const lineCount = d.model.getLineCount();
+      d.gutter = d.model.deltaDecorations(d.gutter, (ranges || []).map((r) => gutterDecoration(r, lineCount)));
     }
 
     /** Porta il cursore all'inizio della riga e la mette al centro (piano 64). */

@@ -26,6 +26,7 @@ function fakeMonaco() {
     const m = {
       uri, disposed: false, eol: null, decorations: [], removed: [],
       getValue: () => value,
+      getLineCount: () => value.split(/\r\n|\r|\n/).length,
       getAlternativeVersionId: () => version,
       getFullModelRange: () => ({ all: true }),
       pushEditOperations: (_sel, ops) => { value = ops[0].text; change(); },
@@ -139,17 +140,19 @@ ok('setGutter: barrette come decorazioni del margine, sostituite a ogni chiamata
   const { h, fake } = host();
   h.open('a.js', '1\n2\n3');
   const m = fake.models[0];
-  h.setGutter('a.js', [{ kind: 'add', from: 1, to: 2 }, { kind: 'mod', from: 3, to: 3 }, { kind: 'del', after: 0 }, { kind: 'del', after: 2 }]);
+  h.setGutter('a.js', [{ kind: 'add', from: 1, to: 2 }, { kind: 'mod', from: 3, to: 3 }, { kind: 'del', after: 0 }, { kind: 'del', after: 2 }, { kind: 'del', after: 3 }]);
   assert.deepStrictEqual(m.decorations, [
     { range: { startLineNumber: 1, startColumn: 1, endLineNumber: 2, endColumn: 1 }, options: { isWholeLine: true, linesDecorationsClassName: 'editor-gutter-add' } },
     { range: { startLineNumber: 3, startColumn: 1, endLineNumber: 3, endColumn: 1 }, options: { isWholeLine: true, linesDecorationsClassName: 'editor-gutter-mod' } },
     { range: { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1 }, options: { isWholeLine: true, linesDecorationsClassName: 'editor-gutter-del editor-gutter-del-top' } },
     { range: { startLineNumber: 2, startColumn: 1, endLineNumber: 2, endColumn: 1 }, options: { isWholeLine: true, linesDecorationsClassName: 'editor-gutter-del' } },
+    // dopo l'ultima riga: dentro la riga, come in cima
+    { range: { startLineNumber: 3, startColumn: 1, endLineNumber: 3, endColumn: 1 }, options: { isWholeLine: true, linesDecorationsClassName: 'editor-gutter-del editor-gutter-del-end' } },
   ]);
   h.setGutter('a.js', null);
   assert.deepStrictEqual(m.decorations, []);
   // la seconda chiamata toglie gli id dati dalla prima
-  assert.deepStrictEqual(m.removed, [[], ['/a.js#1.0', '/a.js#1.1', '/a.js#1.2', '/a.js#1.3']]);
+  assert.deepStrictEqual(m.removed, [[], ['/a.js#1.0', '/a.js#1.1', '/a.js#1.2', '/a.js#1.3', '/a.js#1.4']]);
   h.setGutter('nessuno.js', [{ kind: 'add', from: 1, to: 1 }]); // file non aperto: niente
 });
 

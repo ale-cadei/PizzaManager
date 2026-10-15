@@ -142,3 +142,17 @@ Casi:
 - File nuovo non tracciato: tutto verde. Cartella fuori da git: niente.
   File ignorato (`.env`): niente. File in un sottomodulo o in un worktree
   dentro `.worktrees/`: le barrette del suo repository.
+
+## Punti aperti (dalla review finale)
+
+- File che è un symlink: confrontato col HEAD del file di destinazione
+  (se sta nella cartella), non c'è un test.
+- File vuoto non tracciato: una barretta verde sulla sua unica riga vuota.
+- Tornare sulla scheda rilegge HEAD di ogni file aperto (un processo git
+  ciascuno, fino a 5 MB via IPC). Accettabile con pochi file aperti.
+- Testo di HEAD oltre il tetto di righe con testo nell'editor sotto il
+  tetto: si divide in righe a ogni pausa prima di rinunciare. Raro.
+- Un file non in HEAD costa un secondo processo git (`check-ignore`).
+- Per il 64: `host.reveal` non attiva il file, va attivato prima passando
+  da `editor-tab`; `openEditorFile` non restituisce una promessa «barrette
+  pronte», il 64 aspetta `loadEditorGutterBase`.

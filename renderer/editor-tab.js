@@ -11,6 +11,9 @@ const EditorFiles = window.AisessEditorFiles;
 const EditorTree = window.AisessEditorTree;
 const EditorMonaco = window.AisessEditorMonaco;
 const EditorPanel = window.AisessEditorPanel;
+const EditorGutter = window.AisessEditorGutter;
+// Le barrette si ricalcolano quando si smette di scrivere (docs/plans/63)
+const EDITOR_GUTTER_DELAY = 300;
 // Larghezza e aperto/chiuso dell'albero, uguali per tutte le schede editor
 // e ricordati al riavvio (docs/plans/62): applicati subito alla pagina
 const editorPanel = EditorPanel.createPanel({ doc: document, storage: localStorage });
@@ -262,6 +265,8 @@ async function renameEditorEntry(tab, row) {
   for (const rel of moved) {
     const to = EditorFiles.movedPath(rel, row.rel, r.rel);
     if (ed.host) ed.host.rename(rel, to);
+    ed.files = EditorFiles.update(ed.files, to, { gutterBase: null, changes: null });
+    loadEditorGutterBase(tab, to);
     await watchEditorFile(tab, to);
   }
   ed.tree = EditorTree.renamePath(ed.tree, row.rel, r.rel);
@@ -302,7 +307,7 @@ function ensureEditorHost(tab) {
       if (!tabs.has(tab.id)) return null;
       ed.host = EditorMonaco.createEditorHost({
         monaco, container: ed.ui.host, fontSize: termFont.get(),
-        onChange: (rel, dirty) => { const f = ed.files.files[rel]; if (f && f.dirty !== dirty) setEditorFile(tab, rel, { dirty }); },
+        onChange: (rel, dirty) => onEditorTextChange(tab, rel, dirty),
         onSave: (rel) => saveEditorFile(tab, rel),
         onSaveAll: () => saveAllEditorFiles(tab),
       });
@@ -310,6 +315,65 @@ function ensureEditorHost(tab) {
     }).finally(() => { ed.hostPending = null; });
   }
   return ed.hostPending;
+}
+
+/* Il testo di un file è cambiato (scrittura, undo, ricarica, salvataggio) */
+function onEditorTextChange(tab, rel, dirty) {
+  const f = tab.editor.files.files[rel];
+  if (!f) return;
+  if (f.dirty !== dirty) setEditorFile(tab, rel, { dirty });
+  scheduleEditorGutter(tab, rel);
+}
+
+/* ---------- barrette delle righe cambiate (docs/plans/63) ---------- */
+
+/* Confronta il testo nell'editor con quello di HEAD e ridisegna le barrette.
+   Senza base (fuori da git, errore, file troppo grande) niente barrette. */
+function updateEditorGutter(tab, rel) {
+  const ed = tab.editor;
+  const f = ed.files.files[rel];
+  if (!f || !ed.host) return;
+  const changes = f.gutterBase ? EditorGutter.changeRanges(f.gutterBase.text, ed.host.getText(rel)) : null;
+  ed.files = EditorFiles.update(ed.files, rel, { changes });
+  ed.host.setGutter(rel, changes);
+}
+
+/* Si ricalcola EDITOR_GUTTER_DELAY ms dopo l'ultima modifica. Un timer per
+   scheda: se ne aspetta uno di un altro file, quello si fa subito. */
+function scheduleEditorGutter(tab, rel) {
+  const ed = tab.editor;
+  const pending = ed.gutterTimer;
+  if (pending) {
+    clearTimeout(pending.id);
+    if (pending.rel !== rel) updateEditorGutter(tab, pending.rel);
+  }
+  const id = setTimeout(() => {
+    ed.gutterTimer = null;
+    updateEditorGutter(tab, rel);
+  }, EDITOR_GUTTER_DELAY);
+  ed.gutterTimer = { rel, id };
+}
+
+const sameGutterBase = (a, b) => Boolean(a && b && a.text === b.text);
+
+/* Rilegge il testo di HEAD (all'apertura, al salvataggio, tornando in primo
+   piano) e, se è cambiato, ricalcola subito. text null = file non in HEAD. */
+async function loadEditorGutterBase(tab, rel) {
+  const r = await callEditor(() => window.aisess.editorHeadText(tab.cwd, rel));
+  const ed = tab.editor;
+  const f = ed.files.files[rel];
+  if (!f || !tabs.has(tab.id)) return;
+  if (!r.ok && r.error) console.warn('editor-head-text fallito:', r.error);
+  const base = r.ok && (typeof r.text === 'string' || r.text === null) ? { text: r.text } : null;
+  if (sameGutterBase(f.gutterBase, base)) return;
+  ed.files = EditorFiles.update(ed.files, rel, { gutterBase: base });
+  updateEditorGutter(tab, rel);
+}
+
+/** Le righe cambiate di un file aperto rispetto a HEAD; null se non si sa (piano 64). */
+function editorFileChanges(tab, rel) {
+  const f = tab && tab.editor && tab.editor.files.files[rel];
+  return f ? f.changes : null;
 }
 
 /* Una rinomina, un salvataggio o una ricarica possono finire dopo
@@ -357,6 +421,7 @@ async function openEditorFile(tab, rel, { quiet = false } = {}) {
   ed.files = EditorFiles.open(ed.files, rel, { path: r.path, mtime: r.mtime, bom: r.bom });
   hideEditorMessage(tab);
   renderEditorSubtabs(tab);
+  loadEditorGutterBase(tab, rel); // senza aspettare: le barrette arrivano dopo il testo
   await watchEditorFile(tab, rel);
   if (!quiet) saveEditorSessions();
   return true;
@@ -420,6 +485,7 @@ async function saveEditorFile(tab, rel) {
       // Se si è scritto ancora durante il salvataggio, resta sporco
       if (ed.host.getText(rel) === text) ed.host.markSaved(rel);
       if (f.deleted) { unwatchEditorFile(tab, rel); await watchEditorFile(tab, rel); } // ricreato: il watch si riarma
+      loadEditorGutterBase(tab, rel); // un hook di git o un commit fatto altrove
       done = true;
     } else if (r.conflict) {
       ed.files = EditorFiles.update(ed.files, rel, { conflict: 'save', diskMtime: r.mtime });
@@ -488,6 +554,7 @@ async function reloadEditorFile(tab, rel) {
   ed.files = EditorFiles.update(ed.files, rel, {
     path: r.path, mtime: r.mtime, bom: r.bom, dirty: false, deleted: false, conflict: null, diskMtime: null, error: null,
   });
+  updateEditorGutter(tab, rel);
   if (f.deleted) { unwatchEditorFile(tab, rel); await watchEditorFile(tab, rel); }
   renderEditorSubtabs(tab);
 }
@@ -512,6 +579,8 @@ async function refreshEditorTab(tab) {
     if (r.ok) handleEditorFileChange(tab, rel, { path: f.path, exists: r.exists, mtime: r.mtime });
     else console.warn('editor-stat fallito:', r.error);
   }
+  // Un commit fatto da un terminale cambia HEAD: le barrette si rifanno
+  await Promise.all(ed.files.order.map((rel) => loadEditorGutterBase(tab, rel)));
   await reloadEditorTree(tab);
 }
 
@@ -535,6 +604,7 @@ function disposeEditorTab(tab) {
   const ed = tab.editor;
   if (!ed) return;
   for (const rel of ed.files.order) unwatchEditorFile(tab, rel);
+  if (ed.gutterTimer) { clearTimeout(ed.gutterTimer.id); ed.gutterTimer = null; }
   try { if (ed.host) ed.host.dispose(); } catch (e) { console.warn('chiusura di Monaco fallita', e); }
 }
 
@@ -549,7 +619,7 @@ async function createEditorTab({ name, cwd, startedAt = Date.now(), files = [], 
     session: null, reattached: false, alive: true, needsAttention: false, running: false, term: null, fit: null, ro: null, wrap, editor: null };
   tab.editor = {
     ui: buildEditorLayout(tab), files: EditorFiles.empty(), tree: EditorTree.emptyTree(),
-    host: null, hostPending: null, saving: new Set(), pendingChanges: new Map(), copying: false,
+    host: null, hostPending: null, saving: new Set(), pendingChanges: new Map(), copying: false, gutterTimer: null,
   };
   tabs.set(id, tab);
   updateEmpty();

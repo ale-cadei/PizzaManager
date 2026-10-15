@@ -12,6 +12,9 @@ function fakeMonaco() {
     saveViewState: () => ({ of: editor.model && editor.model.uri.path }),
     restoreViewState(v) { editor.view = v; },
     focus() {}, updateOptions() {},
+    position: null, revealed: [],
+    setPosition(p) { editor.position = p; },
+    revealLineInCenter(line) { editor.revealed.push(line); },
     addCommand(keys, fn) { editor.commands.push({ keys, fn }); },
     dispose() { editor.disposed = true; },
   };
@@ -21,12 +24,17 @@ function fakeMonaco() {
     let version = 1;
     const change = () => { version += 1; listeners.forEach((f) => f()); };
     const m = {
-      uri, disposed: false, eol: null,
+      uri, disposed: false, eol: null, decorations: [], removed: [],
       getValue: () => value,
       getAlternativeVersionId: () => version,
       getFullModelRange: () => ({ all: true }),
       pushEditOperations: (_sel, ops) => { value = ops[0].text; change(); },
       pushEOL: (eol) => { m.eol = eol; },
+      deltaDecorations: (old, decorations) => {
+        m.removed.push(old);
+        m.decorations = decorations;
+        return decorations.map((_, i) => `${uri.path}#${m.removed.length}.${i}`);
+      },
       onDidChangeContent: (f) => { listeners.push(f); return { dispose: () => listeners.splice(listeners.indexOf(f), 1) }; },
       dispose: () => { m.disposed = true; },
       type: (s) => { value += s; change(); }, // solo per il test: l'utente che scrive
@@ -125,4 +133,34 @@ ok('Ctrl+S salva il file attivo, Ctrl+Shift+S tutti; due host non si pestano gli
   const other = host();
   other.h.open('a.js', 'x');
   assert.notStrictEqual(other.fake.models[0].uri.authority, fake.models[0].uri.authority);
+});
+
+ok('setGutter: barrette come decorazioni del margine, sostituite a ogni chiamata', () => {
+  const { h, fake } = host();
+  h.open('a.js', '1\n2\n3');
+  const m = fake.models[0];
+  h.setGutter('a.js', [{ kind: 'add', from: 1, to: 2 }, { kind: 'mod', from: 3, to: 3 }, { kind: 'del', after: 0 }, { kind: 'del', after: 2 }]);
+  assert.deepStrictEqual(m.decorations, [
+    { range: { startLineNumber: 1, startColumn: 1, endLineNumber: 2, endColumn: 1 }, options: { isWholeLine: true, linesDecorationsClassName: 'editor-gutter-add' } },
+    { range: { startLineNumber: 3, startColumn: 1, endLineNumber: 3, endColumn: 1 }, options: { isWholeLine: true, linesDecorationsClassName: 'editor-gutter-mod' } },
+    { range: { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1 }, options: { isWholeLine: true, linesDecorationsClassName: 'editor-gutter-del editor-gutter-del-top' } },
+    { range: { startLineNumber: 2, startColumn: 1, endLineNumber: 2, endColumn: 1 }, options: { isWholeLine: true, linesDecorationsClassName: 'editor-gutter-del' } },
+  ]);
+  h.setGutter('a.js', null);
+  assert.deepStrictEqual(m.decorations, []);
+  // la seconda chiamata toglie gli id dati dalla prima
+  assert.deepStrictEqual(m.removed, [[], ['/a.js#1.0', '/a.js#1.1', '/a.js#1.2', '/a.js#1.3']]);
+  h.setGutter('nessuno.js', [{ kind: 'add', from: 1, to: 1 }]); // file non aperto: niente
+});
+
+ok('reveal: attiva il file, cursore a inizio riga, riga al centro', () => {
+  const { h, fake } = host();
+  h.open('a.js', '1');
+  h.open('b.js', '2');
+  h.reveal('a.js', 7);
+  assert.strictEqual(h.current(), 'a.js');
+  assert.deepStrictEqual(fake.editor.position, { lineNumber: 7, column: 1 });
+  assert.deepStrictEqual(fake.editor.revealed, [7]);
+  h.reveal('nessuno.js', 3);
+  assert.deepStrictEqual(fake.editor.revealed, [7]);
 });

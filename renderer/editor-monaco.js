@@ -65,7 +65,7 @@
   function createEditorHost({ monaco, container, fontSize, onChange, onSave, onSaveAll }) {
     // Autorità diversa per host: due schede sulla stessa cartella hanno model distinti
     const authority = `h${++hosts}`;
-    const docs = new Map(); // rel → { rel, model, savedVersion, viewState, forcedDirty, sub }
+    const docs = new Map(); // rel → { rel, model, savedVersion, viewState, forcedDirty, sub, gutter }
     let current = null;
     const editor = monaco.editor.create(container, {
       model: null, theme: THEME, automaticLayout: true, fontSize, fontFamily: FONT,
@@ -84,7 +84,7 @@
 
     function make(rel, text, extra = {}) {
       const model = monaco.editor.createModel(text, undefined, uriOf(rel));
-      track({ rel, model, savedVersion: model.getAlternativeVersionId(), viewState: null, forcedDirty: false, sub: null, ...extra });
+      track({ rel, model, savedVersion: model.getAlternativeVersionId(), viewState: null, forcedDirty: false, sub: null, gutter: [], ...extra });
     }
 
     function activate(rel) {
@@ -137,6 +137,39 @@
       d.model.dispose();
     }
 
+    /* Barrette delle righe cambiate (docs/plans/63): decorazioni del model
+       nel margine delle righe; `d.gutter` tiene gli id per sostituirle. */
+    function gutterDecoration(r) {
+      if (r.kind === 'del') {
+        const line = Math.max(r.after, 1);
+        const cls = r.after === 0 ? 'editor-gutter-del editor-gutter-del-top' : 'editor-gutter-del';
+        return {
+          range: { startLineNumber: line, startColumn: 1, endLineNumber: line, endColumn: 1 },
+          options: { isWholeLine: true, linesDecorationsClassName: cls },
+        };
+      }
+      return {
+        range: { startLineNumber: r.from, startColumn: 1, endLineNumber: r.to, endColumn: 1 },
+        options: { isWholeLine: true, linesDecorationsClassName: `editor-gutter-${r.kind}` },
+      };
+    }
+
+    /** @param {Array|null} ranges da AisessEditorGutter.changeRanges; null o [] tolgono le barrette */
+    function setGutter(rel, ranges) {
+      const d = docs.get(rel);
+      if (!d) return;
+      d.gutter = d.model.deltaDecorations(d.gutter, (ranges || []).map(gutterDecoration));
+    }
+
+    /** Porta il cursore all'inizio della riga e la mette al centro (piano 64). */
+    function reveal(rel, line) {
+      if (!docs.has(rel)) return;
+      if (current !== rel) activate(rel);
+      editor.setPosition({ lineNumber: line, column: 1 });
+      editor.revealLineInCenter(line);
+      editor.focus();
+    }
+
     function close(rel) {
       const d = docs.get(rel);
       if (!d) return;
@@ -152,7 +185,7 @@
     }
 
     return {
-      open, activate, markSaved, replaceText, rename, close, dispose,
+      open, activate, markSaved, replaceText, rename, close, dispose, setGutter, reveal,
       current: () => current,
       getText: (rel) => (docs.has(rel) ? docs.get(rel).model.getValue() : null),
       isDirty: (rel) => docs.has(rel) && dirtyOf(docs.get(rel)),

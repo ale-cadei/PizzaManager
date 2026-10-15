@@ -10,7 +10,10 @@
   if (root) root.AisessEditorFiles = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : null, function () {
-  const BLANK = { path: null, mtime: null, bom: false, dirty: false, deleted: false, conflict: null, diskMtime: null, error: null };
+  // gutterBase: {text} di HEAD (text null = non in HEAD), null = non si sa;
+  // changes: le righe cambiate (editor-gutter.js), null = niente barrette
+  const BLANK = { path: null, mtime: null, bom: false, dirty: false, deleted: false, conflict: null, diskMtime: null, error: null,
+    gutterBase: null, changes: null };
 
   const empty = () => ({ order: [], active: null, files: {} });
 

@@ -21,17 +21,20 @@ function deferred() {
 
 function fakeHost(texts) {
   const calls = [];
+  const gutters = []; // a parte: le barrette arrivano anche da sole, dopo ogni lettura di HEAD
   const dirty = new Set();
   return {
     calls,
+    gutters,
     texts,
     dirty,
+    setGutter: (rel, ranges) => gutters.push([rel, ranges]),
     isDirty: (rel) => dirty.has(rel),
     getText: (rel) => texts[rel],
     markSaved: (rel) => { calls.push(['markSaved', rel]); dirty.delete(rel); },
     replaceText: (rel, text) => { calls.push(['replaceText', rel, text]); texts[rel] = text; dirty.delete(rel); },
     activate: (rel) => calls.push(['activate', rel]),
-    open: () => {}, close: () => {}, rename: () => {}, dispose: () => {},
+    open: (rel, text) => { texts[rel] = text; }, close: () => {}, rename: () => {}, dispose: () => {},
   };
 }
 
@@ -504,4 +507,116 @@ ok('pannello: Ctrl+B apre e chiude solo con una scheda editor davanti', () => {
   page.listeners.keydown(held);
   assert.strictEqual(held.prevented, true);
   assert.strictEqual(run('editorPanel.prefs().hidden'), true, 'tenuto premuto non riapre');
+});
+
+/* ---------- barrette delle righe cambiate (docs/plans/63) ---------- */
+
+/** setup() con timer finti: `timers` quelli armati, `flush()` fa partire quelli ancora validi. */
+function gutterSetup(opts) {
+  const s = setup(opts);
+  const timers = [];
+  s.page.ctx.setTimeout = (fn, ms) => { timers.push({ fn, ms, cleared: false }); return timers.length; };
+  s.page.ctx.clearTimeout = (id) => { if (timers[id - 1]) timers[id - 1].cleared = true; };
+  const flush = () => timers.filter((t) => !t.cleared && !t.done).forEach((t) => { t.done = true; t.fn(); });
+  return { ...s, timers, flush };
+}
+
+const read = (text) => async (root, rel) => ({ ok: true, text, mtime: 100, path: `${root}/${rel}`, bom: false });
+
+ok('barrette: aprendo un file si chiede HEAD e si disegnano le righe cambiate', async () => {
+  const s = gutterSetup({ main: { editorRead: read('uno\ndue\n'), editorHeadText: async () => ({ ok: true, text: 'uno\n' }) } });
+  assert.strictEqual(await s.fn('openEditorFile')(s.tab, 'a.txt'), true);
+  await settle();
+  assert.deepStrictEqual(s.sent('editorHeadText').map((c) => c.slice(1)), [['/w', 'a.txt']]);
+  assert.deepStrictEqual(plain(s.host.gutters), [['a.txt', [{ kind: 'add', from: 2, to: 2 }]]]);
+  assert.deepStrictEqual(plain(s.fn('editorFileChanges')(s.tab, 'a.txt')), [{ kind: 'add', from: 2, to: 2 }]);
+  assert.strictEqual(s.fn('editorFileChanges')(s.tab, 'chiuso.txt'), null);
+});
+
+ok('barrette: un file che non c è in HEAD è tutto aggiunto', async () => {
+  const s = gutterSetup({ main: { editorRead: read('a\nb'), editorHeadText: async () => ({ ok: true, text: null }) } });
+  await s.fn('openEditorFile')(s.tab, 'nuovo.txt');
+  await settle();
+  assert.deepStrictEqual(plain(s.host.gutters), [['nuovo.txt', [{ kind: 'add', from: 1, to: 2 }]]]);
+});
+
+ok('barrette: fuori da git o con un errore niente barrette, e il file si apre lo stesso', async () => {
+  for (const editorHeadText of [async () => ({ ok: false, reason: 'not-repo' }), async () => { throw new Error('ipc giù'); }]) {
+    const s = gutterSetup({ main: { editorRead: read('x'), editorHeadText } });
+    assert.strictEqual(await s.fn('openEditorFile')(s.tab, 'a.txt'), true);
+    await settle();
+    assert.strictEqual(s.file('a.txt').changes, null);
+    assert.ok(s.host.gutters.every(([, ranges]) => ranges === null), JSON.stringify(s.host.gutters));
+  }
+});
+
+ok('barrette: scrivendo si ricalcola 300 ms dopo l ultima modifica, una volta', async () => {
+  const s = gutterSetup({ files: { 'a.txt': { text: 'uno', mtime: 100 } } });
+  s.tab.editor.files = s.page.ctx.AisessEditorFiles.update(s.tab.editor.files, 'a.txt', { gutterBase: { text: 'uno' } });
+  const change = s.fn('onEditorTextChange');
+  s.host.texts['a.txt'] = 'UNO';
+  change(s.tab, 'a.txt', true);
+  s.host.texts['a.txt'] = 'UNO\ndue';
+  change(s.tab, 'a.txt', true);
+  assert.deepStrictEqual(s.timers.map((t) => [t.ms, t.cleared]), [[300, true], [300, false]]);
+  assert.deepStrictEqual(s.host.gutters, [], 'niente prima del timer');
+  s.flush();
+  assert.deepStrictEqual(plain(s.host.gutters), [['a.txt', [{ kind: 'mod', from: 1, to: 1 }, { kind: 'add', from: 2, to: 2 }]]]);
+  assert.strictEqual(s.file('a.txt').dirty, true);
+});
+
+ok('barrette: un ricalcolo in attesa per un altro file si fa subito', () => {
+  const s = gutterSetup({ files: { 'a.txt': { text: 'a', mtime: 1 }, 'b.txt': { text: 'b', mtime: 1 } } });
+  const Files = s.page.ctx.AisessEditorFiles;
+  s.tab.editor.files = Files.update(Files.update(s.tab.editor.files, 'a.txt', { gutterBase: { text: 'a' } }), 'b.txt', { gutterBase: { text: 'b' } });
+  s.host.texts['a.txt'] = 'A';
+  s.fn('onEditorTextChange')(s.tab, 'a.txt', true);
+  s.fn('onEditorTextChange')(s.tab, 'b.txt', false);
+  assert.deepStrictEqual(plain(s.host.gutters), [['a.txt', [{ kind: 'mod', from: 1, to: 1 }]]]);
+  s.flush();
+  assert.deepStrictEqual(plain(s.host.gutters[1]), ['b.txt', []]);
+});
+
+ok('barrette: tornando in primo piano e dopo un salvataggio si rilegge HEAD', async () => {
+  let head = 'uno\n';
+  const s = gutterSetup({
+    files: { 'a.txt': { text: 'uno\ndue\n', mtime: 1 } },
+    main: {
+      editorHeadText: async () => ({ ok: true, text: head }),
+      editorStat: async () => ({ ok: true, exists: true, mtime: 1 }),
+      editorList: async () => ({ ok: true, entries: [] }),
+      editorWrite: async () => ({ ok: true, mtime: 2 }),
+    },
+  });
+  await s.fn('refreshEditorTab')(s.tab);
+  assert.deepStrictEqual(plain(s.host.gutters.pop()), ['a.txt', [{ kind: 'add', from: 2, to: 2 }]]);
+  head = 'uno\ndue\n'; // un commit da un terminale
+  await s.fn('refreshEditorTab')(s.tab);
+  assert.deepStrictEqual(plain(s.host.gutters.pop()), ['a.txt', []], 'dopo il commit le barrette spariscono');
+  await s.fn('refreshEditorTab')(s.tab);
+  assert.deepStrictEqual(s.host.gutters, [], 'HEAD uguale: niente da ridisegnare');
+  const before = s.sent('editorHeadText').length;
+  assert.strictEqual(await s.fn('saveEditorFile')(s.tab, 'a.txt'), true);
+  await settle();
+  assert.strictEqual(s.sent('editorHeadText').length, before + 1);
+});
+
+ok('barrette: un file ricaricato dal disco si ricalcola subito', async () => {
+  const s = gutterSetup({
+    files: { 'a.txt': { text: 'uno', mtime: 100 } },
+    main: { editorRead: read('uno\ndue') },
+  });
+  s.tab.editor.files = s.page.ctx.AisessEditorFiles.update(s.tab.editor.files, 'a.txt', { gutterBase: { text: 'uno' } });
+  s.fn('handleEditorFileChange')(s.tab, 'a.txt', { path: '/w/a.txt', exists: true, mtime: 200 });
+  await settle();
+  assert.deepStrictEqual(plain(s.host.gutters), [['a.txt', [{ kind: 'add', from: 2, to: 2 }]]]);
+  assert.deepStrictEqual(s.timers, []);
+});
+
+ok('barrette: chiudendo la scheda il ricalcolo in attesa si toglie', () => {
+  const s = gutterSetup({ files: { 'a.txt': { text: 'a', mtime: 1 } } });
+  s.fn('onEditorTextChange')(s.tab, 'a.txt', true);
+  s.fn('disposeEditorTab')(s.tab);
+  assert.strictEqual(s.timers[0].cleared, true);
+  assert.strictEqual(s.tab.editor.gutterTimer, null);
 });

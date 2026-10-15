@@ -307,7 +307,7 @@ function ensureEditorHost(tab) {
       if (!tabs.has(tab.id)) return null;
       ed.host = EditorMonaco.createEditorHost({
         monaco, container: ed.ui.host, fontSize: termFont.get(),
-        onChange: (rel, dirty) => onEditorTextChange(tab, rel, dirty),
+        onChange: (rel, dirty, edited) => onEditorTextChange(tab, rel, dirty, edited),
         onSave: (rel) => saveEditorFile(tab, rel),
         onSaveAll: () => saveAllEditorFiles(tab),
       });
@@ -317,12 +317,13 @@ function ensureEditorHost(tab) {
   return ed.hostPending;
 }
 
-/* Il testo di un file è cambiato (scrittura, undo, ricarica, salvataggio) */
-function onEditorTextChange(tab, rel, dirty) {
+/* Il testo di un file è cambiato (scrittura, undo, ricarica) o è solo
+   tornato pulito (salvataggio: `edited` false, le barrette non cambiano) */
+function onEditorTextChange(tab, rel, dirty, edited = true) {
   const f = tab.editor.files.files[rel];
   if (!f) return;
   if (f.dirty !== dirty) setEditorFile(tab, rel, { dirty });
-  scheduleEditorGutter(tab, rel);
+  if (edited) scheduleEditorGutter(tab, rel);
 }
 
 /* ---------- barrette delle righe cambiate (docs/plans/63) ---------- */
@@ -336,6 +337,13 @@ function updateEditorGutter(tab, rel) {
   const changes = f.gutterBase ? EditorGutter.changeRanges(f.gutterBase.text, ed.host.getText(rel)) : null;
   ed.files = EditorFiles.update(ed.files, rel, { changes });
   ed.host.setGutter(rel, changes);
+}
+
+/* Ricalcolo subito, e quello in attesa per lo stesso file non serve più */
+function flushEditorGutter(tab, rel) {
+  const ed = tab.editor;
+  if (ed.gutterTimer && ed.gutterTimer.rel === rel) { clearTimeout(ed.gutterTimer.id); ed.gutterTimer = null; }
+  updateEditorGutter(tab, rel);
 }
 
 /* Si ricalcola EDITOR_GUTTER_DELAY ms dopo l'ultima modifica. Un timer per
@@ -562,7 +570,7 @@ async function reloadEditorFile(tab, rel) {
   ed.files = EditorFiles.update(ed.files, rel, {
     path: r.path, mtime: r.mtime, bom: r.bom, dirty: false, deleted: false, conflict: null, diskMtime: null, error: null,
   });
-  updateEditorGutter(tab, rel);
+  flushEditorGutter(tab, rel); // replaceText ne ha messo uno in attesa: si fa adesso, una volta
   if (f.deleted) { unwatchEditorFile(tab, rel); await watchEditorFile(tab, rel); }
   renderEditorSubtabs(tab);
 }

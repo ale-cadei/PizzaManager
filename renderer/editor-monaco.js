@@ -59,7 +59,7 @@
 
   /**
    * @param {{monaco: object, container: Element, fontSize: number,
-   *   onChange: (rel: string, dirty: boolean) => void,
+   *   onChange: (rel: string, dirty: boolean, edited: boolean) => void,
    *   onSave: (rel: string|null) => void, onSaveAll: () => void}} o
    */
   function createEditorHost({ monaco, container, fontSize, onChange, onSave, onSaveAll }) {
@@ -78,7 +78,8 @@
     const dirtyOf = (d) => d.forcedDirty || d.model.getAlternativeVersionId() !== d.savedVersion;
 
     function track(d) {
-      d.sub = d.model.onDidChangeContent(() => onChange(d.rel, dirtyOf(d)));
+      // edited: il testo è cambiato; false da markSaved (cambia solo «sporco»)
+      d.sub = d.model.onDidChangeContent(() => onChange(d.rel, dirtyOf(d), true));
       docs.set(d.rel, d);
     }
 
@@ -107,7 +108,7 @@
       if (!d) return;
       d.savedVersion = d.model.getAlternativeVersionId();
       d.forcedDirty = false;
-      onChange(rel, false);
+      onChange(rel, false, false);
     }
 
     /* Ricarica dal disco: nella pila dell'undo (Ctrl+Z riporta il testo di

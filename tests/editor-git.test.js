@@ -95,10 +95,69 @@ ok('headText: binario e troppo grande non si confrontano; il BOM non arriva', as
   assert.deepStrictEqual(await createEditorGit({ root: dir, maxRead: 10 }).headText('grande.txt'), { ok: false, reason: 'too-large' });
 });
 
-ok('headText: percorsi che escono dalla radice si rifiutano senza lanciare git', async () => {
+ok('headText: un file in un repository annidato si confronta col suo HEAD, non è tutto nuovo', async (t) => {
+  if (!GIT) return t.skip('git non installato su questa macchina');
+  const outer = repo(t);
+  put(outer.dir, 'a.txt', 'a\n');
+  commit(outer.git);
+  // Un repository dentro l'altro, non tracciato da quello esterno (un worktree in .worktrees/, un clone)
+  const inner = path.join(outer.dir, 'dentro');
+  put(inner, 'f.txt', 'uno\ndue\n');
+  const git = (...args) => execFileSync(GIT, args, { cwd: inner, env: ENV });
+  git('init', '-q', '-b', 'main');
+  commit(git);
+  put(inner, 'f.txt', 'uno\ncambiato\n');
+  assert.deepStrictEqual(await createEditorGit({ root: outer.dir }).headText('dentro/f.txt'), { ok: true, text: 'uno\ndue\n' });
+});
+
+ok('headText: un file in un sottomodulo si confronta col HEAD del sottomodulo', async (t) => {
+  if (!GIT) return t.skip('git non installato su questa macchina');
+  const lib = repo(t);
+  put(lib.dir, 'f.txt', 'del sottomodulo\n');
+  commit(lib.git);
+  const main = repo(t);
+  put(main.dir, 'a.txt', 'a\n');
+  main.git('-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', lib.dir, 'sub');
+  commit(main.git);
+  assert.deepStrictEqual(await createEditorGit({ root: main.dir }).headText('sub/f.txt'), { ok: true, text: 'del sottomodulo\n' });
+});
+
+ok('headText: scheda su una cartella che non è un repository ma ne contiene uno', async (t) => {
+  if (!GIT) return t.skip('git non installato su questa macchina');
+  const root = tmp(t);
+  const proj = path.join(root, 'progetto');
+  put(proj, 'f.txt', 'uno\n');
+  const git = (...args) => execFileSync(GIT, args, { cwd: proj, env: ENV });
+  git('init', '-q', '-b', 'main');
+  commit(git);
+  put(root, 'sciolto.txt', 's\n');
+  // git non risale sopra la tmpdir: se stesse dentro un repository, «fuori» non si proverebbe
+  const run = (args, o) => runGit(args, { ...o, env: { GIT_CEILING_DIRECTORIES: path.dirname(root) } });
+  const g = createEditorGit({ root, run });
+  assert.deepStrictEqual(await g.headText('progetto/f.txt'), { ok: true, text: 'uno\n' });
+  assert.deepStrictEqual(await g.headText('sciolto.txt'), { ok: false, reason: 'not-repo' });
+});
+
+ok('headText: un file ignorato da git → ignored, non tutto nuovo', async (t) => {
+  if (!GIT) return t.skip('git non installato su questa macchina');
+  const { dir, git } = repo(t);
+  put(dir, '.gitignore', '.env\ndist/\n');
+  commit(git);
+  put(dir, '.env', 'SEGRETO=1\n');
+  put(dir, 'dist/out.js', 'x\n');
+  put(dir, 'nuovo.txt', 'n\n');
+  const g = createEditorGit({ root: dir });
+  assert.deepStrictEqual(await g.headText('.env'), { ok: false, reason: 'ignored' });
+  assert.deepStrictEqual(await g.headText('dist/out.js'), { ok: false, reason: 'ignored' });
+  assert.deepStrictEqual(await g.headText('nuovo.txt'), { ok: true, text: null }, 'non tracciato ma non ignorato');
+});
+
+ok('headText: percorsi che escono dalla radice si rifiutano senza lanciare git', async (t) => {
   const calls = [];
-  const g = createEditorGit({ root: '/w', run: async (...a) => { calls.push(a); return Buffer.from(''); } });
-  for (const rel of ['../x', 'a/../../b', '/etc/passwd', 'C:\\x', '', null]) {
+  const root = tmp(t);
+  fs.symlinkSync(os.tmpdir(), path.join(root, 'link'));
+  const g = createEditorGit({ root, run: async (...a) => { calls.push(a); return Buffer.from(''); } });
+  for (const rel of ['../x', 'a/../../b', '/etc/passwd', 'C:\\x', '', null, 'link/altro.txt']) {
     assert.deepStrictEqual(await g.headText(rel), { ok: false, reason: 'outside' }, String(rel));
   }
   assert.deepStrictEqual(calls, []);
@@ -106,11 +165,12 @@ ok('headText: percorsi che escono dalla radice si rifiutano senza lanciare git',
 
 ok('headText: argomenti di git e risposte riconosciute dallo stderr', async () => {
   const args = [];
-  const fine = createEditorGit({ root: '/w', run: async (a, o) => { args.push([a, o.cwd, o.buffer]); return Buffer.from('ciao'); } });
+  const resolve = (rel) => path.join('/w', rel);
+  const fine = createEditorGit({ root: '/w', resolve, run: async (a, o) => { args.push([a, o.cwd, o.buffer]); return Buffer.from('ciao'); } });
   assert.deepStrictEqual(await fine.headText('sub\\a.txt'), { ok: true, text: 'ciao' });
-  assert.deepStrictEqual(args, [[['cat-file', 'blob', 'HEAD:./sub/a.txt'], '/w', true]]);
+  assert.deepStrictEqual(args, [[['cat-file', 'blob', 'HEAD:./a.txt'], path.join('/w', 'sub'), true]]);
 
-  const failing = (e) => createEditorGit({ root: '/w', run: async () => { throw e; } }).headText('a.txt');
+  const failing = (e) => createEditorGit({ root: '/w', resolve, run: async () => { throw e; } }).headText('a.txt');
   const git = (stderr) => Object.assign(new Error('Command failed'), { stderr });
   assert.deepStrictEqual(await failing(git('fatal: not a git repository (or any of the parent directories): .git\n')), { ok: false, reason: 'not-repo' });
   for (const stderr of ['fatal: Not a valid object name HEAD:./a.txt\n', "fatal: invalid object name 'HEAD'.\n",
@@ -120,4 +180,22 @@ ok('headText: argomenti di git e risposte riconosciute dallo stderr', async () =
   assert.deepStrictEqual(await failing(git('fatal: qualcosa di strano\naltro\n')), { ok: false, reason: 'error', error: 'fatal: qualcosa di strano' });
   assert.deepStrictEqual(await failing(Object.assign(new Error('git non trovato nel PATH'), { missing: true })), { ok: false, reason: 'no-git' });
   assert.deepStrictEqual(await failing(Object.assign(new RangeError('stdout maxBuffer length exceeded'), { code: 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER' })), { ok: false, reason: 'too-large' });
+});
+
+ok('headText: non in HEAD → si chiede a check-ignore, nella cartella del file', async () => {
+  const calls = [];
+  const notInHead = Object.assign(new Error('Command failed'), { stderr: 'fatal: Not a valid object name HEAD:./x\n' });
+  const g = (ignoredExit) => createEditorGit({
+    root: '/w',
+    resolve: (rel) => path.join('/w', rel),
+    run: async (a, o) => {
+      calls.push([a, o.cwd]);
+      if (a[0] === 'cat-file') throw notInHead;
+      if (!ignoredExit) throw Object.assign(new Error('exit 1'), { code: 1 });
+      return '';
+    },
+  });
+  assert.deepStrictEqual(await g(true).headText('d/-x'), { ok: false, reason: 'ignored' });
+  assert.deepStrictEqual(calls[1], [['check-ignore', '-q', '--', '-x'], path.join('/w', 'd')]);
+  assert.deepStrictEqual(await g(false).headText('d/x'), { ok: true, text: null });
 });

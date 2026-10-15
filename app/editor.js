@@ -73,7 +73,10 @@ function registerEditorHandlers(ipcMain, {
   })));
   ipcMain.handle('editor-stat', guard(({ root, rel }) => files(root).stat(rel)));
   // Testo dell'ultimo commit, per le barrette delle righe cambiate (docs/plans/63)
-  ipcMain.handle('editor-head-text', guard(({ root, rel }) => createEditorGit({ root: files(root).realRoot }).headText(rel)));
+  ipcMain.handle('editor-head-text', guard(({ root, rel }) => {
+    const f = files(root);
+    return createEditorGit({ root: f.realRoot, resolve: f.resolveInside }).headText(rel);
+  }));
   ipcMain.handle('editor-create', guard(({ root, rel }) => files(root).create(rel)));
   ipcMain.handle('editor-mkdir', guard(({ root, rel }) => files(root).mkdir(rel)));
   ipcMain.handle('editor-rename', guard(({ root, rel, name }) => files(root).rename(rel, name)));

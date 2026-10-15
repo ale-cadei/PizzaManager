@@ -27,6 +27,12 @@ Casi:
 
 - File non tracciato, o aggiunto all'indice ma mai committato: tutte le
   righe aggiunte.
+- File ignorato da git (`.env`, `dist/…`): nessuna barretta (non è «tutto
+  nuovo», git semplicemente non lo segue).
+- File dentro un sottomodulo, un repository annidato o un worktree dentro
+  il repository: si confronta col HEAD del repository più interno, come fa
+  git dal terminale. Una scheda aperta su una cartella che contiene più
+  repository mostra le barrette dei file dentro ciascuno.
 - Cartella fuori da un repository git, repository senza commit, file
   binario o troppo grande per git: nessuna barretta, nessun errore.
 - File identico a HEAD: nessuna barretta.
@@ -49,12 +55,16 @@ Casi:
   (lo stesso limite di `lib/editor-fs.js`).
   - `rel` passa da `safeRel` (`lib/editor-paths.js`) come le altre
     operazioni dell'editor: niente percorsi fuori dalla radice.
-  - `git -C root show HEAD:./<rel>` con `run` (`lib/git-run.js`, `execFile`
-    senza shell, `buffer: true`): `./` rende il percorso relativo alla
-    cartella della scheda anche se il repository parte più in alto. Su
-    Windows i separatori diventano `/`.
+  - Il percorso si risolve con `resolveInside` di `lib/editor-fs.js`
+    (confinato nella radice); `git cat-file blob HEAD:./<nome>` parte con
+    `cwd` = cartella del file, così git sceglie il repository più interno
+    (sottomodulo, repository annidato) anche se la scheda è più in alto o
+    fuori da ogni repository. `run` = `lib/git-run.js` (`execFile` senza
+    shell, `buffer: true`).
   - Riconosce «non è un repository» e «il percorso non esiste in HEAD»
-    dallo stderr di git (`LC_ALL=C`).
+    dallo stderr di git (`LC_ALL=C`). Se il file non c'è in HEAD si chiede
+    `git check-ignore -q -- <nome>`: ignorato → `{ ok: false, reason:
+    'ignored' }`, niente barrette.
 - **`app/editor.js`**: handler `editor-head-text` col `guard` degli altri.
   **`preload.js`**: `editorHeadText(root, rel)`.
 
@@ -101,7 +111,10 @@ Casi:
   se git manca): file tracciato, modificato su disco (HEAD resta quello
   vecchio), non tracciato → `null`, cartella della scheda dentro una
   sottocartella del repo, repository senza commit, fuori da un repository,
-  file binario, `rel` che esce dalla radice rifiutato.
+  file binario, `rel` che esce dalla radice rifiutato; file in un
+  repository annidato e in un sottomodulo (confrontato col loro HEAD, non
+  tutto verde), scheda su una cartella non-repository che ne contiene uno,
+  file ignorato → `ignored`.
 - `tests/editor-tab.test.js`: aprire un file chiede `editorHeadText` e
   passa gli intervalli all'host; una modifica ricalcola dopo l'attesa; un
   errore di `editorHeadText` non mostra niente e non rompe l'apertura.
@@ -114,3 +127,5 @@ Casi:
 - Scrivere: le barrette seguono. Annullare fino al testo di HEAD: spariscono.
 - Fare un commit da un terminale e tornare sulla scheda: le barrette spariscono.
 - File nuovo non tracciato: tutto verde. Cartella fuori da git: niente.
+  File ignorato (`.env`): niente. File in un sottomodulo o in un worktree
+  dentro `.worktrees/`: le barrette del suo repository.

@@ -620,3 +620,39 @@ ok('barrette: chiudendo la scheda il ricalcolo in attesa si toglie', () => {
   assert.strictEqual(s.timers[0].cleared, true);
   assert.strictEqual(s.tab.editor.gutterTimer, null);
 });
+
+ok('barrette: chiudendo il file il suo ricalcolo in attesa si toglie, non quello di un altro', () => {
+  const s = gutterSetup({ files: { 'a.txt': { text: 'a', mtime: 1 }, 'b.txt': { text: 'b', mtime: 1 } } });
+  s.fn('onEditorTextChange')(s.tab, 'a.txt', true);
+  s.fn('dropEditorFile')(s.tab, 'a.txt');
+  assert.strictEqual(s.timers[0].cleared, true);
+  assert.strictEqual(s.tab.editor.gutterTimer, null);
+
+  // il timer di un file diverso da quello chiuso resta armato
+  s.fn('onEditorTextChange')(s.tab, 'b.txt', true);
+  s.fn('dropEditorFile')(s.tab, 'a.txt'); // già chiuso: niente da fare
+  assert.strictEqual(s.timers[1].cleared, false);
+  assert.deepStrictEqual(plain(s.tab.editor.gutterTimer), { rel: 'b.txt', id: s.tab.editor.gutterTimer.id });
+});
+
+ok('barrette: due letture di HEAD per lo stesso file possono risolvere in ordine invertito: vince la più recente', async () => {
+  const resolvers = [];
+  const s = gutterSetup({
+    files: { 'a.txt': { text: 'uno\ndue\n', mtime: 1 } },
+    main: { editorHeadText: () => new Promise((resolve) => resolvers.push(resolve)) },
+  });
+  const stale = s.fn('loadEditorGutterBase')(s.tab, 'a.txt'); // partita per prima, risponde dopo
+  const fresh = s.fn('loadEditorGutterBase')(s.tab, 'a.txt'); // partita dopo, risponde prima
+  assert.strictEqual(resolvers.length, 2);
+  resolvers[1]({ ok: true, text: 'uno\n' }); // la lettura più recente arriva per prima
+  await fresh;
+  await settle();
+  assert.strictEqual(s.file('a.txt').gutterBase.text, 'uno\n');
+  assert.deepStrictEqual(plain(s.host.gutters.pop()), ['a.txt', [{ kind: 'add', from: 2, to: 2 }]]);
+
+  resolvers[0]({ ok: true, text: 'altro\n' }); // la lettura superata arriva dopo: si scarta
+  await stale;
+  await settle();
+  assert.strictEqual(s.file('a.txt').gutterBase.text, 'uno\n', 'la risposta vecchia non sovrascrive');
+  assert.deepStrictEqual(s.host.gutters, [], 'niente ridisegnato per la risposta scartata');
+});

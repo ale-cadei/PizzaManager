@@ -30,20 +30,20 @@
   }
 
   /**
-   * @param {{repoRoot: string, path: string, tabs?: Array<{id: string, type: string, cwd: string}>,
+   * @param {{repoRoot: string, file: string, tabs?: Array<{id: string, type: string, cwd: string}>,
    *   platform?: string}} o
    * @returns {{tabId: string, rel: string}|{cwd: string, rel: string}|null}
    */
-  function editorTarget({ repoRoot, path, tabs = [], platform = pagePlatform() } = {}) {
+  function editorTarget({ repoRoot, file, tabs = [], platform = pagePlatform() } = {}) {
     const rootParts = pieces(repoRoot);
-    const relParts = pieces(path);
+    const relParts = pieces(file);
     if (!rootParts || !relParts || !relParts.length) return null;
-    const file = [...rootParts, ...relParts];
+    const full = [...rootParts, ...relParts];
     const same = samePiece(platform === 'win32');
     for (const tab of Array.isArray(tabs) ? tabs : []) {
       if (!tab || tab.type !== 'editor') continue;
       const dir = pieces(tab.cwd);
-      const rest = dir && under(dir, file, same);
+      const rest = dir && under(dir, full, same);
       if (rest) return { tabId: tab.id, rel: rest.join('/') };
     }
     return { cwd: repoRoot, rel: relParts.join('/') };

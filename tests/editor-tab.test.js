@@ -613,6 +613,27 @@ ok('barrette: un file ricaricato dal disco si ricalcola subito', async () => {
   assert.deepStrictEqual(s.timers, []);
 });
 
+ok('barrette: ricaricare e salvare non ricalcolano due volte', async () => {
+  const s = gutterSetup({
+    files: { 'a.txt': { text: 'uno', mtime: 100 } },
+    main: { editorRead: read('uno\ndue'), editorWrite: async () => ({ ok: true, mtime: 300 }), editorHeadText: async () => ({ ok: true, text: 'uno' }) },
+  });
+  s.tab.editor.files = s.page.ctx.AisessEditorFiles.update(s.tab.editor.files, 'a.txt', { gutterBase: { text: 'uno' } });
+  // Come Monaco: replaceText cambia il testo e poi lo segna salvato, markSaved dice solo «pulito»
+  const change = s.fn('onEditorTextChange');
+  const { replaceText, markSaved } = s.host;
+  s.host.replaceText = (rel, text) => { replaceText(rel, text); change(s.tab, rel, false, true); s.host.markSaved(rel); };
+  s.host.markSaved = (rel) => { markSaved(rel); change(s.tab, rel, false, false); };
+  s.fn('handleEditorFileChange')(s.tab, 'a.txt', { path: '/w/a.txt', exists: true, mtime: 200 });
+  await settle();
+  assert.deepStrictEqual(plain(s.host.gutters), [['a.txt', [{ kind: 'add', from: 2, to: 2 }]]]);
+  assert.ok(s.timers.every((t) => t.cleared), 'nessun ricalcolo in attesa dopo la ricarica');
+  assert.strictEqual(await s.fn('saveEditorFile')(s.tab, 'a.txt'), true);
+  await settle();
+  assert.ok(s.timers.every((t) => t.cleared), 'salvare non arma un ricalcolo: il testo è lo stesso');
+  assert.strictEqual(s.host.gutters.length, 1, 'HEAD uguale dopo il salvataggio: niente da ridisegnare');
+});
+
 ok('barrette: chiudendo la scheda il ricalcolo in attesa si toglie', () => {
   const s = gutterSetup({ files: { 'a.txt': { text: 'a', mtime: 1 } } });
   s.fn('onEditorTextChange')(s.tab, 'a.txt', true);

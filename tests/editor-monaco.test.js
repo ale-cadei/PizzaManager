@@ -73,13 +73,15 @@ ok('open: un model per file, URI col percorso relativo, pulito', () => {
 });
 
 ok('scrivere sporca, markSaved pulisce, e lo dice a onChange', () => {
-  const { h, fake, changes } = host();
+  const changes = [];
+  const { h, fake } = host({ onChange: (...args) => changes.push(args) });
   h.open('a.js', 'x');
   fake.models[0].type('y');
   assert.strictEqual(h.isDirty('a.js'), true);
   h.markSaved('a.js');
   assert.strictEqual(h.isDirty('a.js'), false);
-  assert.deepStrictEqual(changes, [['a.js', true], ['a.js', false]]);
+  // terzo argomento: il testo è cambiato (scrivendo sì, salvando no)
+  assert.deepStrictEqual(changes, [['a.js', true, true], ['a.js', false, false]]);
 });
 
 ok('activate: conserva e rimette cursore e scroll', () => {

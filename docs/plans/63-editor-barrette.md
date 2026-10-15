@@ -86,6 +86,9 @@ Casi:
     il resto `add` o `del`. `oldText === null` → tutto `add`. Fine riga
     `\r\n` e `\n` sono uguali.
   - oltre `MAX_GUTTER_LINES` righe (in uno dei due testi) → `null`.
+    `editor-tab.js` chiede prima il numero di righe del model
+    (`host.lineCount`): un file oltre il tetto non si copia né si spezza
+    a ogni pausa nella scrittura.
 - **`renderer/editor-monaco.js`**: l'host ha
   - `setGutter(rel, ranges)`: decorazioni del modello con
     `linesDecorationsClassName` (`editor-gutter-add`, `-mod`, `-del`);

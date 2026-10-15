@@ -199,6 +199,8 @@
       open, activate, markSaved, replaceText, rename, close, dispose, setGutter, reveal,
       current: () => current,
       getText: (rel) => (docs.has(rel) ? docs.get(rel).model.getValue() : null),
+      // Senza copiare il testo: le barrette saltano i file troppo lunghi (docs/plans/63)
+      lineCount: (rel) => (docs.has(rel) ? docs.get(rel).model.getLineCount() : 0),
       isDirty: (rel) => docs.has(rel) && dirtyOf(docs.get(rel)),
       focus: () => editor.focus(),
     };

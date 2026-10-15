@@ -30,7 +30,9 @@ function fakeHost(texts) {
     dirty,
     setGutter: (rel, ranges) => gutters.push([rel, ranges]),
     isDirty: (rel) => dirty.has(rel),
-    getText: (rel) => texts[rel],
+    reads: [], // a parte come gutters: le letture del testo per le barrette
+    getText(rel) { this.reads.push(rel); return texts[rel]; },
+    lineCount: (rel) => (rel in texts ? texts[rel].split(/\r\n|\r|\n/).length : 0),
     markSaved: (rel) => { calls.push(['markSaved', rel]); dirty.delete(rel); },
     replaceText: (rel, text) => { calls.push(['replaceText', rel, text]); texts[rel] = text; dirty.delete(rel); },
     activate: (rel) => calls.push(['activate', rel]),
@@ -632,6 +634,18 @@ ok('barrette: ricaricare e salvare non ricalcolano due volte', async () => {
   await settle();
   assert.ok(s.timers.every((t) => t.cleared), 'salvare non arma un ricalcolo: il testo è lo stesso');
   assert.strictEqual(s.host.gutters.length, 1, 'HEAD uguale dopo il salvataggio: niente da ridisegnare');
+});
+
+ok('barrette: un file oltre il tetto di righe non si legge né si confronta', () => {
+  const s = gutterSetup({ files: { 'a.txt': { text: 'x', mtime: 1 } } });
+  const max = s.page.ctx.AisessEditorGutter.MAX_GUTTER_LINES;
+  s.tab.editor.files = s.page.ctx.AisessEditorFiles.update(s.tab.editor.files, 'a.txt', { gutterBase: { text: 'x' } });
+  s.host.texts['a.txt'] = 'y\n'.repeat(max);
+  s.host.reads.length = 0;
+  s.fn('updateEditorGutter')(s.tab, 'a.txt');
+  assert.deepStrictEqual(s.host.reads, [], 'il testo non si copia');
+  assert.deepStrictEqual(s.host.gutters, [['a.txt', null]]);
+  assert.strictEqual(s.file('a.txt').changes, null);
 });
 
 ok('barrette: chiudendo la scheda il ricalcolo in attesa si toglie', () => {

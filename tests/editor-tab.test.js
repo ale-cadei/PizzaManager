@@ -73,7 +73,7 @@ function setup({ files = {}, main = {} } = {}) {
     editor: {
       ui: { tree: stub(), treeHost: stub(), subtabs: stub(), bar: stub(), message: stub(), host: stub() },
       files: state, tree: page.ctx.AisessEditorTree.emptyTree(),
-      host, hostPending: null, saving: new Set(), pendingChanges: new Map(),
+      host, hostPending: null, saving: new Set(), pendingChanges: new Map(), gutterTimer: null, gutterSeq: new Map(), gutterSeqLast: 0,
     },
   };
   run('tabs').set(tab.id, tab);
@@ -668,6 +668,63 @@ ok('barrette: chiudendo il file il suo ricalcolo in attesa si toglie, non quello
   s.fn('dropEditorFile')(s.tab, 'a.txt'); // già chiuso: niente da fare
   assert.strictEqual(s.timers[1].cleared, false);
   assert.deepStrictEqual(plain(s.tab.editor.gutterTimer), { rel: 'b.txt', id: s.tab.editor.gutterTimer.id });
+});
+
+ok('barrette: chiudendo un file il suo contatore si toglie; una lettura di prima non vale per il file riaperto', async () => {
+  const resolvers = [];
+  const s = gutterSetup({
+    files: { 'a.txt': { text: 'uno\ndue\n', mtime: 1 } },
+    main: { editorHeadText: () => new Promise((resolve) => resolvers.push(resolve)) },
+  });
+  const Files = s.page.ctx.AisessEditorFiles;
+  const before = s.fn('loadEditorGutterBase')(s.tab, 'a.txt');
+  s.fn('dropEditorFile')(s.tab, 'a.txt');
+  assert.strictEqual(s.tab.editor.gutterSeq.has('a.txt'), false);
+  // riaperto: stato nuovo, nuova lettura
+  s.tab.editor.files = Files.open(s.tab.editor.files, 'a.txt', { path: '/w/a.txt', mtime: 1, bom: false });
+  const after = s.fn('loadEditorGutterBase')(s.tab, 'a.txt');
+  resolvers[0]({ ok: true, text: 'vecchio\n' }); // la lettura di prima della chiusura
+  await before;
+  assert.strictEqual(s.file('a.txt').gutterBase, null, 'la risposta di prima della chiusura si scarta');
+  resolvers[1]({ ok: true, text: 'uno\n' });
+  await after;
+  assert.strictEqual(s.file('a.txt').gutterBase.text, 'uno\n');
+});
+
+ok('barrette: una lettura di HEAD fallita si scrive in console una volta per cartella e motivo', async () => {
+  const s = gutterSetup({
+    files: { 'a.txt': { text: 'a', mtime: 1 }, 'b.txt': { text: 'b', mtime: 1 } },
+    main: { editorHeadText: async () => ({ ok: false, reason: 'error', error: 'fatal: detected dubious ownership' }) },
+  });
+  const warned = [];
+  s.page.ctx.console = { ...console, warn: (...args) => warned.push(args) };
+  for (const rel of ['a.txt', 'b.txt', 'a.txt']) await s.fn('loadEditorGutterBase')(s.tab, rel);
+  assert.strictEqual(warned.length, 1, JSON.stringify(warned));
+  s.tab.cwd = '/altra';
+  await s.fn('loadEditorGutterBase')(s.tab, 'a.txt');
+  assert.strictEqual(warned.length, 2, 'un altra cartella si scrive di nuovo');
+});
+
+ok('barrette: rinominando un file aperto si rilegge HEAD col percorso nuovo', async () => {
+  const s = gutterSetup({
+    files: { 'a.txt': { text: 'uno\ndue\n', mtime: 1 } },
+    main: {
+      editorRename: async () => ({ ok: true, rel: 'b.txt' }),
+      editorList: async () => ({ ok: true, entries: [] }),
+      editorHeadText: async (root, rel) => ({ ok: true, text: rel === 'b.txt' ? 'uno\n' : null }),
+    },
+  });
+  const Files = s.page.ctx.AisessEditorFiles;
+  s.tab.editor.files = Files.update(s.tab.editor.files, 'a.txt', { gutterBase: { text: null }, changes: [] });
+  s.page.ctx.AisessEditorTree.promptName = async () => 'b.txt';
+  s.tab.editor.ui.tree = { element: stub(), rowOf: () => null, render: () => {} };
+  s.host.texts['b.txt'] = s.host.texts['a.txt'];
+  await s.fn('renameEditorEntry')(s.tab, { rel: 'a.txt', name: 'a.txt', depth: 0 });
+  await settle();
+  assert.deepStrictEqual(s.sent('editorHeadText').map((c) => c.slice(1)), [['/w', 'b.txt']]);
+  assert.strictEqual(s.file('b.txt').gutterBase.text, 'uno\n');
+  assert.deepStrictEqual(plain(s.host.gutters.pop()), ['b.txt', [{ kind: 'add', from: 2, to: 2 }]]);
+  assert.strictEqual(s.tab.editor.gutterSeq.has('a.txt'), false);
 });
 
 ok('barrette: due letture di HEAD per lo stesso file possono risolvere in ordine invertito: vince la più recente', async () => {

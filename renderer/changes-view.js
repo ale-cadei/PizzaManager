@@ -213,8 +213,17 @@
     ];
   }
 
+  /* «Apri nell'editor» (docs/plans/64): accanto alla riga, e il click non
+     apre né chiude il diff. Passa il percorso, non l'id della riga. */
+  function openButton(doc, f, onOpen) {
+    return button(doc, 'changes-file-act changes-open-editor', '↗', "Apri nell'editor", (e) => {
+      if (e && e.stopPropagation) e.stopPropagation();
+      onOpen(f.path);
+    });
+  }
+
   /* `id` è il percorso, o «sezione:percorso» in «Da committare» (changes-model.js, itemId) */
-  function fileRow(doc, f, diff, onFile, rc, cc) {
+  function fileRow(doc, f, diff, onFile, rc, cc, onOpen) {
     const id = M.itemId(f);
     const item = el(doc, 'div', 'changes-file');
     const head = el(doc, 'div', 'changes-file-head');
@@ -235,6 +244,7 @@
     if (comments) row.appendChild(el(doc, 'span', 'changes-comments', `💬${comments}`));
     // Il pulsante sta accanto alla riga, non dentro: un pulsante non ne contiene un altro
     head.appendChild(row);
+    if (onOpen && M.openableInEditor(f)) head.appendChild(openButton(doc, f, onOpen));
     for (const act of rowActions(doc, f, cc)) head.appendChild(act);
     item.appendChild(head);
     if (diff) item.appendChild(diffBody(doc, diff, rc));
@@ -258,8 +268,8 @@
   }
 
   /* Le righe, divise per sezione se ce ne sono; una sezione vuota lo dice */
-  function fileItems(doc, state, diffOf, onFile, reviewOf, cc) {
-    const row = (f) => fileRow(doc, f, diffOf(M.itemId(f)), onFile, reviewOf(f.path), cc);
+  function fileItems(doc, state, diffOf, onFile, reviewOf, cc, onOpen) {
+    const row = (f) => fileRow(doc, f, diffOf(M.itemId(f)), onFile, reviewOf(f.path), cc, onOpen);
     const heads = state.sections || [];
     if (!heads.length) return state.files.map(row);
     return heads.flatMap((section) => {
@@ -277,14 +287,15 @@
    *     |{type: 'clear'}|{type: 'send'}) => boolean|void,
    *   onCommit?: (action: {type: 'stage'|'unstage', paths: string[]}|{type: 'stage-all'|'unstage-all'|'commit'}
    *     |{type: 'message', text: string}|{type: 'discard-ask', path: string, untracked: boolean}
-   *     |{type: 'discard'|'discard-cancel'|'discard-undo'}) => void}} o
+   *     |{type: 'discard'|'discard-cancel'|'discard-undo'}) => void,
+   *   onOpenFile?: (path: string) => void}} o
    *   `onReview` dei commenti (docs/plans/44): per `save`, false se il commento
    *   è stato rifiutato (la textarea resta aperta). `onCommit` di stage e
    *   commit (docs/plans/53): `message` a ogni carattere, il pannello lo tiene
    */
   function createChangesView({
     doc, host, shortcut, onToggle, onClose, onFile, onMerge = () => {}, onMode = () => {}, onReview = () => {},
-    onCommit = () => {},
+    onCommit = () => {}, onOpenFile = null,
   }) {
     const tab = button(doc, 'changes-tab', '', `Modifiche di questa sessione (${shortcut})`, () => onToggle());
     tab.hidden = true;
@@ -423,7 +434,8 @@
      *   review?: {enabled: boolean, key: string, notes: object[], error: string|null}|null,
      *   commit?: {message: string, canWrite: boolean, reason: string|null, canCommit: boolean,
      *     commitReason: string|null, commitLabel: string, outcome: {ok: boolean, text: string}|null}|null,
-     *   discard?: {text: string, confirmLabel: string|null, undoLabel: string|null, canAct: boolean}|null}} state
+     *   discard?: {text: string, confirmLabel: string|null, undoLabel: string|null, canAct: boolean}|null,
+     *   openable?: boolean}} state
      */
     function render(state) {
       last = state;
@@ -457,7 +469,8 @@
       const focused = focusedItem();
       const typing = typingAt();
       const cc = state.commit ? { commit: state.commit, act: onCommit } : null;
-      if (state.files.length) items.push(...fileItems(doc, state, diffOf, onFile, reviewOf(state), cc));
+      const onOpen = state.openable && onOpenFile ? onOpenFile : null;
+      if (state.files.length) items.push(...fileItems(doc, state, diffOf, onFile, reviewOf(state), cc, onOpen));
       body.replaceChildren(...items);
       // La textarea prende il fuoco appena aperta, o se l'aveva (si stava
       // scrivendo e l'agente ha cambiato un file); un ridisegno qualsiasi no,

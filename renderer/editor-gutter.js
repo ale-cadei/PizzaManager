@@ -2,8 +2,10 @@
  * confronto riga per riga fra il testo di HEAD e quello nell'editor.
  * Funzioni pure: git lo legge il main (lib/editor-git.js), Monaco lo tocca
  * editor-monaco.js, il cablaggio sta in editor-tab.js.
- * Due tetti tengono la pagina reattiva: oltre MAX_GUTTER_LINES righe o
- * MAX_DIFF_STEPS passi del diff la risposta è null, cioè niente barrette.
+ * Due tetti tengono la pagina reattiva: oltre MAX_GUTTER_LINES righe la
+ * risposta è null, cioè niente barrette; oltre MAX_DIFF_STEPS passi del diff
+ * il tratto diverso (tolte le righe uguali in cima e in fondo) diventa un
+ * blocco solo: meno preciso, ma non dice «uguale a HEAD» a un file riscritto.
  *
  * Wrapper UMD come editor-files.js: globale nella pagina, module.exports sotto Node. */
 (function (root, factory) {
@@ -39,7 +41,9 @@
   }
 
   /* Myers O(ND). A ogni d si tiene solo la fetta di V che serve a risalire
-     (k da -d-1 a d+1): la memoria cresce coi passi, non con N·D. */
+     (k da -d-1 a d+1): la memoria cresce coi passi, non con N·D.
+     Un passo = una diagonale k visitata o una riga uguale saltata lungo la
+     diagonale: senza righe uguali il tetto ferma a D ≈ √(2·maxSteps). */
   function myers(a, b, maxSteps) {
     const n = a.length;
     const m = b.length;
@@ -65,11 +69,12 @@
 
   /**
    * Le operazioni per passare da `oldLines` a `newLines`: '=' riga uguale,
-   * '-' tolta, '+' aggiunta. null oltre `maxSteps` passi.
+   * '-' tolta, '+' aggiunta. Oltre `maxSteps` passi il tratto fra le righe
+   * uguali in cima e in fondo è tutto tolto e poi tutto aggiunto.
    * @param {string[]} oldLines
    * @param {string[]} newLines
    * @param {{maxSteps?: number}} [o]
-   * @returns {string[]|null}
+   * @returns {string[]}
    */
   function diffLines(oldLines, newLines, { maxSteps = MAX_DIFF_STEPS } = {}) {
     let start = 0;
@@ -77,8 +82,8 @@
     let endOld = oldLines.length;
     let endNew = newLines.length;
     while (endOld > start && endNew > start && oldLines[endOld - 1] === newLines[endNew - 1]) { endOld--; endNew--; }
-    const middle = myers(oldLines.slice(start, endOld), newLines.slice(start, endNew), maxSteps);
-    if (!middle) return null;
+    const middle = myers(oldLines.slice(start, endOld), newLines.slice(start, endNew), maxSteps)
+      || [...repeat('-', endOld - start), ...repeat('+', endNew - start)];
     return [...repeat('=', start), ...middle, ...repeat('=', oldLines.length - endOld)];
   }
 
@@ -115,7 +120,7 @@
    * @param {{maxLines?: number, maxSteps?: number}} [o]
    * @returns {Array<{kind: 'add'|'mod', from: number, to: number}|{kind: 'del', after: number}>|null}
    *   righe da 1, estremi compresi; `after` = riga dopo cui mancano righe (0 = in cima).
-   *   null: niente barrette (troppe righe, diff troppo lungo, testo mancante)
+   *   null: niente barrette (troppe righe, testo mancante)
    */
   function changeRanges(oldText, newText, { maxLines = MAX_GUTTER_LINES, maxSteps = MAX_DIFF_STEPS } = {}) {
     if (typeof newText !== 'string' || (oldText !== null && typeof oldText !== 'string')) return null;
@@ -124,8 +129,7 @@
     if (oldText === null) return [{ kind: 'add', from: 1, to: newLines.length }];
     const oldLines = splitLines(oldText);
     if (oldLines.length > maxLines) return null;
-    const ops = diffLines(oldLines, newLines, { maxSteps });
-    return ops && rangesFromOps(ops);
+    return rangesFromOps(diffLines(oldLines, newLines, { maxSteps }));
   }
 
   return { MAX_GUTTER_LINES, MAX_DIFF_STEPS, diffLines, changeRanges };

@@ -34,12 +34,29 @@ ok('apri nell editor: le schede non editor non contano, e fra due editor vince l
   assert.deepStrictEqual(target([ed('b', ROOT), ed('a', `${ROOT}/lib`)]), { tabId: 'b', rel: 'lib/x.js' });
 });
 
+ok('apri nell editor: la scheda attiva vince sull ordine se contiene il file, altrimenti si torna all ordine', () => {
+  const tabs = [ed('a', ROOT), ed('b', `${ROOT}/lib`)];
+  assert.deepStrictEqual(editorTarget({ repoRoot: ROOT, file: 'lib/x.js', tabs, activeId: 'b', platform: 'linux' }), { tabId: 'b', rel: 'x.js' });
+  // attiva ma non contiene il file: la prima nell'ordine che lo contiene
+  assert.deepStrictEqual(editorTarget({ repoRoot: ROOT, file: 'docs/y.md', tabs, activeId: 'b', platform: 'linux' }), { tabId: 'a', rel: 'docs/y.md' });
+  // attiva ma non editor, o id che non c'è: conta solo l'ordine
+  const withShell = [{ id: 's', type: 'shell', cwd: `${ROOT}/lib` }, ...tabs];
+  assert.deepStrictEqual(editorTarget({ repoRoot: ROOT, file: 'lib/x.js', tabs: withShell, activeId: 's', platform: 'linux' }), { tabId: 'a', rel: 'lib/x.js' });
+  assert.deepStrictEqual(editorTarget({ repoRoot: ROOT, file: 'lib/x.js', tabs, activeId: 'sparita', platform: 'linux' }), { tabId: 'a', rel: 'lib/x.js' });
+  // nessuna che lo contenga: scheda nuova anche con un'attiva
+  assert.deepStrictEqual(editorTarget({ repoRoot: ROOT, file: 'x.js', tabs: [ed('b', `${ROOT}/lib`)], activeId: 'b', platform: 'linux' }), { cwd: ROOT, rel: 'x.js' });
+  assert.deepStrictEqual(tabs.map((t) => t.id), ['a', 'b'], 'la lista ricevuta non si tocca');
+});
+
 ok('apri nell editor: percorsi Windows, separatori misti e maiuscole diverse', () => {
   const root = path.win32.join('C:\\', 'Users', 'ale', 'repo');
   const tab = ed('a', path.win32.join('c:\\', 'users', 'ALE', 'repo', 'src'));
   assert.deepStrictEqual(editorTarget({ repoRoot: root, file: 'src/App.js', tabs: [tab], platform: 'win32' }), { tabId: 'a', rel: 'App.js' });
   assert.deepStrictEqual(editorTarget({ repoRoot: 'C:/Users/ale/repo', file: 'src/App.js', tabs: [ed('b', root)], platform: 'win32' }),
     { tabId: 'b', rel: 'src/App.js' });
+  // La scheda attiva su Windows: sottocartella scritta diversa, vince lo stesso
+  assert.deepStrictEqual(editorTarget({ repoRoot: root, file: 'src/App.js', tabs: [ed('b', root), tab], activeId: 'a', platform: 'win32' }),
+    { tabId: 'a', rel: 'App.js' });
   // Fuori da Windows le maiuscole contano: stessa cartella scritta diversa, scheda nuova
   assert.deepStrictEqual(editorTarget({ repoRoot: root, file: 'src/App.js', tabs: [tab], platform: 'linux' }), { cwd: root, rel: 'src/App.js' });
 });

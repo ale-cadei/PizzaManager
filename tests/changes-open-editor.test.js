@@ -7,7 +7,7 @@ const { loadPage } = require('./renderer-page');
    renderer/changes-panel.js): la pagina vera, con setActive, createTab e
    openEditorAt sostituiti da registratori. */
 
-function panelSetup({ result = { ok: true, root: '/repo', files: [] }, merge = null, tabs = [] } = {}) {
+function panelSetup({ result = { ok: true, root: '/repo', files: [] }, merge = null, tabs = [], active = null } = {}) {
   const page = loadPage();
   const run = (code) => vm.runInContext(code, page.ctx);
   const calls = [];
@@ -20,6 +20,8 @@ function panelSetup({ result = { ok: true, root: '/repo', files: [] }, merge = n
   };
   page.ctx.openEditorAt = async (tab, rel) => { calls.push(['openEditorAt', tab.id, rel]); return true; };
   for (const t of tabs) run('tabs').set(t.id, t);
+  page.ctx.panelActive = active;
+  run('activeId = panelActive');
   page.ctx.panelPatch = { result, merge };
   run('changesState = { ...changesState, ...panelPatch }');
   return { calls, open: (p) => run('openChangedFile')(p) };
@@ -43,4 +45,10 @@ ok('apri nell editor dal pannello: in modalità Unisci, senza lettura o senza ra
     await s.open('a.js');
     assert.deepStrictEqual(s.calls, [], JSON.stringify(opts));
   }
+});
+
+ok('apri nell editor dal pannello: la scheda editor attiva che contiene il file vince su una prima nell ordine', async () => {
+  const s = panelSetup({ active: 'tab-sub', tabs: [{ id: 'tab-root', type: 'editor', cwd: '/repo' }, { id: 'tab-sub', type: 'editor', cwd: '/repo/lib' }] });
+  await s.open('lib/x.js');
+  assert.deepStrictEqual(s.calls.slice(0, 2), [['setActive', 'tab-sub'], ['openEditorAt', 'tab-sub', 'x.js']]);
 });

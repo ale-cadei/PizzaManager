@@ -537,7 +537,7 @@ async function openChangedFile(path) {
   const { result, merge } = changesState;
   if (merge || !result || !result.ok || typeof result.root !== 'string') return;
   const target = window.AisessEditorRoute.editorTarget({
-    repoRoot: result.root, path, tabs: Order.applyOrder([...tabs.values()], sessionOrder),
+    repoRoot: result.root, file: path, tabs: Order.applyOrder([...tabs.values()], sessionOrder),
   });
   if (!target) return;
   let tab = target.tabId ? tabs.get(target.tabId) : null;

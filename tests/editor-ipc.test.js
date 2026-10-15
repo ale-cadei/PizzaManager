@@ -37,7 +37,7 @@ ok('ipc editor: ogni canale editor del preload ha il suo handler', (t) => {
 
 ok('ipc editor: payload mancanti o radici inesistenti rispondono con un errore', async (t) => {
   const { handlers, call } = setup(t);
-  for (const channel of ['editor-list', 'editor-read', 'editor-write', 'editor-stat', 'editor-create', 'editor-mkdir', 'editor-rename', 'editor-trash', 'editor-watch', 'editor-copy-plan', 'editor-copy-run']) {
+  for (const channel of ['editor-list', 'editor-read', 'editor-write', 'editor-stat', 'editor-create', 'editor-mkdir', 'editor-rename', 'editor-trash', 'editor-watch', 'editor-copy-plan', 'editor-copy-run', 'editor-head-text']) {
     for (const payload of [undefined, null, {}, { root: '/non/esiste/proprio', rel: 'a' }]) {
       const r = await call(channel, payload);
       assert.strictEqual(r.ok, false, `${channel} con ${JSON.stringify(payload)}`);
@@ -159,4 +159,9 @@ ok('ipc editor: «Incolla» legge i file dagli appunti nel main', async (t) => {
   const { call } = setup(t, { platform: 'linux', electron: { clipboard: { readBuffer } } });
   assert.deepStrictEqual(await call('editor-clipboard-files'), { ok: true, paths: ['/tmp/a b.txt'] });
   assert.deepStrictEqual(asked, ['x-special/gnome-copied-files']);
+});
+
+ok('ipc editor: il testo di HEAD rifiuta percorsi fuori dalla cartella', async (t) => {
+  const { call, root } = setup(t);
+  assert.deepStrictEqual(await call('editor-head-text', { root, rel: '../fuori.txt' }), { ok: false, reason: 'outside' });
 });

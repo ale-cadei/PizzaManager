@@ -135,6 +135,10 @@ Casi:
   dice `git diff`.
 - Scrivere: le barrette seguono. Annullare fino al testo di HEAD: spariscono.
 - Fare un commit da un terminale e tornare sulla scheda: le barrette spariscono.
+- Togliere le prime righe e le ultime di un file: il triangolino rosso in
+  cima e in fondo si vede intero (il margine di Monaco taglia quel che esce).
+- Riformattare tutto un file lungo: barrette su tutto il tratto cambiato,
+  non niente.
 - File nuovo non tracciato: tutto verde. Cartella fuori da git: niente.
   File ignorato (`.env`): niente. File in un sottomodulo o in un worktree
   dentro `.worktrees/`: le barrette del suo repository.

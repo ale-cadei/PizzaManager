@@ -1241,6 +1241,18 @@ body.editor-tree-hidden .editor-resizer { display: none; }
 .monaco-editor .editor-gutter-del-end::after {
   bottom: 0; border-top: none; border-bottom: 5px solid var(--state-error);
 }
+/* Commenti sul codice (docs/plans/65): i riquadri del pannello modifiche
+   dentro le zone di Monaco, che le posizionano da sé (niente sticky); il
+   fondo sulle righe commentate; il «+» nel margine dei glifi */
+.editor-note-zone { box-sizing: border-box; padding: 0 16px 0 4px; }
+.editor-note-zone .changes-comment, .editor-note-zone .changes-comment-editor { position: static; }
+.monaco-editor .editor-note-line { background: color-mix(in srgb, var(--action-text) 10%, transparent); }
+.monaco-editor .editor-note-add { display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.monaco-editor .editor-note-add::before { content: '+'; font: 600 14px/1 var(--font-ui); color: var(--action-text); }
+.editor-notes-bar { display: flex; align-items: center; gap: 6px; padding: 0 8px; border-left: 1px solid var(--divider); }
+.editor-notes-bar[hidden] { display: none; }
+.editor-notes-count { font: 12px var(--font-ui); color: var(--action-text); white-space: nowrap; }
+.editor-notes-bar .btn { font-size: 12px; padding: 2px 8px; }
 .editor-menu {
   position: fixed; z-index: 1000; display: flex; flex-direction: column; min-width: 160px; padding: 4px;
   background: var(--surface); border: 1px solid var(--border-strong); border-radius: 6px;

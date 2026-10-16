@@ -86,12 +86,15 @@ function buildEditorLayout(tab) {
   toggle.onclick = () => editorPanel.toggle();
   const subtabs = el('div', 'editor-subtabs', head);
   subtabs.setAttribute('role', 'tablist');
+  // «N commenti · Copia prompt · Svuota» (docs/plans/65), la disegna editor-notes-ui.js
+  const notesBar = el('div', 'editor-notes-bar', head);
+  notesBar.hidden = true;
   const bar = el('div', 'editor-bar', main);
   bar.hidden = true;
   const message = el('div', 'editor-message', main);
   message.hidden = true;
   const host = el('div', 'editor-host', main);
-  return { treeHost, tree, subtabs, bar, message, host };
+  return { treeHost, tree, subtabs, notesBar, bar, message, host };
 }
 
 function renderEditorTree(tab) {
@@ -264,6 +267,7 @@ async function renameEditorEntry(tab, row) {
   for (const rel of moved) {
     const to = EditorFiles.movedPath(rel, row.rel, r.rel);
     if (ed.host) ed.host.rename(rel, to);
+    renameEditorNotes(tab, rel, to);
     ed.gutterSeq.delete(rel);
     ed.files = EditorFiles.update(ed.files, to, { gutterBase: null, changes: null });
     loadEditorGutterBase(tab, to);
@@ -310,6 +314,7 @@ function ensureEditorHost(tab) {
         onChange: (rel, dirty, edited) => onEditorTextChange(tab, rel, dirty, edited),
         onSave: (rel) => saveEditorFile(tab, rel),
         onSaveAll: () => saveAllEditorFiles(tab),
+        onComment: (rel, from, to) => openEditorNoteDraft(tab, rel, from, to),
       });
       return ed.host;
     }).finally(() => { ed.hostPending = null; });
@@ -323,6 +328,7 @@ function onEditorTextChange(tab, rel, dirty, edited = true) {
   const f = tab.editor.files.files[rel];
   if (!f) return;
   if (f.dirty !== dirty) setEditorFile(tab, rel, { dirty });
+  syncEditorNotes(tab, rel);
   if (edited) scheduleEditorGutter(tab, rel);
 }
 
@@ -394,6 +400,7 @@ function dropEditorFile(tab, rel) {
   ed.files = EditorFiles.close(ed.files, rel);
   if (ed.gutterTimer && ed.gutterTimer.rel === rel) { clearTimeout(ed.gutterTimer.id); ed.gutterTimer = null; }
   ed.gutterSeq.delete(rel); // una lettura di HEAD ancora in volo trova il file chiuso e si scarta
+  dropEditorNotes(tab, rel);
   if (ed.host) {
     ed.host.close(rel);
     if (ed.files.active) ed.host.activate(ed.files.active);
@@ -573,6 +580,7 @@ async function createEditorTab({ name, cwd, startedAt = Date.now(), files = [], 
     ui: buildEditorLayout(tab), files: EditorFiles.empty(), tree: EditorTree.emptyTree(),
     host: null, hostPending: null, saving: new Set(), pendingChanges: new Map(), copying: false, gutterTimer: null, gutterSeq: new Map(), gutterSeqLast: 0,
     gutterReads: new Map(),
+    notes: EditorNotes.empty(), noteViews: new Map(), noteDraft: null,
   };
   tabs.set(id, tab);
   updateEmpty();

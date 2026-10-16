@@ -320,6 +320,7 @@ ok('removeZone e resizeZone', () => {
   assert.deepStrictEqual(fake.editor.layouts, [vid], 'stessa altezza o zero: niente');
   h.removeZone(id);
   assert.strictEqual(fake.editor.zones.size, 0);
+  assert.strictEqual(fake.editor.overlays.size, 0, 'e il suo overlay');
   assert.strictEqual(fake.models[0].live.size, 0, 'anche il segno della zona va via');
   h.removeZone(id);
 });

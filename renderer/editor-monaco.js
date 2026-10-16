@@ -327,6 +327,7 @@
       const id = `${authority}z${++seq}`;
       const wrap = doc.createElement('div');
       node.style.position = 'absolute';
+      node.style.top = '-100000px'; // fuori vista finché Monaco non dice dov'è la zona
       wrap.appendChild(node);
       const delegate = {
         afterLineNumber: afterLine, heightInPx, domNode: doc.createElement('div'),

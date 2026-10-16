@@ -434,3 +434,65 @@ ok('pannello: Ctrl+B apre e chiude solo con una scheda editor davanti', () => {
   assert.strictEqual(held.prevented, true);
   assert.strictEqual(run('editorPanel.prefs().hidden'), true, 'tenuto premuto non riapre');
 });
+
+/* ---------- chiudere con commenti (docs/plans/65) ---------- */
+
+function withNote(s, rel) {
+  s.tab.editor.notes = s.run('EditorNotes').add(s.tab.editor.notes, { rel, from: 1, to: 1, body: 'x', track: null }).state;
+}
+
+ok('commenti: chiudere un file pulito con commenti chiede, e Annulla lo tiene aperto', async () => {
+  const s = setup({ files: { 'a.js': { text: 'uno', mtime: 1 } } });
+  const asked = [];
+  let answer = false;
+  s.run('editorConfirm').ask = async (o) => { asked.push(o); return answer; };
+  withNote(s, 'a.js');
+  withNote(s, 'a.js');
+  await s.fn('closeEditorFile')(s.tab, 'a.js', 'ancora');
+  assert.deepStrictEqual(plain(asked.map((o) => [o.anchor, o.title, o.text, o.confirmLabel])),
+    [['ancora', 'Chiudere «a.js»?', 'Chiudendo il file si perdono 2 commenti.', 'Chiudi']]);
+  assert.ok(s.file('a.js'));
+  answer = true;
+  await s.fn('closeEditorFile')(s.tab, 'a.js', 'ancora');
+  assert.strictEqual(s.file('a.js'), undefined);
+  assert.strictEqual(s.run('EditorNotes').count(s.tab.editor.notes), 0);
+});
+
+ok('commenti: chiudere un file pulito senza commenti non chiede, e i commenti degli altri restano', async () => {
+  const s = setup({ files: { 'a.js': { text: 'uno', mtime: 1 }, 'b.js': { text: 'due', mtime: 1 } } });
+  let asked = 0;
+  s.run('editorConfirm').ask = async () => { asked += 1; return false; };
+  withNote(s, 'b.js');
+  await s.fn('closeEditorFile')(s.tab, 'a.js', null);
+  assert.strictEqual(asked, 0);
+  assert.strictEqual(s.file('a.js'), undefined);
+  assert.strictEqual(s.run('EditorNotes').count(s.tab.editor.notes), 1);
+});
+
+ok('commenti: chiudere un file con modifiche e commenti è la scelta di sempre, che dice dei commenti', async () => {
+  const s = setup({ files: { 'a.js': { text: 'uno', mtime: 1, dirty: true } } });
+  const asked = [];
+  s.run('editorConfirm').choose = async (o) => { asked.push(o); return 'discard'; };
+  withNote(s, 'a.js');
+  await s.fn('closeEditorFile')(s.tab, 'a.js', null);
+  assert.deepStrictEqual(plain(asked.map((o) => [o.title, o.text, o.choices.map((c) => c.value)])),
+    [['«a.js» ha modifiche non salvate', 'Chiudendo il file si perde il commento.', ['save', 'discard']]]);
+  assert.strictEqual(s.file('a.js'), undefined);
+});
+
+ok('commenti: chiudere la scheda con commenti chiede, nel fumetto della card o dell editor', async () => {
+  const s = setup({ files: { 'a.js': { text: 'uno', mtime: 1 } } });
+  const asked = [];
+  s.run('closeConfirm').ask = async (o) => { asked.push(o); return false; };
+  assert.strictEqual(await s.fn('confirmEditorClose')(s.tab, 'card'), true, 'niente commenti né modifiche: non chiede');
+  withNote(s, 'a.js');
+  withNote(s, 'a.js');
+  assert.strictEqual(await s.fn('confirmEditorClose')(s.tab, 'card'), false);
+  assert.deepStrictEqual(plain(asked.map((o) => [o.anchor, o.key, o.title, o.text, o.confirmLabel])),
+    [['card', 'tab-ed', 'Chiudere «w»?', 'Chiudendo la scheda si perdono 2 commenti.', 'Chiudi']]);
+  s.tab.editor.files = s.run('EditorFiles').update(s.tab.editor.files, 'a.js', { dirty: true });
+  const chosen = [];
+  s.run('editorConfirm').choose = async (o) => { chosen.push(o); return null; };
+  assert.strictEqual(await s.fn('confirmEditorClose')(s.tab), false);
+  assert.deepStrictEqual(plain(chosen.map((o) => [o.key, o.text])), [[null, 'Chiudendo la scheda si perdono 2 commenti.']]);
+});

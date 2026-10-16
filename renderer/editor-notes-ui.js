@@ -255,3 +255,9 @@ function renameEditorNotes(tab, from, to) {
   ed.notes = EditorNotes.renameFile(ed.notes, from, to);
   if (ed.noteDraft && ed.noteDraft.rel === from) ed.noteDraft = { ...ed.noteDraft, rel: to };
 }
+
+/** Per le domande di chiusura: cosa si perde; vuoto se non ci sono commenti */
+function editorNotesLoss(n, what) {
+  if (!n) return '';
+  return n === 1 ? `Chiudendo ${what} si perde il commento.` : `Chiudendo ${what} si perdono ${n} commenti.`;
+}

@@ -413,13 +413,17 @@ async function closeEditorFile(tab, rel, anchor) {
   const ed = tab.editor;
   const f = ed.files.files[rel];
   if (!f) return;
+  const name = EditorFiles.baseName(rel);
+  const loss = editorNotesLoss(EditorNotes.count(ed.notes, rel), 'il file'); // docs/plans/65
   if (f.dirty) {
     const choice = await editorConfirm.choose({
-      anchor, title: `«${EditorFiles.baseName(rel)}» ha modifiche non salvate`,
+      anchor, title: `«${name}» ha modifiche non salvate`, text: loss,
       choices: [{ value: 'save', label: 'Salva' }, { value: 'discard', label: 'Scarta', danger: true }],
     });
     if (!choice) return;
     if (choice === 'save' && !(await saveEditorFile(tab, rel))) return;
+  } else if (loss && !(await editorConfirm.ask({ anchor, title: `Chiudere «${name}»?`, text: loss, confirmLabel: 'Chiudi' }))) {
+    return;
   }
   dropEditorFile(tab, rel);
   saveEditorSessions();
@@ -545,13 +549,16 @@ async function refreshEditorTab(tab) {
 
 /* ---------- scheda ---------- */
 
-/** Chiudendo la scheda: i file con modifiche si salvano o si scartano. */
+/** Chiudendo la scheda: i file con modifiche si salvano o si scartano, i commenti si perdono (docs/plans/65). */
 async function confirmEditorClose(tab, anchor) {
   const dirty = EditorFiles.dirtyFiles(tab.editor.files);
-  if (!dirty.length) return true;
+  const loss = editorNotesLoss(EditorNotes.count(tab.editor.notes), 'la scheda');
+  if (!dirty.length && !loss) return true;
   const bubble = anchor ? closeConfirm : editorConfirm;
+  const where = { anchor: anchor || tab.editor.ui.subtabs, key: anchor ? tab.id : null };
+  if (!dirty.length) return bubble.ask({ ...where, title: `Chiudere «${tab.name}»?`, text: loss, confirmLabel: 'Chiudi' });
   const choice = await bubble.choose({
-    anchor: anchor || tab.editor.ui.subtabs, key: anchor ? tab.id : null,
+    ...where, text: loss,
     title: dirty.length === 1 ? `«${EditorFiles.baseName(dirty[0])}» ha modifiche non salvate` : `${dirty.length} file con modifiche non salvate`,
     choices: [{ value: 'save', label: 'Salva tutto' }, { value: 'discard', label: 'Scarta', danger: true }],
   });

@@ -86,12 +86,15 @@ function buildEditorLayout(tab) {
   toggle.onclick = () => editorPanel.toggle();
   const subtabs = el('div', 'editor-subtabs', head);
   subtabs.setAttribute('role', 'tablist');
+  // «N commenti · Copia prompt · Svuota» (docs/plans/65), la disegna editor-notes-ui.js
+  const notesBar = el('div', 'editor-notes-bar', head);
+  notesBar.hidden = true;
   const bar = el('div', 'editor-bar', main);
   bar.hidden = true;
   const message = el('div', 'editor-message', main);
   message.hidden = true;
   const host = el('div', 'editor-host', main);
-  return { treeHost, tree, subtabs, bar, message, host };
+  return { treeHost, tree, subtabs, notesBar, bar, message, host };
 }
 
 function renderEditorTree(tab) {
@@ -264,6 +267,7 @@ async function renameEditorEntry(tab, row) {
   for (const rel of moved) {
     const to = EditorFiles.movedPath(rel, row.rel, r.rel);
     if (ed.host) ed.host.rename(rel, to);
+    renameEditorNotes(tab, rel, to);
     ed.gutterSeq.delete(rel);
     ed.files = EditorFiles.update(ed.files, to, { gutterBase: null, changes: null });
     loadEditorGutterBase(tab, to);
@@ -310,6 +314,7 @@ function ensureEditorHost(tab) {
         onChange: (rel, dirty, edited) => onEditorTextChange(tab, rel, dirty, edited),
         onSave: (rel) => saveEditorFile(tab, rel),
         onSaveAll: () => saveAllEditorFiles(tab),
+        onComment: (rel, from, to) => openEditorNoteDraft(tab, rel, from, to),
       });
       return ed.host;
     }).finally(() => { ed.hostPending = null; });
@@ -323,6 +328,7 @@ function onEditorTextChange(tab, rel, dirty, edited = true) {
   const f = tab.editor.files.files[rel];
   if (!f) return;
   if (f.dirty !== dirty) setEditorFile(tab, rel, { dirty });
+  syncEditorNotes(tab, rel);
   if (edited) scheduleEditorGutter(tab, rel);
 }
 
@@ -394,6 +400,7 @@ function dropEditorFile(tab, rel) {
   ed.files = EditorFiles.close(ed.files, rel);
   if (ed.gutterTimer && ed.gutterTimer.rel === rel) { clearTimeout(ed.gutterTimer.id); ed.gutterTimer = null; }
   ed.gutterSeq.delete(rel); // una lettura di HEAD ancora in volo trova il file chiuso e si scarta
+  dropEditorNotes(tab, rel);
   if (ed.host) {
     ed.host.close(rel);
     if (ed.files.active) ed.host.activate(ed.files.active);
@@ -406,13 +413,17 @@ async function closeEditorFile(tab, rel, anchor) {
   const ed = tab.editor;
   const f = ed.files.files[rel];
   if (!f) return;
+  const name = EditorFiles.baseName(rel);
+  const loss = editorNotesLoss(EditorNotes.count(ed.notes, rel), 'il file'); // docs/plans/65
   if (f.dirty) {
     const choice = await editorConfirm.choose({
-      anchor, title: `«${EditorFiles.baseName(rel)}» ha modifiche non salvate`,
+      anchor, title: `«${name}» ha modifiche non salvate`, text: loss,
       choices: [{ value: 'save', label: 'Salva' }, { value: 'discard', label: 'Scarta', danger: true }],
     });
     if (!choice) return;
     if (choice === 'save' && !(await saveEditorFile(tab, rel))) return;
+  } else if (loss && !(await editorConfirm.ask({ anchor, title: `Chiudere «${name}»?`, text: loss, confirmLabel: 'Chiudi' }))) {
+    return;
   }
   dropEditorFile(tab, rel);
   saveEditorSessions();
@@ -538,13 +549,16 @@ async function refreshEditorTab(tab) {
 
 /* ---------- scheda ---------- */
 
-/** Chiudendo la scheda: i file con modifiche si salvano o si scartano. */
+/** Chiudendo la scheda: i file con modifiche si salvano o si scartano, i commenti si perdono (docs/plans/65). */
 async function confirmEditorClose(tab, anchor) {
   const dirty = EditorFiles.dirtyFiles(tab.editor.files);
-  if (!dirty.length) return true;
+  const loss = editorNotesLoss(EditorNotes.count(tab.editor.notes), 'la scheda');
+  if (!dirty.length && !loss) return true;
   const bubble = anchor ? closeConfirm : editorConfirm;
+  const where = { anchor: anchor || tab.editor.ui.subtabs, key: anchor ? tab.id : null };
+  if (!dirty.length) return bubble.ask({ ...where, title: `Chiudere «${tab.name}»?`, text: loss, confirmLabel: 'Chiudi' });
   const choice = await bubble.choose({
-    anchor: anchor || tab.editor.ui.subtabs, key: anchor ? tab.id : null,
+    ...where, text: loss,
     title: dirty.length === 1 ? `«${EditorFiles.baseName(dirty[0])}» ha modifiche non salvate` : `${dirty.length} file con modifiche non salvate`,
     choices: [{ value: 'save', label: 'Salva tutto' }, { value: 'discard', label: 'Scarta', danger: true }],
   });
@@ -573,6 +587,7 @@ async function createEditorTab({ name, cwd, startedAt = Date.now(), files = [], 
     ui: buildEditorLayout(tab), files: EditorFiles.empty(), tree: EditorTree.emptyTree(),
     host: null, hostPending: null, saving: new Set(), pendingChanges: new Map(), copying: false, gutterTimer: null, gutterSeq: new Map(), gutterSeqLast: 0,
     gutterReads: new Map(),
+    notes: EditorNotes.empty(), noteViews: new Map(), noteDraft: null,
   };
   tabs.set(id, tab);
   updateEmpty();

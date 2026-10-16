@@ -77,3 +77,48 @@ Scelte dall'utente:
 - «Copia prompt» e incollarlo in una sessione claude: formato leggibile,
   percorsi giusti.
 - Chiudere il file e la scheda: conferme e commenti persi come detto.
+- Il «+» nel margine accanto alle barrette del piano 63: si vedono entrambi.
+- Dentro la casella: Ctrl+C/V, Esc, Ctrl+Invio; aggiungere e togliere
+  commenti non fa saltare la vista.
+- La rotellina del mouse sopra un riquadro: l'editor scorre? (la sonda
+  sotto xvfb non sa simulare la rotellina, neanche sulle righe)
+- Ricaricare il file dal disco con commenti, poi Ctrl+Z: i commenti restano
+  alle loro righe (il Monaco finto dei test non lo mostra).
+
+## Punti aperti
+
+Emersi dalle review, non fatti in questo branch:
+
+- **Casella aperta oltre i limiti:** con già 50 commenti, o una selezione di
+  oltre 200 righe, la casella si apre lo stesso; si scopre che non si salva
+  solo con Ctrl+Invio. Il messaggio di `add` con la lista piena è quello
+  delle righe, non quello del tetto.
+- **Casella non salvata alla chiusura:** chiudere il file o la scheda con una
+  casella aperta e non salvata la perde senza chiedere: la domanda conta solo
+  i commenti salvati.
+- **Cestinare un file pulito** dall'albero toglie i suoi commenti, e il
+  fumetto della cancellazione non li nomina.
+- **Commenti cresciuti oltre 200 righe:** nel prompt il conteggio «altre N
+  righe» è più basso del vero.
+- **Due «Svuota»:** quello della barra chiude anche la casella aperta, quello
+  dopo la copia la tiene (apposta: si copia ciò che è salvato, la bozza resta).
+- **Riquadri ricostruiti** a ogni aggiunta, modifica o eliminazione: se nella
+  prova si vede saltare la vista, ricostruire solo quelli del file toccato.
+- **Senza test:** il collegamento `onComment` (margine e menu → casella) e la
+  domanda di chiusura senza `anchor` (dall'editor, o quando un worktree chiude
+  le sue schede: `worktrees.js:37`).
+- **Pulizia:** i listener del mouse non sono tenuti per il dispose (ci
+  pensa `editor.dispose()`); in `putMarks` il parametro `from` copre quello
+  di `rename`. Innocui.
+- **Riquadri in overlay:** lo strato delle righe di Monaco sta sopra le zone
+  e si prende clic e fuoco, quindi la casella nella zona non si poteva usare
+  (visto nello smoke). Come lo ZoneWidget di Monaco, la zona tiene lo spazio
+  e il riquadro sta in un overlay widget messo all'altezza della zona
+  (`onDomNodeTop`). Gli overlay restano dopo `setModel`: l'host li toglie
+  cambiando file, rinominando e chiudendo.
+- **Uscire dall'app** con commenti non chiede niente: `askEditorExit` guarda
+  solo i file con modifiche.
+- **Percorsi nel prompt** relativi alla cartella della scheda editor: se
+  l'agente gira altrove non combaciano (vedi i punti aperti del piano dei task).
+- `editor-tab.js` è a ~720 righe: la prossima modifica lì sposta prima
+  qualcosa fuori.

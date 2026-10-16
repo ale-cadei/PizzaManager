@@ -35,7 +35,11 @@ function editorNoteZone(tab, rel, afterLine, box, kind) {
   const zone = ed.host.addZone(rel, afterLine, node, NOTE_ZONE_PX[kind]);
   let ro = null;
   if (zone && typeof ResizeObserver === 'function') {
-    ro = new ResizeObserver(() => { if (ed.host) ed.host.resizeZone(zone, Math.ceil(box.offsetHeight) + 6); });
+    // Fuori dal layout (file dietro, scheda nascosta) il riquadro misura 0: la zona tiene l'altezza di prima
+    ro = new ResizeObserver(() => {
+      const h = box.offsetHeight;
+      if (ed.host && h > 0) ed.host.resizeZone(zone, Math.ceil(h) + 6);
+    });
     ro.observe(box);
   }
   return { zone, node, ro };
@@ -60,10 +64,11 @@ function editorNoteBox(tab, n) {
 
 function editorNoteDraftBox(tab, label, body) {
   const box = noteEl('div', 'changes-comment-editor');
-  const lines = noteEl('div', 'changes-comment-lines', label);
+  const lines = noteEl('div', 'changes-comment-lines');
+  const range = noteEl('span', 'changes-comment-lines-label', label); // a parte: le righe si spostano, l'avviso resta
   const warn = noteEl('span', 'changes-comment-warn');
   warn.hidden = true;
-  lines.appendChild(warn);
+  lines.append(range, warn);
   const input = noteEl('textarea', 'changes-comment-input');
   input.value = body;
   input.setAttribute('aria-label', 'Commento per l\'agente');
@@ -79,7 +84,7 @@ function editorNoteDraftBox(tab, label, body) {
     noteButton('btn btn--primary changes-comment-save', 'Salva', 'Salva il commento', () => saveEditorNoteDraft(tab, input.value)),
   );
   box.append(lines, input, actions);
-  return { box, input, warn };
+  return { box, input, warn, range };
 }
 
 /** «N commenti · Copia prompt · Svuota», nascosta senza commenti */
@@ -121,7 +126,7 @@ function openEditorNoteDraft(tab, rel, from, to, noteId = null) {
   const track = old ? null : ed.host.trackLines(rel, from, to);
   if (!old && !track) return;
   const parts = editorNoteDraftBox(tab, EditorNotes.labelOf({ from, to }), old ? old.body : '');
-  ed.noteDraft = { rel, noteId, track, warn: parts.warn, ...editorNoteZone(tab, rel, to, parts.box, 'draft') };
+  ed.noteDraft = { rel, noteId, track, warn: parts.warn, label: parts.range, ...editorNoteZone(tab, rel, to, parts.box, 'draft') };
   if (old) renderEditorNotes(tab);
   parts.input.focus();
 }
@@ -170,10 +175,16 @@ function removeEditorNote(tab, id) {
   renderEditorNotes(tab);
 }
 
-function clearEditorNotes(tab) {
+/* «Svuota» toglie anche la casella aperta; `keepDraft` (dopo la copia) la lascia:
+   il suo testo non era nel prompt. Se riscriveva un commento, ne prende il segno
+   e diventa una casella nuova */
+function clearEditorNotes(tab, { keepDraft = false } = {}) {
   const ed = tab.editor;
-  closeEditorNoteDraft(tab);
-  if (ed.host) ed.notes.notes.forEach((n) => { if (n.track) ed.host.untrack(n.track); });
+  if (!keepDraft) closeEditorNoteDraft(tab);
+  const d = ed.noteDraft;
+  const kept = d && d.noteId ? EditorNotes.find(ed.notes, d.noteId) : null;
+  if (kept) ed.noteDraft = { ...d, noteId: null, track: kept.track };
+  if (ed.host) ed.notes.notes.forEach((n) => { if (n.track && n !== kept) ed.host.untrack(n.track); });
   ed.notes = EditorNotes.clear(ed.notes);
   renderEditorNotes(tab);
 }
@@ -186,28 +197,45 @@ async function copyEditorNotes(tab, anchor) {
   let r;
   try { r = await window.aisess.clipboardWrite(text); } catch (e) { r = { ok: false, error: errorText(e) }; }
   if (!r || !r.ok) { showEditorMessage(tab, `Prompt non copiato: ${(r && r.error) || 'errore sconosciuto.'}`); return; }
-  const yes = await editorConfirm.ask({
-    anchor, title: 'Copiato. Svuoto i commenti?',
-    text: 'Il prompt è negli appunti: incollalo nella sessione dell\'agente.', confirmLabel: 'Svuota',
-  });
-  if (yes) clearEditorNotes(tab);
+  let yes;
+  try {
+    yes = await editorConfirm.ask({
+      anchor, title: 'Copiato. Svuoto i commenti?',
+      text: 'Il prompt è negli appunti: incollalo nella sessione dell\'agente.', confirmLabel: 'Svuota',
+    });
+  } catch (e) {
+    if (tabs.has(tab.id)) showEditorMessage(tab, `Commenti non svuotati: ${errorText(e)}`);
+    return;
+  }
+  if (yes && tabs.has(tab.id)) clearEditorNotes(tab, { keepDraft: true });
 }
 
 /** Il testo è cambiato: le righe dei commenti del file dai segni dell'host */
 function syncEditorNotes(tab, rel) {
   const ed = tab.editor;
-  if (!ed.host || !EditorNotes.count(ed.notes, rel)) return;
+  if (!ed.host) return;
   let notes = ed.notes;
   for (const n of EditorNotes.forFile(notes, rel)) {
     const at = n.track ? ed.host.linesOf(n.track) : null;
     if (at) notes = EditorNotes.move(notes, n.id, at);
   }
-  if (notes === ed.notes) return;
-  ed.notes = notes;
-  for (const n of EditorNotes.forFile(notes, rel)) {
-    const v = ed.noteViews.get(n.id);
-    if (v) v.label.textContent = EditorNotes.labelOf(n);
+  if (notes !== ed.notes) {
+    ed.notes = notes;
+    for (const n of EditorNotes.forFile(notes, rel)) {
+      const v = ed.noteViews.get(n.id);
+      if (v) v.label.textContent = EditorNotes.labelOf(n);
+    }
   }
+  syncEditorNoteDraftLabel(tab, rel);
+}
+
+/* «Righe X–Y» della casella aperta: dal suo segno, o dal commento che riscrive */
+function syncEditorNoteDraftLabel(tab, rel) {
+  const ed = tab.editor;
+  const d = ed.noteDraft;
+  if (!d || d.rel !== rel) return;
+  const at = d.noteId ? EditorNotes.find(ed.notes, d.noteId) : (d.track && ed.host.linesOf(d.track));
+  if (at) d.label.textContent = EditorNotes.labelOf(at);
 }
 
 /* Il file si chiude: i suoi commenti vanno via (chi chiama ha già chiesto) */

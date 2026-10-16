@@ -51,7 +51,7 @@ ok('commenti editor: si apre la casella sotto le righe, Ctrl+Invio salva il comm
   s.fn('openEditorNoteDraft')(s.tab, 'a.js', 2, 3);
   const d = s.draft();
   assert.deepStrictEqual([d.rel, d.afterLine], ['a.js', 3]);
-  assert.strictEqual(s.find(d.node, 'changes-comment-lines').textContent, 'Righe 2–3');
+  assert.strictEqual(s.find(d.node, 'changes-comment-lines-label').textContent, 'Righe 2–3');
   assert.strictEqual(s.find(d.node, 'changes-comment-input').focused, true);
   assert.strictEqual(fire(d.node, 'keydown', { key: 'a' }).propagationStopped, true, 'i tasti non arrivano a Monaco');
   const e = s.write('  Qui manca il null.  ');
@@ -185,4 +185,85 @@ ok('commenti editor: chiudere un file ne toglie i commenti, rinominarlo li porta
   assert.deepStrictEqual([...s.host.marks.values()].map((m) => m.rel), ['b.js']);
   s.fn('renameEditorNotes')(s.tab, 'b.js', 'c.js');
   assert.deepStrictEqual(s.notes().map((n) => n.rel), ['c.js']);
+});
+
+/* Fix round 1 (review del Task 4) */
+
+ok('commenti editor: la zona prende l\'altezza del riquadro, non lo 0 di quando è fuori pagina', () => {
+  const s = notesSetup();
+  const observers = [];
+  s.page.ctx.ResizeObserver = class {
+    constructor(fn) { this.fn = fn; observers.push(this); }
+    observe(el) { this.el = el; }
+    disconnect() {}
+  };
+  const resized = [];
+  s.host.resizeZone = (id, px) => resized.push([id, px]);
+  s.fn('openEditorNoteDraft')(s.tab, 'a.js', 1, 1);
+  const [o] = observers;
+  o.el.offsetHeight = 0; // file dietro o scheda nascosta: il riquadro non è nel layout
+  o.fn();
+  assert.deepStrictEqual(resized, [], 'una misura a 0 non schiaccia la zona');
+  o.el.offsetHeight = 99.5;
+  o.fn();
+  assert.deepStrictEqual(resized, [[[...s.host.zones.keys()][0], 106]]);
+});
+
+ok('commenti editor: svuotare dopo la copia lascia aperta la casella non salvata', async () => {
+  const s = notesSetup();
+  s.run('editorConfirm').ask = async () => true;
+  s.fn('openEditorNoteDraft')(s.tab, 'a.js', 1, 1);
+  s.write('salvato');
+  s.fn('openEditorNoteDraft')(s.tab, 'a.js', 3, 3);
+  s.find(s.draft().node, 'changes-comment-input').value = 'a metà';
+  await s.find(s.bar(), 'editor-notes-copy').onclick();
+  assert.deepStrictEqual(s.sent('clipboardWrite').length, 1);
+  assert.deepStrictEqual(s.notes(), []);
+  assert.strictEqual(s.find(s.draft().node, 'changes-comment-input').value, 'a metà', 'il testo scritto non si perde');
+  assert.deepStrictEqual([...s.host.marks.values()].map((m) => m.from), [3], 'resta solo il segno della casella');
+  assert.strictEqual(s.bar().hidden, true);
+  s.write('a metà');
+  assert.deepStrictEqual(s.notes().map((n) => [n.from, n.body]), [[3, 'a metà']]);
+});
+
+ok('commenti editor: svuotare dopo la copia mentre si riscrive un commento tiene la casella come commento nuovo', async () => {
+  const s = notesSetup();
+  s.run('editorConfirm').ask = async () => true;
+  s.fn('openEditorNoteDraft')(s.tab, 'a.js', 2, 2);
+  s.write('vecchio');
+  s.find(s.saved()[0].node, 'changes-comment-edit').onclick();
+  s.find(s.draft().node, 'changes-comment-input').value = 'nuovo';
+  await s.find(s.bar(), 'editor-notes-copy').onclick();
+  assert.deepStrictEqual(s.notes(), []);
+  assert.strictEqual(s.saved().length, 0);
+  assert.strictEqual(s.find(s.draft().node, 'changes-comment-input').value, 'nuovo');
+  assert.deepStrictEqual([...s.host.marks.keys()], ['m1'], 'il segno del commento passa alla casella');
+  s.write('nuovo');
+  assert.deepStrictEqual(s.notes().map((n) => [n.from, n.body, n.track]), [[2, 'nuovo', 'm1']]);
+});
+
+ok('commenti editor: se la domanda dopo la copia si rompe o la scheda si chiude, i commenti restano', async () => {
+  const s = notesSetup();
+  s.run('editorConfirm').ask = async () => { throw new Error('bolla rotta'); };
+  s.fn('openEditorNoteDraft')(s.tab, 'a.js', 1, 1);
+  s.write('x');
+  await s.find(s.bar(), 'editor-notes-copy').onclick(); // non rigetta
+  assert.strictEqual(s.tab.editor.ui.message.textContent, 'Commenti non svuotati: bolla rotta');
+  assert.strictEqual(s.notes().length, 1);
+  s.run('editorConfirm').ask = async () => { s.run('tabs').delete(s.tab.id); return true; };
+  await s.find(s.bar(), 'editor-notes-copy').onclick();
+  assert.strictEqual(s.notes().length, 1, 'scheda chiusa durante la domanda: niente da svuotare');
+});
+
+ok('commenti editor: la casella aperta aggiorna «Righe» quando le sue righe si spostano', () => {
+  const s = notesSetup();
+  s.fn('openEditorNoteDraft')(s.tab, 'a.js', 2, 3);
+  s.host.marks.set('m1', { rel: 'a.js', from: 3, to: 4 });
+  s.fn('onEditorTextChange')(s.tab, 'a.js', false, false);
+  assert.strictEqual(s.find(s.draft().node, 'changes-comment-lines-label').textContent, 'Righe 3–4');
+  s.write('x');
+  s.find(s.saved()[0].node, 'changes-comment-edit').onclick();
+  s.host.marks.set('m1', { rel: 'a.js', from: 1, to: 1 });
+  s.fn('onEditorTextChange')(s.tab, 'a.js', false, false);
+  assert.strictEqual(s.find(s.draft().node, 'changes-comment-lines-label').textContent, 'Riga 1');
 });

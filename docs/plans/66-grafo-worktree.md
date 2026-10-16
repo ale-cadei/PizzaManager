@@ -36,6 +36,10 @@ Scelte dall'utente:
     worktree.
   - Mai le linee fisse (main, develop).
 
+- Storia troncata (oltre il limite di commit letti): se la punta di un
+  worktree o il merge firmato restano fuori, la linea non ha il tratteggio.
+  Fuori dalla finestra però la linea non si vede comunque: va bene così.
+
 ## Fuori perimetro
 
 - La mappa dei branch (`renderer/git-map-view.js`) resta com'è: se serve il

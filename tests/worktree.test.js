@@ -291,7 +291,8 @@ ok('worktree: Unisci fa il merge nella cartella principale, poi toglie cartella 
   const r = await mergeWorktree({ platform: 'linux', root: '/src/progetto', path: WT, run, rmdir: () => {} });
   assert.strictEqual(r.ok, true, r.error);
   const sent = calls.map((c) => `${c.args.join(' ')} @${c.cwd}`);
-  assert.ok(sent.includes('merge --no-edit feat/x @/src/progetto'), sent.join('\n'));
+  // sempre un merge vero, firmato: la linea del worktree resta nel grafo (piano 66)
+  assert.ok(sent.includes("merge --no-ff --no-edit -m Merge branch 'feat/x' (worktree) feat/x @/src/progetto"), sent.join('\n'));
   assert.ok(sent.includes(`worktree remove ${WT} @/src/progetto`));
   assert.ok(sent.includes('branch -d feat/x @/src/progetto'), 'il branch unito resta');
 });

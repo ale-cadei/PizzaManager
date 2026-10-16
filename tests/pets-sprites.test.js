@@ -1,7 +1,7 @@
 // renderer/pets-sprites.js: i disegni dei personaggi come griglie di caratteri
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
-const { SPRITES, CAST, CAST_LABELS, REQUIRED_POSES, EXTRA_POSES, OPTIONAL_POSES, MOTIONS, GRID, dims, pixel, toRects } = require('../renderer/pets-sprites');
+const { SPRITES, CAST, CAST_LABELS, REQUIRED_POSES, EXTRA_POSES, OPTIONAL_POSES, MOTIONS, GRID, dims, pixel, sink, toRects } = require('../renderer/pets-sprites');
 
 const allFrames = (sprite) => Object.values(sprite.frames).flat();
 
@@ -261,6 +261,26 @@ ok('sprites: nessuno supera l\'altezza scelta; chi sta nelle GRID righe tiene il
     const { height } = SPRITES[kind];
     if (height) assert.ok(Math.abs(rows * pixel(kind, size) - size * height) < 1e-9, `${kind}: alto ${rows * pixel(kind, size)} invece di ${size * height}`);
     else if (rows <= GRID) assert.strictEqual(pixel(kind, size), size / GRID, `${kind}: pixel cambiato`);
+  }
+});
+
+ok('sprites: sink è un numero intero di righe, meno di tutto il disegno; senza, non scende', () => {
+  for (const [kind, sprite] of Object.entries(SPRITES)) {
+    if (sprite.sink === undefined) { assert.strictEqual(sink(kind, 32), 0, `${kind}: scende senza sink`); continue; }
+    assert.ok(Number.isInteger(sprite.sink) && sprite.sink > 0 && sprite.sink < dims(kind).rows, `${kind}: sink ${sprite.sink}`);
+    assert.strictEqual(sink(kind, 32), sprite.sink * pixel(kind, 32));
+  }
+});
+
+/* Il granchio cammina sulle zampe come gli altri, e le chele, che nel
+   pacchetto toccano terra, penzolano sotto la linea: sopra la barra in fondo. */
+ok('sprites: il granchio tocca la linea con le zampe, sotto restano solo le chele', () => {
+  const { rows } = dims('granchio');
+  const line = rows - SPRITES.granchio.sink;
+  for (const frame of SPRITES.granchio.frames.walk) {
+    assert.notStrictEqual(frame[line - 1].replace(/\./g, ''), '', 'niente tocca la linea');
+    // Sotto la linea, ai lati, niente zampe: le chele stanno fra la colonna 2 e la penultima
+    for (const row of frame.slice(line)) assert.match(row, /^\.\.[^]*\.$/, `zampa sotto la linea: «${row}»`);
   }
 });
 

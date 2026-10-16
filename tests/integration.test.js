@@ -459,6 +459,10 @@ ok('git: worktree creato, unito, in conflitto e buttato, con il git installato',
     const merged = await wt.mergeWorktree({ root, path: made.path });
     assert.strictEqual(merged.ok, true, merged.error);
     assert.ok(fs.existsSync(path.join(root, 'b.txt')), 'il lavoro del worktree non è in main');
+    // main era fermo: senza --no-ff sarebbe stato un fast-forward, e nel grafo
+    // il worktree non avrebbe lasciato nessuna linea (docs/plans/66)
+    assert.strictEqual(git(root, 'log', '-1', '--format=%s'), "Merge branch 'feat/uno' (worktree)");
+    assert.strictEqual(git(root, 'rev-list', '--parents', '-n', '1', 'HEAD').split(' ').length, 3, 'fast-forward invece di un merge');
     assert.ok(!fs.existsSync(made.path), 'la cartella del worktree è rimasta');
     assert.ok(fs.existsSync(path.join(root, 'node_modules', 'pkg', 'i.js')), 'tolto il node_modules del progetto invece del collegamento');
     assert.ok(!fs.existsSync(path.join(base, 'progetto.worktrees')), 'la cartella .worktrees vuota è rimasta');

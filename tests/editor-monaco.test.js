@@ -352,7 +352,7 @@ ok('close: segni e zone del file si scordano', () => {
 });
 
 const sel = (startLineNumber, endLineNumber, endColumn = 5, startColumn = 1) => ({ startLineNumber, startColumn, endLineNumber, endColumn });
-const at = (type, lineNumber) => ({ target: { type, position: lineNumber ? { lineNumber, column: 1 } : null }, event: { rightButton: false } });
+const at = (type, lineNumber) => ({ target: { type, position: lineNumber ? { lineNumber, column: 1 } : null }, event: { leftButton: true, rightButton: false } });
 
 ok('commenti: margine dei glifi acceso e due voci nel menu, una per la riga e una per la selezione', () => {
   const asked = [];
@@ -388,6 +388,15 @@ ok('commenti: il clic nel margine dei glifi commenta la riga, o la selezione se 
   down(at(6, 1)); // nel testo: è un clic nel testo
   down(at(2, 0));
   assert.deepStrictEqual(asked, [['a.js', 3, 3], ['a.js', 2, 4], ['a.js', 5, 5]]);
+});
+
+ok('commenti: il clic centrale (tasto rotella) nel margine dei glifi non apre un commento', () => {
+  const asked = [];
+  const { h, fake } = host({ onComment: (...a) => asked.push(a) });
+  h.open('a.js', TEXT);
+  const down = fake.editor.mouse.down;
+  down({ ...at(2, 3), event: { leftButton: false, rightButton: false } });
+  assert.deepStrictEqual(asked, []);
 });
 
 ok('commenti: il «+» compare nel margine della riga sotto il mouse e sparisce uscendo', () => {

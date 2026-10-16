@@ -496,3 +496,18 @@ ok('commenti: chiudere la scheda con commenti chiede, nel fumetto della card o d
   assert.strictEqual(await s.fn('confirmEditorClose')(s.tab), false);
   assert.deepStrictEqual(plain(chosen.map((o) => [o.key, o.text])), [[null, 'Chiudendo la scheda si perdono 2 commenti.']]);
 });
+
+ok('commenti: rinominando un file aperto, il commento segue il nuovo nome', async () => {
+  const s = setup({
+    files: { 'a.js': { text: 'uno\ndue\n', mtime: 1 } },
+    main: { editorRename: async () => ({ ok: true, rel: 'b.js' }), editorList: async () => ({ ok: true, entries: [] }) },
+  });
+  withNote(s, 'a.js');
+  s.page.ctx.AisessEditorTree.promptName = async () => 'b.js';
+  s.host.texts['b.js'] = s.host.texts['a.js'];
+  await s.fn('renameEditorEntry')(s.tab, { rel: 'a.js', name: 'a.js', depth: 0 });
+  await settle();
+  const EditorNotes = s.run('EditorNotes');
+  assert.strictEqual(EditorNotes.count(s.tab.editor.notes, 'b.js'), 1, 'il commento è sotto il nome nuovo');
+  assert.strictEqual(EditorNotes.count(s.tab.editor.notes, 'a.js'), 0, 'niente più sotto il nome vecchio');
+});

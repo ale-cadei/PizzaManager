@@ -402,7 +402,7 @@
       editor.onMouseLeave(() => clearAdd());
       // Monaco non sposta la selezione per un clic nel margine dei glifi: si legge ancora quella di prima
       editor.onMouseDown((e) => {
-        if (e.target.type !== MT.GUTTER_GLYPH_MARGIN || (e.event && e.event.rightButton)) return;
+        if (e.target.type !== MT.GUTTER_GLYPH_MARGIN || !(e.event && e.event.leftButton)) return;
         const line = lineOf(e);
         if (line) commentAt(line);
       });

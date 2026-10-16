@@ -221,15 +221,15 @@
     return more > 0 ? [...shown, `   … (altre ${more} righe)`] : shown;
   }
 
-  /** Il prompt per l'agente; vuoto se non ci sono note */
-  function formatPrompt(notes) {
+  /** Il prompt per l'agente; vuoto se non ci sono note. `header`: la prima riga (la scheda editor ha la sua, docs/plans/65) */
+  function formatPrompt(notes, { header = HEADER } = {}) {
     const list = [...(notes || [])].filter(validAnchor).sort(byPlace);
     if (!list.length) return '';
     const items = list.map((n, i) => {
       const body = sanitize(n.body).split('\n').map((l) => `   ${l}`.trimEnd());
       return [`${i + 1}. ${where(n)}`, ...quoteOf(n), ...body].join('\n');
     });
-    return [HEADER, '', items.join('\n\n')].join('\n');
+    return [header, '', items.join('\n\n')].join('\n');
   }
 
   /**

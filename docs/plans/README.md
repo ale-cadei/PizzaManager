@@ -72,7 +72,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 62 | [`feat/editor-pannello`](62-editor-pannello.md) — albero dell'editor ridimensionabile e nascondibile (bottone, Ctrl+B), ricordato al riavvio | 60, 61 | ~0,5-1g | ✅ fatto, smoke ok (striscia, ☰, Ctrl+B, riavvio) |
 | 63 | [`feat/editor-barrette`](63-editor-barrette.md) — barrette nel margine dell'editor per le righe aggiunte, modificate e tolte rispetto a HEAD, dal vivo | 60 | ~1g | ✅ fatto, smoke ok |
 | 64 | [`feat/editor-apri-da-modifiche`](64-editor-apri-da-modifiche.md) — bottone nel pannello modifiche che apre il file nell'editor alla prima riga cambiata | 63 | ~0,5-1g | ✅ fatto, smoke ok |
-| 65 | [`feat/editor-commenti`](65-editor-commenti.md) — commenti sulle righe dell'editor e prompt da copiare negli appunti | 60 | ~1-2g | ✅ fatto, smoke da fare |
+| 65 | [`feat/editor-commenti`](65-editor-commenti.md) — commenti sulle righe dell'editor e prompt da copiare negli appunti | 60 | ~1-2g | ✅ fatto, smoke ok |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

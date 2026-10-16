@@ -34,6 +34,16 @@ function fakeHost(texts) {
     activate: (rel) => calls.push(['activate', rel]),
     reveals: [], // a parte come gutters: dove si è portato il cursore
     reveal(rel, line) { this.reveals.push([rel, line]); },
+    // Commenti (docs/plans/65): segni e zone in due mappe, id da un contatore solo
+    marks: new Map(), zones: new Map(), seq: 0,
+    trackLines(rel, from, to) { const id = `m${++this.seq}`; this.marks.set(id, { rel, from, to }); return id; },
+    linesOf(id) { const m = this.marks.get(id); return m ? { from: m.from, to: m.to } : null; },
+    untrack(id) { this.marks.delete(id); },
+    lineText: (rel, line) => (rel in texts ? texts[rel].split(/\r\n|\r|\n/)[line - 1] : null),
+    addZone(rel, afterLine, node, height) { const id = `z${++this.seq}`; this.zones.set(id, { rel, afterLine, node, height }); return id; },
+    removeZone(id) { this.zones.delete(id); },
+    resizeZone() {},
+    focus: () => {},
     open: (rel, text) => { texts[rel] = text; }, close: () => {}, rename: () => {}, dispose: () => {},
   };
 }
@@ -69,10 +79,11 @@ function setup({ files = {}, main = {} } = {}) {
   const tab = {
     id: 'tab-ed', type: 'editor', cwd: '/w', name: 'w', wrap: stub(),
     editor: {
-      ui: { tree: stub(), treeHost: stub(), subtabs: stub(), bar: stub(), message: stub(), host: stub() },
+      ui: { tree: stub(), treeHost: stub(), subtabs: stub(), bar: stub(), message: stub(), host: stub(), notesBar: stub() },
       files: state, tree: page.ctx.AisessEditorTree.emptyTree(),
       host, hostPending: null, saving: new Set(), pendingChanges: new Map(), gutterTimer: null, gutterSeq: new Map(), gutterSeqLast: 0,
       gutterReads: new Map(),
+      notes: page.ctx.AisessEditorNotes.empty(), noteViews: new Map(), noteDraft: null,
     },
   };
   run('tabs').set(tab.id, tab);

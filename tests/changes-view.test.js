@@ -671,3 +671,43 @@ ok('scarta: il piè di pagina conferma o annulla, poi offre «Annulla lo scarto�
   one(foot, 'changes-discard-cancel').onclick();
   assert.deepStrictEqual(actions.map((a) => a.type), ['discard-cancel', 'discard', 'discard-undo', 'discard-cancel']);
 });
+
+/* ---------- apri nell'editor (docs/plans/64) ---------- */
+
+const openButtons = (host) => byClass(host, 'changes-open-editor');
+
+ok('apri nell editor: il bottone c è sui file modificati e nuovi, non su cancellati, binari e non file', () => {
+  const { host, view } = setup({ onOpenFile: () => {} });
+  view.render(baseState({ openable: true, files: [
+    file('m.js'), file('n.js', { status: '?' }), file('via.js', { status: 'D' }),
+    file('logo.png', { binary: true, added: null, removed: null }), file('link', { special: true }),
+  ] }));
+  const heads = byClass(host, 'changes-file-head');
+  assert.deepStrictEqual(heads.map((h) => openButtons(h).length), [1, 1, 0, 0, 0]);
+  const b = openButtons(heads[0])[0];
+  assert.strictEqual(b.tag, 'button');
+  assert.strictEqual(b.type, 'button');
+  assert.strictEqual(b.title, "Apri nell'editor");
+  assert.strictEqual(b.getAttribute('aria-label'), "Apri nell'editor");
+  assert.strictEqual(heads[0].children.indexOf(b), 1, 'subito dopo la riga, non dentro');
+  assert.strictEqual(byClass(one(heads[0], 'changes-file-row'), 'changes-open-editor').length, 0);
+});
+
+ok('apri nell editor: il click passa il percorso e non apre il diff', () => {
+  const opened = [];
+  const { host, view, calls } = setup({ onOpenFile: (p) => opened.push(p) });
+  view.render(baseState({ openable: true, files: [file('lib/x.js')] }));
+  const e = fire(openButtons(host)[0], 'click');
+  assert.deepStrictEqual(opened, ['lib/x.js']);
+  assert.strictEqual(e.propagationStopped, true);
+  assert.deepStrictEqual(calls.files, [], 'il diff resta chiuso');
+});
+
+ok('apri nell editor: niente bottone se il pannello non lo chiede o nessuno lo ascolta', () => {
+  const noListener = setup();
+  noListener.view.render(baseState({ openable: true, files: [file('a.js')] }));
+  assert.strictEqual(openButtons(noListener.host).length, 0);
+  const notOpenable = setup({ onOpenFile: () => {} });
+  notOpenable.view.render(baseState({ files: [file('a.js')] }));
+  assert.strictEqual(openButtons(notOpenable.host).length, 0, 'senza openable, come in modalità Unisci');
+});

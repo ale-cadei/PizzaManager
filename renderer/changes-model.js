@@ -313,6 +313,10 @@
     return { text, confirmLabel: null, undoLabel: 'Annulla lo scarto', canAct: canWrite };
   }
 
+  /** Se un file del pannello si può aprire nell'editor (docs/plans/64): c'è sul disco ed è testo. */
+  const openableInEditor = (f) => Boolean(f && typeof f.path === 'string' && f.path
+    && f.status !== 'D' && !f.binary && !f.special);
+
   function emptyText(result) {
     if (result && result.incoming) return 'Nessun file cambiato.';
     if (result && result.staging) return 'Niente da committare: indice e cartella come all\'ultimo commit.';
@@ -322,6 +326,6 @@
   return {
     targetFor, tabLabel, headerTitle, summary, summaryParts, notice, modeChoice, emptyText, fileCounts, signature,
     diffsToReload, splitPath, displayPath, itemId, splitItemId, sections, reviewAvailable, commitChoice,
-    incomingTarget, branchMergeFooter, discardFooter,
+    incomingTarget, branchMergeFooter, discardFooter, openableInEditor,
   };
 });

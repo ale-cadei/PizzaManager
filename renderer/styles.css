@@ -919,6 +919,7 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .changes-file-act.changes-stage:hover, .changes-file-act.changes-stage:focus-visible { color: var(--state-ok); background: var(--surface-2); outline: none; }
 .changes-file-act.changes-unstage:hover, .changes-file-act.changes-unstage:focus-visible,
 .changes-file-act.changes-discard:hover, .changes-file-act.changes-discard:focus-visible { color: var(--state-error); background: var(--surface-2); outline: none; }
+.changes-file-act.changes-open-editor:hover, .changes-file-act.changes-open-editor:focus-visible { color: var(--text); background: var(--surface-2); outline: none; }
 .changes-section-act {
   margin-left: auto; padding: 1px 6px; border: 1px solid var(--border); border-radius: 4px; background: none; cursor: pointer;
   font: 500 10px/1.4 var(--font-ui); letter-spacing: 0; text-transform: none; color: var(--text-muted);

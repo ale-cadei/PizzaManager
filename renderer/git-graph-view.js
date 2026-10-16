@@ -43,6 +43,18 @@
     return `M${x1} ${y1}C${x1} ${ym} ${x2} ${ym} ${x2} ${y2}`;
   }
 
+  /* Linea di un worktree (lib/git-graph-worktree.js): tratteggiata */
+  const WORKTREE_DASH = '4 3';
+
+  /** Attributi del tracciato di una linea; `worktree`: i colori delle linee dei worktree. */
+  function edgeAttrs(row, e, worktree) {
+    const attrs = { d: edgePath(row, e.from, e.to), 'data-lane': e.color };
+    return worktree && worktree.has(e.color) ? { ...attrs, 'stroke-dasharray': WORKTREE_DASH } : attrs;
+  }
+
+  /** Testo di un ref: ⌂ davanti al branch di un worktree. */
+  const refText = (ref) => (ref.worktree ? `⌂ ${ref.name}` : ref.name);
+
   const pad = (n) => String(n).padStart(2, '0');
   /** "25/09/2026 10:12" nell'ora locale; stringa vuota per una data illeggibile. */
   function formatDate(iso) {
@@ -160,17 +172,17 @@
       scroll.replaceChildren(status);
     }
 
-    function drawGraph(rows, width) {
+    function drawGraph(rows, width, worktree) {
       const w = graphWidth(width);
       const svg = svgEl('svg', { class: 'git-graph', width: w, height: rows.length * ROW_H, 'aria-hidden': 'true' });
       const lines = svgEl('g', { fill: 'none', 'stroke-width': 2, 'stroke-linecap': 'round' });
       const dots = svgEl('g', {});
       rows.forEach((r, i) => {
         for (const e of r.edges) {
-          const d = edgePath(i, e.from, e.to);
-          lines.appendChild(svgEl('path', { d, 'data-lane': e.color }, { stroke: colorOf(e.color), '--lane-color': colorOf(e.color) }));
+          const attrs = edgeAttrs(i, e, worktree);
+          lines.appendChild(svgEl('path', attrs, { stroke: colorOf(e.color), '--lane-color': colorOf(e.color) }));
           // tratto largo e trasparente sopra la linea: così si riesce a cliccarla
-          lines.appendChild(svgEl('path', { d, class: 'git-hit', 'data-lane': e.color }));
+          lines.appendChild(svgEl('path', { d: attrs.d, class: 'git-hit', 'data-lane': e.color }));
         }
         const merge = r.commit.parents.length > 1;
         const isHead = r.commit.refs.some((ref) => ref.head);
@@ -184,12 +196,14 @@
 
     // Un branch ha il colore della sua linea: la corsia del commit a cui punta
     function drawRef(ref, lane) {
-      const chip = el('span', `git-ref git-ref--${ref.kind}` + (ref.head ? ' git-ref--head' : ''), ref.name);
+      const cls = `git-ref git-ref--${ref.kind}` + (ref.head ? ' git-ref--head' : '') + (ref.worktree ? ' git-ref--worktree' : '');
+      const chip = el('span', cls, refText(ref));
       if (ref.kind !== 'tag') {
         chip.style.setProperty('--ref-color', colorOf(lane));
         chip.dataset.lane = String(lane);
       }
       if (ref.head) chip.title = ref.kind === 'head' ? 'HEAD staccata' : 'Branch corrente (HEAD)';
+      if (ref.worktree) chip.title = (chip.title ? chip.title + '\n' : '') + 'Branch di un worktree';
       return chip;
     }
 
@@ -273,7 +287,7 @@
         : `${rows.length} commit di ${label || 'questa linea'} · Esc per vederle tutte`;
       view.classList.toggle('git-view--focus', focus !== null);
       if (!rows.length) { showStatus('Nessun commit ancora.'); return; }
-      const { svg, w } = drawGraph(rows, focus === null ? data.width || 1 : 1);
+      const { svg, w } = drawGraph(rows, focus === null ? data.width || 1 : 1, new Set(data.worktreeLanes || []));
       const body = el('div', 'git-body');
       body.style.setProperty('--git-graph-w', w + 'px');
       body.style.setProperty('--git-row-h', ROW_H + 'px');
@@ -379,5 +393,5 @@
     return { update, setLoading, showStatus, setFocus, setMode, element: view };
   }
 
-  return { createGitView, edgePath, formatDate, visibleRefs, colorOf, headChange, graphWidth, focusRows, laneLabel, ROW_H, LANE_W, PALETTE };
+  return { createGitView, edgePath, edgeAttrs, refText, WORKTREE_DASH, formatDate, visibleRefs, colorOf, headChange, graphWidth, focusRows, laneLabel, ROW_H, LANE_W, PALETTE };
 });

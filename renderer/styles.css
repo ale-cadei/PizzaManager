@@ -1305,6 +1305,9 @@ body.editor-tree-hidden .editor-resizer { display: none; }
 .git-ref--head { background: color-mix(in srgb, var(--ref) 22%, transparent); font-weight: 600; }
 .git-ref--tag { border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--accent); }
 .git-ref--remote { border-style: dashed; }
+/* Branch di un worktree (docs/plans/66): ⌂ nel testo e bordo a puntini; la
+   sua linea nel grafo è tratteggiata (stroke-dasharray, dal renderer) */
+.git-ref--worktree { border-style: dotted; }
 /* Passando sopra una linea, un suo pallino o il nome di un branch la corsia
    si illumina (.is-lit, messa dal renderer) e le altre si attenuano: si
    vede cosa isolerebbe un clic. --lane-color: colore della corsia. */

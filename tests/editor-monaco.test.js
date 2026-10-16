@@ -26,6 +26,12 @@ function fakeMonaco() {
     revealLineInCenter(line) { editor.revealed.push(line); },
     addCommand(keys, fn) { editor.commands.push({ keys, fn }); },
     dispose() { editor.disposed = true; },
+    selection: null, actions: [], mouse: {},
+    getSelection: () => editor.selection,
+    addAction(a) { editor.actions.push(a); },
+    onMouseDown(f) { editor.mouse.down = f; },
+    onMouseMove(f) { editor.mouse.move = f; },
+    onMouseLeave(f) { editor.mouse.leave = f; },
   };
   function createModel(text, _language, uri) {
     const listeners = [];
@@ -82,6 +88,7 @@ function fakeMonaco() {
       createModel,
       EndOfLineSequence: { LF: 0, CRLF: 1 },
       TrackedRangeStickiness: { NeverGrowsWhenTypingAtEdges: 1 },
+      MouseTargetType: { GUTTER_GLYPH_MARGIN: 2, GUTTER_LINE_NUMBERS: 3, GUTTER_LINE_DECORATIONS: 4, GUTTER_VIEW_ZONE: 5, CONTENT_TEXT: 6, CONTENT_EMPTY: 7, CONTENT_VIEW_ZONE: 8 },
     },
     Uri: { from: (o) => ({ ...o }) },
     KeyMod: { CtrlCmd: 2048, Shift: 1024 },
@@ -342,4 +349,61 @@ ok('close: segni e zone del file si scordano', () => {
   h.removeZone(zone);
   h.open('a.js', TEXT);
   assert.strictEqual(h.linesOf(id), null, 'un file riaperto non ritrova i segni di prima');
+});
+
+const sel = (startLineNumber, endLineNumber, endColumn = 5, startColumn = 1) => ({ startLineNumber, startColumn, endLineNumber, endColumn });
+const at = (type, lineNumber) => ({ target: { type, position: lineNumber ? { lineNumber, column: 1 } : null }, event: { rightButton: false } });
+
+ok('commenti: margine dei glifi acceso e due voci nel menu, una per la riga e una per la selezione', () => {
+  const asked = [];
+  const { h, fake } = host({ onComment: (...a) => asked.push(a) });
+  assert.strictEqual(fake.editor.options.glyphMargin, true);
+  assert.deepStrictEqual(fake.editor.actions.map((a) => [a.id, a.label, a.precondition, a.contextMenuGroupId]), [
+    ['aisess.comment-line', 'Commenta riga', '!editorHasSelection', 'navigation'],
+    ['aisess.comment-selection', 'Commenta selezione', 'editorHasSelection', 'navigation'],
+  ]);
+  const [line, selection] = fake.editor.actions;
+  line.run(fake.editor);
+  assert.deepStrictEqual(asked, [], 'nessun file aperto');
+  h.open('a.js', TEXT);
+  fake.editor.selection = sel(4, 4, 3, 3); // il cursore, fermo sulla riga 4
+  line.run(fake.editor);
+  fake.editor.selection = sel(3, 6, 1); // fino a inizio riga 6: la 6 non c'è
+  selection.run(fake.editor);
+  fake.editor.selection = sel(2, 3, 2);
+  selection.run(fake.editor);
+  assert.deepStrictEqual(asked, [['a.js', 4, 4], ['a.js', 3, 5], ['a.js', 2, 3]]);
+});
+
+ok('commenti: il clic nel margine dei glifi commenta la riga, o la selezione se ci sta dentro', () => {
+  const asked = [];
+  const { h, fake } = host({ onComment: (...a) => asked.push(a) });
+  h.open('a.js', TEXT);
+  const down = fake.editor.mouse.down;
+  down(at(2, 3));
+  fake.editor.selection = sel(2, 4);
+  down(at(2, 3));
+  down(at(2, 5));
+  down({ ...at(2, 1), event: { rightButton: true } });
+  down(at(6, 1)); // nel testo: è un clic nel testo
+  down(at(2, 0));
+  assert.deepStrictEqual(asked, [['a.js', 3, 3], ['a.js', 2, 4], ['a.js', 5, 5]]);
+});
+
+ok('commenti: il «+» compare nel margine della riga sotto il mouse e sparisce uscendo', () => {
+  const { h, fake } = host();
+  h.open('a.js', TEXT);
+  const m = fake.models[0];
+  const plus = () => [...m.live.values()].filter((d) => d.options.glyphMarginClassName === 'editor-note-add').map((d) => d.range.startLineNumber);
+  fake.editor.mouse.move(at(6, 2));
+  assert.deepStrictEqual(plus(), [2]);
+  fake.editor.mouse.move(at(2, 2));
+  assert.strictEqual(m.removed.length, 1, 'stessa riga: non si ridisegna');
+  fake.editor.mouse.move(at(3, 4));
+  assert.deepStrictEqual(plus(), [4]);
+  fake.editor.mouse.move(at(8, 4));
+  assert.deepStrictEqual(plus(), [], 'sopra una zona dei commenti no');
+  fake.editor.mouse.move(at(6, 1));
+  fake.editor.mouse.leave({});
+  assert.deepStrictEqual(plus(), []);
 });

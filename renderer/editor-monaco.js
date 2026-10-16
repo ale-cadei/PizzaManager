@@ -60,9 +60,10 @@
   /**
    * @param {{monaco: object, container: Element, fontSize: number,
    *   onChange: (rel: string, dirty: boolean, edited: boolean) => void,
-   *   onSave: (rel: string|null) => void, onSaveAll: () => void}} o
+   *   onSave: (rel: string|null) => void, onSaveAll: () => void,
+   *   onComment?: (rel: string, from: number, to: number) => void}} o
    */
-  function createEditorHost({ monaco, container, fontSize, onChange, onSave, onSaveAll }) {
+  function createEditorHost({ monaco, container, fontSize, onChange, onSave, onSaveAll, onComment = () => {} }) {
     // Autorità diversa per host: due schede sulla stessa cartella hanno model distinti
     const authority = `h${++hosts}`;
     const docs = new Map(); // rel → { rel, model, savedVersion, viewState, forcedDirty, sub, gutter, marks, zones }
@@ -70,6 +71,7 @@
     const editor = monaco.editor.create(container, {
       model: null, theme: THEME, automaticLayout: true, fontSize, fontFamily: FONT,
       minimap: { enabled: false }, scrollBeyondLastLine: false, renderWhitespace: 'selection',
+      glyphMargin: true, // il margine del «+» (docs/plans/65)
     });
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => onSave(current));
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyS, () => onSaveAll());
@@ -345,10 +347,73 @@
       if (shown.length) editor.changeViewZones((acc) => shown.forEach((z) => acc.layoutZone(z.viewId)));
     }
 
+    /* Commentare (docs/plans/65): dal menu del tasto destro, o col clic sul
+       «+» che compare nel margine della riga sotto il mouse */
+    const MT = monaco.editor.MouseTargetType;
+    const ON_LINE = new Set([MT.GUTTER_GLYPH_MARGIN, MT.GUTTER_LINE_NUMBERS, MT.GUTTER_LINE_DECORATIONS, MT.CONTENT_TEXT, MT.CONTENT_EMPTY]);
+    let hover = { rel: null, line: 0, ids: [] };
+
+    // Una selezione che finisce a inizio riga non prende quella riga
+    function selectedLines() {
+      const s = editor.getSelection();
+      if (!s) return null;
+      const to = s.endLineNumber > s.startLineNumber && s.endColumn === 1 ? s.endLineNumber - 1 : s.endLineNumber;
+      return { from: s.startLineNumber, to };
+    }
+
+    /* `line` 0: dal menu, vale la selezione (o la riga del cursore). Dal
+       margine la riga, o la selezione se la riga ci sta dentro */
+    function commentAt(line) {
+      if (!current) return;
+      const sel = selectedLines();
+      const inSel = sel && sel.to > sel.from && line >= sel.from && line <= sel.to;
+      const lines = line && !inSel ? { from: line, to: line } : sel;
+      if (lines) onComment(current, lines.from, lines.to);
+    }
+
+    function clearAdd() {
+      const d = docs.get(hover.rel);
+      if (d && hover.ids.length) d.model.deltaDecorations(hover.ids, []);
+      hover = { rel: null, line: 0, ids: [] };
+    }
+
+    function showAdd(line) {
+      if (hover.rel === current && hover.line === line) return;
+      clearAdd();
+      const d = docs.get(current);
+      if (!d) return;
+      const range = { startLineNumber: line, startColumn: 1, endLineNumber: line, endColumn: 1 };
+      hover = { rel: current, line, ids: d.model.deltaDecorations([], [{ range, options: { glyphMarginClassName: 'editor-note-add' } }]) };
+    }
+
+    const lineOf = (e) => (e.target && e.target.position ? e.target.position.lineNumber : 0);
+
+    function wireComments() {
+      const action = (id, label, precondition) => editor.addAction({
+        id, label, precondition, contextMenuGroupId: 'navigation', contextMenuOrder: 0, run: () => commentAt(0),
+      });
+      action('aisess.comment-line', 'Commenta riga', '!editorHasSelection');
+      action('aisess.comment-selection', 'Commenta selezione', 'editorHasSelection');
+      editor.onMouseMove((e) => {
+        const line = ON_LINE.has(e.target.type) ? lineOf(e) : 0;
+        if (line) showAdd(line);
+        else clearAdd();
+      });
+      editor.onMouseLeave(() => clearAdd());
+      // Monaco non sposta la selezione per un clic nel margine dei glifi: si legge ancora quella di prima
+      editor.onMouseDown((e) => {
+        if (e.target.type !== MT.GUTTER_GLYPH_MARGIN || (e.event && e.event.rightButton)) return;
+        const line = lineOf(e);
+        if (line) commentAt(line);
+      });
+    }
+
     function dispose() {
       for (const rel of [...docs.keys()]) close(rel);
       editor.dispose();
     }
+
+    wireComments();
 
     return {
       open, activate, markSaved, replaceText, rename, close, dispose, setGutter, reveal,

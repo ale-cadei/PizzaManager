@@ -159,6 +159,8 @@
   /** speed: misure del personaggio al secondo, a velocità «normale».
    *  motion: come si muove (pets.js MOTIONS): cammina, salta, vola, nuota.
    *  height: altezza come frazione della taglia, per chi non segue la regola di GRID.
+   *  sink: righe in fondo al disegno che stanno sotto la linea su cui cammina
+   *    (le chele del granchio): penzolano sopra la barra in fondo. Facoltativo.
    *  shadow: ombra a terra per chi vola, un frame per frame di walk (facoltativa).
    *  bubbles: disegni davanti alla bocca mentre chiama, alti quanto il
    *    personaggio, uno dopo l'altro. Facoltativi.
@@ -286,6 +288,10 @@
     return height ? (size * height) / rows : size / Math.max(GRID, rows);
   }
 
+  /** Di quanto il disegno scende sotto la linea della striscia, in pixel dello
+   *  schermo: le sue ultime sink righe penzolano sopra la barra in fondo. */
+  const sink = (kind, size) => (SPRITES[kind].sink || 0) * pixel(kind, size);
+
   /**
    * Una riga di pixel uguali contigui diventa un rettangolo solo: un frame di
    * 16×16 scende da 256 elementi a qualche decina.
@@ -306,5 +312,5 @@
     return rects;
   }
 
-  return { SPRITES, CAST, CAST_LABELS, REQUIRED_POSES, EXTRA_POSES, OPTIONAL_POSES, MOTIONS, GRID, dims, pixel, looks, paletteOf, toRects };
+  return { SPRITES, CAST, CAST_LABELS, REQUIRED_POSES, EXTRA_POSES, OPTIONAL_POSES, MOTIONS, GRID, dims, pixel, sink, looks, paletteOf, toRects };
 });

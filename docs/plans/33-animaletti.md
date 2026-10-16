@@ -126,7 +126,11 @@ corpo le linee scure isolate (`with_limbs`, dopo); la bocca resta scura
 perché tocca il corpo. Chi è più basso di 32
 righe riceve `height`, come gli Spritelli. Il granchio è più piccolo
 apposta, su richiesta dell'utente: `scale: 0.85` nel generatore, che finisce
-nel suo `height`.
+nel suo `height`. Nel foglio il granchio poggia sulle chele, con le zampe
+a mezz'aria: su richiesta dell'utente cammina sulle zampe come gli altri e
+le chele penzolano sopra la barra in fondo. `sink: 8` (nel generatore, fra i
+ritocchi del granchio) dice quante righe in fondo stanno sotto la linea;
+la vista abbassa il personaggio di tanto (`Sprites.sink`).
 
 **Senza contorno**: i pacchetti disegnano un bordo scuro di 1 px attorno a
 ogni sagoma (gli Spritelli tutti dello stesso `#2B2233`, Fizzo, la pizza,

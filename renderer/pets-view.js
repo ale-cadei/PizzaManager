@@ -127,7 +127,7 @@
     const el = doc.createElement('div');
     const { svg, frames } = buildSprite(doc, pet.kind, size, pet.variant);
     el.appendChild(svg);
-    return { el, frames, shown: null, layers: buildLayers(doc, pet, size) };
+    return { el, frames, shown: null, sink: Sprites.sink(pet.kind, size), layers: buildLayers(doc, pet, size) };
   }
 
   function show(view, frame) {
@@ -161,7 +161,7 @@
       show(view, list[Pets.frameIndex(pet, list.length)]);
       const left = pet.dir < 0 ? ' pet--left' : '';
       view.el.setAttribute('class', `pet pet--${pet.kind} pet--${pet.pose}${left}`);
-      view.el.style.transform = `translate(${pet.x.toFixed(1)}px, ${(-pet.y).toFixed(1)}px)`;
+      view.el.style.transform = `translate(${pet.x.toFixed(1)}px, ${(view.sink - pet.y).toFixed(1)}px)`;
       for (const layer of view.layers) layer.draw(pet, layer, Pets.petWidth(pet.kind, size()));
     }
 

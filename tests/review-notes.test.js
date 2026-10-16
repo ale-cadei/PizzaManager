@@ -258,3 +258,11 @@ ok('review: l\'incolla si prepara solo se l\'agente accetta un incolla su più r
   assert.match(raw.error, /Invio/);
   assert.strictEqual(R.pasteFor([], { bracketed: true }).ok, false);
 });
+
+ok('review: il prompt prende un\'intestazione diversa, senza resta quella di sempre', () => {
+  const notes = R.addNote([], R.anchorOf('lib/a.js', add(7, 'a')), 'Prima').notes;
+  const header = 'Correggi questi punti del codice:';
+  assert.deepStrictEqual(R.formatPrompt(notes, { header }).split('\n').slice(0, 3), [header, '', '1. lib/a.js:7']);
+  assert.strictEqual(R.formatPrompt(notes).split('\n')[0], 'Review delle modifiche, correggi questi punti:');
+  assert.strictEqual(R.formatPrompt([], { header }), '');
+});

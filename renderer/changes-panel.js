@@ -173,6 +173,8 @@ function renderChanges() {
     review: reviewStateOf(activeTab(), merge),
     commit: commitStateOf(activeTab(), merge),
     discard: merge ? null : discardStateOf(activeTab()),
+    // In modalità Unisci si guarda un altro worktree o un branch in arrivo: niente editor
+    openable: !merge,
   });
 }
 
@@ -526,6 +528,29 @@ function initChangesResize() {
   });
 }
 
+/* ---------- Apri nell'editor (docs/plans/64) ---------- */
+
+/* Il bottone su un file: si riusa la scheda editor attiva se contiene il
+   file, se no la prima (nell'ordine della barra laterale) che lo contiene,
+   altrimenti se ne apre una sulla radice del repository; poi il file si
+   apre al primo blocco cambiato. Il pannello si chiude: sta sopra l'editor
+   e coprirebbe la riga (scelta dell'utente). Si chiude prima di aspettare
+   l'editor, così se intanto lo si riapre resta aperto. */
+async function openChangedFile(path) {
+  const { result, merge } = changesState;
+  if (merge || !result || !result.ok || typeof result.root !== 'string') return;
+  const target = window.AisessEditorRoute.editorTarget({
+    repoRoot: result.root, file: path, tabs: Order.applyOrder([...tabs.values()], sessionOrder), activeId,
+  });
+  if (!target) return;
+  let tab = target.tabId ? tabs.get(target.tabId) : null;
+  if (tab) setActive(tab.id);
+  else tab = await createTab('editor', { cwd: target.cwd });
+  if (!tab || !tabs.has(tab.id)) return;
+  if (changesState.open) toggleChangesPanel(false);
+  await openEditorAt(tab, target.rel);
+}
+
 function initChangesPanel() {
   changesView = window.AisessChangesView.createChangesView({
     doc: document,
@@ -538,6 +563,7 @@ function initChangesPanel() {
     onMode: (mode) => setChangesMode(mode),
     onReview: (action) => handleReview(action),
     onCommit: (action) => handleCommit(action),
+    onOpenFile: (path) => { openChangedFile(path).catch((e) => console.warn('[modifiche] apri nell\'editor', e)); },
   });
   initChangesResize();
   try { window.aisess.onMenu('menu-changes', () => toggleChangesPanel()); } catch {}

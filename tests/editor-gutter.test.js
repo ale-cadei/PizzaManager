@@ -1,6 +1,6 @@
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
-const { MAX_GUTTER_LINES, diffLines, changeRanges } = require('../renderer/editor-gutter');
+const { MAX_GUTTER_LINES, diffLines, changeRanges, firstChangedLine } = require('../renderer/editor-gutter');
 
 /* Le righe cambiate rispetto a HEAD (docs/plans/63): testo di HEAD contro
    testo nell'editor, righe da 1, `after` = riga dopo cui mancano righe. */
@@ -122,4 +122,12 @@ ok('gutter: un file grande con poche righe cambiate si confronta in fretta', () 
     { kind: 'mod', from: 101, to: 101 }, { kind: 'add', from: 9001, to: 9001 }, { kind: 'del', after: 15001 },
   ]);
   assert.ok(Date.now() - started < 1000, 'diff troppo lento');
+});
+
+ok('barrette: firstChangedLine dà la prima riga del primo blocco, null senza blocchi', () => {
+  assert.strictEqual(firstChangedLine(null), null);
+  assert.strictEqual(firstChangedLine([]), null);
+  assert.strictEqual(firstChangedLine([{ kind: 'mod', from: 7, to: 9 }, { kind: 'add', from: 3, to: 3 }]), 3);
+  assert.strictEqual(firstChangedLine([{ kind: 'del', after: 4 }, { kind: 'mod', from: 9, to: 9 }]), 4);
+  assert.strictEqual(firstChangedLine([{ kind: 'del', after: 0 }, { kind: 'add', from: 5, to: 6 }]), 1, 'tolte in cima: riga 1');
 });

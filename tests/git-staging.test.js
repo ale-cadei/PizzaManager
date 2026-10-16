@@ -147,3 +147,16 @@ ok('da committare: sezione o percorso non validi si rifiutano senza chiamare git
     assert.strictEqual(calls.length, 0, `${side} ${path}`);
   }
 });
+
+ok('da committare: dice la radice del repository anche aperto da una sottocartella (piano 64)', async () => {
+  // Il git finto conosce la radice solo da dentro il repository: fuori sbaglia
+  const inner = fakeGit();
+  const run = (args, opts) => (args.includes('--show-toplevel') && !String(opts.cwd).startsWith(`${ROOT}/`) && opts.cwd !== ROOT
+    ? Promise.reject(Object.assign(new Error('exit 128'), { code: 128, stderr: 'fatal: not a git repository' }))
+    : inner(args, opts));
+  const r = await readStaging({ cwd: `${ROOT}/lib`, run, fsp: noDisk });
+  assert.strictEqual(r.ok, true, r.error);
+  assert.strictEqual(r.root, ROOT, 'la radice, non la sottocartella da cui si è aperto');
+  const outside = await readStaging({ cwd: '/altrove', run, fsp: noDisk });
+  assert.strictEqual(outside.ok, false, 'fuori dal repository non c è radice');
+});

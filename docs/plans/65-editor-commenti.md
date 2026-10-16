@@ -80,6 +80,8 @@ Scelte dall'utente:
 - Il «+» nel margine accanto alle barrette del piano 63: si vedono entrambi.
 - Dentro la casella: Ctrl+C/V, Esc, Ctrl+Invio; aggiungere e togliere
   commenti non fa saltare la vista.
+- La rotellina del mouse sopra un riquadro: l'editor scorre? (la sonda
+  sotto xvfb non sa simulare la rotellina, neanche sulle righe)
 - Ricaricare il file dal disco con commenti, poi Ctrl+Z: i commenti restano
   alle loro righe (il Monaco finto dei test non lo mostra).
 
@@ -105,10 +107,15 @@ Emersi dalle review, non fatti in questo branch:
 - **Senza test:** il collegamento `onComment` (margine e menu → casella) e la
   domanda di chiusura senza `anchor` (dall'editor, o quando un worktree chiude
   le sue schede: `worktrees.js:37`).
-- **Pulizia:** `close()` dell'host non toglie le zone prima di
-  `setModel(null)`; i listener del mouse non sono tenuti per il dispose (ci
+- **Pulizia:** i listener del mouse non sono tenuti per il dispose (ci
   pensa `editor.dispose()`); in `putMarks` il parametro `from` copre quello
   di `rename`. Innocui.
+- **Riquadri in overlay:** lo strato delle righe di Monaco sta sopra le zone
+  e si prende clic e fuoco, quindi la casella nella zona non si poteva usare
+  (visto nello smoke). Come lo ZoneWidget di Monaco, la zona tiene lo spazio
+  e il riquadro sta in un overlay widget messo all'altezza della zona
+  (`onDomNodeTop`). Gli overlay restano dopo `setModel`: l'host li toglie
+  cambiando file, rinominando e chiudendo.
 - **Uscire dall'app** con commenti non chiede niente: `askEditorExit` guarda
   solo i file con modifiche.
 - **Percorsi nel prompt** relativi alla cartella della scheda editor: se

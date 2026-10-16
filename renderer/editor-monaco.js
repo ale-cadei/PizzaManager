@@ -149,10 +149,11 @@
       if (!d || docs.has(to)) return;
       const wasCurrent = current === from;
       const viewState = wasCurrent ? editor.saveViewState() : d.viewState;
+      if (wasCurrent) d.zones.forEach(hideZone);
       const spans = spansOf(d); // prima di togliere `from` da docs: linesOf passa da lì
       docs.delete(from);
       // Le zone passano fuori dalla vista: activate le rimette
-      const zones = new Map([...d.zones].map(([id, z]) => [id, { ...z, viewId: null }]));
+      const zones = new Map([...d.zones].map(([id, z]) => [id, { ...z, viewId: null, overlaid: false }]));
       make(to, d.model.getValue(), { viewState, forcedDirty: dirtyOf(d), zones });
       putMarks(docs.get(to), spans, d);
       for (const id of zones.keys()) owner.set(id, to);
@@ -209,7 +210,7 @@
       if (!d) return;
       docs.delete(rel);
       for (const id of [...d.marks.keys(), ...d.zones.keys()]) owner.delete(id);
-      if (current === rel) { current = null; editor.setModel(null); }
+      if (current === rel) { d.zones.forEach(hideZone); current = null; editor.setModel(null); }
       d.sub.dispose();
       d.model.dispose();
     }
@@ -290,14 +291,33 @@
       return d && validLines(d.model, line, line) ? d.model.getLineContent(line) : null;
     }
 
+    /* Lo strato delle righe di Monaco sta sopra le zone e si prende i clic:
+       un nodo dentro la zona non riceve né fuoco né clic. Come lo ZoneWidget
+       di Monaco, la zona tiene solo lo spazio e il nodo sta in un overlay
+       widget, messo all'altezza della zona da onDomNodeTop (fuori vista
+       Monaco dà -1e6, e il nodo esce dallo schermo). Gli overlay, al
+       contrario delle zone, restano dopo setModel: hideZone li toglie. */
+    const doc = container.ownerDocument;
+
+    function placeZone(z) {
+      const info = editor.getLayoutInfo();
+      z.node.style.left = `${info.contentLeft}px`;
+      z.node.style.width = `${info.contentWidth}px`;
+    }
+
     function showZone(z) {
       editor.changeViewZones((acc) => { z.viewId = acc.addZone(z.delegate); });
+      if (z.overlaid) return;
+      editor.addOverlayWidget(z.widget);
+      z.overlaid = true;
+      placeZone(z);
     }
 
     function hideZone(z) {
-      if (z.viewId === null) return;
-      editor.changeViewZones((acc) => acc.removeZone(z.viewId));
+      if (z.viewId !== null) editor.changeViewZones((acc) => acc.removeZone(z.viewId));
       z.viewId = null;
+      if (z.overlaid) editor.removeOverlayWidget(z.widget);
+      z.overlaid = false;
     }
 
     /** Una zona col nodo `node` sotto la riga `afterLine`, che la segue come un segno */
@@ -305,8 +325,15 @@
       const d = docs.get(rel);
       if (!d || !validLines(d.model, afterLine, afterLine)) return null;
       const id = `${authority}z${++seq}`;
-      const delegate = { afterLineNumber: afterLine, heightInPx, domNode: node };
-      const z = { mark: trackIn(d, afterLine, afterLine, null), viewId: null, delegate };
+      const wrap = doc.createElement('div');
+      node.style.position = 'absolute';
+      wrap.appendChild(node);
+      const delegate = {
+        afterLineNumber: afterLine, heightInPx, domNode: doc.createElement('div'),
+        onDomNodeTop: (top) => { node.style.top = `${top}px`; },
+      };
+      const widget = { getId: () => id, getDomNode: () => wrap, getPosition: () => null };
+      const z = { mark: trackIn(d, afterLine, afterLine, null), viewId: null, delegate, node, widget, overlaid: false };
       d.zones.set(id, z);
       owner.set(id, rel);
       if (current === rel) showZone(z);
@@ -389,6 +416,10 @@
     const lineOf = (e) => (e.target && e.target.position ? e.target.position.lineNumber : 0);
 
     function wireComments() {
+      editor.onDidLayoutChange(() => {
+        const d = docs.get(current);
+        if (d) d.zones.forEach((z) => { if (z.overlaid) placeZone(z); });
+      });
       const action = (id, label, precondition) => editor.addAction({
         id, label, precondition, contextMenuGroupId: 'navigation', contextMenuOrder: 0, run: () => commentAt(0),
       });

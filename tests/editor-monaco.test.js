@@ -8,7 +8,12 @@ function fakeMonaco() {
   const models = [];
   const editor = {
     model: null, view: null, commands: [], disposed: false, options: null,
-    zones: new Map(), zoneSeq: 0, layouts: [],
+    zones: new Map(), zoneSeq: 0, layouts: [], overlays: new Map(), layout: null,
+    // Gli overlay, al contrario delle zone, restano dopo setModel
+    addOverlayWidget(w) { editor.overlays.set(w.getId(), w); },
+    removeOverlayWidget(w) { editor.overlays.delete(w.getId()); },
+    getLayoutInfo: () => ({ contentLeft: 60, contentWidth: 700 }),
+    onDidLayoutChange(f) { editor.layout = f; },
     // Come Monaco: un model diverso è una vista nuova, senza le zone di prima
     setModel(m) { if (m !== editor.model) editor.zones = new Map(); editor.model = m; },
     changeViewZones(cb) {
@@ -97,11 +102,16 @@ function fakeMonaco() {
   return { monaco, editor, models };
 }
 
+// Il minimo di DOM che l'host usa per le zone: div con stile e figli
+const fakeDoc = { createElement: (tag) => ({ tag, style: {}, children: [], appendChild(c) { this.children.push(c); } }) };
+const plainStyle = (node) => ({ ...node.style });
+const overlaid = (fake) => [...fake.editor.overlays.values()].map((w) => w.getDomNode().children[0]);
+
 function host(extra = {}) {
   const fake = fakeMonaco();
   const changes = [];
   const saved = [];
-  const h = createEditorHost({ monaco: fake.monaco, container: {}, fontSize: 13,
+  const h = createEditorHost({ monaco: fake.monaco, container: { ownerDocument: fakeDoc }, fontSize: 13,
     onChange: (rel, dirty) => changes.push([rel, dirty]), onSave: (rel) => saved.push(rel), onSaveAll: () => saved.push('*'), ...extra });
   return { h, fake, changes, saved };
 }
@@ -267,13 +277,15 @@ ok('addZone: sotto la riga nel file attivo; negli altri compare quando si attiva
   const { h, fake } = host();
   h.open('a.js', TEXT);
   h.open('b.js', TEXT);
-  const node = { tag: 'div' };
+  const node = { tag: 'div', style: {} };
   assert.ok(h.addZone('a.js', 3, node, 80));
   assert.strictEqual(fake.editor.zones.size, 0, 'a.js non è davanti');
   h.activate('a.js');
-  assert.deepStrictEqual([...fake.editor.zones.values()].map((z) => [z.afterLineNumber, z.heightInPx, z.domNode]), [[3, 80, node]]);
+  assert.deepStrictEqual([...fake.editor.zones.values()].map((z) => [z.afterLineNumber, z.heightInPx]), [[3, 80]]);
+  assert.deepStrictEqual(overlaid(fake), [node], 'il nodo sta in un overlay, sopra lo strato delle righe');
   h.activate('b.js');
   assert.strictEqual(fake.editor.zones.size, 0);
+  assert.strictEqual(fake.editor.overlays.size, 0, 'l overlay va via con la zona');
   h.activate('a.js');
   assert.strictEqual(fake.editor.zones.size, 1, 'setModel butta le zone: si rimettono');
   h.activate('a.js');
@@ -285,7 +297,7 @@ ok('addZone: sotto la riga nel file attivo; negli altri compare quando si attiva
 ok('addZone: segue la riga quando il testo cambia sopra', () => {
   const { h, fake } = host();
   h.open('a.js', TEXT);
-  h.addZone('a.js', 3, {});
+  h.addZone('a.js', 3, { style: {} });
   const [[vid, zone]] = [...fake.editor.zones];
   assert.strictEqual(zone.heightInPx, 64, 'altezza di partenza');
   fake.models[0].insertLines(1, 2);
@@ -298,7 +310,7 @@ ok('addZone: segue la riga quando il testo cambia sopra', () => {
 ok('removeZone e resizeZone', () => {
   const { h, fake } = host();
   h.open('a.js', TEXT);
-  const id = h.addZone('a.js', 2, {});
+  const id = h.addZone('a.js', 2, { style: {} });
   const [[vid, zone]] = [...fake.editor.zones];
   h.resizeZone(id, 120);
   assert.strictEqual(zone.heightInPx, 120);
@@ -312,12 +324,26 @@ ok('removeZone e resizeZone', () => {
   h.removeZone(id);
 });
 
+ok('addZone: il nodo va all altezza della zona e largo quanto il testo', () => {
+  const { h, fake } = host();
+  h.open('a.js', TEXT);
+  const node = { style: {} };
+  h.addZone('a.js', 2, node);
+  const [zone] = fake.editor.zones.values();
+  assert.notStrictEqual(zone.domNode, node, 'la zona tiene solo lo spazio');
+  zone.onDomNodeTop(140);
+  assert.deepStrictEqual(plainStyle(node), { position: 'absolute', top: '140px', left: '60px', width: '700px' });
+  fake.editor.getLayoutInfo = () => ({ contentLeft: 50, contentWidth: 400 });
+  fake.editor.layout();
+  assert.strictEqual(node.style.width, '400px', 'la finestra cambia: il riquadro la segue');
+});
+
 ok('replaceText: i segni restano agli stessi numeri, fermati all ultima riga', () => {
   const { h, fake } = host();
   h.open('a.js', TEXT);
   const a = h.trackLines('a.js', 2, 3);
   const b = h.trackLines('a.js', 4, 5);
-  h.addZone('a.js', 5, {});
+  h.addZone('a.js', 5, { style: {} });
   h.replaceText('a.js', 'uno\ndue\ntre\nquattro');
   assert.deepStrictEqual(h.linesOf(a), { from: 2, to: 3 });
   assert.deepStrictEqual(h.linesOf(b), { from: 4, to: 4 });
@@ -328,24 +354,27 @@ ok('rename: segni e zone passano al model nuovo con gli stessi id', () => {
   const { h, fake } = host();
   h.open('a.js', TEXT);
   const id = h.trackLines('a.js', 2, 2);
-  const node = {};
+  const node = { style: {} };
   const zone = h.addZone('a.js', 2, node);
   h.rename('a.js', 'b.js');
   assert.deepStrictEqual(h.linesOf(id), { from: 2, to: 2 });
   assert.strictEqual(fake.models[1].live.size, 2, 'il segno e quello della zona');
-  assert.deepStrictEqual([...fake.editor.zones.values()].map((z) => z.domNode), [node]);
+  assert.strictEqual(fake.editor.zones.size, 1);
+  assert.deepStrictEqual(overlaid(fake), [node], 'un overlay solo, non quello vecchio in più');
   h.removeZone(zone);
   assert.strictEqual(fake.editor.zones.size, 0);
+  assert.strictEqual(fake.editor.overlays.size, 0);
   assert.strictEqual(h.lineText('b.js', 2), 'due');
 });
 
 ok('close: segni e zone del file si scordano', () => {
-  const { h } = host();
+  const { h, fake } = host();
   h.open('a.js', TEXT);
   const id = h.trackLines('a.js', 1, 1);
-  const zone = h.addZone('a.js', 1, {});
+  const zone = h.addZone('a.js', 1, { style: {} });
   h.close('a.js');
   assert.strictEqual(h.linesOf(id), null);
+  assert.strictEqual(fake.editor.overlays.size, 0, 'setModel(null) non toglie gli overlay: li toglie close');
   h.removeZone(zone);
   h.open('a.js', TEXT);
   assert.strictEqual(h.linesOf(id), null, 'un file riaperto non ritrova i segni di prima');

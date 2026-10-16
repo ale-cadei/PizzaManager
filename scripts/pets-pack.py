@@ -131,12 +131,15 @@ REEF_SLEEP_Z = '#9FD3E6'
 # resta, in un colore a parte che unoutlined non vede; 'limbs', il colore
 # delle linee fatte solo di scuro (zampe, peduncoli), che sul terminale scuro
 # sparirebbero. La bocca, dentro al corpo, resta scura. 'scale': più
-# piccolo degli altri, in frazione della misura a pixel pieno.
+# piccolo degli altri, in frazione della misura a pixel pieno. 'sink': righe
+# in fondo che scendono sotto la linea su cui cammina (pets-sprites.js sink).
 REEF = [
     ('granchio', 'crab',
      {'walk': 'walk', 'sleep': 'sleep', 'call': 'call', 'idle': 'idle'},
      0.8, 'Il granchio: cammina di lato, e per chiamare agita le chele',
-     {'eyes': '#FFF6EA', 'limbs': '#A8352A', 'scale': 0.85}),
+     {'eyes': '#FFF6EA', 'limbs': '#A8352A', 'scale': 0.85,
+      # Le chele, che nel foglio toccano terra: cammina sulle zampe, e quelle penzolano
+      'sink': 8}),
     ('barchetta', 'paperboat',
      {'walk': 'walk', 'sleep': 'sleep', 'call': 'call', 'idle': 'idle',
       'vanish': 'vanish', 'appear': ('vanish', [3, 2, 1, 0])},
@@ -220,7 +223,7 @@ def reef(kind, file, poses, speed, comment, fixes=None):
     # Pixel fine quanto i pacchetti a 32 righe, anche se il disegno è più basso
     scale = fixes.get('scale', 1)
     height = round(len(some) / REEF_CELL * scale, 3) if len(some) < REEF_CELL or scale != 1 else None
-    return module_js(kind, comment, 'Pixel Reef', lines, speed, 'walk', height, palette_js(kind, used_pal), '', frames_js)
+    return module_js(kind, comment, 'Pixel Reef', lines, speed, 'walk', height, palette_js(kind, used_pal), '', frames_js, fixes.get('sink'))
 
 
 def load(pack, folder):
@@ -279,9 +282,9 @@ def palette_js(kind, pal):
     return (f'// {why}\n      ' if why else '') + f'palette: {{ {js} }},'
 
 
-def module_js(kind, comment, pack_name, lines, speed, motion, height, palette_js, shadow_js, frames_js):
+def module_js(kind, comment, pack_name, lines, speed, motion, height, palette_js, shadow_js, frames_js, sink=None):
     """Il file UMD di un personaggio, uguale per tutti i pacchetti."""
-    height_js = f'\n      height: {height},' if height else ''
+    height_js = (f'\n      height: {height},' if height else '') + (f'\n      sink: {sink},' if sink else '')
     return f"""/* {comment}.
  * Disegno del pacchetto «{pack_name}»: griglie ricavate dai PNG 1x nel
  * formato di pets-sprites.js, che lo fonde nel suo catalogo (AisessPetsPack).

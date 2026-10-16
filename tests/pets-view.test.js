@@ -233,6 +233,16 @@ ok('pets-view: due pesci con aspetto diverso hanno colori diversi nel disegno', 
 const xOf = (el) => Number(/translate\(([-\d.]+)px/.exec(el.style.transform)[1]);
 const widthOf = (el) => Number(el.children[0].getAttribute('width'));
 
+ok('pets-view: il granchio scende sotto la linea di sink pixel, gli altri no', () => {
+  const { view, strip } = setup();
+  view.apply({ ...ON, cast: ['granchio', 'gatto'] });
+  const yOf = (kind) => Number(/,\s*([-\d.]+)px\)/.exec(strip.children.find((el) => classOf(el).includes(`pet--${kind}`)).style.transform)[1]);
+  const { sink } = require('../renderer/pets-sprites');
+  assert.ok(sink('granchio', 32) > 0);
+  assert.ok(Math.abs(yOf('granchio') - sink('granchio', 32)) < 0.1, `granchio a ${yOf('granchio')}`);
+  assert.strictEqual(yOf('gatto'), 0);
+});
+
 ok('pets-view: le bolle del pesce escono davanti alla bocca solo quando chiama', () => {
   const { view, strip, tick, current } = setup();
   view.apply({ ...ON, cast: ['pesce'] });

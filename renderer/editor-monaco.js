@@ -65,7 +65,7 @@
   function createEditorHost({ monaco, container, fontSize, onChange, onSave, onSaveAll }) {
     // Autorità diversa per host: due schede sulla stessa cartella hanno model distinti
     const authority = `h${++hosts}`;
-    const docs = new Map(); // rel → { rel, model, savedVersion, viewState, forcedDirty, sub, gutter }
+    const docs = new Map(); // rel → { rel, model, savedVersion, viewState, forcedDirty, sub, gutter, marks, zones }
     let current = null;
     const editor = monaco.editor.create(container, {
       model: null, theme: THEME, automaticLayout: true, fontSize, fontFamily: FONT,
@@ -79,21 +79,34 @@
 
     function track(d) {
       // edited: il testo è cambiato; false da markSaved (cambia solo «sporco»)
-      d.sub = d.model.onDidChangeContent(() => onChange(d.rel, dirtyOf(d), true));
+      d.sub = d.model.onDidChangeContent(() => {
+        followZones(d);
+        onChange(d.rel, dirtyOf(d), true);
+      });
       docs.set(d.rel, d);
     }
 
     function make(rel, text, extra = {}) {
       const model = monaco.editor.createModel(text, undefined, uriOf(rel));
-      track({ rel, model, savedVersion: model.getAlternativeVersionId(), viewState: null, forcedDirty: false, sub: null, gutter: [], ...extra });
+      track({
+        rel, model, savedVersion: model.getAlternativeVersionId(), viewState: null, forcedDirty: false, sub: null, gutter: [],
+        marks: new Map(), zones: new Map(), ...extra,
+      });
     }
 
     function activate(rel) {
       const d = docs.get(rel);
       if (!d) return;
-      if (current && docs.has(current) && current !== rel) docs.get(current).viewState = editor.saveViewState();
+      const fresh = current !== rel;
+      const prev = fresh ? docs.get(current) : null;
+      if (prev) {
+        prev.viewState = editor.saveViewState();
+        prev.zones.forEach(hideZone);
+      }
       current = rel;
       editor.setModel(d.model);
+      // setModel butta la vista e le sue zone: si rimettono (lo stesso model non la cambia)
+      if (fresh) d.zones.forEach(showZone);
       if (d.viewState) editor.restoreViewState(d.viewState);
       editor.focus();
     }
@@ -117,9 +130,12 @@
       const d = docs.get(rel);
       if (!d) return;
       const view = current === rel ? editor.saveViewState() : null;
+      const spans = spansOf(d); // sostituire tutto il testo li schiaccerebbe in cima
       const eol = /\r\n/.test(text) ? monaco.editor.EndOfLineSequence.CRLF : monaco.editor.EndOfLineSequence.LF;
       d.model.pushEOL(eol);
       d.model.pushEditOperations([], [{ range: d.model.getFullModelRange(), text }], () => null);
+      putMarks(d, spans);
+      followZones(d);
       if (view) editor.restoreViewState(view);
       markSaved(rel);
     }
@@ -131,8 +147,13 @@
       if (!d || docs.has(to)) return;
       const wasCurrent = current === from;
       const viewState = wasCurrent ? editor.saveViewState() : d.viewState;
+      const spans = spansOf(d); // prima di togliere `from` da docs: linesOf passa da lì
       docs.delete(from);
-      make(to, d.model.getValue(), { viewState, forcedDirty: dirtyOf(d) });
+      // Le zone passano fuori dalla vista: activate le rimette
+      const zones = new Map([...d.zones].map(([id, z]) => [id, { ...z, viewId: null }]));
+      make(to, d.model.getValue(), { viewState, forcedDirty: dirtyOf(d), zones });
+      putMarks(docs.get(to), spans, d);
+      for (const id of zones.keys()) owner.set(id, to);
       if (wasCurrent) { current = null; activate(to); }
       d.sub.dispose();
       d.model.dispose();
@@ -185,9 +206,143 @@
       const d = docs.get(rel);
       if (!d) return;
       docs.delete(rel);
+      for (const id of [...d.marks.keys(), ...d.zones.keys()]) owner.delete(id);
       if (current === rel) { current = null; editor.setModel(null); }
       d.sub.dispose();
       d.model.dispose();
+    }
+
+    /* Commenti (docs/plans/65): segni sulle righe e zone sotto di loro.
+       Un segno è una decorazione del model, che Monaco sposta col testo;
+       `owner` dice di quale file è ogni id, anche dopo una rinomina. Le
+       zone stanno nella vista, che setModel butta: l'host le tiene per file e le rimette
+       quando il file torna davanti (activate). */
+    const NOTE_LINE = 'editor-note-line';
+    const ZONE_PX = 64;
+    const owner = new Map(); // id di segno o di zona → rel
+    let seq = 0;
+
+    const validLines = (model, from, to) => Number.isInteger(from) && Number.isInteger(to)
+      && from >= 1 && to >= from && from <= model.getLineCount();
+
+    function markOf(model, from, to, cls) {
+      const stickiness = monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges;
+      return {
+        range: { startLineNumber: from, startColumn: 1, endLineNumber: to, endColumn: model.getLineMaxColumn(to) },
+        options: { isWholeLine: true, stickiness, ...(cls ? { className: cls } : {}) },
+      };
+    }
+
+    function trackIn(d, from, to, cls) {
+      const id = `${authority}m${++seq}`;
+      const [deco] = d.model.deltaDecorations([], [markOf(d.model, from, to, cls)]);
+      d.marks.set(id, { deco, cls });
+      owner.set(id, d.rel);
+      return id;
+    }
+
+    /** Righe intere col fondo dei commenti; la fine oltre il file si ferma all'ultima riga */
+    function trackLines(rel, from, to) {
+      const d = docs.get(rel);
+      if (!d || !validLines(d.model, from, to)) return null;
+      return trackIn(d, from, Math.min(to, d.model.getLineCount()), NOTE_LINE);
+    }
+
+    const docOf = (id) => docs.get(owner.get(id));
+
+    function linesOf(id) {
+      const d = docOf(id);
+      const m = d && d.marks.get(id);
+      const r = m && d.model.getDecorationRange(m.deco);
+      return r ? { from: r.startLineNumber, to: r.endLineNumber } : null;
+    }
+
+    function untrack(id) {
+      const d = docOf(id);
+      owner.delete(id);
+      const m = d && d.marks.get(id);
+      if (!m) return;
+      d.model.deltaDecorations([m.deco], []);
+      d.marks.delete(id);
+    }
+
+    const spansOf = (d) => [...d.marks.keys()].map((id) => [id, linesOf(id)]);
+
+    /* Rimette i segni ai numeri di `spans`, fermati all'ultima riga: dopo
+       un testo sostituito tutto, o nel model nuovo di una rinomina (`from`
+       è il file da cui vengono) */
+    function putMarks(d, spans, from = d) {
+      const last = d.model.getLineCount();
+      for (const [id, at] of spans) {
+        const m = from.marks.get(id);
+        if (!at || !m) continue;
+        const old = from === d ? [m.deco] : [];
+        const [deco] = d.model.deltaDecorations(old, [markOf(d.model, Math.min(at.from, last), Math.min(at.to, last), m.cls)]);
+        d.marks.set(id, { deco, cls: m.cls });
+        owner.set(id, d.rel);
+      }
+    }
+
+    function lineText(rel, line) {
+      const d = docs.get(rel);
+      return d && validLines(d.model, line, line) ? d.model.getLineContent(line) : null;
+    }
+
+    function showZone(z) {
+      editor.changeViewZones((acc) => { z.viewId = acc.addZone(z.delegate); });
+    }
+
+    function hideZone(z) {
+      if (z.viewId === null) return;
+      editor.changeViewZones((acc) => acc.removeZone(z.viewId));
+      z.viewId = null;
+    }
+
+    /** Una zona col nodo `node` sotto la riga `afterLine`, che la segue come un segno */
+    function addZone(rel, afterLine, node, heightInPx = ZONE_PX) {
+      const d = docs.get(rel);
+      if (!d || !validLines(d.model, afterLine, afterLine)) return null;
+      const id = `${authority}z${++seq}`;
+      const delegate = { afterLineNumber: afterLine, heightInPx, domNode: node };
+      const z = { mark: trackIn(d, afterLine, afterLine, null), viewId: null, delegate };
+      d.zones.set(id, z);
+      owner.set(id, rel);
+      if (current === rel) showZone(z);
+      return id;
+    }
+
+    function removeZone(id) {
+      const d = docOf(id);
+      const z = d && d.zones.get(id);
+      owner.delete(id);
+      if (!z) return;
+      hideZone(z);
+      untrack(z.mark);
+      d.zones.delete(id);
+    }
+
+    /** L'altezza la sa il riquadro dopo il disegno: chi la misura la passa qui */
+    function resizeZone(id, heightInPx) {
+      const d = docOf(id);
+      const z = d && d.zones.get(id);
+      if (!z || !(heightInPx > 0) || z.delegate.heightInPx === heightInPx) return;
+      z.delegate.heightInPx = heightInPx;
+      if (z.viewId !== null) editor.changeViewZones((acc) => acc.layoutZone(z.viewId));
+    }
+
+    /* Monaco sposta già la zona con le righe, ma a ogni layoutZone rilegge
+       afterLineNumber: lo si tiene uguale al segno */
+    function followZones(d) {
+      const moved = [];
+      for (const z of d.zones.values()) {
+        const at = linesOf(z.mark);
+        if (at && at.to !== z.delegate.afterLineNumber) {
+          z.delegate.afterLineNumber = at.to;
+          moved.push(z);
+        }
+      }
+      const shown = moved.filter((z) => z.viewId !== null);
+      if (shown.length) editor.changeViewZones((acc) => shown.forEach((z) => acc.layoutZone(z.viewId)));
     }
 
     function dispose() {
@@ -197,6 +352,7 @@
 
     return {
       open, activate, markSaved, replaceText, rename, close, dispose, setGutter, reveal,
+      trackLines, linesOf, untrack, lineText, addZone, removeZone, resizeZone,
       current: () => current,
       getText: (rel) => (docs.has(rel) ? docs.get(rel).model.getValue() : null),
       // Senza copiare il testo: le barrette saltano i file troppo lunghi (docs/plans/63)

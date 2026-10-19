@@ -73,8 +73,21 @@
       minimap: { enabled: false }, scrollBeyondLastLine: false, renderWhitespace: 'selection',
       glyphMargin: true, // il margine del «+» (docs/plans/65)
     });
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => onSave(current));
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyS, () => onSaveAll());
+    // addCommand di Monaco è globale: senza una chiave che vale solo nel DOM di
+    // questo editor, Ctrl+S andrebbe all'ultimo host creato (un'altra scheda).
+    // Cerca e sostituisci si aprono su questo editor e non su quello che Monaco
+    // crede abbia il fuoco: con più schede editor sceglieva una nascosta.
+    const scope = `aisessHost${hosts}`;
+    editor.createContextKey(scope, true);
+    const bind = (keys, fn) => editor.addCommand(keys, fn, scope);
+    const runAction = (id) => () => { const a = editor.getAction(id); if (a) a.run(); };
+    const { KeyMod, KeyCode } = monaco;
+    bind(KeyMod.CtrlCmd | KeyCode.KeyS, () => onSave(current));
+    bind(KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyS, () => onSaveAll());
+    bind(KeyMod.CtrlCmd | KeyCode.KeyF, runAction('actions.find'));
+    bind(KeyMod.CtrlCmd | KeyCode.KeyH, runAction('editor.action.startFindReplaceAction'));
+    // Su Mac Cmd+H nasconde l'app: Monaco lì usa Cmd+Alt+F
+    bind(KeyMod.CtrlCmd | KeyMod.Alt | KeyCode.KeyF, runAction('editor.action.startFindReplaceAction'));
 
     const uriOf = (rel) => monaco.Uri.from({ scheme: 'aisess', authority, path: `/${rel}` });
     const dirtyOf = (d) => d.forcedDirty || d.model.getAlternativeVersionId() !== d.savedVersion;

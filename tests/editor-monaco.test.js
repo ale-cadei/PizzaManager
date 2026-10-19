@@ -29,7 +29,10 @@ function fakeMonaco() {
     position: null, revealed: [],
     setPosition(p) { editor.position = p; },
     revealLineInCenter(line) { editor.revealed.push(line); },
-    addCommand(keys, fn) { editor.commands.push({ keys, fn }); },
+    addCommand(keys, fn, when) { editor.commands.push({ keys, fn, when }); },
+    keys: new Map(), ran: [],
+    createContextKey(name, value) { editor.keys.set(name, value); },
+    getAction: (id) => ({ run() { editor.ran.push(id); } }),
     dispose() { editor.disposed = true; },
     selection: null, actions: [], mouse: {},
     getSelection: () => editor.selection,
@@ -96,8 +99,8 @@ function fakeMonaco() {
       MouseTargetType: { GUTTER_GLYPH_MARGIN: 2, GUTTER_LINE_NUMBERS: 3, GUTTER_LINE_DECORATIONS: 4, GUTTER_VIEW_ZONE: 5, CONTENT_TEXT: 6, CONTENT_EMPTY: 7, CONTENT_VIEW_ZONE: 8 },
     },
     Uri: { from: (o) => ({ ...o }) },
-    KeyMod: { CtrlCmd: 2048, Shift: 1024 },
-    KeyCode: { KeyS: 49 },
+    KeyMod: { CtrlCmd: 2048, Shift: 1024, Alt: 512 },
+    KeyCode: { KeyS: 49, KeyF: 36, KeyH: 38 },
   };
   return { monaco, editor, models };
 }
@@ -183,14 +186,42 @@ ok('close e dispose buttano i model', () => {
   assert.strictEqual(fake.editor.disposed, true);
 });
 
+const KEY = { save: 2048 | 49, saveAll: 2048 | 1024 | 49, find: 2048 | 36, replace: 2048 | 38, replaceMac: 2048 | 512 | 36 };
+const command = (fake, keys) => fake.editor.commands.find((c) => c.keys === keys);
+
 ok('Ctrl+S salva il file attivo, Ctrl+Shift+S tutti; due host non si pestano gli URI', () => {
   const { h, fake, saved } = host();
   h.open('a.js', 'x');
-  for (const c of fake.editor.commands) c.fn();
+  command(fake, KEY.save).fn();
+  command(fake, KEY.saveAll).fn();
   assert.deepStrictEqual(saved, ['a.js', '*']);
   const other = host();
   other.h.open('a.js', 'x');
   assert.notStrictEqual(other.fake.models[0].uri.authority, fake.models[0].uri.authority);
+});
+
+// addCommand di Monaco è globale: senza una chiave propria dell'editor il tasto
+// andrebbe all'ultimo host creato, cioè a un'altra scheda editor
+ok('le scorciatoie valgono solo dentro il proprio editor', () => {
+  const a = host();
+  const b = host();
+  for (const { fake } of [a, b]) {
+    const [scope] = [...fake.editor.keys.keys()];
+    assert.ok(scope, 'una chiave di contesto per editor');
+    assert.strictEqual(fake.editor.keys.get(scope), true);
+    assert.ok(fake.editor.commands.length > 0);
+    for (const c of fake.editor.commands) assert.strictEqual(c.when, scope);
+  }
+  assert.notDeepStrictEqual([...a.fake.editor.keys.keys()], [...b.fake.editor.keys.keys()]);
+});
+
+ok('Ctrl+F e Ctrl+H aprono cerca e sostituisci su questo editor', () => {
+  const { fake } = host();
+  command(fake, KEY.find).fn();
+  command(fake, KEY.replace).fn();
+  command(fake, KEY.replaceMac).fn();
+  assert.deepStrictEqual(fake.editor.ran,
+    ['actions.find', 'editor.action.startFindReplaceAction', 'editor.action.startFindReplaceAction']);
 });
 
 ok('lineCount: le righe del model, 0 per un file non aperto', () => {

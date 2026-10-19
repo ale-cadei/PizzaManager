@@ -73,21 +73,22 @@
       minimap: { enabled: false }, scrollBeyondLastLine: false, renderWhitespace: 'selection',
       glyphMargin: true, // il margine del «+» (docs/plans/65)
     });
-    // addCommand di Monaco è globale: senza una chiave che vale solo nel DOM di
-    // questo editor, Ctrl+S andrebbe all'ultimo host creato (un'altra scheda).
-    // Cerca e sostituisci si aprono su questo editor e non su quello che Monaco
-    // crede abbia il fuoco: con più schede editor sceglieva una nascosta.
-    const scope = `aisessHost${hosts}`;
-    editor.createContextKey(scope, true);
-    const bind = (keys, fn) => editor.addCommand(keys, fn, scope);
+    // Le azioni di Monaco legano i tasti a questo editor (precondizione
+    // `editorId`) e tornano un disposable, che dispose() chiude. addCommand no:
+    // è globale e resta, così con due schede editor Ctrl+S andava all'ultimo
+    // host creato. Cerca e sostituisci si aprono su questo editor e non su
+    // quello che Monaco crede abbia il fuoco: con più schede ne sceglieva una nascosta.
+    const owned = [];
+    const addAction = (a) => { owned.push(editor.addAction(a)); };
     const runAction = (id) => () => { const a = editor.getAction(id); if (a) a.run(); };
     const { KeyMod, KeyCode } = monaco;
-    bind(KeyMod.CtrlCmd | KeyCode.KeyS, () => onSave(current));
-    bind(KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyS, () => onSaveAll());
-    bind(KeyMod.CtrlCmd | KeyCode.KeyF, runAction('actions.find'));
-    bind(KeyMod.CtrlCmd | KeyCode.KeyH, runAction('editor.action.startFindReplaceAction'));
+    const keys = (id, label, keybindings, run) => addAction({ id: `aisess.${id}`, label, keybindings, run });
+    keys('save', 'Salva', [KeyMod.CtrlCmd | KeyCode.KeyS], () => onSave(current));
+    keys('save-all', 'Salva tutto', [KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyS], () => onSaveAll());
+    keys('find', 'Cerca', [KeyMod.CtrlCmd | KeyCode.KeyF], runAction('actions.find'));
     // Su Mac Cmd+H nasconde l'app: Monaco lì usa Cmd+Alt+F
-    bind(KeyMod.CtrlCmd | KeyMod.Alt | KeyCode.KeyF, runAction('editor.action.startFindReplaceAction'));
+    keys('replace', 'Sostituisci', [KeyMod.CtrlCmd | KeyCode.KeyH, KeyMod.CtrlCmd | KeyMod.Alt | KeyCode.KeyF],
+      runAction('editor.action.startFindReplaceAction'));
 
     const uriOf = (rel) => monaco.Uri.from({ scheme: 'aisess', authority, path: `/${rel}` });
     const dirtyOf = (d) => d.forcedDirty || d.model.getAlternativeVersionId() !== d.savedVersion;
@@ -434,7 +435,7 @@
         const d = docs.get(current);
         if (d) d.zones.forEach((z) => { if (z.overlaid) placeZone(z); });
       });
-      const action = (id, label, precondition) => editor.addAction({
+      const action = (id, label, precondition) => addAction({
         id, label, precondition, contextMenuGroupId: 'navigation', contextMenuOrder: 0, run: () => commentAt(0),
       });
       action('aisess.comment-line', 'Commenta riga', '!editorHasSelection');
@@ -455,6 +456,7 @@
 
     function dispose() {
       for (const rel of [...docs.keys()]) close(rel);
+      owned.splice(0).forEach((d) => d.dispose());
       editor.dispose();
     }
 

@@ -115,6 +115,14 @@ Monaco comprimono bene.
 Un solo modulo tocca Monaco (`renderer/editor-monaco.js`): il resto del
 renderer parla con lui, così il motore resta sostituibile.
 
+**Scorciatoie con più schede editor** (corretto dopo, `fix/editor-scorciatoie`):
+in Monaco `addCommand` è globale, quindi Ctrl+S nella scheda A salvava con
+l'host dell'ultima scheda creata. E Ctrl+F/Ctrl+H apriva la ricerca in una
+scheda nascosta, che Monaco crede ancora a fuoco. Ora i tasti sono azioni
+dell'editor (`addAction`): Monaco le lega all'editor col suo `editorId` e
+`dispose()` dell'host le toglie. Ctrl+S, Ctrl+Shift+S, Ctrl+F, Ctrl+H (Cmd+Alt+F
+su Mac); cerca e sostituisci partono con `getAction(...).run()` su quell'editor.
+
 ## Architettura
 
 ### Main — `lib/` (niente Electron, tutto testato)

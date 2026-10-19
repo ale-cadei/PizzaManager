@@ -29,11 +29,13 @@ function fakeMonaco() {
     position: null, revealed: [],
     setPosition(p) { editor.position = p; },
     revealLineInCenter(line) { editor.revealed.push(line); },
-    addCommand(keys, fn) { editor.commands.push({ keys, fn }); },
+    ran: [],
+    getAction: (id) => ({ run() { editor.ran.push(id); } }),
     dispose() { editor.disposed = true; },
     selection: null, actions: [], mouse: {},
     getSelection: () => editor.selection,
-    addAction(a) { editor.actions.push(a); },
+    // Come Monaco: i tasti di un'azione valgono solo in questo editor, e il disposable li toglie
+    addAction(a) { editor.actions.push(a); return { dispose() { editor.actions = editor.actions.filter((x) => x !== a); } }; },
     onMouseDown(f) { editor.mouse.down = f; },
     onMouseMove(f) { editor.mouse.move = f; },
     onMouseLeave(f) { editor.mouse.leave = f; },
@@ -96,8 +98,8 @@ function fakeMonaco() {
       MouseTargetType: { GUTTER_GLYPH_MARGIN: 2, GUTTER_LINE_NUMBERS: 3, GUTTER_LINE_DECORATIONS: 4, GUTTER_VIEW_ZONE: 5, CONTENT_TEXT: 6, CONTENT_EMPTY: 7, CONTENT_VIEW_ZONE: 8 },
     },
     Uri: { from: (o) => ({ ...o }) },
-    KeyMod: { CtrlCmd: 2048, Shift: 1024 },
-    KeyCode: { KeyS: 49 },
+    KeyMod: { CtrlCmd: 2048, Shift: 1024, Alt: 512 },
+    KeyCode: { KeyS: 49, KeyF: 36, KeyH: 38 },
   };
   return { monaco, editor, models };
 }
@@ -183,14 +185,38 @@ ok('close e dispose buttano i model', () => {
   assert.strictEqual(fake.editor.disposed, true);
 });
 
+const KEY = { save: 2048 | 49, saveAll: 2048 | 1024 | 49, find: 2048 | 36, replace: 2048 | 38, replaceMac: 2048 | 512 | 36 };
+const command = (fake, keys) => fake.editor.actions.find((a) => (a.keybindings || []).includes(keys));
+const menuActions = (fake) => fake.editor.actions.filter((a) => a.contextMenuGroupId);
+
 ok('Ctrl+S salva il file attivo, Ctrl+Shift+S tutti; due host non si pestano gli URI', () => {
   const { h, fake, saved } = host();
   h.open('a.js', 'x');
-  for (const c of fake.editor.commands) c.fn();
+  command(fake, KEY.save).run(fake.editor);
+  command(fake, KEY.saveAll).run(fake.editor);
   assert.deepStrictEqual(saved, ['a.js', '*']);
   const other = host();
   other.h.open('a.js', 'x');
   assert.notStrictEqual(other.fake.models[0].uri.authority, fake.models[0].uri.authority);
+});
+
+// addCommand di Monaco è globale e non si toglie: il tasto andava all'ultimo
+// host creato. Le azioni sono dell'editor e si tolgono chiudendo l'host.
+ok('scorciatoie come azioni dell editor, tolte con dispose', () => {
+  const { h, fake } = host();
+  assert.strictEqual(fake.editor.commands.length, 0, 'niente addCommand globali');
+  for (const k of Object.values(KEY)) assert.ok(command(fake, k), `tasto ${k}`);
+  h.dispose();
+  assert.deepStrictEqual(fake.editor.actions, [], 'anche le voci dei commenti');
+});
+
+ok('Ctrl+F e Ctrl+H aprono cerca e sostituisci su questo editor', () => {
+  const { fake } = host();
+  command(fake, KEY.find).run(fake.editor);
+  command(fake, KEY.replace).run(fake.editor);
+  command(fake, KEY.replaceMac).run(fake.editor);
+  assert.deepStrictEqual(fake.editor.ran,
+    ['actions.find', 'editor.action.startFindReplaceAction', 'editor.action.startFindReplaceAction']);
 });
 
 ok('lineCount: le righe del model, 0 per un file non aperto', () => {
@@ -388,11 +414,11 @@ ok('commenti: margine dei glifi acceso e due voci nel menu, una per la riga e un
   const asked = [];
   const { h, fake } = host({ onComment: (...a) => asked.push(a) });
   assert.strictEqual(fake.editor.options.glyphMargin, true);
-  assert.deepStrictEqual(fake.editor.actions.map((a) => [a.id, a.label, a.precondition, a.contextMenuGroupId]), [
+  assert.deepStrictEqual(menuActions(fake).map((a) => [a.id, a.label, a.precondition, a.contextMenuGroupId]), [
     ['aisess.comment-line', 'Commenta riga', '!editorHasSelection', 'navigation'],
     ['aisess.comment-selection', 'Commenta selezione', 'editorHasSelection', 'navigation'],
   ]);
-  const [line, selection] = fake.editor.actions;
+  const [line, selection] = menuActions(fake);
   line.run(fake.editor);
   assert.deepStrictEqual(asked, [], 'nessun file aperto');
   h.open('a.js', TEXT);

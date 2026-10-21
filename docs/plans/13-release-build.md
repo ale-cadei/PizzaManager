@@ -12,8 +12,10 @@ usa da variabili d'ambiente senza toccare il workflow.
 
 ## Pezzi
 
-- **`scripts/install-mac.sh`** (`npm run install:mac`): `dist:mac` + copia in
-  `/Applications`. Rifiuta di girare se l'app è aperta: due istanze sarebbero
+- **`scripts/install-mac.sh`** (`npm run install:mac`): `npm ci` + `dist:mac` +
+  copia in `/Applications`. `npm ci` perché electron-builder impacchetta i
+  `node_modules` che trova, e una dipendenza nuova arrivata con un merge
+  resterebbe fuori. Rifiuta di girare se l'app è aperta: due istanze sarebbero
   due client sullo stesso socket tmux e sulla stessa cartella dati. Costruita
   in locale non ha l'attributo di quarantena, quindi si apre senza avvisi.
 - **`package.json`**: `repository` (electron-builder lo usa per pubblicare),

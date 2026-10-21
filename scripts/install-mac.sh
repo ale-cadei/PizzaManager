@@ -18,6 +18,12 @@ if pgrep -f "$DEST/Contents/MacOS/" >/dev/null 2>&1; then
   exit 1
 fi
 
+# electron-builder impacchetta i node_modules che trova: una dipendenza
+# aggiunta da un merge resterebbe fuori se nessuno ha rifatto l'install. È
+# successo con monaco-editor: "loader di Monaco non trovato" nell'app installata.
+# `npm ci` li riallinea al lock (e si ferma se package.json non lo rispetta).
+npm ci
+
 npm run dist:mac
 
 BUILT=$(ls -d dist/mac*/"$APP_NAME.app" 2>/dev/null | head -1)

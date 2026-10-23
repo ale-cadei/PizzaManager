@@ -193,3 +193,39 @@ vanno aggiornati. Il `LICENSE` di psmux finisce nel pacchetto (punto 1).
 - selezione col mouse, rotella, barra di scorrimento e Ctrl+B come su Mac;
 - un aggiornamento automatico con sessioni vive non fallisce e non le uccide;
 - `npm run test:unit` verde e CI Windows verde.
+
+## Stato (2026-10-23)
+
+Punti 1–8 fatti, un commit per punto (il 7 in due: refactor e test). Provato
+sul fisso Windows 11, con l'app di sviluppo:
+
+- **chiusura e riapertura**: 6 schede, staccate e riagganciate con l'output
+  (l'utente le ha viste). psmux copiato in
+  `%LOCALAPPDATA%\PizzaManager\psmux\3.3.8\` e lanciato da lì;
+- **riavvio simulato** (`kill-server` su `aisession` ad app chiusa): modal,
+  Claude con lo stesso `@ais_resume_id`, la shell PowerShell con il testo di
+  prima (euro compreso), il separatore e il prompt;
+- **selezione, rotella, Ctrl+B**: confermati dall'utente;
+- **pacchetto**: `npm run dist:win` mette `resources\psmux` e
+  `app.asar.unpacked\app\psmux.conf`; `detectTmux` con quel layout li trova;
+- **test**: varianti psmux dei test d'integrazione (`tests/integration.test.js`),
+  che girano contro `vendor/psmux`. Su Windows la suite ha 11 fallimenti che
+  vengono da `main` e non da questo branch (percorsi POSIX nei test, permessi
+  Unix, CRLF di git, `readlink`): sono del piano 24.
+
+Ancora da fare o da vedere:
+
+- **dal pacchetto installato** (primo punto di «Fatto quando»): il setup
+  sostituisce l'app installata, quindi va chiusa prima;
+- **CI e release** su GitHub: i file sono pronti, li provano il primo push e il
+  primo tag;
+- **aggiornamento con due versioni vere** di psmux: verificato solo con versioni
+  finte nei test. Si fa quando si cambia la versione fissata;
+- **`pwsh.exe`**: stessa riga di `powershell.exe`, non installato qui;
+- **Codex dentro psmux**: le notifiche OSC 9 incapsulate (piano 46) e lo stato
+  scritto ad app chiusa non sono provati; i due test d'integrazione restano
+  solo tmux;
+- **Defender e SmartScreen su un PC pulito** (Rischi);
+- **npm 12** non esegue gli script d'installazione non autorizzati, e senza
+  quelli `npm install` non scarica Electron: la lista `allowScripts` sta nel
+  branch `chore/allow-scripts`, separato da questo.

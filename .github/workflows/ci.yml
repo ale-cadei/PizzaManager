@@ -24,4 +24,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Su Windows i test d'integrazione di tmux girano contro psmux, quello
+      # del pacchetto (docs/plans/52): senza, si dichiarano saltati.
+      - if: runner.os == 'Windows'
+        run: npm run fetch:psmux
       - run: npm run test:unit

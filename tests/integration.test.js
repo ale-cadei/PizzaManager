@@ -348,6 +348,109 @@ ok('tmux: il testo di una shell sopravvive alla morte della sessione', async (t)
   }
 });
 
+// ---------- psmux: le stesse prove su Windows (docs/plans/52) ----------
+// Su Windows le prove di tmux qui sopra si saltano: /bin/sh e sleep non
+// esistono (Q1 bis di docs/plans/40-risultati.md). Queste sono le loro
+// varianti con powershell.exe, contro il psmux che l'app mette nel pacchetto.
+
+/** Il psmux di vendor/psmux, o null con il test dichiarato saltato. */
+function testPsmux(t) {
+  const path = require('path');
+  const { execFileSync } = require('child_process');
+  const { parsePsmuxVersion } = require('../lib/psmux-install');
+  if (process.platform !== 'win32') { t.skip('psmux serve solo su Windows'); return null; }
+  const bin = path.join(__dirname, '..', 'vendor', 'psmux', 'psmux.exe');
+  if (!fs.existsSync(bin)) { t.skip('psmux non scaricato: npm run fetch:psmux'); return null; }
+  const version = parsePsmuxVersion(execFileSync(bin, ['-V'], { encoding: 'utf8', timeout: 5000 }));
+  assert.ok(version, 'vendor/psmux/psmux.exe non si dichiara psmux');
+  return { bin, version, confPath: path.join(__dirname, '..', 'app', 'psmux.conf') };
+}
+
+ok('psmux: la sessione sopravvive allo stacco del client e si riattacca con i metadati', async (t) => {
+  const { isPtyAvailable } = require('../app/pty');
+  const p = testPsmux(t);
+  if (!p) return;
+  if (!isPtyAvailable()) return t.skip('node-pty non compilato');
+  await sessionLifecycle({ bin: p.bin, confPath: p.confPath, socket: 'aistest-psmux-' + process.pid, shellCommand: 'powershell.exe' });
+});
+
+/* La trappola del .deb (CLAUDE.md): un processo esterno che non legge la
+   config parte coi default, e con psmux vorrebbe dire Ctrl+B che apre
+   finestre e Claude che non seleziona piu' (mouse off). */
+ok('psmux: il server legge app/psmux.conf', async (t) => {
+  const { execFileSync } = require('child_process');
+  const { createTmuxControl } = require('../lib/tmux');
+  const p = testPsmux(t);
+  if (!p) return;
+  const socket = 'aistest-psmux-conf-' + process.pid;
+  const control = createTmuxControl({ bin: p.bin, confPath: p.confPath, socket });
+  try {
+    assert.ok((await control.create({ name: 'ais-shell-conf', cmd: 'powershell.exe', args: ['-NoProfile'], cols: 80, rows: 24 })).ok);
+    const opt = (name) => execFileSync(p.bin, ['-L', socket, 'show-options', '-gv', name], { encoding: 'utf8', timeout: 5000 }).trim();
+    assert.strictEqual(opt('prefix'), 'C-M-S-F12');
+    assert.strictEqual(opt('mouse'), 'on');
+    assert.strictEqual(opt('status'), 'off');
+    assert.strictEqual(opt('warm'), 'off');
+  } finally {
+    try { execFileSync(p.bin, ['-L', socket, 'kill-server']); } catch {}
+  }
+});
+
+/* Il giro completo dello scrollback su Windows: niente exec, e' PowerShell
+   stessa a ristampare il file e a restare la shell (-NoExit). */
+ok('psmux: il testo di una shell PowerShell sopravvive alla morte della sessione', async (t) => {
+  const os = require('os');
+  const path = require('path');
+  const { execFileSync } = require('child_process');
+  const { createTmuxControl } = require('../lib/tmux');
+  const { createScrollbackStore } = require('../lib/scrollback');
+  const { replayCommand } = require('../lib/scrollback-command');
+  const p = testPsmux(t);
+  if (!p) return;
+
+  const socket = 'aistest-psmux-sb-' + process.pid;
+  const control = createTmuxControl({ bin: p.bin, confPath: p.confPath, socket });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-sb-psmux-'));
+  const store = createScrollbackStore({ dir });
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  /** psmux e PowerShell partono con calma: si aspetta che il testo compaia. */
+  const captureUntil = async (name, text) => {
+    let got = '';
+    for (let i = 0; i < 40 && !got.includes(text); i++) { await wait(250); got = (await control.capture(name)) || ''; }
+    return got;
+  };
+  const prima = 'ais-shell-prima';
+
+  try {
+    // Una shell che ha scritto qualcosa di riconoscibile, in verde e con l'euro.
+    const say = 'Write-Host -ForegroundColor Green "CIAMBELLA-42 €"';
+    assert.ok((await control.create({ name: prima, cmd: 'powershell.exe', args: ['-NoLogo', '-NoProfile', '-NoExit', '-Command', say], cols: 120, rows: 40 })).ok);
+    const testo = await captureUntil(prima, 'CIAMBELLA-42');
+    assert.ok(testo.includes('CIAMBELLA-42'), 'la cattura non ha preso il testo');
+    assert.ok(testo.includes('\x1b['), 'senza -e i colori si perderebbero');
+    store.save(prima, testo);
+
+    // Quello che fa un riavvio della macchina: la sessione muore con tutto dentro.
+    await control.kill(prima);
+    assert.strictEqual(await control.has(prima), false);
+
+    const replay = replayCommand({ file: store.fileFor(prima), shell: 'powershell.exe', args: ['-NoProfile'], platform: 'win32' });
+    const dopo = 'ais-shell-dopo';
+    assert.ok((await control.create({ name: dopo, cmd: replay.cmd, args: replay.args, env: replay.env, cols: 120, rows: 40 })).ok);
+    const ripristinato = await captureUntil(dopo, 'cronologia ripristinata');
+    assert.ok(ripristinato.includes('CIAMBELLA-42 €'), 'il testo di prima non e tornato, o l euro si e perso (codifica OEM)');
+    assert.ok(ripristinato.includes('cronologia ripristinata'), 'manca il separatore');
+    assert.ok(ripristinato.indexOf('CIAMBELLA-42') < ripristinato.indexOf('cronologia ripristinata'), 'prima il testo, poi il separatore');
+
+    // Nessun guscio in mezzo: il processo del pane e' PowerShell.
+    const cmd = execFileSync(p.bin, ['-L', socket, 'display-message', '-p', '-t', `=${dopo}:`, '#{pane_current_command}'], { encoding: 'utf8', timeout: 5000 }).trim();
+    assert.strictEqual(cmd, 'powershell');
+  } finally {
+    try { execFileSync(p.bin, ['-L', socket, 'kill-server']); } catch {}
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 // ---------- git: la timeline della sessione git su un repository vero ----------
 ok('git: readGitGraph legge branch, merge e repository vuoti con il git installato', async (t) => {
   const { execFileSync } = require('child_process');

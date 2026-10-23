@@ -416,6 +416,7 @@ ok('i file legali viaggiano nel pacchetto e fuori dall archivio', () => {
   }
   // Lo stesso vale per la config di tmux, che la legge tmux e non Electron.
   assert.ok(pkg.build.asarUnpack.includes('app/tmux.conf'));
+  assert.ok(pkg.build.asarUnpack.includes('app/psmux.conf'), 'psmux.conf la legge psmux, come tmux.conf tmux');
 });
 
 ok('la licenza dichiarata e quella dei termini scritti, non una standard', () => {

@@ -105,6 +105,7 @@
     },
     "asarUnpack": [
       "app/tmux.conf",
+      "app/psmux.conf",
       "LICENSE",
       "THIRD-PARTY-NOTICES.md"
     ]

@@ -74,6 +74,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 64 | [`feat/editor-apri-da-modifiche`](64-editor-apri-da-modifiche.md) — bottone nel pannello modifiche che apre il file nell'editor alla prima riga cambiata | 63 | ~0,5-1g | ✅ fatto, smoke ok |
 | 65 | [`feat/editor-commenti`](65-editor-commenti.md) — commenti sulle righe dell'editor e prompt da copiare negli appunti | 60 | ~1-2g | ✅ fatto, smoke ok |
 | 66 | [`fix/git-worktrees-in-graph`](66-grafo-worktree.md) — worktree nella timeline git: Unisci con `--no-ff` firmato, linea tratteggiata ed etichetta ⌂ | 25, 36 | ~½g | ✅ fatto |
+| 67 | [`chore/versionamento-qui`](67-versionamento-qui.md) — release, issue e feed tornano nel repo del codice: via il secondo repo e il suo PAT | 44, 18, 50 | ~½g | fatto, da mergiare |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

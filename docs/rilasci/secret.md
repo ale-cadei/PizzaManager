@@ -49,7 +49,6 @@ sono ammesse 50 attive.
 
 | Secret | Cos'è | Da dove viene |
 |---|---|---|
-| `PUBLIC_RELEASE_TOKEN` | PAT fine-grained, `contents: write` **solo** su `JackGrieco/PizzaManager-releases` | GitHub → Settings → Developer settings → Personal access tokens → Fine-grained |
 | `MAC_CSC_LINK` | il certificato *Developer ID Application* esportato in `.p12`, **in base64** | Accesso Portachiavi → Esporta |
 | `MAC_CSC_KEY_PASSWORD` | la password scelta esportando il `.p12` | la inventi tu |
 | `APPLE_API_KEY_P8` | il contenuto del file `.p8`, righe `BEGIN`/`END` comprese | il file scaricato alla creazione della chiave |
@@ -64,10 +63,13 @@ Il ripiego, **solo** se la chiave viene revocata:
 | `APPLE_APP_SPECIFIC_PASSWORD` | formato `abcd-efgh-ijkl-mnop`, da appleid.apple.com |
 | `APPLE_TEAM_ID` | l'identificativo del team: **`CBRAP62CDG`** |
 
-I primi due servono a **firmare**, il gruppo Apple a **notarizzare**, il PAT a
-**pubblicare** nel repo pubblico. Senza le credenziali di notarizzazione il
-build va avanti firmato ma non notarizzato; senza il PAT il caricamento dei
-pacchetti fallisce.
+I primi due servono a **firmare**, il gruppo Apple a **notarizzare**. Senza le
+credenziali di notarizzazione il build va avanti firmato ma non notarizzato.
+
+Fino alla 1.5.1 ce n'era un sesto, `PUBLIC_RELEASE_TOKEN`, che serviva a
+caricare i pacchetti sul repo separato delle release. Da quando la release
+nasce in questo repo basta il `GITHUB_TOKEN` del workflow: il PAT non serve
+più e **va revocato**.
 
 ## Copiarli senza stamparli
 
@@ -115,10 +117,6 @@ dell'identità di firma.
 
 ## Quando scadono
 
-- il **PAT** (`PUBLIC_RELEASE_TOKEN`) scade il **4 ottobre 2027**. Quando
-  scade, il job `draft` del workflow risponde `404` o `403` e il messaggio non
-  dice «token scaduto»: la procedura per rifarlo, con i sintomi da
-  riconoscere, è in [`rinnovo-token.md`](rinnovo-token.md);
 - il **certificato Developer ID** dura 5 anni;
 - la **chiave di App Store Connect** non scade, ma si revoca e non si può
   modificare dopo la creazione;

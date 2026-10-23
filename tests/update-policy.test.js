@@ -68,6 +68,6 @@ ok('senza versione il banner non si mostra', () => {
 });
 
 ok('i valori fissi sono quelli decisi', () => {
-  assert.match(DOWNLOAD_URL, /^https:\/\/github\.com\/JackGrieco\/PizzaManager-releases/);
+  assert.match(DOWNLOAD_URL, /^https:\/\/github\.com\/ale-cadei\/PizzaManager/);
   assert.strictEqual(CHECK_EVERY_MS, 4 * 60 * 60 * 1000, 'ogni 4 ore');
 });

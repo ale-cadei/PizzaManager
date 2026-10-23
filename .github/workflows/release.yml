@@ -3,9 +3,10 @@
 # electron-builder carica i file su una GitHub Release con lo stesso nome del
 # tag, creata in bozza se non esiste: si pubblica a mano dopo un'occhiata.
 #
-# I pacchetti finiscono su JackGrieco/PizzaManager-releases, repo PUBBLICO che
-# contiene solo le Release: il codice resta qui, privato, e i link di download
-# funzionano per chiunque (docs/plans/44-release-firmata.md).
+# I pacchetti finiscono sulle Release di questo repo. Fino alla 1.5.1 stavano
+# su un repo a parte perche' il codice era privato e i link di download
+# dovevano funzionare per chiunque; da quando il codice e' pubblico quella
+# ragione non c'e' piu' (docs/plans/44-release-firmata.md).
 #
 # macOS e' firmato e notarizzato quando i secret ci sono (vedi sotto): il .dmg
 # si apre senza avvisi. Windows resta non firmato e mostra SmartScreen: serve
@@ -25,25 +26,18 @@ jobs:
   # finiscono insieme creavano quattro bozze con lo stesso tag (successo con
   # v1.0.2, unite a mano). Con la bozza gia' esistente, tutti la trovano.
   #
-  # La Release vive nel repo PUBBLICO: il codice resta privato, i pacchetti
-  # sono release asset e non file di quel repo. Serve quindi un PAT con
-  # contents:write la', perche' il GITHUB_TOKEN di questo repo non scrive da
-  # nessun'altra parte.
-  #
-  # Niente --target: il tag non esiste nel repo pubblico e GITHUB_SHA e' un
-  # commit di QUESTO repo, che la' non c'e'. Senza, la bozza si appoggia al
-  # branch di default del repo pubblico.
+  # La Release sta in questo repo, quindi basta il GITHUB_TOKEN del workflow:
+  # il PAT PUBLIC_RELEASE_TOKEN serviva solo a scrivere nel repo separato.
   draft:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: |
           TAG="v$(node -p "require('./package.json').version")"
-          gh release view "$TAG" --repo "$RELEASES_REPO" >/dev/null 2>&1 \
-            || gh release create "$TAG" --repo "$RELEASES_REPO" --draft --title "$TAG" --notes ""
+          gh release view "$TAG" >/dev/null 2>&1 \
+            || gh release create "$TAG" --draft --title "$TAG" --notes ""
         env:
-          RELEASES_REPO: JackGrieco/PizzaManager-releases
-          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   build:
     needs: draft
     strategy:
@@ -180,7 +174,7 @@ jobs:
       - run: npx electron-builder ${{ matrix.args }} --config.extraMetadata.buildFrom=release --publish always
         env:
           # Il repo di destinazione e' in package.json (build.publish).
-          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DEBUG: electron-builder
           # NIENTE CSC_LINK, di proposito: e' cio' che manderebbe
           # electron-builder sulla strada rotta descritta sopra. L'identita' e'
@@ -230,7 +224,7 @@ jobs:
           for dmg in dist/*.dmg; do
             NAME=$(basename "$dmg")
             echo "Riscarico $NAME dalla Release e lo verifico"
-            gh release download "$TAG" --repo "$RELEASES_REPO" --pattern "$NAME" --dir "$DEST" --clobber
+            gh release download "$TAG" --pattern "$NAME" --dir "$DEST" --clobber
             VERDETTO=$(spctl -a -vvv -t open --context context:primary-signature "$DEST/$NAME" 2>&1 || true)
             echo "$VERDETTO"
             case "$VERDETTO" in
@@ -245,7 +239,7 @@ jobs:
           # anche Apple Silicon, riceveva il build Intel. Un difetto del file
           # che dice quali versioni esistono, non dei file che contiene.
           echo "Verifico che il manifesto elenchi tutte le architetture costruite"
-          gh release download "$TAG" --repo "$RELEASES_REPO" --pattern "latest-mac.yml" --dir "$DEST" --clobber
+          gh release download "$TAG" --pattern "latest-mac.yml" --dir "$DEST" --clobber
           cat "$DEST/latest-mac.yml"
           for dmg in dist/*.dmg; do
             ARCH=$(basename "$dmg" .dmg | sed 's/.*-//')
@@ -255,5 +249,4 @@ jobs:
             }
           done
         env:
-          RELEASES_REPO: JackGrieco/PizzaManager-releases
-          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

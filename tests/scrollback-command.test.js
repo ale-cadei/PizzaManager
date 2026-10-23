@@ -44,9 +44,63 @@ ok('senza file o senza shell non si ripristina niente', () => {
   assert.strictEqual(replayCommand({ file, shell: '', ...unix }), null);
 });
 
-ok('su Windows non esiste questa strada: la cattura la fa il renderer', () => {
-  assert.strictEqual(replayCommand({ file, shell: 'powershell.exe', platform: 'win32' }), null);
-  assert.ok(replayCommand({ file, shell: '/bin/bash', platform: 'linux' }), 'su Linux vale come su macOS');
+ok('su Linux vale come su macOS', () => {
+  assert.strictEqual(replayCommand({ file, shell: '/bin/bash', platform: 'linux' }).cmd, '/bin/sh');
+});
+
+/* Windows, dentro psmux (docs/plans/52, Q7 di 40-risultati.md). Non c'e' exec:
+   e' PowerShell stessa a stampare il file e poi restare interattiva
+   (-NoExit), quindi nessun guscio in mezzo. Provato nel psmux vero: colori,
+   accenti, euro ed emoji, il separatore passato con -e, prompt che risponde. */
+const winFile = 'C:\\Users\\jack\\AppData\\Roaming\\AISessionManager\\scrollback\\ais-shell-1.txt';
+const win = { platform: 'win32' };
+
+ok('win: PowerShell stampa il testo di prima e resta la shell, lo script e una costante', () => {
+  const { REPLAY_SCRIPT_POWERSHELL } = require('../lib/scrollback-command');
+  const { SEPARATOR } = require('../lib/scrollback');
+  const c = replayCommand({ file: winFile, shell: 'powershell.exe', ...win });
+  assert.deepStrictEqual(c, {
+    cmd: 'powershell.exe',
+    args: ['-NoLogo', '-NoExit', '-Command', REPLAY_SCRIPT_POWERSHELL],
+    env: { AIS_SCROLLBACK: winFile, AIS_SCROLLBACK_SEP: SEPARATOR },
+  });
+  assert.ok(!JSON.stringify(c.args).includes('ais-shell-1'), 'il percorso viaggia nell ambiente, non nella riga');
+});
+
+ok('win: lo script stampa in UTF-8 e rimette la codifica dell utente, senza lasciare variabili', () => {
+  const { REPLAY_SCRIPT_POWERSHELL: s } = require('../lib/scrollback-command');
+  // Windows PowerShell 5.1 scrive nella codifica OEM (850): l'euro e le emoji
+  // diventavano «?». La shell che resta deve pero' comportarsi come sempre.
+  assert.match(s, /\[Console\]::OutputEncoding = \[Text\.Encoding\]::UTF8/);
+  assert.match(s, /\[Console\]::OutputEncoding = \$__aisEnc; Remove-Variable __aisEnc$/, 'codifica rimessa e variabile tolta, per ultime');
+  assert.ok(s.indexOf('$env:AIS_SCROLLBACK)') < s.indexOf('$env:AIS_SCROLLBACK_SEP'), 'prima il testo, poi il separatore');
+  assert.ok(!/\$o\b/.test(s), 'il profilo dell utente gira prima di -Command: un nome comune potrebbe essere suo');
+});
+
+ok('win: pwsh e percorsi completi valgono, maiuscole o no; il comando resta quello del profilo', () => {
+  for (const shell of ['pwsh.exe', 'PWSH', 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\PowerShell.EXE', 'C:/Program Files/PowerShell/7/pwsh.exe']) {
+    const c = replayCommand({ file: winFile, shell, ...win });
+    assert.ok(c, shell);
+    assert.strictEqual(c.cmd, shell);
+  }
+});
+
+ok('win: i flag innocui del profilo restano, prima dei nostri', () => {
+  const c = replayCommand({ file: winFile, shell: 'powershell.exe', args: ['-NoProfile', '-NoLogo'], ...win });
+  assert.deepStrictEqual(c.args.slice(0, 5), ['-NoProfile', '-NoLogo', '-NoLogo', '-NoExit', '-Command'], 'PowerShell accetta i flag ripetuti');
+});
+
+ok('win: con -Command, -File o un argomento posizionale nel profilo niente replay, la shell parte e basta', () => {
+  for (const args of [['-Command', 'Get-Date'], ['-c', 'x'], ['-File', 'a.ps1'], ['script.ps1'], ['-ExecutionPolicy', 'Bypass'], ['-EncodedCommand', 'AA==']]) {
+    assert.strictEqual(replayCommand({ file: winFile, shell: 'powershell.exe', args, ...win }), null, JSON.stringify(args));
+  }
+});
+
+ok('win: le altre shell non hanno una strada per ristampare il testo', () => {
+  for (const shell of ['cmd.exe', 'C:\\Windows\\System32\\cmd.exe', 'C:\\Program Files\\Git\\bin\\bash.exe', 'powershell_ise.exe']) {
+    assert.strictEqual(replayCommand({ file: winFile, shell, ...win }), null, shell);
+  }
+  assert.strictEqual(replayCommand({ file: null, shell: 'powershell.exe', ...win }), null);
 });
 
 ok('il separatore ha una fonte sola, tradotta per printf', () => {

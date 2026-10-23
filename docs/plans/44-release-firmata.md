@@ -396,7 +396,8 @@ Da fare dopo, a release pubblicata: il documento di processo per chi rilascia
 3. **Un PAT fine-grained** con `contents: write` su
    `JackGrieco/PizzaManager-releases` ✅ fatto il 2026-10-08, **scade il
    4 ottobre 2027**: quando scade la release fallisce e il motivo non è ovvio,
-   quindi la procedura sta in [`../rilasci/rinnovo-token.md`](../rilasci/rinnovo-token.md).
+   quindi la procedura stava in `../rilasci/rinnovo-token.md`. Dal piano 67 il
+   PAT non serve piu' e il documento e' stato tolto.
 4. **I secret nel repo del codice** ✅ tutti e sei installati il 2026-10-08:
    `PUBLIC_RELEASE_TOKEN`, `MAC_CSC_LINK` (il `.p12` in base64),
    `MAC_CSC_KEY_PASSWORD`, `APPLE_API_KEY_P8`, `APPLE_API_KEY_ID`,

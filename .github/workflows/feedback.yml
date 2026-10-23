@@ -1,0 +1,62 @@
+# Rigenera feedback.json dalle issue di questo repo.
+#
+# L'app legge QUESTO FILE, non l'API di GitHub: senza autenticazione sono 60
+# richieste l'ora per indirizzo IP, e in un ufficio dietro NAT si
+# esaurirebbero per tutti insieme. Qui invece il file è statico, servito dalla
+# CDN di GitHub, senza limiti né autenticazione.
+# Vedi docs/plans/48-segnalazioni.md nel repo del codice.
+name: feedback
+on:
+  issues:
+    types: [opened, edited, closed, reopened, labeled, unlabeled, deleted]
+  # Le reazioni 👍 non emettono un evento: si ripassa ogni ora, così i voti
+  # non restano fermi.
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+  issues: read
+concurrency:
+  # Due issue etichettate insieme genererebbero due commit in conflitto.
+  group: feedback
+  cancel-in-progress: false
+jobs:
+  genera:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Costruisci feedback.json
+        run: node .github/feedback.js
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+      - name: Committa se è cambiato
+        run: |
+          set -eu
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          # Due eventi ravvicinati (issue aperta + etichettata) fanno partire
+          # due giri che si contendono il push: il secondo viene rifiutato.
+          # Si riprova prendendo il remoto e RIGENERANDO il file: è prodotto da
+          # zero dalle issue, quindi non c'è niente da fondere.
+          for tentativo in 1 2 3; do
+            # `diff --quiet` esce 1 quando c'è una differenza: senza questo
+            # controllo ogni giro farebbe un commit vuoto, ogni ora, per sempre.
+            if git diff --quiet -- feedback.json; then
+              echo "Nessuna differenza: niente commit."
+              exit 0
+            fi
+            git add feedback.json
+            git commit -m "feedback.json aggiornato dalle issue"
+            if git push; then exit 0; fi
+            echo "Push rifiutato (tentativo $tentativo): riprendo il remoto e rigenero."
+            git fetch origin main
+            git reset --hard origin/main
+            node .github/feedback.js
+          done
+          echo "::error::tre push rifiutati di fila"
+          exit 1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}

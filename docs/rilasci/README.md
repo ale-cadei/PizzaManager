@@ -18,20 +18,20 @@ trappole qui dentro sono tutte successe davvero.
 cui non si può «aggiornare a ogni push»: servirebbe una release per push, cioè
 tre runner e due invii ad Apple ogni volta che si mergia.
 
-## 2. Due repository, e perché
+## 2. Un repository, e perché prima erano due
 
-| | |
-|---|---|
-| **`ale-cadei/PizzaManager`** (privato) | il codice. Qui si lavora, qui gira il workflow |
-| **`JackGrieco/PizzaManager-releases`** (pubblico) | **solo** le release. Un commit in tutto: il README con la tabella dei download |
+Codice, release, issue e feed delle segnalazioni stanno tutti in
+**`ale-cadei/PizzaManager`**, che è pubblico.
 
-I pacchetti sono *release asset*, non file di quel repo: **là non finisce una
-riga di sorgente**, e non si pusha niente da un repo all'altro. È il workflow
-che, al tag, carica i file dall'altra parte con un token.
+Fino alla 1.5.1 erano due: il codice qui, privato, e i pacchetti su
+`JackGrieco/PizzaManager-releases`. La ragione era una sola —
+l'aggiornamento automatico scarica il manifesto **senza autenticazione**, e
+quindi il file deve stare in un posto pubblico; l'alternativa era mettere un
+token dentro l'app distribuita, cioè regalarlo a chi la scarica.
 
-Serve un repo pubblico perché l'aggiornamento automatico scarica un file
-**senza autenticazione**. L'alternativa sarebbe mettere un token dentro l'app
-distribuita, cioè regalarlo a chi la scarica.
+Da quando il codice è pubblico quella ragione non esiste più, e con lei sono
+caduti il secondo repo, il PAT che serviva a scriverci, e il passaggio di file
+da un repo all'altro.
 
 ## 3. Fare una release
 
@@ -52,25 +52,25 @@ Poi si aspetta il workflow (~15 minuti) e si pubblica la bozza:
 
 ```sh
 gh run list --workflow=release.yml --limit 1          # deve essere verde
-gh release view v1.2.0 --repo JackGrieco/PizzaManager-releases
-gh release edit v1.2.0 --repo JackGrieco/PizzaManager-releases \
-  --draft=false --notes-file docs/rilasci/v1.2.0.md
+gh release view v1.2.0
+gh release edit v1.2.0 --draft=false --notes-file docs/rilasci/v1.2.0.md
 ```
 
 Le **note** si scrivono a mano in `docs/rilasci/v<versione>.md` prima di
-pubblicare. Non si generano da sole: `gh release --generate-notes` legge i
-commit del repo in cui crea la release, e là ci sono solo quelli del README.
-Su un repo pubblico la pagina della release *è* la pagina del prodotto: vuota
-sembra abbandonata.
+pubblicare. Ora che la release nasce nel repo del codice,
+`gh release --generate-notes` funzionerebbe — ma elenca i titoli dei commit,
+che non sono le note di una versione. La pagina della release *è* la pagina
+del prodotto: vuota sembra abbandonata, e un elenco di commit non dice a
+nessuno cosa è cambiato per lui.
 
 ## 4. Cosa fa il workflow
 
 ```
 tag v*  (oppure «Run workflow» a mano)
    │
-   ├─ job "draft"     crea la bozza di Release sul repo PUBBLICO
-   │                  è il primo punto di rottura utile: se il token è
-   │                  scaduto si ferma qui, prima di costruire niente
+   ├─ job "draft"     crea la bozza di Release in questo repo, prima dei
+   │                  build: così i quattro job la trovano già fatta invece
+   │                  di crearne quattro in gara fra loro
    │
    └─ job "build"     tre runner in parallelo
          macOS arm64 ─┐  portachiavi → electron-builder → firma app →
@@ -115,13 +115,14 @@ Dodici file, ma da scaricare ce ne sono tre.
 - i `.blockmap` — permettono di scaricare solo i pezzi cambiati invece di
   100 MB interi.
 
-GitHub aggiunge da sé «Source code (zip/tar.gz)»: nel nostro caso contengono
-il README del repo pubblico, non il codice. Non si possono togliere.
+GitHub aggiunge da sé «Source code (zip/tar.gz)»: da quando la release nasce
+qui contengono il codice vero al tag. Non si possono togliere, e ora ha senso
+che ci siano.
 
 ## 6. L'aggiornamento automatico, dal lato di chi usa l'app
 
-All'avvio (dopo 10 secondi) e poi ogni 4 ore, l'app scarica il manifesto dal
-repo pubblico e confronta la versione con la propria. Se è più nuova, **scarica
+All'avvio (dopo 10 secondi) e poi ogni 4 ore, l'app scarica il manifesto
+dalle Release di questo repo e confronta la versione con la propria. Se è più nuova, **scarica
 in background** e mostra il banner **quando ha già finito**: «La versione 1.2.0
 è pronta — Riavvia ora». Il riavvio dura due secondi, perché il pacchetto è
 già sul disco.
@@ -147,17 +148,16 @@ Tre casi in cui non si aggiorna da sé:
 | Taggare e far partire il workflow | chi ha push sul repo del codice |
 | Installare i secret | chi ha accesso in scrittura — **non serve essere il proprietario** |
 | Firmare e notarizzare | serve il certificato *Developer ID* nel portachiavi di chi lo possiede; sul CI arriva dai secret |
-| Pubblicare la bozza | chi ha accesso al repo pubblico |
+| Pubblicare la bozza | chi ha push su questo repo |
 
-I sei secret e come si preparano: [`secret.md`](secret.md). Il token scade il
-**4 ottobre 2027**, e la procedura per rifarlo è in
-[`rinnovo-token.md`](rinnovo-token.md).
+I cinque secret e come si preparano: [`secret.md`](secret.md). Sono tutti di
+Apple: il PAT `PUBLIC_RELEASE_TOKEN` non serve più da quando la release nasce
+qui, e **va revocato** su GitHub → Settings → Developer settings.
 
 ## 8. Quando qualcosa va storto
 
 | Sintomo | Causa vera |
 |---|---|
-| Il job `draft` risponde `404` o `403` | il **token** è scaduto. GitHub dice «not found» invece di «non hai il permesso»: su un repo pubblico che esiste di sicuro, quel 404 vuol dire token → [`rinnovo-token.md`](rinnovo-token.md) |
 | `SecKeychainUnlock: passphrase not correct` | **non** è la password sbagliata. È un difetto di electron-builder, già aggirato: il portachiavi lo prepara il workflow → [piano 44](../plans/44-release-firmata.md) |
 | `RC2-40-CBC unsupported` provando il `.p12` | nemmeno questa è una password sbagliata: è OpenSSL 3 che rifiuta l'algoritmo del Portachiavi. Serve `openssl pkcs12 -legacy …` |
 | Job verde ma il `.dmg` scaricato dà «è danneggiato» | era il gancio sbagliato, già corretto: il file veniva caricato 50 ms prima di essere firmato. Per questo il workflow ora **riscarica l'asset e lo verifica** |
@@ -180,28 +180,21 @@ locale: la differenza fra i due è esattamente il difetto che ci è sfuggito.
 
 ## 9. Quanto costa una release (e perché può fermarsi)
 
-`ale-cadei/PizzaManager` è **privato**, quindi le sue Actions consumano i
-minuti del piano di chi possiede il repo: 2000 al mese sul piano gratuito. E
-i minuti non valgono tutti uguale — è questo che sorprende:
+**Da quando il repo è pubblico, non costa niente.** GitHub non conta i minuti
+dei runner standard sui repository pubblici, macOS compreso. Vale la pena
+guardare <https://github.com/settings/billing/usage> dopo la prima release
+fatta da qui, per vederlo confermato.
 
-| Runner | Moltiplicatore |
-|---|---|
-| Linux | ×1 |
-| Windows | ×2 |
-| **macOS** | **×10** |
+Finché era privato invece si contavano, e non valevano tutti uguale: Linux ×1,
+Windows ×2, **macOS ×10**. Una release costava circa **66 minuti fatturati**
+su 2000 al mese — abbondanti — e il 9 ottobre 2026 sono finiti comunque: sei
+release in un giorno, la CI che girava due volte per ogni merge (una sulla PR,
+una sul push a `main`) e un job Windows rotto che restava appeso sei ore
+contando doppio. Da lì in poi **nessun job è più partito**, nemmeno su Linux.
+Quel guasto non può più ricapitare, ed è il motivo per cui questa sezione
+resta: per chi la ritrova nei log di ottobre.
 
-Una release costa circa **66 minuti fatturati**: ~6 reali di macOS (che ne
-valgono 60), più Linux e la bozza. Fanno circa **28 release al mese**, che è
-molto più di quanto serva — ma il 9 ottobre 2026 i minuti sono finiti lo
-stesso: sei release in un giorno, la CI che gira due volte per ogni merge
-(una sulla PR, una sul push a `main`) e un job Windows rotto che restava
-appeso sei ore contando doppio. Da lì in poi **nessun job è più partito**,
-nemmeno su Linux.
-
-Il repo pubblico delle release non c'entra: è pubblico, quindi le sue Actions
-sono gratis, cron delle segnalazioni compreso.
-
-**Cosa fare quando succede.** Niente panico sui soldi: il tetto di spesa è a
+**Se succedesse comunque.** Niente panico sui soldi: il tetto di spesa è a
 zero di default, quindi GitHub *blocca* invece di addebitare — il fatto che i
 job si fermino è la prova che non si sta spendendo. L'allocazione riparte al
 rinnovo del piano, che non è il primo del mese ma il giorno in cui il piano è

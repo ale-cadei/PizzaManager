@@ -1,4 +1,9 @@
 <p align="center">
+  <b>🇮🇹 Italiano</b> ·
+  <a href="README.en.md">🇬🇧 English</a>
+</p>
+
+<p align="center">
   <img src="assets/icons/256x256.png" width="128" alt="Logo di PizzaManager: una pizza con una fetta sollevata">
 </p>
 
@@ -50,14 +55,14 @@ Se lavori con più agenti AI da terminale, finisci con dieci finestre aperte, ne
 |---|---|---|
 | **macOS** | [Apple Silicon (.dmg)](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-mac-arm64.dmg) · [Intel (.dmg)](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-mac-x64.dmg) | Trascina l'app in *Applicazioni* |
 | **Linux** | [AppImage](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-linux-x86_64.AppImage) · [.deb](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-linux-amd64.deb) | `chmod +x` l'AppImage, o `sudo dpkg -i` il .deb |
-| **Windows** | [Installer (.exe)](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-win-x64-setup.exe) | Installer classico; senza `tmux` (vedi [Su Windows](#su-windows)) |
+| **Windows** | pacchetto non disponibile: si costruisce [dal sorgente](#dal-sorgente) | senza `tmux` (vedi [Su Windows](#su-windows)) |
 
 Tutte le versioni: [Releases](https://github.com/ale-cadei/PizzaManager/releases). Le CLI (`claude`, `codex`, `opencode`) vanno installate a parte: l'app lancia quelle che trova nel PATH.
 
 Alla prima apertura:
 - **macOS**: niente da fare. Il `.dmg` è firmato con un Developer ID e notarizzato da Apple, quindi si apre come qualsiasi app scaricata.
 - **Linux**: niente da fare.
-- **Windows**: il pacchetto non è firmato e compare l'avviso SmartScreen — *Ulteriori informazioni → Esegui comunque*.
+- **Windows**: costruito dal sorgente non è firmato, quindi compare l'avviso SmartScreen — *Ulteriori informazioni → Esegui comunque*.
 
 ### Dal sorgente
 

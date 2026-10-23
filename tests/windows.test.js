@@ -429,6 +429,64 @@ ok('detectTmux fuori da Windows non installa psmux e usa tmux.conf', () => {
   assert.strictEqual(d.psmuxVersion, undefined);
 });
 
+/* Aggiornamenti con sessioni vive (piano 52, punto 5). Il protocollo di psmux
+   non ha versione, quindi ci si riattacca con l'exe con cui la sessione e'
+   nata, e si tolgono solo le versioni che nessuna sessione viva usa. */
+const { META_KEYS, FIELD_SEP } = require('../lib/tmux');
+/** Un psmux finto: list-sessions risponde con queste sessioni, il resto va. */
+function fakePsmux(sessions) {
+  const stdout = sessions.map(({ name, psmux }) => [name, '1000', '0', ...META_KEYS.map((k) => ({ type: 'shell', psmux })[k] || '')].join(FIELD_SEP)).join('\n');
+  return (bin, args, opts, cb) => cb(null, args.includes('list-sessions') ? stdout : '', '');
+}
+const OLD_BIN = 'C:\\Users\\jack\\AppData\\Local\\PizzaManager\\psmux\\3.3.7\\psmux.exe';
+function withVersions(sessions, { installed = ['3.3.7', '3.3.8'], pruned = [] } = {}) {
+  return detectTmux({
+    platform: 'win32', psmuxConfPath: 'C:\\x\\psmux.conf', psmux: WHERE, run: fakePsmux(sessions),
+    installPsmux: () => ({
+      ...PSMUX,
+      binFor: (v) => (installed.includes(v) ? `C:\\Users\\jack\\AppData\\Local\\PizzaManager\\psmux\\${v}\\psmux.exe` : null),
+      prune: (keep) => { pruned.push([...keep].sort()); return installed.filter((v) => !keep.includes(v)); },
+    }),
+  });
+}
+
+ok('win: ogni sessione nuova si segna la versione di psmux', async () => {
+  const calls = [];
+  const d = detectTmux({ platform: 'win32', psmuxConfPath: 'C:\\x\\psmux.conf', psmux: WHERE, installPsmux: () => PSMUX,
+    run: (bin, args, opts, cb) => { calls.push(args); cb(null, '', ''); } });
+  await d.control.create({ name: 'ais-shell-1', cmd: 'powershell.exe', meta: { type: 'shell' } });
+  assert.ok(calls.some((a) => a.slice(-2).join(' ') === '@ais_psmux 3.3.8'));
+});
+
+ok('win: ci si riattacca con l exe della versione della sessione, se c e ancora', async () => {
+  const d = withVersions([{ name: 'ais-shell-vecchia', psmux: '3.3.7' }, { name: 'ais-shell-nuova', psmux: '3.3.8' }, { name: 'ais-shell-ignota' }, { name: 'ais-shell-sparita', psmux: '3.2.0' }]);
+  assert.strictEqual(await d.attachBin('ais-shell-vecchia'), OLD_BIN);
+  assert.strictEqual(await d.attachBin('ais-shell-nuova'), PSMUX.bin);
+  assert.strictEqual(await d.attachBin('ais-shell-ignota'), PSMUX.bin, 'nata prima di @ais_psmux: l exe corrente');
+  assert.strictEqual(await d.attachBin('ais-shell-sparita'), PSMUX.bin, 'cartella della versione tolta: l exe corrente');
+  assert.strictEqual(await d.attachBin('ais-shell-nessuna'), PSMUX.bin);
+});
+
+ok('win: la pulizia tiene la versione corrente e quelle delle sessioni vive', async () => {
+  const pruned = [];
+  const d = withVersions([{ name: 'ais-shell-a', psmux: '3.3.7' }], { installed: ['3.3.6', '3.3.7', '3.3.8'], pruned });
+  assert.deepStrictEqual(await d.pruneUnused(), ['3.3.6']);
+  assert.deepStrictEqual(pruned, [['3.3.7', '3.3.8']]);
+});
+
+ok('win: con una sessione di versione ignota non si toglie niente (potrebbe usare qualunque exe)', async () => {
+  const pruned = [];
+  const d = withVersions([{ name: 'ais-shell-a', psmux: '3.3.8' }, { name: 'ais-shell-ignota' }], { installed: ['3.3.7', '3.3.8'], pruned });
+  assert.deepStrictEqual(await d.pruneUnused(), []);
+  assert.deepStrictEqual(pruned, []);
+});
+
+ok('fuori da Windows attachBin è il tmux trovato e la pulizia non fa niente', async () => {
+  const d = detectTmux({ platform: 'linux', confPath: '/a/tmux.conf', resolve: () => ({ path: '/usr/bin/tmux' }), run: fakePsmux([]) });
+  assert.strictEqual(await d.attachBin('ais-shell-1'), '/usr/bin/tmux');
+  assert.deepStrictEqual(await d.pruneUnused(), []);
+});
+
 /* Ogni riga di app/psmux.conf viene da una misura (docs/plans/40-risultati.md):
    chi la «riallinea» a tmux.conf rompe qualcosa che su Mac non si vede. */
 ok('win: psmux.conf, le opzioni che psmux vuole diverse da tmux', () => {

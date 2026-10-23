@@ -48,6 +48,9 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
   /** id scheda -> { p: pty, session: nome tmux | null } */
   const clients = new Map();
   const viaTmux = Boolean(tmux && tmux.bin && tmux.control && pty);
+  // Le copie di psmux che nessuna sessione viva usa piu', dopo un aggiornamento
+  // (docs/plans/52): fire-and-forget, una cartella bloccata si riprova al prossimo avvio.
+  if (viaTmux && tmux.pruneUnused) tmux.pruneUnused().catch(() => {});
 
   /**
    * Variabili d'ambiente e nome dell'account per una sessione Claude.
@@ -286,8 +289,10 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     // non c'e' piu' (hard refresh): si chiude, e la scheda nuova prende il suo posto.
     for (const [oldId, c] of clients) if (c.session === session) close(oldId);
     try {
-      const p = openPty(tmux.bin, tmuxLib.attachArgs({ confPath: tmux.confPath, socket: tmux.socket, name: session }), {
-        cols, rows, cwd: os.homedir(), env: augmentedEnv([tmux.bin], {}, process.env, localeOpts()),
+      // Con psmux, l'exe della versione con cui la sessione e' nata (lib/tmux.js, attachBin)
+      const bin = tmux.attachBin ? await tmux.attachBin(session).catch(() => tmux.bin) : tmux.bin;
+      const p = openPty(bin, tmuxLib.attachArgs({ confPath: tmux.confPath, socket: tmux.socket, name: session }), {
+        cols, rows, cwd: os.homedir(), env: augmentedEnv([bin], {}, process.env, localeOpts()),
       });
       track(id, p, session, type);
       syncSnapshot();

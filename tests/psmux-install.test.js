@@ -140,3 +140,20 @@ ok('prune: una cartella che non si cancella (exe in uso) non ferma le altre', ()
   assert.ok(fs.existsSync(path.join(f.localDir, '3.3.6')));
   f.done();
 });
+
+ok('installBundledPsmux: installa e porta con sé binFor e prune per le versioni di prima', (t) => {
+  // psmuxDirs costruisce percorsi Windows: con una tmpdir Unix non avrebbero senso
+  if (process.platform !== 'win32') return t.skip('percorsi Windows veri');
+  const { installBundledPsmux } = require('../lib/psmux-install');
+  const f = fixture();
+  const appDir = path.join(f.root, 'src');
+  fs.mkdirSync(path.join(appDir, 'vendor'), { recursive: true });
+  fs.renameSync(f.sourceDir, path.join(appDir, 'vendor', 'psmux'));
+  const r = installBundledPsmux({ platform: 'win32', packaged: false, appDir, env: { LOCALAPPDATA: path.join(f.root, 'local') }, run: f.run });
+  assert.strictEqual(r.version, '3.3.8');
+  assert.strictEqual(r.bin, path.join(f.root, 'local', 'PizzaManager', 'psmux', '3.3.8', 'psmux.exe'));
+  assert.strictEqual(r.binFor('3.3.8'), r.bin);
+  assert.deepStrictEqual(r.prune(['3.3.8']), []);
+  assert.strictEqual(installBundledPsmux({ platform: 'linux', packaged: false, appDir, env: {} }), null);
+  f.done();
+});

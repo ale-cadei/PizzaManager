@@ -15,7 +15,8 @@
     "dist": "electron-builder",
     "test:unit": "node --test \"tests/**/*.test.js\"",
     "test:coverage": "node --test --experimental-test-coverage \"tests/**/*.test.js\"",
-    "dist:win": "electron-builder --win -c.npmRebuild=false",
+    "dist:win": "node scripts/fetch-psmux.js && electron-builder --win -c.npmRebuild=false",
+    "fetch:psmux": "node scripts/fetch-psmux.js",
     "install:mac": "sh scripts/install-mac.sh",
     "install:win": "node scripts/install-win.js"
   },
@@ -96,7 +97,17 @@
         "nsis",
         "zip"
       ],
-      "icon": "assets/icon.png"
+      "icon": "assets/icon.png",
+      "extraResources": [
+        {
+          "from": "vendor/psmux",
+          "to": "psmux",
+          "filter": [
+            "psmux.exe",
+            "LICENSE"
+          ]
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,

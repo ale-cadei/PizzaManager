@@ -40,26 +40,38 @@ ok('opencode: `session list --format json` produce ancora un array JSON', (t) =>
 // ---------- tmux: il ciclo per cui esiste il branch 6 ----------
 ok('tmux: la sessione sopravvive allo stacco del client e si riattacca con i metadati', async (t) => {
   const path = require('path');
-  const os = require('os');
-  const { detectTmux, createTmuxControl } = require('../lib/tmux');
-  const { createPtyManager, isPtyAvailable } = require('../app/pty');
-  const { createAccountStore } = require('../lib/accounts');
-  const { createHistoryStore } = require('../lib/history');
-  const { createProfileStore } = require('../lib/profiles');
+  const { detectTmux } = require('../lib/tmux');
+  const { isPtyAvailable } = require('../app/pty');
 
   const found = detectTmux({ confPath: null });
   if (!found) return t.skip('tmux non installato su questa macchina');
   if (!isPtyAvailable()) return t.skip('node-pty non compilato');
 
   // Socket dedicato al test: le sessioni reali dell'app (aisession) non si toccano.
-  const socket = 'aistest-' + process.pid;
-  const confPath = path.join(__dirname, '..', 'app', 'tmux.conf');
-  const control = createTmuxControl({ bin: found.bin, confPath, socket });
-  const tmux = { bin: found.bin, confPath, socket, control };
+  await sessionLifecycle({ bin: found.bin, confPath: path.join(__dirname, '..', 'app', 'tmux.conf'), socket: 'aistest-' + process.pid, shellCommand: '/bin/sh' });
+});
+
+/**
+ * Il ciclo di vita di una sessione attraverso app/pty.js: nascita coi
+ * metadati, stacco, riaggancio, hard refresh, terminate, registro per il
+ * riavvio. Uguale per tmux e per psmux (Windows): cambiano binario, config e
+ * la shell di prova.
+ */
+async function sessionLifecycle({ bin, confPath, socket, shellCommand }) {
+  const path = require('path');
+  const os = require('os');
+  const { createTmuxControl } = require('../lib/tmux');
+  const { createPtyManager } = require('../app/pty');
+  const { createAccountStore } = require('../lib/accounts');
+  const { createHistoryStore } = require('../lib/history');
+  const { createProfileStore } = require('../lib/profiles');
+
+  const control = createTmuxControl({ bin, confPath, socket });
+  const tmux = { bin, confPath, socket, control };
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-tmux-'));
   const profiles = createProfileStore({ dir });
   const cfg = profiles.load();
-  cfg.profiles.shell = [{ id: 'shell:t', label: 'Shell di prova', command: '/bin/sh', resumeArgs: '' }];
+  cfg.profiles.shell = [{ id: 'shell:t', label: 'Shell di prova', command: shellCommand, resumeArgs: '' }];
   profiles.save(cfg);
   const { createLiveSessionsStore } = require('../lib/live-sessions');
   const liveStore = () => createLiveSessionsStore({ dir });
@@ -142,10 +154,10 @@ ok('tmux: la sessione sopravvive allo stacco del client e si riattacca con i met
     assert.deepStrictEqual(liveStore().read(), [], '"Non ora" svuota il registro');
   } finally {
     const { execFileSync } = require('child_process');
-    try { execFileSync(found.bin, ['-L', socket, 'kill-server']); } catch {}
+    try { execFileSync(bin, ['-L', socket, 'kill-server']); } catch {}
     fs.rmSync(dir, { recursive: true, force: true });
   }
-});
+}
 
 /* Il mouse deve restare al terminale, non a tmux. Con `mouse on` tmux cattura
    il drag: al rilascio chiude la sua copy-mode e la selezione sparisce prima

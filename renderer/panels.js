@@ -21,12 +21,12 @@ async function refreshDeps() {
     // tmux non e' un tipo di sessione ma decide se le sessioni sopravvivono
     // all'app: senza indicatore, chi non ce l'ha scopre la differenza solo
     // perdendole. Stesso trattamento dei binari, con la spiegazione nel tooltip.
+    // Su Windows si chiama psmux: nome e testo arrivano dal main.
     const tmuxEl = $('#dep-tmux');
     if (tmuxEl) {
       tmuxEl.style.opacity = tmuxAvailable ? '1' : '0.45';
-      tmuxEl.title = tmuxAvailable
-        ? `tmux: ${tmuxPath}\nLe sessioni restano vive alla chiusura dell'app e tornano alla riapertura.`
-        : 'tmux non trovato: le sessioni muoiono con la finestra.\nInstallalo (brew install tmux / apt install tmux) e riavvia l\'app.';
+      tmuxEl.title = tmuxInfo.title;
+      if (tmuxEl.lastChild && tmuxEl.lastChild.nodeType === 3) tmuxEl.lastChild.textContent = tmuxInfo.name;
     }
     if (AI_TYPES.some(n => !deps[n] || !deps[n].found)) {
       console.warn('[PizzaManager] binari mancanti:', deps);

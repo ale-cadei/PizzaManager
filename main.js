@@ -5,7 +5,7 @@ const { getDefaultShell, platformLabel } = require('./lib/shell');
 const { getLoginPathSync, primeLoginPath } = require('./lib/login-path');
 const path = require('path');
 const { resolveAllBinaries } = require('./lib/binaries');
-const { checkDeps } = require('./lib/setup-check');
+const { checkDeps, backendInfo } = require('./lib/setup-check');
 const { detectTmux } = require('./lib/tmux');
 const { createHistoryStore } = require('./lib/history');
 const { createAccountStore } = require('./lib/accounts');
@@ -125,7 +125,7 @@ ipcMain.handle('get-defaults', async () => {
     label: platformLabel(process.platform, getDefaultShell()),
     path: getLoginPathSync(),
     binaries: resolveAllBinaries(),
-    tmux: { available: ptys.viaTmux, path: tmux ? tmux.bin : null },
+    tmux: { available: ptys.viaTmux, ...backendInfo({ available: ptys.viaTmux, path: tmux && tmux.bin, version: tmux && tmux.psmuxVersion }) },
   };
 });
 

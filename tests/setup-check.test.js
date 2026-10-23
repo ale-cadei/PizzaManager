@@ -44,9 +44,47 @@ ok('setup: tmux si installa col gestore della piattaforma, e serve riavviare', (
   assert.strictEqual(setupReport({ binaries, tmuxAvailable: false, platform: 'linux' }).tmux.install.command, 'sudo apt install tmux');
 });
 
-ok('setup: su Windows tmux non si chiede (l app gira senza)', () => {
+ok('setup: su Windows non c e niente da installare: psmux viaggia nel pacchetto', () => {
   const r = setupReport({ binaries: { claude: found('C:\\x\\claude.cmd') }, tmuxAvailable: false, platform: 'win32' });
   assert.strictEqual(r.tmux, null);
+});
+
+/* Se le sessioni sopravvivono alla chiusura non dipende piu' dal sistema: su
+   Windows lo fa psmux (docs/plans/52), quindi lo dice `persistent`, non la
+   riga di tmux. */
+ok('setup: persistent dice se le sessioni restano vive, anche su Windows con psmux', () => {
+  const win = (tmuxAvailable) => setupReport({ binaries, tmuxAvailable, platform: 'win32' });
+  assert.strictEqual(win(true).persistent, true);
+  assert.strictEqual(win(false).persistent, false);
+  assert.strictEqual(setupReport({ binaries, tmuxAvailable: true, platform: 'darwin' }).persistent, true);
+  assert.strictEqual(setupReport({ binaries, tmuxAvailable: false, platform: 'linux' }).persistent, false);
+});
+
+/* Il pallino nella legenda: nome e spiegazione per il tooltip. */
+ok('legenda: con tmux dice dov e e che le sessioni restano; senza, come installarlo', () => {
+  const { backendInfo } = require('../lib/setup-check');
+  assert.deepStrictEqual(backendInfo({ available: true, path: '/opt/homebrew/bin/tmux', platform: 'darwin' }), {
+    name: 'tmux',
+    title: 'tmux: /opt/homebrew/bin/tmux\nLe sessioni restano vive alla chiusura dell\'app e tornano alla riapertura.',
+  });
+  const senza = backendInfo({ available: false, path: null, platform: 'darwin' });
+  assert.match(senza.title, /muoiono con la finestra/);
+  assert.match(senza.title, /brew install tmux/);
+  assert.match(backendInfo({ available: false, platform: 'linux' }).title, /apt install tmux/);
+});
+
+ok('legenda: su Windows e psmux, con la versione; se non parte niente brew, ma l antivirus', () => {
+  const { backendInfo } = require('../lib/setup-check');
+  const bin = 'C:\\Users\\jack\\AppData\\Local\\PizzaManager\\psmux\\3.3.8\\psmux.exe';
+  assert.deepStrictEqual(backendInfo({ available: true, path: bin, version: '3.3.8', platform: 'win32' }), {
+    name: 'psmux',
+    title: `psmux 3.3.8: ${bin}\nLe sessioni restano vive alla chiusura dell'app e tornano alla riapertura.`,
+  });
+  const giu = backendInfo({ available: false, path: null, platform: 'win32' });
+  assert.strictEqual(giu.name, 'psmux');
+  assert.match(giu.title, /muoiono con la finestra/);
+  assert.match(giu.title, /antivirus/);
+  assert.ok(!/brew|apt|tmux/.test(giu.title), giu.title);
 });
 
 ok('setup: tutto installato e un resoconto completo; input mancanti non lanciano', () => {

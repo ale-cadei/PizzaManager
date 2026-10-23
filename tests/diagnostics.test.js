@@ -26,6 +26,12 @@ ok('senza tmux lo dice, perche cambia tutto il comportamento', () => {
   assert.match(diagnosticLine({ platform: 'linux', tmux: true }), /con tmux/i);
 });
 
+ok('su Windows dice psmux: senza, il psmux del pacchetto non e partito (antivirus?)', () => {
+  assert.match(diagnosticLine({ platform: 'win32', tmux: true }), /con psmux/);
+  assert.match(diagnosticLine({ platform: 'win32', tmux: false }), /senza psmux/);
+  assert.ok(!/tmux/.test(diagnosticLine({ platform: 'win32', tmux: true })), 'su Windows tmux non c entra');
+});
+
 ok('elenca le CLI trovate, e dice quando non ce ne sono', () => {
   const con = diagnosticLine({ clis: { claude: true, codex: true, opencode: false } });
   assert.match(con, /claude/);

@@ -66,6 +66,18 @@ ok('welcome: tmux mancante dice di riavviare; su Windows non compare', () => {
   } finally { restore(); }
 });
 
+ok('welcome: tmux installato ma non ancora attivo dice di riavviare, senza comando da copiare', () => {
+  const { restore, root, w } = mount();
+  try {
+    w.update(setupReport({ binaries: { claude: found('/b/claude') }, tmuxAvailable: false, tmuxInstalled: true, tmuxPath: '/opt/homebrew/bin/tmux', platform: 'darwin' }));
+    const tmux = byClass(root, 'setup-row').find((r) => text(r).includes('tmux'));
+    assert.ok(tmux.classes.has('is-pending'), 'una ✘ dopo averlo installato fa pensare che non l abbia trovato');
+    assert.ok(text(tmux).includes('/opt/homebrew/bin/tmux'));
+    assert.ok(text(tmux).includes('⌘Q'));
+    assert.strictEqual(byClass(tmux, 'setup-copy').length, 0);
+  } finally { restore(); }
+});
+
 ok('welcome: con tutto installato la sezione strumenti sparisce', () => {
   const { restore, root, w } = mount();
   try {

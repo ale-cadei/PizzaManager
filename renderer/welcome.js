@@ -42,12 +42,17 @@
    *   install?: {command?: string|null, url?: string, note?: string}}} tool
    */
   function setupRow(doc, tool, onCopy, extraNote) {
-    const row = el(doc, 'li', `setup-row ${tool.found ? 'is-ok' : 'is-missing'}`);
-    row.appendChild(el(doc, 'span', 'setup-mark', tool.found ? '✔' : '✘'));
+    // `pending`: installato ad app aperta (solo tmux), manca il riavvio
+    const state = tool.found ? 'is-ok' : tool.pending ? 'is-pending' : 'is-missing';
+    const row = el(doc, 'li', `setup-row ${state}`);
+    row.appendChild(el(doc, 'span', 'setup-mark', tool.found ? '✔' : tool.pending ? '↻' : '✘'));
     row.appendChild(el(doc, 'span', 'setup-name', tool.label));
     const detail = el(doc, 'span', 'setup-detail');
     if (tool.found) {
       detail.appendChild(el(doc, 'span', 'setup-path', tool.path || ''));
+    } else if (tool.pending) {
+      detail.appendChild(el(doc, 'span', 'setup-path', tool.path || ''));
+      if (extraNote) detail.appendChild(el(doc, 'span', 'setup-note', extraNote));
     } else {
       const target = copyTarget(tool.install);
       if (target) {

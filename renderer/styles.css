@@ -1064,6 +1064,7 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .setup-mark { text-align: center; }
 .setup-row.is-ok .setup-mark { color: var(--state-ok); }
 .setup-row.is-missing .setup-mark { color: var(--state-error); }
+.setup-row.is-pending .setup-mark { color: var(--action-text); }
 .setup-name { font-weight: 600; color: var(--text); }
 .setup-detail { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; min-width: 0; }
 .setup-path {

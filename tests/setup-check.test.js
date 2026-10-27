@@ -44,6 +44,26 @@ ok('setup: tmux si installa col gestore della piattaforma, e serve riavviare', (
   assert.strictEqual(setupReport({ binaries, tmuxAvailable: false, platform: 'linux' }).tmux.install.command, 'sudo apt install tmux');
 });
 
+ok('setup: tmux installato ad app aperta e in attesa di riavvio, non ancora a posto', () => {
+  const mac = setupReport({ binaries, tmuxAvailable: false, tmuxInstalled: true, tmuxPath: '/opt/homebrew/bin/tmux', platform: 'darwin' });
+  assert.strictEqual(mac.tmux.found, false, 'le sessioni non lo usano finché l app non riparte');
+  assert.strictEqual(mac.tmux.pending, true);
+  assert.strictEqual(mac.tmux.path, '/opt/homebrew/bin/tmux');
+  // Su macOS chiudere la finestra non chiude l'app: «riavvia» da solo non basta
+  assert.ok(mac.tmux.note.includes('⌘Q'), mac.tmux.note);
+  const tutti = Object.fromEntries(['claude', 'codex', 'opencode', 'antigravity'].map((t) => [t, found('/x/' + t)]));
+  assert.strictEqual(setupReport({ binaries: tutti, tmuxAvailable: false, tmuxInstalled: true, platform: 'darwin' }).complete, false);
+  const linux = setupReport({ binaries, tmuxAvailable: false, tmuxInstalled: true, platform: 'linux' });
+  assert.ok(linux.tmux.pending && !linux.tmux.note.includes('⌘Q'));
+  assert.strictEqual(setupReport({ binaries, tmuxAvailable: true, platform: 'darwin' }).tmux.pending, false);
+});
+
+ok('setup: su macOS anche a tmux mancante si dice come riavviare davvero', () => {
+  const mac = setupReport({ binaries, tmuxAvailable: false, platform: 'darwin' });
+  assert.strictEqual(mac.tmux.pending, false);
+  assert.ok(mac.tmux.note.includes('⌘Q'), mac.tmux.note);
+});
+
 ok('setup: su Windows tmux non si chiede (l app gira senza)', () => {
   const r = setupReport({ binaries: { claude: found('C:\\x\\claude.cmd') }, tmuxAvailable: false, platform: 'win32' });
   assert.strictEqual(r.tmux, null);
@@ -68,4 +88,31 @@ ok('check-deps: binari, PATH e resoconto da una sola ricerca dei binari', () => 
   assert.strictEqual(r.claude.path, '/b/claude', 'i pallini della sidebar leggono ancora i binari al primo livello');
   assert.strictEqual(r.path, '/usr/bin:/b');
   assert.strictEqual(r.setup.ready, true);
+});
+
+ok('check-deps: «Ricontrolla» cerca tmux di nuovo, nel PATH di login', () => {
+  const cercato = [];
+  const r = checkDeps({
+    tmuxAvailable: false, platform: 'darwin',
+    resolveAll: () => ({ claude: found('/b/claude') }),
+    loginPath: () => '/usr/bin:/opt/homebrew/bin',
+    resolveTmux: (searchPath) => { cercato.push(searchPath); return { path: '/opt/homebrew/bin/tmux' }; },
+  });
+  assert.deepStrictEqual(cercato, ['/usr/bin:/opt/homebrew/bin']);
+  assert.strictEqual(r.setup.tmux.pending, true);
+  assert.strictEqual(r.setup.tmux.path, '/opt/homebrew/bin/tmux');
+  const assente = checkDeps({
+    tmuxAvailable: false, platform: 'darwin',
+    resolveAll: () => ({}), loginPath: () => '/usr/bin', resolveTmux: () => ({ path: null }),
+  });
+  assert.strictEqual(assente.setup.tmux.pending, false);
+});
+
+ok('check-deps: con tmux gia attivo, o su Windows, tmux non si cerca', () => {
+  let ricerche = 0;
+  const resolveTmux = () => { ricerche += 1; return { path: '/x/tmux' }; };
+  const base = { resolveAll: () => ({}), loginPath: () => '/usr/bin', resolveTmux };
+  checkDeps({ ...base, tmuxAvailable: true, platform: 'darwin' });
+  checkDeps({ ...base, tmuxAvailable: false, platform: 'win32' });
+  assert.strictEqual(ricerche, 0);
 });

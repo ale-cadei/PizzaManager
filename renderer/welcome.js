@@ -41,13 +41,23 @@
    * @param {{label: string, found: boolean, path?: string|null,
    *   install?: {command?: string|null, url?: string, note?: string}}} tool
    */
-  function setupRow(doc, tool, onCopy, extraNote) {
-    const row = el(doc, 'li', `setup-row ${tool.found ? 'is-ok' : 'is-missing'}`);
-    row.appendChild(el(doc, 'span', 'setup-mark', tool.found ? '✔' : '✘'));
+  function setupRow(doc, tool, { onCopy, onRestart }, extraNote) {
+    // `pending`: installato ad app aperta (solo tmux), manca il riavvio
+    const state = tool.found ? 'is-ok' : tool.pending ? 'is-pending' : 'is-missing';
+    const row = el(doc, 'li', `setup-row ${state}`);
+    row.appendChild(el(doc, 'span', 'setup-mark', tool.found ? '✔' : tool.pending ? '↻' : '✘'));
     row.appendChild(el(doc, 'span', 'setup-name', tool.label));
     const detail = el(doc, 'span', 'setup-detail');
     if (tool.found) {
       detail.appendChild(el(doc, 'span', 'setup-path', tool.path || ''));
+    } else if (tool.pending) {
+      detail.appendChild(el(doc, 'span', 'setup-path', tool.path || ''));
+      // Riavviare è sicuro: questa schermata c'è solo senza sessioni aperte
+      const restart = el(doc, 'button', 'btn btn--ghost setup-restart', 'Riavvia ora');
+      restart.type = 'button';
+      restart.onclick = () => onRestart();
+      detail.appendChild(restart);
+      if (extraNote) detail.appendChild(el(doc, 'span', 'setup-note', extraNote));
     } else {
       const target = copyTarget(tool.install);
       if (target) {
@@ -75,7 +85,7 @@
    * l'ultima sessione.
    * @param {object|null} report quello di lib/setup-check.js#setupReport
    */
-  function setupSection(doc, report, { onCopy, onRecheck }) {
+  function setupSection(doc, report, { onCopy, onRecheck, onRestart }) {
     if (!report || report.complete) return null;
     const box = el(doc, 'section', 'setup');
     box.appendChild(el(doc, 'h3', 'welcome-heading', 'Strumenti'));
@@ -88,7 +98,7 @@
     // Anche i presenti: accanto ai mancanti dicono a che punto si è.
     for (const tool of tools) {
       const extra = tool.label === 'tmux' ? report.tmux.note : '';
-      list.appendChild(setupRow(doc, tool, onCopy, extra));
+      list.appendChild(setupRow(doc, tool, { onCopy, onRestart }, extra));
     }
     box.appendChild(list);
     const recheck = el(doc, 'button', 'btn btn--outline setup-recheck', 'Ricontrolla');
@@ -143,7 +153,7 @@
   /**
    * @param {{root: object, document?: object,
    *   onCopy: (text: string) => void, onRecheck: () => void,
-   *   onNew?: () => void, onResume?: () => void}} deps
+   *   onRestart?: () => void, onNew?: () => void, onResume?: () => void}} deps
    */
   function createWelcome(deps) {
     const doc = deps.document || (typeof document !== 'undefined' ? document : null);
@@ -152,6 +162,7 @@
     const handlers = {
       onCopy: typeof deps.onCopy === 'function' ? deps.onCopy : () => {},
       onRecheck: typeof deps.onRecheck === 'function' ? deps.onRecheck : () => {},
+      onRestart: typeof deps.onRestart === 'function' ? deps.onRestart : () => {},
       onNew: typeof deps.onNew === 'function' ? deps.onNew : () => {},
       onResume: typeof deps.onResume === 'function' ? deps.onResume : () => {},
     };

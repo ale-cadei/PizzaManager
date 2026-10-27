@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld('aisess', {
   onUpdateState: (cb) => ipcRenderer.on('update-state', (_e, v) => cb(v)),
   getDefaults: () => ipcRenderer.invoke('get-defaults'),
   checkDeps: () => ipcRenderer.invoke('check-deps'),
+  relaunchApp: () => ipcRenderer.invoke('app-relaunch'),
   getHistory: () => ipcRenderer.invoke('get-history'),
   getRecentDirs: (limit) => ipcRenderer.invoke('get-recent-dirs', { limit }),
   resolveProject: (cwd) => ipcRenderer.invoke('resolve-project', { cwd }),

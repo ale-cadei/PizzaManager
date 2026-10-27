@@ -1032,9 +1032,11 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .term-scroll.is-dragging .term-scroll-thumb { left: 1px; right: 1px; background: var(--type-color, var(--action)); }
 /* Assoluto invece che in flusso: in colonna il terminale prende tutto lo
    spazio, e il messaggio finirebbe schiacciato in cima. `inset` lascia fuori
-   la barra dell'uso, `margin: auto` centra. */
+   la barra dell'uso, `margin: auto` centra. `z-index` perché #terminals è
+   posizionato e viene dopo nel DOM: senza, gli sta sopra (trasparente) e si
+   prende i click sui pulsanti. È successo. */
 #empty {
-  position: absolute; inset: 0 0 var(--usagebar-h) 0;
+  position: absolute; inset: 0 0 var(--usagebar-h) 0; z-index: 1;
   margin: auto; height: max-content;
   text-align: center; padding: 20px; display: none;
 }
@@ -1062,6 +1064,7 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .setup-mark { text-align: center; }
 .setup-row.is-ok .setup-mark { color: var(--state-ok); }
 .setup-row.is-missing .setup-mark { color: var(--state-error); }
+.setup-row.is-pending .setup-mark { color: var(--action-text); }
 .setup-name { font-weight: 600; color: var(--text); }
 .setup-detail { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; min-width: 0; }
 .setup-path {
@@ -1074,7 +1077,7 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
   background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius);
   padding: 2px 6px; user-select: all;
 }
-.setup-copy { padding: 2px 8px; font-size: 11px; }
+.setup-copy, .setup-restart { padding: 2px 8px; font-size: 11px; }
 .setup-note { flex-basis: 100%; font-size: 12px; color: var(--text-muted); }
 .welcome-actions { display: flex; gap: 8px; justify-content: center; }
 /* Come i pulsanti gemelli in cima alla sidebar: glifo e parola distanziati. */

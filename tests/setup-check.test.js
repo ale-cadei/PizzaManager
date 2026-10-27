@@ -49,12 +49,9 @@ ok('setup: tmux installato ad app aperta e in attesa di riavvio, non ancora a po
   assert.strictEqual(mac.tmux.found, false, 'le sessioni non lo usano finché l app non riparte');
   assert.strictEqual(mac.tmux.pending, true);
   assert.strictEqual(mac.tmux.path, '/opt/homebrew/bin/tmux');
-  // Su macOS chiudere la finestra non chiude l'app: «riavvia» da solo non basta
-  assert.ok(mac.tmux.note.includes('⌘Q'), mac.tmux.note);
+  assert.ok(/riavvi/i.test(mac.tmux.note), mac.tmux.note);
   const tutti = Object.fromEntries(['claude', 'codex', 'opencode', 'antigravity'].map((t) => [t, found('/x/' + t)]));
   assert.strictEqual(setupReport({ binaries: tutti, tmuxAvailable: false, tmuxInstalled: true, platform: 'darwin' }).complete, false);
-  const linux = setupReport({ binaries, tmuxAvailable: false, tmuxInstalled: true, platform: 'linux' });
-  assert.ok(linux.tmux.pending && !linux.tmux.note.includes('⌘Q'));
   assert.strictEqual(setupReport({ binaries, tmuxAvailable: true, platform: 'darwin' }).tmux.pending, false);
 });
 

@@ -56,6 +56,7 @@ function initWelcome() {
     root, document,
     onCopy: (text) => { window.aisess.clipboardWrite(text).catch((e) => console.warn('copia fallita', e)); },
     onRecheck: () => { refreshDeps(); },
+    onRestart: () => { window.aisess.relaunchApp().catch((e) => console.warn('riavvio fallito', e)); },
     onNew: () => openNewModal(),
     onResume: () => openResumeModal(),
   });

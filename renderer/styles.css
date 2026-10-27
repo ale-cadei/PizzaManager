@@ -1032,9 +1032,11 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .term-scroll.is-dragging .term-scroll-thumb { left: 1px; right: 1px; background: var(--type-color, var(--action)); }
 /* Assoluto invece che in flusso: in colonna il terminale prende tutto lo
    spazio, e il messaggio finirebbe schiacciato in cima. `inset` lascia fuori
-   la barra dell'uso, `margin: auto` centra. */
+   la barra dell'uso, `margin: auto` centra. `z-index` perché #terminals è
+   posizionato e viene dopo nel DOM: senza, gli sta sopra (trasparente) e si
+   prende i click sui pulsanti. È successo. */
 #empty {
-  position: absolute; inset: 0 0 var(--usagebar-h) 0;
+  position: absolute; inset: 0 0 var(--usagebar-h) 0; z-index: 1;
   margin: auto; height: max-content;
   text-align: center; padding: 20px; display: none;
 }

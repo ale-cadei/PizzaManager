@@ -16,7 +16,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     # Un test che lascia un processo appeso teneva il job vivo 6 ore (il
     # massimo di GitHub): la suite intera ci mette pochi minuti.
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,4 +28,15 @@ jobs:
       # del pacchetto (docs/plans/52): senza, si dichiarano saltati.
       - if: runner.os == 'Windows'
         run: npm run fetch:psmux
-      - run: npm run test:unit
+      # DIAGNOSI (branch usa e getta): ogni file da solo, chi non esce in 90 s.
+      - if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          node --version
+          for f in tests/*.test.js; do
+            s=$(date +%s); timeout 90 node --test "$f" > out.txt 2>&1; rc=$?
+            echo "rc=$rc $(( $(date +%s) - s ))s $f"
+            if [ $rc -eq 124 ]; then echo "----- $f (ultime righe)"; tail -25 out.txt; echo "-----"; fi
+          done
+      - if: runner.os != 'Windows'
+        run: npm run test:unit

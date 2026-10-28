@@ -67,6 +67,9 @@ ok('scarta: un file modificato torna com\'è nell\'indice, e Annulla lo rimette 
     fs.mkdirSync(repo.file('lib'));
     fs.writeFileSync(repo.file('lib/a.js'), 'dell\'agente\n', { mode: 0o755 });
     fs.chmodSync(repo.file('lib/a.js'), 0o755);
+    // Su Windows non ci sono permessi POSIX: resta 0o666, ed e' quello che Annulla rimette.
+    const mode = fs.statSync(repo.file('lib/a.js')).mode & 0o777;
+    assert.strictEqual(mode, process.platform === 'win32' ? 0o666 : 0o755);
     const r = await D.discardFile(opts(repo, { path: 'lib/a.js' }));
     assert.strictEqual(r.ok, true, r.error);
     assert.strictEqual(r.untracked, false);
@@ -74,13 +77,13 @@ ok('scarta: un file modificato torna com\'è nell\'indice, e Annulla lo rimette 
     assert.ok(repo.calls.some((c) => c.args.join(' ') === '--literal-pathspecs restore --worktree -- lib/a.js'));
     assert.ok(repo.calls.every((c) => c.opts.cwd === repo.root), 'tutto dalla radice');
     const saved = Buffer.from('dell\'agente\n');
-    assert.deepStrictEqual(r.undo, { path: 'lib/a.js', blob: blobSha(saved), mode: 0o755, after: blobSha(Buffer.from('indice\n')) });
+    assert.deepStrictEqual(r.undo, { path: 'lib/a.js', blob: blobSha(saved), mode, after: blobSha(Buffer.from('indice\n')) });
     assert.ok(repo.objects.has(r.undo.blob), 'il contenuto è salvato in git prima di scartare');
 
     fs.chmodSync(repo.file('lib/a.js'), 0o644);
     assert.deepStrictEqual(await D.undoDiscard(opts(repo, { token: r.undo })), { ok: true, path: 'lib/a.js' });
     assert.strictEqual(fs.readFileSync(repo.file('lib/a.js'), 'utf8'), 'dell\'agente\n');
-    assert.strictEqual(fs.statSync(repo.file('lib/a.js')).mode & 0o777, 0o755);
+    assert.strictEqual(fs.statSync(repo.file('lib/a.js')).mode & 0o777, mode);
   } finally {
     repo.done();
   }

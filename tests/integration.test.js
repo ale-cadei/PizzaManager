@@ -1111,6 +1111,8 @@ ok('git: scarta il non staged di un file e lo rimette, con il git installato', a
     git('config', 'user.name', 'Prova');
     git('config', 'user.email', 'p@x');
     git('config', 'commit.gpgsign', 'false');
+    // Git for Windows ha core.autocrlf=true di sistema: scartando, i file tornerebbero con \r\n.
+    git('config', 'core.autocrlf', 'false');
     fs.writeFileSync(file('a.txt'), 'uno\n');
     fs.writeFileSync(file('via.txt'), 'resta\n');
     fs.writeFileSync(file('run.sh'), 'echo ciao\n');
@@ -1133,10 +1135,13 @@ ok('git: scarta il non staged di un file e lo rimette, con il git installato', a
     // Il bit eseguibile torna con l'Annulla
     fs.writeFileSync(file('run.sh'), 'echo altro\n');
     fs.chmodSync(file('run.sh'), 0o755);
+    // Su Windows il bit eseguibile non c'e': resta 0o666, ed e' quello che torna.
+    const shMode = fs.statSync(file('run.sh')).mode & 0o777;
+    assert.strictEqual(shMode, process.platform === 'win32' ? 0o666 : 0o755);
     const sh = await discardFile({ cwd: root, path: 'run.sh' });
     assert.strictEqual(fs.statSync(file('run.sh')).mode & 0o111, 0, 'come nell\'indice');
     await undoDiscard({ cwd: root, token: sh.undo });
-    assert.strictEqual(fs.statSync(file('run.sh')).mode & 0o777, 0o755);
+    assert.strictEqual(fs.statSync(file('run.sh')).mode & 0o777, shMode);
     assert.strictEqual(read('run.sh'), 'echo altro\n');
 
     // Cancellato: torna; l'Annulla lo ricancella
@@ -1164,15 +1169,18 @@ ok('git: scarta il non staged di un file e lo rimette, con il git installato', a
     assert.match(refused.error, /cambiato dopo lo scarto/);
     assert.strictEqual(read('a.txt'), 'nuovo lavoro\n');
 
-    // Un nome che git leggerebbe come opzione o come pattern resta un nome
+    // Un nome che git leggerebbe come opzione o come pattern resta un nome.
+    // Su Windows `*` non sta in un nome di file: `[a].txt` e' ammesso ed e'
+    // un pattern anche lui (prenderebbe a.txt).
+    const pattern = process.platform === 'win32' ? '[a].txt' : '*.txt';
     fs.writeFileSync(file('-n'), 'x\n');
-    fs.writeFileSync(file('*.txt'), 'y\n');
-    git('add', '--', '-n', '*.txt');
-    git('commit', '-q', '-m', 'strani', '--', '-n', '*.txt');
+    fs.writeFileSync(file(pattern), 'y\n');
+    git('add', '--', '-n', pattern);
+    git('commit', '-q', '-m', 'strani', '--', '-n', pattern);
     fs.writeFileSync(file('-n'), 'cambiato\n');
-    fs.writeFileSync(file('*.txt'), 'cambiato\n');
-    assert.strictEqual((await discardFile({ cwd: root, path: '*.txt' })).ok, true);
-    assert.strictEqual(read('*.txt'), 'y\n');
+    fs.writeFileSync(file(pattern), 'cambiato\n');
+    assert.strictEqual((await discardFile({ cwd: root, path: pattern })).ok, true);
+    assert.strictEqual(read(pattern), 'y\n');
     assert.strictEqual(read('a.txt'), 'nuovo lavoro\n', 'il pattern non ha preso altri file');
     assert.strictEqual((await discardFile({ cwd: root, path: '-n' })).ok, true);
     assert.strictEqual(read('-n'), 'x\n');
@@ -1201,6 +1209,8 @@ ok('git: unire un branch nel corrente, fast-forward, merge e conflitti, con il g
     git('config', 'user.email', 'p@x');
     git('config', 'core.hooksPath', '.git/hooks');
     git('config', 'commit.gpgsign', 'false');
+    // Git for Windows ha core.autocrlf=true di sistema: unendo, i file tornerebbero con \r\n.
+    git('config', 'core.autocrlf', 'false');
     commit('a.txt', 'uno\n', 'init');
 
     // Fast-forward: feat/ff va avanti, main no

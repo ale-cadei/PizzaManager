@@ -21,10 +21,17 @@ ok('modifiche: il bersaglio è la cartella della sessione, con la base se sta in
   assert.strictEqual(M.targetFor({ type: 'shell', cwd: '/w' }, { path: '/w', branch: 'x', base: null }).base, null);
 });
 
-ok('modifiche: niente bersaglio per la scheda git o senza cartella', () => {
+ok('modifiche: niente bersaglio senza cartella', () => {
   assert.strictEqual(M.targetFor(null, null), null);
-  assert.strictEqual(M.targetFor({ type: 'git', cwd: '/r' }, null), null);
   assert.strictEqual(M.targetFor({ type: 'shell', cwd: '' }, null), null);
+  assert.strictEqual(M.targetFor({ type: 'git' }, null), null);
+});
+
+ok('modifiche: la scheda git ha la sua linguetta, sulla radice del repository (docs/plans/68)', () => {
+  const t = M.targetFor({ type: 'git', cwd: '/r' }, null);
+  assert.deepStrictEqual([t.cwd, t.base, t.staging], ['/r', null, false]);
+  // niente agente: l'ultimo giro non si offre
+  assert.strictEqual(M.modeChoice({ type: 'git', turnTree: 'abc' }, 'turn').turnAvailable, false);
 });
 
 ok('modifiche: la linguetta dice file e righe, e sparisce fuori da un repository', () => {

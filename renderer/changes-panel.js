@@ -239,6 +239,8 @@ async function runCommitAction(tab, action) {
   // Scheda cambiata nel frattempo: l'esito parlerebbe di un'altra cartella
   const same = Boolean(changesState.target && changesState.target.key === target.key);
   setChangesState({ writing: false, commitOutcome: same ? commitOutcomeOf(action, res) : null });
+  // Nella scheda git il commit nuovo deve comparire anche nella timeline
+  if (res && res.ok && action.type === 'commit' && tab.type === 'git') refreshGitTab(tab).catch((e) => console.warn('[modifiche] timeline', e));
   await refreshChanges();
 }
 

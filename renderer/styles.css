@@ -741,6 +741,8 @@ img.agent-icon--node { border-radius: 2px; }
 .changes-tab[hidden] { display: none; }
 /* Con la linguetta la barra di scorrimento del terminale comincia sotto */
 #terminals.has-changes-tab .term-scroll { top: calc(var(--changes-tab-top) + var(--changes-tab-max) + 8px); }
+/* Nella scheda git la linguetta coprirebbe «Aggiorna» (docs/plans/68) */
+#terminals.has-changes-tab .git-head { padding-right: 32px; }
 /* Contatori: verde le aggiunte, rosso le rimozioni (linguetta e riepilogo) */
 .changes-n-files { color: var(--text-muted); }
 .changes-n-add { color: var(--state-ok); }

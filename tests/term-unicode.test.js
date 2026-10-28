@@ -75,6 +75,35 @@ ok('term-unicode: il resto e Unicode 11 com e', () => {
   assert.strictEqual(p.version, TermUnicode.VERSION);
 });
 
+// Byte veri del client psmux 3.3.8 mentre ridisegna «- Yet Another Bingo 🖥️: Bingo/Lockout».
+const CLIENT_RUN = '\x1b[23;17HBingo 🖥️ :\x1b[23;27HB';
+
+ok('term-unicode: il filtro toglie lo spazio che il client psmux scrive dopo 🖥️', () => {
+  const filter = TermUnicode.createOutputFilter(Unicode11Addon);
+  assert.strictEqual(filter(CLIENT_RUN), '\x1b[23;17HBingo 🖥️:\x1b[23;27HB');
+  // Uno spazio vero dopo l'emoji arriva come secondo spazio: ne resta uno.
+  assert.strictEqual(filter('🖥️  = basta il server'), '🖥️ = basta il server');
+  assert.strictEqual(filter('⚔️ Survival'), '⚔️Survival');
+});
+
+ok('term-unicode: il filtro lascia stare cursore, emoji larghe di natura e testo normale', () => {
+  const filter = TermUnicode.createOutputFilter(Unicode11Addon);
+  for (const text of ['\x1b[24;13H🖥️\x1b[24;15H:', '📛️ x', '🎮 Minigiochi', 'a b  c', 'perché è così', '1️⃣ uno']) {
+    assert.strictEqual(filter(text), text, JSON.stringify(text));
+  }
+});
+
+ok('term-unicode: il filtro segue l emoji anche a cavallo di due pezzi', () => {
+  const filter = TermUnicode.createOutputFilter(Unicode11Addon);
+  assert.strictEqual(filter('Bingo 🖥️'), 'Bingo 🖥️');
+  assert.strictEqual(filter(' :B'), ':B');
+  assert.strictEqual(filter('Bingo 🖥'), 'Bingo 🖥');
+  assert.strictEqual(filter('️ :B'), '️:B');
+  // Dopo un pezzo qualsiasi lo stato non resta appeso.
+  assert.strictEqual(filter('x'), 'x');
+  assert.strictEqual(filter(' y'), ' y');
+});
+
 function fakeTerm() {
   const t = { registered: {}, active: null };
   t.unicode = { register: (p) => { t.registered[p.version] = p; }, set activeVersion(v) { t.active = v; } };

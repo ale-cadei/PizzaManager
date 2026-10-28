@@ -129,7 +129,7 @@ async function init() {
   window.aisess.onData(({ id, data }) => {
     const t = tabs.get(id);
     if (!t) return;
-    t.term.write(data);
+    t.term.write(t.outputFilter ? t.outputFilter(data) : data);
     if (t.scroller) t.scroller.noteOutput();
     noteActivity(t, data ? data.length : 0);
     noteRunning(t);

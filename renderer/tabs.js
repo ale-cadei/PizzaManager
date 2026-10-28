@@ -105,6 +105,8 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   // no i ridisegni per differenze finiscono spostati (lettere sparse in Claude).
   const psmux = tmuxAvailable && tmuxInfo.name === 'psmux';
   try { AisessTermUnicode.install(term, Unicode11Addon.Unicode11Addon, { psmux }); } catch (e) { console.warn('[PizzaManager] larghezze Unicode:', e); }
+  // Lo spazio di troppo del client psmux dopo ⚔️ 🖥️ (term-unicode.js).
+  try { if (psmux) tab.outputFilter = AisessTermUnicode.createOutputFilter(Unicode11Addon.Unicode11Addon); } catch (e) { console.warn('[PizzaManager] filtro psmux:', e); }
   term.open(inner);
   tab.term = term;
   tab.fit = fit;

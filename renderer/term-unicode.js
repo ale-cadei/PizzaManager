@@ -68,6 +68,62 @@
     };
   }
 
+  function unicode11(Unicode11Addon) {
+    // L'addon registra la sua tabella Unicode 11: la si prende per avvolgerla.
+    let base = null;
+    new Unicode11Addon().activate({ unicode: { register: (p) => { base = p; } } });
+    return base;
+  }
+
+  /**
+   * Toglie lo spazio di troppo che il client psmux 3.3.8 scrive dopo un
+   * simbolo allargato da VS16. Quando ridisegna un pezzo di riga di seguito,
+   * scrive la seconda meta' della cella larga come uno spazio, invece di
+   * saltarla: «🖥️: Bingo» diventa «🖥️ :» e cio' che segue finisce una colonna
+   * piu' in la'. Restano lettere vecchie dove dovevano esserci spazi.
+   * Misurato col client vero (docs/plans/52): dopo un'emoji larga di natura il
+   * client sposta sempre il cursore, e dopo una allargata da VS16 o sposta il
+   * cursore o scrive quello spazio. Uno spazio vero dopo l'emoji arriva come
+   * secondo spazio, quindi se ne toglie uno solo. Da riverificare quando
+   * cambia la versione di psmux.
+   *
+   * Lo stato attraversa i pezzi: l'emoji puo' chiudere un pezzo e lo spazio
+   * aprire il successivo.
+   */
+  function createOutputFilter(Unicode11Addon) {
+    const base = unicode11(Unicode11Addon);
+    if (!base) return (data) => data;
+    const { wcwidth } = createProvider(base);
+    let last = 0;
+    let dropSpace = false;
+    return (data) => {
+      let s = data;
+      if (dropSpace && s[0] === ' ') s = s.slice(1);
+      dropSpace = false;
+      if (!s) return s;
+      if (s.indexOf('️') === -1) {
+        const end = s.charCodeAt(s.length - 1);
+        last = end >= 0xDC00 && end <= 0xDFFF && s.length > 1 ? s.codePointAt(s.length - 2) : end;
+        return s;
+      }
+      let out = '';
+      let prev = last;
+      for (let i = 0; i < s.length;) {
+        const cp = s.codePointAt(i);
+        const next = i + (cp > 0xFFFF ? 2 : 1);
+        out += s.slice(i, next);
+        i = next;
+        if (cp === VS16 && wcwidth(prev) === 1) {
+          if (i === s.length) dropSpace = true;
+          else if (s[i] === ' ') i++;
+        }
+        prev = cp;
+      }
+      last = prev;
+      return out;
+    };
+  }
+
   /**
    * Attiva le larghezze giuste su un terminale. Serve `allowProposedApi`:
    * term.unicode e' sperimentale in xterm 5. Se qualcosa manca resta il
@@ -79,9 +135,7 @@
    * le colonne al contrario.
    */
   function install(term, Unicode11Addon, { psmux = false } = {}) {
-    // L'addon registra la sua tabella Unicode 11: la si prende e, se serve, la si avvolge.
-    let base = null;
-    new Unicode11Addon().activate({ unicode: { register: (p) => { base = p; } } });
+    const base = unicode11(Unicode11Addon);
     if (!base) return false;
     const provider = psmux ? createProvider(base) : base;
     term.unicode.register(provider);
@@ -89,5 +143,5 @@
     return true;
   }
 
-  return { VERSION, createProvider, install, shouldJoin, width };
+  return { VERSION, createProvider, createOutputFilter, install, shouldJoin, width };
 });

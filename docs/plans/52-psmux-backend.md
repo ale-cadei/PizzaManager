@@ -251,6 +251,18 @@ corretti in questo branch:
   psmux con `#{cursor_x}`. La risposta a `ESC[6n` dentro il pane non va bene
   come misura, perché la dà la console (ConPTY) del pane, che conta in un
   altro modo (ZWJ 1 colonna, bandiere 4).
+- **Resti di lettere sulle righe vuote** (`4dfae5f`), sempre nelle chat con
+  emoji, che sparivano scorrendo. È un difetto del client psmux 3.3.8: quando
+  ridisegna un pezzo di riga di seguito, scrive la seconda metà di una cella
+  allargata da VS16 come uno spazio (`🖥️ :` invece di `🖥️:`). Il renderer
+  toglie lo spazio (`createOutputFilter`). Il client gira nella ConPTY di
+  node-pty (`useConptyDll`), che passa l'output così com'è, perché quella di
+  Windows lo ridisegna dal suo buffer, dove l'errore è già scritto. Prova:
+  client vero in node-pty, xterm headless con le larghezze dell'app, il testo
+  delle chat fatto scorrere 83 volte e confrontato con `capture-pane`. Prima
+  66-68 passi con differenze, dopo zero. **Quando cambia la versione di
+  psmux** va rifatta questa prova: se il client è stato corretto, il filtro
+  toglierebbe spazi veri. Il difetto va anche segnalato a psmux.
 
 Ancora aperto: **la barra di scorrimento in Claude** a volte sale e il testo
 resta fermo. Misurato con una sonda che chiede il mouse come Claude, attraverso

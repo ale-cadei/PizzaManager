@@ -244,14 +244,23 @@ corretti in questo branch:
 - **Lettere sparse in Claude** (`987303c`). xterm.js misurava con Unicode 6, e
   psmux con unicode-width: le emoji valevano 1 colonna per uno e 2 per l'altro,
   e il client psmux, che ridisegna per differenze, scriveva spostato. Ora c'è
-  `@xterm/addon-unicode11`.
+  `@xterm/addon-unicode11`. Non bastava: con le larghezze di
+  `renderer/term-unicode.js` xterm conta come la griglia di psmux anche un
+  simbolo seguito da VS16 (`⚔️`, 2 colonne, `6cd0dff`) e le emoji arrivate
+  dopo Unicode 11 (`🥲 🫠`, 2 colonne, `7abce93`). Misurate sulla griglia di
+  psmux con `#{cursor_x}`. La risposta a `ESC[6n` dentro il pane non va bene
+  come misura, perché la dà la console (ConPTY) del pane, che conta in un
+  altro modo (ZWJ 1 colonna, bandiere 4).
 
 Ancora aperto: **la barra di scorrimento in Claude** a volte sale e il testo
 resta fermo. Misurato con una sonda che chiede il mouse come Claude, attraverso
 un client psmux vero: 120 scatti su 120 arrivano, a ritmo di rotella e tutti
-insieme. La perdita quindi non è in psmux. Da guardare quando ricapita: se
-Claude stava scrivendo, se il testo si muove con la tastiera, e se c'entrava lo
-schermo rovinato del punto sopra.
+insieme. La perdita quindi non è in psmux. In cima alla conversazione la barra
+continua a salire. Ho provato a fermarla quando Claude non ridisegna niente
+dopo gli scatti (`dc326f1`), ma nell'app installata non è cambiato nulla, e il
+commit è stato annullato con un revert. Secondo l'utente succede solo nelle
+chat con emoji. Va riprovato ora che le larghezze coincidono: se resta, va
+misurato cosa scrive Claude quando riceve la rotella in cima.
 
 **Trappola per chi sviluppa:** dentro una sessione psmux l'ambiente ha
 `PSMUX_SESSION` e `TMUX`, e un client psmux lanciato da lì rifiuta di

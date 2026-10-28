@@ -17,10 +17,15 @@ async function until(fn, ms = 3000) {
   return false;
 }
 
-/* Il finto agente: salva i suoi argomenti e scrive uno stato dove l'hook lo scriverebbe. */
+/* Il finto agente: salva i suoi argomenti e scrive uno stato dove l'hook lo scriverebbe.
+   Scrive anche una riga, come ogni agente vero: su Windows node-pty rimanda
+   kill() al primo dato in uscita. La console di Windows Server 2022 (la CI)
+   non manda niente per un processo muto, e i pty mai uccisi tenevano vivo
+   il file di test: job Windows appeso fino al timeout. */
 function fakeAgent(dir) {
   const script = path.join(dir, 'fake-agent.js');
   fs.writeFileSync(script, `
+    process.stdout.write('finto agente\\r\\n');
     const fs = require('fs');
     fs.writeFileSync(${JSON.stringify(path.join(dir, 'argv.json'))}, JSON.stringify({ argv: process.argv.slice(2), env: process.env.OPENCODE_CONFIG_CONTENT || null, signal: process.env.AISESS_SIGNAL_FILE || null }));
     if (process.env.AISESS_SIGNAL_FILE) fs.writeFileSync(process.env.AISESS_SIGNAL_FILE, 'permission');

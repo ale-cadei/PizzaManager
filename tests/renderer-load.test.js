@@ -51,7 +51,11 @@ ok('renderer: i terminali misurano i caratteri con Unicode 11, come psmux e tmux
   assert.ok(fs.existsSync(path.join(__dirname, '..', 'renderer', src)), 'addon unicode11 non installato');
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
   assert.ok(pkg.dependencies['@xterm/addon-unicode11'], 'deve viaggiare nel pacchetto: dependencies, non devDependencies');
+  // Il fornitore delle larghezze (Unicode 11 + VS16) e' un modulo: c'e' nella pagina, prima di tabs.js.
+  assert.ok(pageScripts.indexOf('term-unicode.js') >= 0 && pageScripts.indexOf('term-unicode.js') < pageScripts.indexOf('tabs.js'));
+  const { ctx } = loadPage();
+  assert.strictEqual(typeof ctx.AisessTermUnicode.install, 'function');
   const tabs = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'tabs.js'), 'utf8');
   assert.match(tabs, /allowProposedApi: true/, 'term.unicode e API sperimentale: senza, l addon lancia');
-  assert.match(tabs, /term\.unicode\.activeVersion = '11'/);
+  assert.match(tabs, /AisessTermUnicode\.install\(term, Unicode11Addon\.Unicode11Addon, \{ vs16Wide \}\)/);
 });

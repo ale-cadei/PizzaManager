@@ -36,3 +36,22 @@ ok('renderer: editor-gutter.js è nella pagina prima di editor-tab.js', () => {
   const { ctx } = loadPage();
   assert.strictEqual(typeof ctx.AisessEditorGutter.changeRanges, 'function');
 });
+
+/* xterm.js di default misura i caratteri con Unicode 6: molte emoji larghe 1
+   colonna. psmux (unicode-width) e tmux le contano 2, e ridisegnano per
+   differenze: dopo ogni emoji le correzioni cadevano una colonna piu' in la',
+   e in Claude lo schermo si riempiva di lettere sparse (docs/plans/52). Il DOM
+   finto non ha Terminal: si controlla il collegamento, la prova e' nell'app. */
+ok('renderer: i terminali misurano i caratteri con Unicode 11, come psmux e tmux', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const src = '../node_modules/@xterm/addon-unicode11/lib/addon-unicode11.js';
+  assert.ok(pageScripts.includes(src), 'index.html non carica l addon unicode11');
+  assert.ok(pageScripts.indexOf(src) > pageScripts.indexOf('../node_modules/@xterm/xterm/lib/xterm.js'), 'l addon va dopo xterm');
+  assert.ok(fs.existsSync(path.join(__dirname, '..', 'renderer', src)), 'addon unicode11 non installato');
+  const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  assert.ok(pkg.dependencies['@xterm/addon-unicode11'], 'deve viaggiare nel pacchetto: dependencies, non devDependencies');
+  const tabs = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'tabs.js'), 'utf8');
+  assert.match(tabs, /allowProposedApi: true/, 'term.unicode e API sperimentale: senza, l addon lancia');
+  assert.match(tabs, /term\.unicode\.activeVersion = '11'/);
+});

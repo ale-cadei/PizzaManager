@@ -96,10 +96,15 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   // Le 1000 righe di default coprivano poco: allineate all'ordine di
   // grandezza di `history-limit`. Con tmux si azzera appena si sa (sotto):
   // la history è quella di tmux, e questa sarebbe a buchi.
-  const term = new Terminal({ cursorBlink: true, scrollback: 20000, fontSize: termFont.get(), lineHeight: TERM_LINE_HEIGHT, fontFamily: "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace", theme: termTheme() });
+  // allowProposedApi: term.unicode, che serve sotto, e API sperimentale in xterm 5.
+  const term = new Terminal({ cursorBlink: true, scrollback: 20000, fontSize: termFont.get(), lineHeight: TERM_LINE_HEIGHT, fontFamily: "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace", theme: termTheme(), allowProposedApi: true });
   const fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
   try { term.loadAddon(new WebLinksAddon.WebLinksAddon()); } catch {}
+  // Larghezze dei caratteri come le conta chi sta dietro (psmux, tmux): con
+  // Unicode 6, il default di xterm, le emoji valgono 1 colonna invece di 2, e
+  // i ridisegni per differenze finivano spostati (lettere sparse in Claude).
+  try { term.loadAddon(new Unicode11Addon.Unicode11Addon()); term.unicode.activeVersion = '11'; } catch {}
   term.open(inner);
   tab.term = term;
   tab.fit = fit;

@@ -48,11 +48,13 @@ di staging.
   - *testo, modificato da entrambi / aggiunto da entrambi*: «Apri
     nell'editor» (piano 64, cursore al primo blocco) e il numero di blocchi
     rimasti; «Segna risolto» = `git add`, rifiutato se nel file restano
-    marcatori (`<<<<<<<`, `=======`, `>>>>>>>` a inizio riga).
+    marcatori (`<<<<<<<` o `>>>>>>>` a inizio riga; `=======` da solo è un
+    titolo Markdown valido).
   - *cancellato da una parte*: «Tieni il file» (`add`) / «Eliminalo» (`rm`).
   - *binario*: «Tieni nostro» / «Tieni loro» (`checkout --ours|--theirs`
     e poi `add`).
-- **Risolti**: i file già in staging, col diff di sempre.
+- **Risolti**: i file già in staging, ognuno con «Apri nell'editor» (il
+  diff torna in modalità staging, a operazione conclusa).
 - **Piè di pagina**:
   - «Concludi merge» (`commit --no-edit`, messaggio preparato da git) /
     «Continua rebase» / «Continua cherry-pick» / «Continua revert»
@@ -124,8 +126,8 @@ da sola: il worktree resta e si butta col suo pulsante.
 - `lib/worktree.js`: `busyWith` riconosce anche `cherry-pick`
   (`CHERRY_PICK_HEAD`) e `revert` (`REVERT_HEAD`). `BUSY` in
   `lib/git-commit.js` le copre e rimanda al pannello, non al terminale.
-- `lib/conflict-markers.js` (nuovo, UMD puro come `renderer/sidebar.js`,
-  caricato anche dal renderer): `parseBlocks(text)` →
+- `renderer/conflict-markers.js` (nuovo, UMD puro come `renderer/sidebar.js`;
+  in `renderer/` perché il renderer sandboxed non carica `lib/`): `parseBlocks(text)` →
   `[{start, sep, base, end, ours, theirs}]` (righe), `applyChoice(text,
   block, 'ours'|'theirs'|'both')` → testo nuovo. CRLF conservato.
 - `lib/git-conflicts.js` (nuovo; `run`, `exists`, `fsp` iniettabili):
@@ -163,7 +165,7 @@ da sola: il worktree resta e si butta col suo pulsante.
 ## Commit (refactor e comportamento separati, CLAUDE.md)
 
 1. `busyWith` con cherry-pick e revert, messaggi `BUSY`.
-2. `lib/conflict-markers.js`.
+2. `renderer/conflict-markers.js`.
 3. `lib/git-conflicts.js` e canali IPC.
 4. «Unisci» lascia il merge a metà (cambio di comportamento).
 5. Pannello in modalità Conflitti.

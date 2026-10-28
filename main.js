@@ -129,8 +129,9 @@ ipcMain.handle('get-defaults', async () => {
   };
 });
 
-// Binari, PATH e (per la schermata vuota) che cosa manca: lib/setup-check.js
+// Binari, PATH e (per la schermata vuota) che cosa manca: lib/setup-check.js. tmux si attiva solo ripartendo.
 ipcMain.handle('check-deps', async () => { await primeLoginPath(); return checkDeps({ tmuxAvailable: ptys.viaTmux }); });
+ipcMain.handle('app-relaunch', () => { app.relaunch(); app.quit(); });
 
 ipcMain.handle('dialog-cwd', async () => {
   const r = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });

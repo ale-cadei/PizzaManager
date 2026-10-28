@@ -66,6 +66,28 @@ ok('welcome: tmux mancante dice di riavviare; su Windows non compare', () => {
   } finally { restore(); }
 });
 
+ok('welcome: tmux installato ma non ancora attivo si attiva con «Riavvia ora»', () => {
+  let riavvii = 0;
+  const { restore, root, w } = mount({ onRestart: () => { riavvii += 1; } });
+  try {
+    w.update(setupReport({ binaries: { claude: found('/b/claude') }, tmuxAvailable: false, tmuxInstalled: true, tmuxPath: '/opt/homebrew/bin/tmux', platform: 'darwin' }));
+    const tmux = byClass(root, 'setup-row').find((r) => text(r).includes('tmux'));
+    assert.ok(tmux.classes.has('is-pending'), 'una ✘ dopo averlo installato fa pensare che non l abbia trovato');
+    assert.ok(text(tmux).includes('/opt/homebrew/bin/tmux'));
+    assert.strictEqual(byClass(tmux, 'setup-copy').length, 0);
+    byClass(tmux, 'setup-restart')[0].onclick();
+    assert.strictEqual(riavvii, 1);
+  } finally { restore(); }
+});
+
+ok('welcome: «Riavvia ora» c e solo per tmux in attesa', () => {
+  const { restore, root, w } = mount();
+  try {
+    w.update(setupReport({ binaries: { claude: found('/b/claude') }, tmuxAvailable: false, platform: 'darwin' }));
+    assert.strictEqual(byClass(root, 'setup-restart').length, 0);
+  } finally { restore(); }
+});
+
 ok('welcome: su Windows con psmux si dice che chiudere l app non chiude le sessioni', () => {
   const { restore, root, w } = mount();
   const vive = /chiudere l'app non chiude le sessioni/i;

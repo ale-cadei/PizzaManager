@@ -229,3 +229,32 @@ Ancora da fare o da vedere:
 - **npm 12** non esegue gli script d'installazione non autorizzati, e senza
   quelli `npm install` non scarica Electron: la lista `allowScripts` sta nel
   branch `chore/allow-scripts`, separato da questo.
+
+### Dal pacchetto installato (2026-10-23 / 28)
+
+Installato con `npm.cmd run install:win` (in PowerShell `npm.ps1` è bloccato
+dalla politica di esecuzione). Chiusa e riaperta l'app, la sessione di Claude
+in cui girava il lavoro è tornata viva, la stessa. Ne sono usciti due difetti,
+corretti in questo branch:
+
+- **PATH=undefined nelle sessioni** (`be58343`). Le variabili della sessione
+  leggevano `env.PATH`, ma su Windows la chiave è `Path`: nelle schede non si
+  trovava nessun comando esterno. Le prove con l'app di sviluppo lanciata da
+  Git Bash non lo vedevano, perché lì la chiave è `PATH`.
+- **Lettere sparse in Claude** (`987303c`). xterm.js misurava con Unicode 6, e
+  psmux con unicode-width: le emoji valevano 1 colonna per uno e 2 per l'altro,
+  e il client psmux, che ridisegna per differenze, scriveva spostato. Ora c'è
+  `@xterm/addon-unicode11`.
+
+Ancora aperto: **la barra di scorrimento in Claude** a volte sale e il testo
+resta fermo. Misurato con una sonda che chiede il mouse come Claude, attraverso
+un client psmux vero: 120 scatti su 120 arrivano, a ritmo di rotella e tutti
+insieme. La perdita quindi non è in psmux. Da guardare quando ricapita: se
+Claude stava scrivendo, se il testo si muove con la tastiera, e se c'entrava lo
+schermo rovinato del punto sopra.
+
+**Trappola per chi sviluppa:** dentro una sessione psmux l'ambiente ha
+`PSMUX_SESSION` e `TMUX`, e un client psmux lanciato da lì rifiuta di
+attaccarsi («sessions should be nested with care»). L'app di sviluppo lanciata
+da una scheda di PizzaManager non riaggancerebbe niente: va lanciata da un
+terminale normale, come per Q6.

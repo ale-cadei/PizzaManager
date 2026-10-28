@@ -27,6 +27,8 @@
 
 const CHANGES_POLL_MS = 3000;
 const CHANGES_WIDTH_KEY = 'aisess.changesWidth';
+/* Dove si è trascinata la linguetta, px dall'alto (docs/plans/68) */
+const CHANGES_TAB_TOP_KEY = 'aisess.changesTabTop';
 /* «Dall'ultimo commit», «Ultimo giro» o «Da committare»: la scelta del selettore si ricorda */
 const CHANGES_MODE_KEY = 'aisess.changesMode';
 const CHANGES_MODES = ['commit', 'turn', 'staging'];
@@ -239,6 +241,8 @@ async function runCommitAction(tab, action) {
   // Scheda cambiata nel frattempo: l'esito parlerebbe di un'altra cartella
   const same = Boolean(changesState.target && changesState.target.key === target.key);
   setChangesState({ writing: false, commitOutcome: same ? commitOutcomeOf(action, res) : null });
+  // Nella scheda git il commit nuovo deve comparire anche nella timeline
+  if (res && res.ok && action.type === 'commit' && tab.type === 'git') refreshGitTab(tab).catch((e) => console.warn('[modifiche] timeline', e));
   await refreshChanges();
 }
 
@@ -509,6 +513,20 @@ function readChangesWidth() {
   }
 }
 
+function readChangesTabTop() {
+  try {
+    const raw = localStorage.getItem(CHANGES_TAB_TOP_KEY);
+    const n = raw === null ? Number.NaN : Number(raw);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveChangesTabTop(top) {
+  try { localStorage.setItem(CHANGES_TAB_TOP_KEY, String(top)); } catch {}
+}
+
 function initChangesResize() {
   const saved = readChangesWidth();
   if (saved) changesView.setWidth(clampChangesWidth(saved));
@@ -564,8 +582,12 @@ function initChangesPanel() {
     onReview: (action) => handleReview(action),
     onCommit: (action) => handleCommit(action),
     onOpenFile: (path) => { openChangedFile(path).catch((e) => console.warn('[modifiche] apri nell\'editor', e)); },
+    tabTop: readChangesTabTop(),
+    onTabMove: saveChangesTabTop,
   });
   initChangesResize();
+  // Finestra rimpicciolita: la linguetta spostata in basso non deve uscire
+  window.addEventListener('resize', () => changesView.placeTab());
   try { window.aisess.onMenu('menu-changes', () => toggleChangesPanel()); } catch {}
   setInterval(() => { pollChanges().catch((e) => console.warn('[modifiche]', e)); }, CHANGES_POLL_MS);
   // Tornando alla finestra si rilegge subito: intanto l'agente ha lavorato

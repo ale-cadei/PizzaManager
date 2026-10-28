@@ -42,6 +42,18 @@
     empty: 'Nessuna riga cambiata (solo nome o permessi).',
   };
 
+  /* La linguetta si trascina su e giù lungo il bordo (docs/plans/68): sotto
+     TAB_DRAG_MIN px è ancora un clic; TAB_MARGIN la tiene staccata dai bordi */
+  const TAB_DRAG_MIN = 4;
+  const TAB_MARGIN = 4;
+
+  /** Dove può stare la cima della linguetta, in px dall'alto di un'area alta `areaHeight` */
+  function clampTabTop(top, areaHeight, tabHeight) {
+    if (!Number.isFinite(top)) return TAB_MARGIN;
+    const max = Math.max(TAB_MARGIN, areaHeight - tabHeight - TAB_MARGIN);
+    return Math.min(max, Math.max(TAB_MARGIN, Math.round(top)));
+  }
+
   function el(doc, tag, cls, text) {
     const e = doc.createElement(tag);
     if (cls) e.className = cls;
@@ -295,10 +307,13 @@
    */
   function createChangesView({
     doc, host, shortcut, onToggle, onClose, onFile, onMerge = () => {}, onMode = () => {}, onReview = () => {},
-    onCommit = () => {}, onOpenFile = null,
+    onCommit = () => {}, onOpenFile = null, tabTop = null, onTabMove = () => {},
   }) {
-    const tab = button(doc, 'changes-tab', '', `Modifiche di questa sessione (${shortcut})`, () => onToggle());
+    const tab = button(doc, 'changes-tab', '', `Modifiche di questa sessione (${shortcut})`, () => {
+      if (!tabDrag.takeClick()) onToggle();
+    });
     tab.hidden = true;
+    const tabDrag = createTabDrag({ tab, host, top: tabTop, onMove: onTabMove });
     const tabTitle = (text) => `Modifiche di questa sessione: ${text} (${shortcut})`;
 
     const panel = el(doc, 'aside', 'changes-panel');
@@ -447,6 +462,8 @@
       // La linguetta sta sul fianco destro, dove c'è la barra di scorrimento
       // del terminale: con questa classe la barra comincia sotto (styles.css)
       host.classList.toggle('has-changes-tab', !tab.hidden);
+      // Visibile ha un'altezza: solo ora si può tenere dentro l'area
+      if (!tab.hidden) tabDrag.place();
       panel.hidden = !state.open;
       if (!state.open) return;
       label.textContent = state.heading || 'Modifiche';
@@ -542,7 +559,7 @@
       panel.style.width = `${Math.round(px)}px`;
     }
 
-    return { render, renderCommit: commitBox.render, setWidth, panel, resizer, tab };
+    return { render, renderCommit: commitBox.render, setWidth, placeTab: () => { if (!tab.hidden) tabDrag.place(); }, panel, resizer, tab };
   }
 
   /**
@@ -636,5 +653,59 @@
     return { foot, render };
   }
 
-  return { createChangesView };
+  /**
+   * Trascinamento verticale della linguetta. `top` è la posizione scelta
+   * (null: quella del CSS); si mostra ristretta all'area di adesso, ma si
+   * ricorda quella scelta, così ingrandendo di nuovo la finestra torna lì.
+   * Il clic che il browser manda dopo il rilascio non deve aprire il pannello.
+   */
+  function createTabDrag({ tab, host, top, onMove }) {
+    let chosen = Number.isFinite(top) ? top : null;
+    let drag = null;
+    let swallowClick = false;
+    const heightOf = (node) => node.getBoundingClientRect().height;
+
+    function place() {
+      host.classList.toggle('changes-tab-moved', chosen !== null);
+      tab.style.top = chosen === null ? '' : `${clampTabTop(chosen, heightOf(host), heightOf(tab))}px`;
+    }
+
+    tab.addEventListener('pointerdown', (e) => {
+      swallowClick = false;
+      if (e.button !== 0) return;
+      const from = tab.getBoundingClientRect().top - host.getBoundingClientRect().top;
+      drag = { startY: e.clientY, from, moved: false };
+      if (tab.setPointerCapture) { try { tab.setPointerCapture(e.pointerId); } catch {} }
+    });
+    tab.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const dy = e.clientY - drag.startY;
+      if (!drag.moved && Math.abs(dy) < TAB_DRAG_MIN) return;
+      drag = { ...drag, moved: true };
+      tab.classList.add('is-dragging');
+      chosen = clampTabTop(drag.from + dy, heightOf(host), heightOf(tab));
+      place();
+    });
+    const end = () => {
+      if (!drag) return;
+      const { moved } = drag;
+      drag = null;
+      tab.classList.remove('is-dragging');
+      if (!moved) return;
+      swallowClick = true;
+      onMove(chosen);
+    };
+    tab.addEventListener('pointerup', end);
+    tab.addEventListener('pointercancel', end);
+
+    /** true se il clic è il rilascio di un trascinamento: va ignorato */
+    function takeClick() {
+      const swallow = swallowClick;
+      swallowClick = false;
+      return swallow;
+    }
+    return { place, takeClick };
+  }
+
+  return { createChangesView, clampTabTop };
 });

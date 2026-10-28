@@ -31,7 +31,7 @@
    *   since: string|null, staging: boolean, key: string}|null}
    */
   function targetFor(tab, worktree, { since = null, staging = false } = {}) {
-    if (!tab || tab.type === 'git' || typeof tab.cwd !== 'string' || !tab.cwd) return null;
+    if (!tab || typeof tab.cwd !== 'string' || !tab.cwd) return null;
     const base = (worktree && worktree.base) || null;
     const branch = (worktree && worktree.branch) || null;
     const path = (worktree && worktree.path) || null;

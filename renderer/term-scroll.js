@@ -35,9 +35,6 @@
   const VIRTUAL_MIN_SCREENS = 3;
   // Un salto dalla barra non manda più di tanti scatti in una volta.
   const MAX_TICKS_PER_MOVE = 200;
-  // Dopo scatti verso l'alto, quanto aspettare il ridisegno del programma:
-  // se non arriva, non è salito, e la cima è lì (docs/plans/52).
-  const SETTLE_MS = 300;
 
   const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
 
@@ -89,9 +86,9 @@
    * @param {{ term: object, host: HTMLElement, backend: () => object,
    *   rowHeight: () => number, sendKeys: (data: string) => void,
    *   isVisible?: () => boolean, doc?: Document,
-   *   sendWheel?: (up: boolean) => void, settleMs?: number }} opts
+   *   sendWheel?: (up: boolean) => void }} opts
    */
-  function attach({ term, host, backend, rowHeight, sendKeys, isVisible = () => true, doc = document, sendWheel = null, settleMs = SETTLE_MS }) {
+  function attach({ term, host, backend, rowHeight, sendKeys, isVisible = () => true, doc = document, sendWheel = null }) {
     const bar = doc.createElement('div');
     bar.className = 'term-scroll is-empty';
     bar.setAttribute('aria-hidden', 'true');
@@ -108,14 +105,9 @@
     let drag = null;
     let outputTimer = null;
     // Posizione stimata nei programmi a schermo intero, in scatti sopra il
-    // fondo; `reach` è il più in alto a cui si è arrivati, e con `top` è
-    // proprio la cima (un salto oltre non ha fatto ridisegnare niente).
-    let virtual = { offset: 0, reach: 0, top: false };
+    // fondo; `reach` è il più in alto a cui si è arrivati.
+    let virtual = { offset: 0, reach: 0 };
     let synthesizing = false;
-    // Scatti verso l'alto in attesa di conferma, e l'ultimo output arrivato.
-    let upBatch = null;
-    let settleTimer = null;
-    let lastOutputAt = 0;
 
     const trackPx = () => bar.getBoundingClientRect().height;
 
@@ -126,10 +118,8 @@
     function virtualState() {
       const rows = Math.max(1, Math.round(term.rows / LINES_PER_TICK));
       // Durante il trascinamento la lunghezza resta ferma: crescerebbe sotto il
-      // dito a ogni movimento verso l'alto e il cursore scapperebbe. Con la
-      // cima nota, la lunghezza è quella: il cursore ci arriva e lì si ferma.
-      const history = drag && drag.history ? drag.history
-        : virtual.top ? virtual.reach : Math.max(rows * VIRTUAL_MIN_SCREENS, virtual.reach + rows);
+      // dito a ogni movimento verso l'alto e il cursore scapperebbe.
+      const history = drag && drag.history ? drag.history : Math.max(rows * VIRTUAL_MIN_SCREENS, virtual.reach + rows);
       return { history, position: Math.min(virtual.offset, history), rows, inMode: virtual.offset > 0, alternate: true };
     }
 
@@ -151,33 +141,13 @@
       if (!next) return;
       state = next;
       // Il programma a schermo intero è uscito: la stima non vale più.
-      if (!next.alternate) virtual = { offset: 0, reach: 0, top: false };
+      if (!next.alternate) virtual = { offset: 0, reach: 0 };
       render();
     }
 
     function moveVirtual(ticks) {
       const offset = Math.max(0, virtual.offset + ticks);
-      virtual = { offset, reach: Math.max(virtual.reach, offset), top: virtual.top && offset <= virtual.reach };
-      render();
-    }
-
-    /** Scatti verso l'alto appena mandati: si aspetta il ridisegno che dice se il programma è salito. */
-    function expectScroll(ticks) {
-      if (!(ticks > 0)) return;
-      if (!upBatch) upBatch = { ticks: 0, since: Date.now() };
-      upBatch.ticks += ticks;
-      clearTimeout(settleTimer);
-      settleTimer = setTimeout(settle, settleMs);
-    }
-
-    function settle() {
-      const batch = upBatch;
-      upBatch = null;
-      settleTimer = null;
-      if (!batch || lastOutputAt >= batch.since) return;
-      // Nessun ridisegno dopo quegli scatti: il programma non è salito, la cima è qui.
-      const offset = Math.max(0, virtual.offset - batch.ticks);
-      virtual = { offset, reach: offset, top: true };
+      virtual = { offset, reach: Math.max(virtual.reach, offset) };
       render();
     }
 
@@ -204,7 +174,6 @@
         synthesizing = false;
       }
       moveVirtual(n > 0 ? count : -count);
-      if (n > 0) expectScroll(count);
     }
 
     /** Una richiesta alla volta: gli scatti arrivati nel frattempo partono insieme, il salto più recente vince. */
@@ -245,10 +214,7 @@
       if (term.modes.mouseTrackingMode !== 'none') {
         if (synthesizing) return true;
         const lines = wheelLines(e, rowHeight(), term.rows);
-        if (lines && isAlternate()) {
-          moveVirtual(Math.sign(lines));
-          if (lines > 0) expectScroll(1);
-        }
+        if (lines && isAlternate()) moveVirtual(Math.sign(lines));
         return true;
       }
       if (e.preventDefault) e.preventDefault();
@@ -294,16 +260,14 @@
 
     /** È arrivato output: la history cresce, la barra va riletta (non troppo spesso, e solo se si vede). */
     function noteOutput() {
-      lastOutputAt = Date.now();
       if (outputTimer || !isVisible()) return;
       outputTimer = setTimeout(() => { outputTimer = null; if (!drag) refresh(); }, OUTPUT_REFRESH_MS);
     }
 
     /** L'utente ha scritto: i programmi a schermo intero tornano in fondo, la stima pure. */
     function noteTyping() {
-      // Il testo nuovo che arriva allontana la cima: la si dimentica.
-      if (!virtual.offset && !virtual.top) return;
-      virtual = { ...virtual, offset: 0, top: false };
+      if (!virtual.offset) return;
+      virtual = { ...virtual, offset: 0 };
       render();
     }
 

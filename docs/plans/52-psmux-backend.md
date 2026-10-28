@@ -271,8 +271,10 @@ insieme. La perdita quindi non è in psmux. In cima alla conversazione la barra
 continua a salire. Ho provato a fermarla quando Claude non ridisegna niente
 dopo gli scatti (`dc326f1`), ma nell'app installata non è cambiato nulla, e il
 commit è stato annullato con un revert. Secondo l'utente succede solo nelle
-chat con emoji. Va riprovato ora che le larghezze coincidono: se resta, va
-misurato cosa scrive Claude quando riceve la rotella in cima.
+chat con emoji. Con le larghezze e il filtro (`4dfae5f`) nell'app installata
+le lettere sono a posto, ma la barra resta «non sempre sincronizzata» (utente,
+2026-10-28): fastidio piccolo, rimandato. Per riprenderlo, va misurato cosa
+scrive Claude quando riceve la rotella in cima.
 
 **Trappola per chi sviluppa:** dentro una sessione psmux l'ambiente ha
 `PSMUX_SESSION` e `TMUX`, e un client psmux lanciato da lì rifiuta di

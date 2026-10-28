@@ -42,6 +42,29 @@ ok('term-unicode: un emoji gia largo con VS16 resta 2, non diventa 4', () => {
   assert.strictEqual(cellWidth(p, '👥'), 2);
 });
 
+ok('term-unicode: le emoji dopo Unicode 11 valgono 2 come in psmux, e 🤻 🥆 1', () => {
+  const base = unicode11();
+  const p = TermUnicode.createProvider(base);
+  for (const text of ['🥲', '🫠', '🪖', '🫡', '🛜', '🟰', '🩷', '🫨', '🪿']) {
+    assert.strictEqual(cellWidth(base, text), 1, `${text}: Unicode 11 lo contava 1`);
+    assert.strictEqual(cellWidth(p, text), 2, text);
+  }
+  assert.strictEqual(cellWidth(p, '🤻'), 1);
+  assert.strictEqual(cellWidth(p, '🥆'), 1);
+  assert.strictEqual(p.wcwidth(0x1F972), 2);
+  assert.strictEqual(cellWidth(p, '🫠️'), 2, 'gia larga: VS16 non la porta a 3');
+  assert.strictEqual(cellWidth(p, 'a🥲b'), 4);
+});
+
+ok('term-unicode: bandiere, ZWJ e toni della pelle restano come in Unicode 11, come in psmux', () => {
+  const base = unicode11();
+  const p = TermUnicode.createProvider(base);
+  // Misurati sulla griglia di psmux: 2, 4, 4.
+  assert.strictEqual(cellWidth(p, '🇮🇹'), 2);
+  assert.strictEqual(cellWidth(p, '👨‍💻'), 4);
+  assert.strictEqual(cellWidth(p, '👍🏽'), 4);
+});
+
 ok('term-unicode: il resto e Unicode 11 com e', () => {
   const base = unicode11();
   const p = TermUnicode.createProvider(base);
@@ -63,6 +86,7 @@ ok('term-unicode: con psmux install attiva Unicode 11 con la regola di VS16', ()
   assert.strictEqual(TermUnicode.install(term, Unicode11Addon, { psmux: true }), true);
   assert.strictEqual(term.active, TermUnicode.VERSION);
   assert.strictEqual(cellWidth(term.registered[term.active], '⚔️'), 2);
+  assert.strictEqual(cellWidth(term.registered[term.active], '🥲'), 2);
 });
 
 ok('term-unicode: con tmux solo Unicode 11, perche non ogni tmux allarga con VS16', () => {

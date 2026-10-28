@@ -11,7 +11,12 @@
  * - un simbolo seguito da U+FE0F (VS16, «versione emoji»: ⚔️ 🗺️ 🖥️) occupa 2
  *   colonne. Unicode 11 da solo somma 1 + 0 = 1; psmux e tmux allargano la
  *   cella (`variation-selector-always-wide` di tmux, sempre attivo in psmux).
- *   Qui come loro: VS16 su una cella larga 1 la porta a 2, mai oltre.
+ *   Qui come loro: VS16 su una cella larga 1 la porta a 2, mai oltre;
+ * - con psmux, le emoji arrivate dopo Unicode 11 (🥲 🫠 🪖 🫡…) valgono 2
+ *   colonne e 🤻 🥆 1: psmux usa tabelle Unicode 16. Gli intervalli sono
+ *   misurati sulla griglia di psmux 3.3.8 (`#{cursor_x}` dopo ogni carattere,
+ *   tutto U+1F000-1FAFF); bandiere, sequenze ZWJ e toni della pelle in psmux
+ *   e in xterm valevano gia' uguale.
  *
  * `charProperties` e' l'API di xterm 5.5 per unire un carattere al
  * precedente: con una larghezza maggiore, xterm allarga la cella e sposta il
@@ -25,22 +30,40 @@
   if (root) root.AisessTermUnicode = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : null, function () {
-  const VERSION = '11-vs16';
+  const VERSION = '11-psmux';
   const VS16 = 0xFE0F;
+  // Larghe 2 in psmux, 1 in Unicode 11.
+  const PSMUX_WIDE = [
+    [0x1F6D6, 0x1F6D8], [0x1F6DC, 0x1F6DF], [0x1F6FB, 0x1F6FC], [0x1F7F0, 0x1F7F0],
+    [0x1F90C, 0x1F90C], [0x1F972, 0x1F972], [0x1F977, 0x1F979], [0x1F9A3, 0x1F9A4],
+    [0x1F9AB, 0x1F9AD], [0x1F9CB, 0x1F9CC], [0x1FA74, 0x1FA77], [0x1FA7B, 0x1FA7C],
+    [0x1FA83, 0x1FA8A], [0x1FA8E, 0x1FA8F], [0x1FA96, 0x1FAC6], [0x1FAC8, 0x1FAC8],
+    [0x1FACD, 0x1FADC], [0x1FADF, 0x1FAEA], [0x1FAEF, 0x1FAF8],
+  ];
+  // Larghe 1 in psmux, 2 in Unicode 11.
+  const PSMUX_NARROW = [0x1F93B, 0x1F946];
 
   const shouldJoin = (props) => (props & 1) !== 0;
   const width = (props) => (props >> 1) & 3;
   const withWidth = (props, w) => (props & ~6) | ((w & 3) << 1);
 
-  /** Un fornitore che e' `base` (Unicode 11) piu' la regola di VS16. */
+  /** La larghezza di psmux dove e' diversa da Unicode 11, se no null. */
+  function psmuxWidth(codepoint) {
+    if (codepoint < 0x1F6D6 || codepoint > 0x1FAF8) return null;
+    if (PSMUX_NARROW.includes(codepoint)) return 1;
+    return PSMUX_WIDE.some(([a, b]) => codepoint >= a && codepoint <= b) ? 2 : null;
+  }
+
+  /** Un fornitore che e' `base` (Unicode 11) con le larghezze di psmux. */
   function createProvider(base) {
     return {
       version: VERSION,
-      wcwidth: (codepoint) => base.wcwidth(codepoint),
+      wcwidth: (codepoint) => psmuxWidth(codepoint) ?? base.wcwidth(codepoint),
       charProperties(codepoint, preceding) {
         const props = base.charProperties(codepoint, preceding);
         if (codepoint === VS16 && shouldJoin(props) && width(preceding) === 1) return withWidth(props, 2);
-        return props;
+        const w = psmuxWidth(codepoint);
+        return w === null ? props : withWidth(props, w);
       },
     };
   }

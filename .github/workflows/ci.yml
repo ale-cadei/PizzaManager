@@ -32,7 +32,19 @@ jobs:
       - if: runner.os == 'Windows'
         shell: bash
         run: |
+          set +e
           node --version
+          cat > diag-handles.js <<'EOF'
+          setTimeout(() => {
+            console.error('ATTIVI', JSON.stringify(process.getActiveResourcesInfo()));
+            for (const h of process._getActiveHandles()) console.error('HANDLE', h.constructor && h.constructor.name, h.spawnfile || '', h.pid || '', h.fd === undefined ? '' : h.fd, h.remoteAddress || '', h._pipeName || h.path || '');
+            for (const r of process._getActiveRequests()) console.error('REQ', r.constructor && r.constructor.name);
+            process.exit(9);
+          }, 40000).unref();
+          EOF
+          echo "===== agent-wiring in-process con sonda"
+          timeout 90 node --require ./diag-handles.js tests/agent-wiring.test.js 2>&1 | tail -60
+          echo "===== un file per volta"
           for f in tests/*.test.js; do
             s=$(date +%s); timeout 90 node --test "$f" > out.txt 2>&1; rc=$?
             echo "rc=$rc $(( $(date +%s) - s ))s $f"

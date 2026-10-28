@@ -75,6 +75,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 65 | [`feat/editor-commenti`](65-editor-commenti.md) — commenti sulle righe dell'editor e prompt da copiare negli appunti | 60 | ~1-2g | ✅ fatto, smoke ok |
 | 66 | [`fix/git-worktrees-in-graph`](66-grafo-worktree.md) — worktree nella timeline git: Unisci con `--no-ff` firmato, linea tratteggiata ed etichetta ⌂ | 25, 36 | ~½g | ✅ fatto |
 | 67 | [`chore/versionamento-qui`](67-versionamento-qui.md) — release, issue e feed tornano nel repo del codice: via il secondo repo e il suo PAT | 44, 18, 50 | ~½g | ✅ mergiato |
+| 68 | [`fix/linguetta-git-in-git-session`](68-linguetta-modifiche-git.md) — linguetta «Modifiche» anche nella scheda git, trascinabile su e giù | 32, 25 | ~½g | 🚧 in corso |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

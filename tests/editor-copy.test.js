@@ -108,6 +108,26 @@ ok('planCopy: una cartella non si copia dentro se stessa né in una sua sottocar
   assert.strictEqual((await copy.planCopy([path.join(d, 'sub')], '')).ok, true, 'una sottocartella verso la radice va bene');
 });
 
+/* Sul runner della CI la cartella temporanea e' C:\Users\RUNNER~1\...: un
+   nome corto 8.3. realpathSync lo lascia corto, realpath nativo lo allunga,
+   e i due lati del controllo non si riconoscevano piu'. */
+ok('planCopy e runCopy: «dentro se stessa» regge anche con la sessione aperta da un nome corto 8.3', async (t) => {
+  if (process.platform !== 'win32') return t.skip('nomi 8.3 solo su Windows');
+  const base = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'aisess-copy-')));
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const longRoot = path.join(base, 'cartella con nome lungo');
+  fs.mkdirSync(path.join(longRoot, 'd', 'd', 'sub'), { recursive: true });
+  fs.writeFileSync(path.join(longRoot, 'd', 'd', 'sub', 'x.txt'), 'x');
+  const shortRoot = execFileSync('cmd.exe', ['/d', '/s', '/c', `for %I in ("${longRoot}") do @echo %~sI`],
+    { encoding: 'utf8', windowsVerbatimArguments: true }).trim();
+  if (shortRoot.toLowerCase() === longRoot.toLowerCase()) return t.skip('il volume non genera nomi 8.3');
+  const copy = createEditorCopy({ editorFs: createEditorFs({ root: shortRoot }), trash: async () => assert.fail('niente cestino'), platform: process.platform });
+  const d = path.join(longRoot, 'd');
+  assert.deepStrictEqual(await copy.planCopy([d], 'd/d'), { ok: false, error: '«d» non si copia dentro se stessa.' });
+  const r = await copy.runCopy({ sources: [path.join(d, 'd')], destRel: '' }, { d: 'replace' });
+  assert.deepStrictEqual(r.failed, [{ name: 'd', error: 'Sta dentro l\'elemento da sostituire.' }]);
+});
+
 ok('planCopy: oltre i limiti di elementi o di byte si rifiuta prima di copiare', async (t) => {
   const { out, copy, write } = setup(t, { maxFiles: 3, maxBytes: 10 });
   for (const n of ['a', 'b', 'c']) write(path.join(out, 'd', n), '123');

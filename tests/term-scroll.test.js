@@ -44,7 +44,7 @@ ok('wheel: i pixel si accumulano in righe, il resto non si perde', () => {
   assert.strictEqual(acc({ deltaY: -1, deltaMode: 2 }, 20, 24), 23, 'deltaMode 2: pagine');
 });
 
-function setup({ backendState = { history: 76, position: 0, rows: 24, inMode: false, alternate: false }, mouse = 'none' } = {}) {
+function setup({ backendState = { history: 76, position: 0, rows: 24, inMode: false, alternate: false }, mouse = 'none', settleMs } = {}) {
   const calls = [];
   let wheel = null;
   const typed = [];
@@ -63,7 +63,7 @@ function setup({ backendState = { history: 76, position: 0, rows: 24, inMode: fa
   const host = createElement('div');
   // Come xterm: lo scatto generato passa anche dal gestore della rotella, che non deve contarlo due volte.
   const sendWheel = (up) => { wheels.push(up ? 'su' : 'giù'); wheel({ deltaY: up ? -1 : 1, deltaMode: 1, preventDefault() {} }); };
-  const ctl = S.attach({ term, host, backend: () => backend, rowHeight: () => 20, sendKeys: (d) => typed.push(d), doc: { createElement }, sendWheel });
+  const ctl = S.attach({ term, host, backend: () => backend, rowHeight: () => 20, sendKeys: (d) => typed.push(d), doc: { createElement }, sendWheel, ...(settleMs ? { settleMs } : {}) });
   const bar = host.children.find((c) => c.classes.has('term-scroll'));
   bar.rect = { top: 0, left: 0, width: 8, height: 400 };
   const setState = (next) => { state = { ...state, ...next }; };
@@ -172,6 +172,55 @@ ok('schermo intero: click e trascinamento mandano scatti veri, contati una volta
   assert.strictEqual(s.wheels.filter((w) => w === 'giù').length, 24, 'di nuovo in fondo');
   fire(s.bar, 'pointerup', { pointerId: 1 });
   assert.ok(!s.bar.classes.has('is-scrolled'));
+});
+
+/* Claude scorre la sua conversazione da se': la barra non sa dov'e' la cima.
+   Prima saliva per sempre, rimpicciolendosi, con il testo fermo. Ora: uno
+   scatto su che non fa ridisegnare niente vuol dire che il programma non e'
+   salito, cioe' che la cima e' li'. */
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const thumbTop = (s) => Number(s.thumb.style.transform.match(/translateY\((-?[\d.]+)px\)/)[1]);
+
+ok('schermo intero: scatti su senza ridisegno = in cima, la stima torna indietro e il cursore resta in alto', async () => {
+  const s = setup({ ...TUI, settleMs: 15 });
+  await s.ctl.refresh();
+  // Tre scatti che Claude esegue: ridisegna dopo ognuno.
+  for (let i = 0; i < 3; i++) { s.wheel({ deltaY: -60, deltaMode: 0 }); s.ctl.noteOutput(); }
+  await sleep(40);
+  assert.ok(thumbTop(s) > 0, 'salito di tre scatti, non ancora in cima');
+  // In cima: altri scatti, nessun ridisegno.
+  for (let i = 0; i < 4; i++) s.wheel({ deltaY: -60, deltaMode: 0 });
+  await sleep(40);
+  assert.strictEqual(thumbTop(s), 0, 'il cursore e in cima');
+  const size = s.thumb.style.height;
+  for (let i = 0; i < 6; i++) s.wheel({ deltaY: -60, deltaMode: 0 });
+  await sleep(40);
+  assert.strictEqual(thumbTop(s), 0, 'altri scatti in cima non lo spostano');
+  assert.strictEqual(s.thumb.style.height, size, 'e non lo rimpiccioliscono');
+  assert.ok(s.bar.classes.has('is-scrolled'));
+});
+
+ok('schermo intero: anche dalla barra, gli scatti che non ridisegnano non contano', async () => {
+  const s = setup({ ...TUI, settleMs: 15 });
+  await s.ctl.refresh();
+  s.ctl.scrollBy(5);
+  await sleep(40);
+  assert.ok(!s.bar.classes.has('is-scrolled'), 'il programma non e salito: la barra resta in fondo');
+});
+
+ok('schermo intero: scrivere dimentica la cima, il testo nuovo la allontana', async () => {
+  const s = setup({ ...TUI, settleMs: 15 });
+  await s.ctl.refresh();
+  s.wheel({ deltaY: -60, deltaMode: 0 }); s.ctl.noteOutput();
+  await sleep(40);
+  s.wheel({ deltaY: -60, deltaMode: 0 });
+  await sleep(40);
+  assert.strictEqual(thumbTop(s), 0, 'cima trovata a uno scatto');
+  s.ctl.noteTyping();
+  for (let i = 0; i < 3; i++) { s.wheel({ deltaY: -60, deltaMode: 0 }); s.ctl.noteOutput(); }
+  await sleep(40);
+  assert.ok(s.bar.classes.has('is-scrolled'));
+  assert.ok(thumbTop(s) >= 0);
 });
 
 ok('schermo intero: scrivere riporta la stima in fondo, uscire dal programma la azzera', async () => {

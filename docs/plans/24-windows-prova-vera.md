@@ -56,6 +56,29 @@ un `npm install` pulito e del setup `dist:win` installato: checklist del
 piano 12 tutta verde. CI verde su Ubuntu e Windows (PR #33). Da fare dopo il merge:
 fare una release (la v1.0.2 scaricabile oggi è indietro di 41 commit).
 
+### La suite di nuovo verde sull'host Windows (2026-10-28, PR #60)
+
+Dopo il piano la CI Windows si era rotta in due modi. Il job restava appeso
+per 20 minuti, poi veniva ucciso. E sotto c'erano 11 test rossi, arrivati con
+l'editor e con git.
+
+- **Appeso**: `tests/agent-wiring.test.js`. Su Windows node-pty rimanda
+  `kill()` al primo dato in uscita del pty, e il finto agente non scriveva
+  niente. La console di Windows Server 2022 non manda nulla per un processo
+  muto, quindi i pty restavano vivi per sempre. Trovato con una PR usa e
+  getta (#59): ogni file gira da solo con un timeout, e una sonda sugli handle
+  rimasti dice cosa tiene vivo il processo.
+- **Rossi**: in nessun caso era sbagliato il codice. Ogni volta il test non
+  diceva in che mondo stava. Test con percorsi POSIX finti senza `platform`.
+  Un test sul disco vero con `platform: 'linux'`. Permessi POSIX che Windows
+  non ha. `core.autocrlf=true` di Git for Windows nei repo di prova. Un `*`
+  nel nome di un file.
+- **`--test-force-exit` su Windows** blocca l'uscita dei file che aprono pty
+  veri: `process.exit()` arriva mentre node-pty chiude ancora la console.
+  Senza il flag la suite finisce in circa 25 secondi.
+
+Suite su Windows: 1753 passati, 0 falliti, 18 saltati.
+
 ## Fuori scope (annotati, non fatti qui)
 
 - La sidebar e le directory recenti mostrano `Desktop/PizzaManager` con `/`

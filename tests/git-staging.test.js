@@ -44,7 +44,7 @@ ok('da committare: staged e non staged in due sezioni, un file a metà in tutte 
     cached: { status: z('M', 'a.js', 'A', 'b.js'), numstat: '10\t2\ta.js' + NUL + '20\t0\tb.js' + NUL },
     work: { status: z('M', 'a.js', 'D', 'c.txt'), numstat: '3\t1\ta.js' + NUL + '0\t9\tc.txt' + NUL },
   });
-  const r = await readStaging({ cwd: `${ROOT}/lib`, run, fsp: noDisk });
+  const r = await readStaging({ cwd: `${ROOT}/lib`, run, fsp: noDisk, platform: 'linux' });
   assert.strictEqual(r.ok, true, r.error);
   assert.strictEqual(r.staging, true);
   assert.deepStrictEqual(r.files.map((f) => [f.side, f.status, f.path, f.added, f.removed]), [
@@ -154,9 +154,9 @@ ok('da committare: dice la radice del repository anche aperto da una sottocartel
   const run = (args, opts) => (args.includes('--show-toplevel') && !String(opts.cwd).startsWith(`${ROOT}/`) && opts.cwd !== ROOT
     ? Promise.reject(Object.assign(new Error('exit 128'), { code: 128, stderr: 'fatal: not a git repository' }))
     : inner(args, opts));
-  const r = await readStaging({ cwd: `${ROOT}/lib`, run, fsp: noDisk });
+  const r = await readStaging({ cwd: `${ROOT}/lib`, run, fsp: noDisk, platform: 'linux' });
   assert.strictEqual(r.ok, true, r.error);
   assert.strictEqual(r.root, ROOT, 'la radice, non la sottocartella da cui si è aperto');
-  const outside = await readStaging({ cwd: '/altrove', run, fsp: noDisk });
+  const outside = await readStaging({ cwd: '/altrove', run, fsp: noDisk, platform: 'linux' });
   assert.strictEqual(outside.ok, false, 'fuori dal repository non c è radice');
 });

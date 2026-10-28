@@ -94,6 +94,11 @@ L'app gira anche su Windows (`docs/plans/12-windows.md`), senza tmux. Regole:
   `process.platform`): i casi Windows si verificano da Unix con
   `platform: 'win32'` in `tests/windows.test.js`, mai con `if (os.platform())`
   nel test.
+- **Un test dice in che mondo sta.** Con percorsi finti POSIX (`/repo`) passa
+  `platform: 'linux'`. Sul disco vero (tmpdir) passa il `process.platform`
+  della macchina. Senza, su Windows il test fallisce anche se il codice è
+  giusto (piano 24, PR #60).
+- Niente `--test-force-exit`: su Windows blocca l'uscita dei file con pty veri.
 - Un binario `.cmd`/`.bat` non si lancia direttamente: `buildCommand` lo
   avvolge in `cmd.exe /d /s /c` e produce `commandLine` per node-pty
   (`lib/win-command.js`, regole di cross-spawn). Non ricomporre la riga altrove.

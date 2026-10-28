@@ -85,12 +85,15 @@ ok('write: atomica, mode conservato, nessun temporaneo lasciato', async (t) => {
   const root = tmp(t);
   const p = put(root, 'secret.env', 'A=1');
   fs.chmodSync(p, 0o600);
+  // Su Windows non ci sono permessi POSIX: resta 0o666, ed e' quello che si conserva.
+  const mode = fs.statSync(p).mode & 0o777;
+  assert.strictEqual(mode, process.platform === 'win32' ? 0o666 : 0o600);
   const efs = createEditorFs({ root });
   const r = await efs.read('secret.env');
   const w = await efs.write('secret.env', 'A=2', { expectedMtime: r.mtime });
   assert.strictEqual(w.ok, true);
   assert.strictEqual(typeof w.mtime, 'number');
-  assert.strictEqual(fs.statSync(p).mode & 0o777, 0o600);
+  assert.strictEqual(fs.statSync(p).mode & 0o777, mode);
   assert.strictEqual(fs.readFileSync(p, 'utf8'), 'A=2');
   assert.deepStrictEqual(fs.readdirSync(root), ['secret.env']);
 });

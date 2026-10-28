@@ -79,6 +79,11 @@ contextBridge.exposeInMainWorld('aisess', {
   gitUnstage: (cwd, paths, all) => ipcRenderer.invoke('git-unstage', { cwd, paths, all }),
   gitCommit: (cwd, message) => ipcRenderer.invoke('git-commit', { cwd, message }),
   gitMerge: (cwd, name, kind, expect) => ipcRenderer.invoke('git-merge', { cwd, name, kind, expect }),
+  // Conflitti di un'operazione a metà (docs/plans/69)
+  gitConflicts: (cwd) => ipcRenderer.invoke('git-conflicts', { cwd }),
+  gitConflictResolve: (cwd, path, how) => ipcRenderer.invoke('git-conflict-resolve', { cwd, path, how }),
+  gitOpContinue: (cwd, op) => ipcRenderer.invoke('git-op-continue', { cwd, op }),
+  gitOpAbort: (cwd, op) => ipcRenderer.invoke('git-op-abort', { cwd, op }),
   gitPush: (cwd, name) => ipcRenderer.invoke('git-push', { cwd, name }),
   gitDiscard: (cwd, path) => ipcRenderer.invoke('git-discard', { cwd, path }),
   gitDiscardUndo: (cwd, token) => ipcRenderer.invoke('git-discard-undo', { cwd, token }),

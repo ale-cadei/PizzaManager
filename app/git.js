@@ -10,6 +10,7 @@ const { stagePaths, unstagePaths, stageAll, unstageAll, commitStaged } = require
 const { mergeBranch } = require('../lib/git-merge');
 const { pushBranch } = require('../lib/git-push');
 const { discardFile, undoDiscard } = require('../lib/git-discard');
+const { readConflicts, resolveFile, continueOp, abortOp } = require('../lib/git-conflicts');
 
 /**
  * Canali IPC della sessione di tipo git (docs/plans/25), dei worktree
@@ -75,6 +76,12 @@ function registerGitHandlers(ipcMain, { userDataDir } = {}) {
   // e gettone li ricontrolla lib/git-discard.js
   ipcMain.handle('git-discard', guard(({ cwd, path }) => discardFile({ cwd, path })));
   ipcMain.handle('git-discard-undo', guard(({ cwd, token }) => undoDiscard({ cwd, token })));
+  // Conflitti di un'operazione a metà (docs/plans/69): percorso, scelta e
+  // operazione li ricontrolla lib/git-conflicts.js
+  ipcMain.handle('git-conflicts', guard(({ cwd }) => readConflicts({ cwd })));
+  ipcMain.handle('git-conflict-resolve', guard(({ cwd, path, how }) => resolveFile({ cwd, path, how })));
+  ipcMain.handle('git-op-continue', guard(({ cwd, op }) => continueOp({ cwd, op })));
+  ipcMain.handle('git-op-abort', guard(({ cwd, op }) => abortOp({ cwd, op })));
 }
 
 module.exports = { registerGitHandlers };

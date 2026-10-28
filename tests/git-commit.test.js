@@ -40,7 +40,7 @@ const writesOf = (g) => g.writes().map((c) => c.args);
 
 ok('commit: ＋ mette in stage solo un percorso che adesso è fra i non staged', async () => {
   const g = fakeGit({ work: z('M', 'lib/a.js', 'D', 'vecchio.txt'), others: z('nuovo.md') });
-  const r = await C.stagePaths({ cwd: `${ROOT}/lib`, paths: ['lib/a.js', 'vecchio.txt', 'nuovo.md'], run: g.run, exists: noBusy });
+  const r = await C.stagePaths({ cwd: `${ROOT}/lib`, paths: ['lib/a.js', 'vecchio.txt', 'nuovo.md'], run: g.run, exists: noBusy, platform: 'linux' });
   assert.strictEqual(r.ok, true, r.error);
   assert.deepStrictEqual(writesOf(g), [['--literal-pathspecs', 'add', '--', 'lib/a.js', 'vecchio.txt', 'nuovo.md']]);
   assert.strictEqual(g.writes()[0].opts.cwd, ROOT, 'dalla radice: i percorsi sono relativi a lei');

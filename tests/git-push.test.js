@@ -37,7 +37,7 @@ const TRACKING = { 'branch.feat/x.remote': 'origin', 'branch.feat/x.merge': 'ref
 
 ok('push: senza upstream pubblica su origin e imposta l\'upstream (-u)', async () => {
   const repo = fakeRepo({ remotes: ['backup', 'origin'] });
-  const r = await pushBranch({ cwd: '/repo', name: 'feat/x', run: repo.run });
+  const r = await pushBranch({ cwd: '/repo', name: 'feat/x', run: repo.run, platform: 'linux' });
   assert.deepStrictEqual(r, { ok: true, branch: 'feat/x', remote: 'origin', upstream: 'origin/feat/x', created: true });
   assert.deepStrictEqual(repo.pushes().map((c) => c.args), [['push', '-u', 'origin', 'refs/heads/feat/x:refs/heads/feat/x']]);
   assert.strictEqual(repo.pushes()[0].opts.timeout, PUSH_TIMEOUT_MS);
@@ -46,7 +46,7 @@ ok('push: senza upstream pubblica su origin e imposta l\'upstream (-u)', async (
 
 ok('push: senza upstream e senza origin usa l\'unico remoto', async () => {
   const repo = fakeRepo({ remotes: ['gitlab'] });
-  const r = await pushBranch({ cwd: '/repo', name: 'feat/x', run: repo.run });
+  const r = await pushBranch({ cwd: '/repo', name: 'feat/x', run: repo.run, platform: 'linux' });
   assert.strictEqual(r.remote, 'gitlab');
   assert.deepStrictEqual(repo.pushes()[0].args, ['push', '-u', 'gitlab', 'refs/heads/feat/x:refs/heads/feat/x']);
 });
@@ -54,7 +54,7 @@ ok('push: senza upstream e senza origin usa l\'unico remoto', async () => {
 ok('push: con l\'upstream pusha esattamente lì, senza -u', async () => {
   const config = { 'branch.feat/x.remote': 'backup', 'branch.feat/x.merge': 'refs/heads/altro-nome' };
   const repo = fakeRepo({ config, remotes: ['origin', 'backup'] });
-  const r = await pushBranch({ cwd: '/repo', name: 'feat/x', run: repo.run });
+  const r = await pushBranch({ cwd: '/repo', name: 'feat/x', run: repo.run, platform: 'linux' });
   assert.deepStrictEqual(r, { ok: true, branch: 'feat/x', remote: 'backup', upstream: 'backup/altro-nome', created: false });
   assert.deepStrictEqual(repo.pushes()[0].args, ['push', 'backup', 'refs/heads/feat/x:refs/heads/altro-nome']);
 });
@@ -87,7 +87,7 @@ ok('push: niente remoti, o più remoti senza origin, si rifiuta senza pushare', 
 
 ok('push: un upstream che è un branch locale non ha niente da pubblicare', async () => {
   const repo = fakeRepo({ config: { 'branch.feat/x.remote': '.', 'branch.feat/x.merge': 'refs/heads/main' } });
-  const r = await pushBranch({ cwd: '/repo', name: 'feat/x', run: repo.run });
+  const r = await pushBranch({ cwd: '/repo', name: 'feat/x', run: repo.run, platform: 'linux' });
   assert.strictEqual(r.ok, false);
   assert.match(r.error, /main/);
   assert.strictEqual(repo.pushes().length, 0);
@@ -104,7 +104,7 @@ ok('push: un remoto che git leggerebbe come opzione non arriva a git', async () 
 ok('push: un upstream configurato a metà non si pubblica altrove', async () => {
   for (const config of [{ 'branch.feat/x.remote': 'backup' }, { 'branch.feat/x.merge': 'refs/heads/feat/x' }]) {
     const repo = fakeRepo({ config, remotes: ['origin', 'backup'] });
-    const r = await pushBranch({ cwd: '/repo', name: 'feat/x', run: repo.run });
+    const r = await pushBranch({ cwd: '/repo', name: 'feat/x', run: repo.run, platform: 'linux' });
     assert.strictEqual(r.ok, false, JSON.stringify(config));
     assert.match(r.error, /a metà/);
     assert.strictEqual(repo.pushes().length, 0);
@@ -113,7 +113,7 @@ ok('push: un upstream configurato a metà non si pubblica altrove', async () => 
 
 ok('push: un upstream che non è un branch (merge strano) si rifiuta', async () => {
   const repo = fakeRepo({ config: { 'branch.feat/x.remote': 'origin', 'branch.feat/x.merge': 'refs/tags/v1' } });
-  const r = await pushBranch({ cwd: '/repo', name: 'feat/x', run: repo.run });
+  const r = await pushBranch({ cwd: '/repo', name: 'feat/x', run: repo.run, platform: 'linux' });
   assert.strictEqual(r.ok, false);
   assert.strictEqual(repo.pushes().length, 0);
 });
@@ -136,7 +136,7 @@ ok('push: fuori da un repository lo dice come gli altri comandi', async () => {
 ok('push: rifiutato perché il remoto è più avanti, il motivo di git e cosa fare', async () => {
   const stderr = 'To ../r.git\n ! [rejected]        feat/x -> feat/x (fetch first)\nerror: failed to push some refs to \'../r.git\'\nhint: Updates were rejected because the remote contains work that you do\nhint: not have locally.\n';
   const repo = fakeRepo({ config: TRACKING, push: () => { throw gitError(stderr); } });
-  const r = await pushBranch({ cwd: '/repo', name: 'feat/x', run: repo.run });
+  const r = await pushBranch({ cwd: '/repo', name: 'feat/x', run: repo.run, platform: 'linux' });
   assert.strictEqual(r.ok, false);
   assert.strictEqual(r.rejected, true);
   assert.match(r.error, /\[rejected\]/);
@@ -153,7 +153,7 @@ ok('push: senza credenziali utilizzabili spiega di fare un push dal terminale', 
   ];
   for (const stderr of messages) {
     const repo = fakeRepo({ push: () => { throw gitError(stderr); } });
-    const r = await pushBranch({ cwd: '/repo', name: 'feat/x', run: repo.run });
+    const r = await pushBranch({ cwd: '/repo', name: 'feat/x', run: repo.run, platform: 'linux' });
     assert.strictEqual(r.ok, false);
     assert.match(r.error, /dal terminale/, stderr);
     assert.ok(r.error.includes(stderr.split('\n')[0]), 'il messaggio di git resta');
@@ -162,14 +162,14 @@ ok('push: senza credenziali utilizzabili spiega di fare un push dal terminale', 
 
 ok('push: tempo scaduto, git interrotto e l\'errore lo dice', async () => {
   const repo = fakeRepo({ push: () => { throw gitError('', { killed: true }); } });
-  const r = await pushBranch({ cwd: '/repo', name: 'feat/x', run: repo.run });
+  const r = await pushBranch({ cwd: '/repo', name: 'feat/x', run: repo.run, platform: 'linux' });
   assert.strictEqual(r.ok, false);
   assert.match(r.error, new RegExp(`${PUSH_TIMEOUT_MS / 1000} s`));
 });
 
 ok('push: un hook pre-push che rifiuta, il suo messaggio arriva all\'utente', async () => {
   const repo = fakeRepo({ push: () => { throw gitError('pre-push: i test non passano\nerror: failed to push some refs\n'); } });
-  const r = await pushBranch({ cwd: '/repo', name: 'feat/x', run: repo.run });
+  const r = await pushBranch({ cwd: '/repo', name: 'feat/x', run: repo.run, platform: 'linux' });
   assert.strictEqual(r.ok, false);
   assert.match(r.error, /i test non passano/);
   assert.ok(!r.rejected);

@@ -18,7 +18,8 @@ function setup(t, opts = {}) {
   for (const d of [root, out, bin]) fs.mkdirSync(d);
   const trashed = [];
   const trash = async (p) => { trashed.push(p); fs.renameSync(p, path.join(bin, `${trashed.length}-${path.basename(p)}`)); };
-  const copy = createEditorCopy({ editorFs: createEditorFs({ root }), trash, platform: 'linux', ...opts });
+  // Il disco e' quello vero: il platform deve essere il suo (su Windows i percorsi sono C:\...).
+  const copy = createEditorCopy({ editorFs: createEditorFs({ root }), trash, platform: process.platform, ...opts });
   const write = (p, text = 'x') => { fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, text); return p; };
   return { root, out, trashed, copy, write };
 }
@@ -148,7 +149,9 @@ ok('runCopy: copia file e cartelle col contenuto, i link come link', async (t) =
   assert.deepStrictEqual(r, { ok: true, copied: 2, skipped: 0, failed: [] });
   assert.strictEqual(fs.readFileSync(path.join(root, 'a.txt'), 'utf8'), 'ciao');
   assert.strictEqual(fs.readFileSync(path.join(root, 'd', 'sub', 'y.txt'), 'utf8'), 'y');
-  assert.strictEqual(fs.readlinkSync(path.join(root, 'd', 'link')), 'sub/y.txt');
+  // Il link resta link e punta dove puntava (su Windows Node l'ha salvato come sub\y.txt).
+  assert.strictEqual(fs.readlinkSync(path.join(root, 'd', 'link')), fs.readlinkSync(path.join(out, 'd', 'link')));
+  assert.strictEqual(fs.readFileSync(path.join(root, 'd', 'link'), 'utf8'), 'y');
   assert.strictEqual(fs.readFileSync(path.join(out, 'a.txt'), 'utf8'), 'ciao', 'l originale resta');
 });
 

@@ -47,7 +47,8 @@ function fakeGit({
   return { run, calls, merges: () => calls.filter((c) => c.args[0] === 'merge') };
 }
 
-const opts = (g, extra = {}) => ({ cwd: `${ROOT}/sub`, name: 'feat/x', kind: 'local', run: g.run, exists: noBusy, ...extra });
+// Il git finto parla POSIX (/repo): su Windows nativePath lo farebbe \repo.
+const opts = (g, extra = {}) => ({ cwd: `${ROOT}/sub`, name: 'feat/x', kind: 'local', run: g.run, exists: noBusy, platform: 'linux', ...extra });
 
 ok('merge: unisce il branch nel corrente con --no-edit dalla radice, e dice come', async () => {
   const g = fakeGit();

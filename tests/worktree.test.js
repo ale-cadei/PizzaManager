@@ -7,7 +7,7 @@ const { test: ok } = require('node:test');
    risposte; il caso con git vero sta in tests/integration.test.js. */
 const {
   worktreeDirFor, worktreesContainer, parseWorktreeList, parseBases,
-  listWorktrees, worktreeStart, createWorktree, mergeWorktree, removeWorktree,
+  listWorktrees, worktreeStart, createWorktree, mergeWorktree, removeWorktree, busyWith,
 } = require('../lib/worktree');
 
 const win = path.win32;
@@ -167,6 +167,25 @@ ok('worktree: worktreeStart segnala un merge o un rebase in corso', async () => 
   assert.strictEqual(merging.busy, 'merge');
   const rebasing = await worktreeStart({ platform: 'linux', root: '/src/progetto', run: startRepo().run, exists: (p) => p === path.posix.join('/src/progetto', '.git/rebase-merge') });
   assert.strictEqual(rebasing.busy, 'rebase');
+});
+
+ok('worktree: busyWith riconosce merge, rebase, cherry-pick e revert', async () => {
+  const repo = (heads, dirs = []) => fakeGit((args) => {
+    const ref = args[args.length - 1];
+    if (has(args, '--verify')) { if (heads.includes(ref)) return 'f00\n'; throw gitError(''); }
+    if (has(args, '--git-path')) return '.git/rebase-merge\n.git/rebase-apply\n';
+    throw new Error(`inatteso: ${args.join(' ')}`);
+  });
+  const exists = (dirs) => (p) => dirs.some((d) => p.endsWith(d));
+  const busy = (heads, dirs = []) => busyWith(repo(heads).run, '/r', exists(dirs), 'linux');
+  assert.strictEqual(await busy([]), null);
+  assert.strictEqual(await busy(['MERGE_HEAD']), 'merge');
+  assert.strictEqual(await busy([], ['rebase-merge']), 'rebase');
+  assert.strictEqual(await busy([], ['rebase-apply']), 'rebase');
+  assert.strictEqual(await busy(['CHERRY_PICK_HEAD']), 'cherry-pick');
+  assert.strictEqual(await busy(['REVERT_HEAD']), 'revert');
+  // Un rebase che riapplica un commit: vale il rebase
+  assert.strictEqual(await busy(['CHERRY_PICK_HEAD'], ['rebase-merge']), 'rebase');
 });
 
 ok('worktree: worktreeStart senza nessun commit lo dice', async () => {

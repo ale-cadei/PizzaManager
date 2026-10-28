@@ -23,6 +23,9 @@ function fakeGit({ cached = {}, work = {}, others = '', head = 'abc123\n', diff 
       if (merging) return 'abc123\n';
       throw Object.assign(new Error('exit 1'), { code: 1, stderr: '' });
     }
+    if (args.includes('CHERRY_PICK_HEAD') || args.includes('REVERT_HEAD')) {
+      throw Object.assign(new Error('exit 1'), { code: 1, stderr: '' });
+    }
     if (args.includes('--git-path')) return '.git/rebase-merge\n.git/rebase-apply\n';
     if (args.includes('--verify')) {
       if (head instanceof Error) throw head;
@@ -63,6 +66,14 @@ ok('da committare: dice se c\'è un merge o un rebase a metà (il pannello non s
   assert.strictEqual(merging.busy, 'merge');
   const rebasing = await readStaging({ cwd: ROOT, run: fakeGit(), fsp: noDisk, exists: (p) => p.endsWith('rebase-apply') });
   assert.strictEqual(rebasing.busy, 'rebase');
+});
+
+ok('staging: i messaggi BUSY coprono le quattro operazioni e rimandano al pannello', () => {
+  const { BUSY } = require('../lib/git-commit');
+  for (const op of ['merge', 'rebase', 'cherry-pick', 'revert']) {
+    assert.match(BUSY[op], new RegExp(op));
+    assert.match(BUSY[op], /pannello/);
+  }
 });
 
 ok('da committare: i non tracciati vanno fra i non staged', async () => {

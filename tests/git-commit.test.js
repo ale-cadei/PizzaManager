@@ -24,6 +24,7 @@ function fakeGit({ cached = '', work = '', others = '', head = 'abc1234', mergin
     calls.push({ args, opts });
     if (args.includes('--show-toplevel')) return `${ROOT}\n`;
     if (args.includes('MERGE_HEAD')) { if (merging) return 'deadbeef\n'; throw fail(1, ''); }
+    if (args.includes('CHERRY_PICK_HEAD') || args.includes('REVERT_HEAD')) throw fail(1, '');
     if (args.includes('--git-path')) return '.git/rebase-merge\n.git/rebase-apply\n';
     if (args.includes('--verify')) { if (head) return `${head}\n`; throw fail(1, ''); }
     if (args[0] === 'rev-parse' && args.includes('--short')) return `${head}\n`;

@@ -222,8 +222,10 @@
   }
 
   const BUSY_REASONS = {
-    merge: 'C\'è un merge a metà nel repository: finiscilo o annullalo dal terminale.',
-    rebase: 'C\'è un rebase a metà nel repository: finiscilo o annullalo dal terminale.',
+    merge: 'C\'è un merge a metà nel repository: concludilo o annullalo dal pannello delle modifiche.',
+    rebase: 'C\'è un rebase a metà nel repository: continualo o annullalo dal pannello delle modifiche.',
+    'cherry-pick': 'C\'è un cherry-pick a metà nel repository: continualo o annullalo dal pannello delle modifiche.',
+    revert: 'C\'è un revert a metà nel repository: continualo o annullalo dal pannello delle modifiche.',
   };
 
   /* Perché adesso non si scrive nell'indice, o null. Una sessione che lavora

@@ -50,16 +50,17 @@
    * term.unicode e' sperimentale in xterm 5. Se qualcosa manca resta il
    * default di xterm, come prima.
    *
-   * `vs16Wide` solo con psmux, dove l'allargamento e' verificato nel sorgente
-   * (vt100-psmux, screen.rs). In tmux e' un'opzione delle versioni recenti: con
-   * un tmux che non allarga, la regola sposterebbe le colonne al contrario.
+   * `psmux`: la regola di VS16 vale solo con psmux, dove l'allargamento e'
+   * verificato nel sorgente (vt100-psmux, screen.rs). In tmux e' un'opzione
+   * delle versioni recenti: con un tmux che non allarga, la regola sposterebbe
+   * le colonne al contrario.
    */
-  function install(term, Unicode11Addon, { vs16Wide = false } = {}) {
+  function install(term, Unicode11Addon, { psmux = false } = {}) {
     // L'addon registra la sua tabella Unicode 11: la si prende e, se serve, la si avvolge.
     let base = null;
     new Unicode11Addon().activate({ unicode: { register: (p) => { base = p; } } });
     if (!base) return false;
-    const provider = vs16Wide ? createProvider(base) : base;
+    const provider = psmux ? createProvider(base) : base;
     term.unicode.register(provider);
     term.unicode.activeVersion = provider.version;
     return true;

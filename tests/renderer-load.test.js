@@ -57,5 +57,5 @@ ok('renderer: i terminali misurano i caratteri con Unicode 11, come psmux e tmux
   assert.strictEqual(typeof ctx.AisessTermUnicode.install, 'function');
   const tabs = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'tabs.js'), 'utf8');
   assert.match(tabs, /allowProposedApi: true/, 'term.unicode e API sperimentale: senza, l addon lancia');
-  assert.match(tabs, /AisessTermUnicode\.install\(term, Unicode11Addon\.Unicode11Addon, \{ vs16Wide \}\)/);
+  assert.match(tabs, /AisessTermUnicode\.install\(term, Unicode11Addon\.Unicode11Addon, \{ psmux \}\)/);
 });

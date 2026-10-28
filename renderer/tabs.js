@@ -103,8 +103,8 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   try { term.loadAddon(new WebLinksAddon.WebLinksAddon()); } catch {}
   // Larghezze dei caratteri come le conta chi sta dietro (psmux, tmux): se
   // no i ridisegni per differenze finiscono spostati (lettere sparse in Claude).
-  const vs16Wide = tmuxAvailable && tmuxInfo.name === 'psmux';
-  try { AisessTermUnicode.install(term, Unicode11Addon.Unicode11Addon, { vs16Wide }); } catch (e) { console.warn('[PizzaManager] larghezze Unicode:', e); }
+  const psmux = tmuxAvailable && tmuxInfo.name === 'psmux';
+  try { AisessTermUnicode.install(term, Unicode11Addon.Unicode11Addon, { psmux }); } catch (e) { console.warn('[PizzaManager] larghezze Unicode:', e); }
   term.open(inner);
   tab.term = term;
   tab.fit = fit;

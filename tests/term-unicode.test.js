@@ -60,7 +60,7 @@ function fakeTerm() {
 
 ok('term-unicode: con psmux install attiva Unicode 11 con la regola di VS16', () => {
   const term = fakeTerm();
-  assert.strictEqual(TermUnicode.install(term, Unicode11Addon, { vs16Wide: true }), true);
+  assert.strictEqual(TermUnicode.install(term, Unicode11Addon, { psmux: true }), true);
   assert.strictEqual(term.active, TermUnicode.VERSION);
   assert.strictEqual(cellWidth(term.registered[term.active], '⚔️'), 2);
 });

@@ -3,6 +3,7 @@
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
 const t = require('../lib/tmux');
+const { pathOf } = require('../lib/binaries');
 
 const conf = '/app/tmux.conf';
 
@@ -135,7 +136,8 @@ ok('createTmuxControl.create: il client new-session gira col PATH della sessione
   const opts = [];
   const ctl = t.createTmuxControl({ bin: '/bin/tmux', confPath: conf, run: (b, a, o, cb) => { opts.push(o); cb(null, '', ''); } });
   await ctl.create({ name: 'ais-x', cmd: '/bin/sh', env: { PATH: '/usr/local/bin:/usr/bin:/bin', A: '1' }, meta: {} });
-  assert.strictEqual(opts[0].env.PATH, '/usr/local/bin:/usr/bin:/bin');
+  // pathOf, non .PATH: su Windows la chiave del processo e' `Path` e resta quella.
+  assert.strictEqual(pathOf(opts[0].env), '/usr/local/bin:/usr/bin:/bin');
   assert.strictEqual(opts[0].env.HOME, process.env.HOME, 'il resto dell ambiente del processo resta');
   assert.strictEqual(opts[0].env.A, undefined, 'le altre variabili passano solo da -e, non al client');
 
@@ -143,6 +145,12 @@ ok('createTmuxControl.create: il client new-session gira col PATH della sessione
   const ctl2 = t.createTmuxControl({ bin: '/bin/tmux', confPath: conf, run: (b, a, o, cb) => { noPath.push(o); cb(null, '', ''); } });
   await ctl2.create({ name: 'ais-y', cmd: 'c' });
   assert.strictEqual(noPath[0].env, undefined, 'senza PATH esplicito si eredita l ambiente del processo');
+
+  // Il processo su Windows: la chiave e' `Path`, e non ne nasce una seconda.
+  const win = [];
+  const ctl3 = t.createTmuxControl({ bin: 'psmux.exe', confPath: conf, processEnv: { Path: 'C:\\Windows', USERPROFILE: 'C:\\Users\\x' }, run: (b, a, o, cb) => { win.push(o); cb(null, '', ''); } });
+  await ctl3.create({ name: 'ais-z', cmd: 'c', env: { Path: 'C:\\Tools;C:\\Windows' } });
+  assert.deepStrictEqual(win[0].env, { Path: 'C:\\Tools;C:\\Windows', USERPROFILE: 'C:\\Users\\x' });
 });
 
 ok('detectTmux: null senza binario, altrimenti bin + config + controllo', () => {

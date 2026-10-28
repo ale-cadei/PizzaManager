@@ -79,6 +79,10 @@ async function sessionLifecycle({ bin, confPath, socket, shellCommand }) {
     accounts: () => createAccountStore({ dir }), history: () => createHistoryStore({ dir }), profiles, sendToRenderer: () => {}, tmux, liveStore,
   });
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  /** setMeta e setLabel scrivono in tmux senza aspettare: si aspetta l'effetto, non un tempo fisso. */
+  const until = async (ok, ms = 5000) => {
+    for (const end = Date.now() + ms; Date.now() < end; await wait(100)) if (await ok()) return;
+  };
 
   try {
     // 1. avvio: la sessione nasce in tmux con i metadati
@@ -88,6 +92,13 @@ async function sessionLifecycle({ bin, confPath, socket, shellCommand }) {
     assert.strictEqual(r.ok, true, r.error);
     assert.ok(r.session && r.session.startsWith('ais-shell-'), r.session);
     await wait(300);
+    // Il PATH arriva alla sessione davvero: su Windows (chiave `Path`) arrivava
+    // la stringa «undefined», e nelle schede nessun comando si trovava piu'.
+    // tmux stampa solo la riga chiesta, psmux tutto l'ambiente: si cerca la riga.
+    const shown = require('child_process').execFileSync(bin, ['-L', socket, 'show-environment', '-t', r.session, 'PATH'], { encoding: 'utf8', timeout: 5000 });
+    const sessionPath = shown.split(/\r?\n/).find((l) => /^PATH=/i.test(l)) || '';
+    assert.match(sessionPath, /^PATH=./i, shown);
+    assert.notStrictEqual(sessionPath.slice(5), 'undefined');
     assert.strictEqual(typeof await app1.captureShell('tab1'), 'string', 'la ricerca deve poter leggere il pane della shell');
     assert.strictEqual(await app1.captureShell('scheda-inesistente'), null);
     let live = await app1.listLive();
@@ -101,13 +112,13 @@ async function sessionLifecycle({ bin, confPath, socket, shellCommand }) {
 
     // l'id della conversazione, scoperto dopo, finisce in tmux e nel registro
     app1.setMeta('tab1', { resumeId: 'uuid-scoperto' });
-    await wait(300);
+    await until(async () => liveStore().read()[0] && liveStore().read()[0].resumeId === 'uuid-scoperto');
     assert.strictEqual((await app1.listLive())[0].resumeId, 'uuid-scoperto');
     assert.strictEqual(liveStore().read()[0].resumeId, 'uuid-scoperto', 'il registro deve avere l id per il ripristino');
 
     // 2. stacco (la ✕, o la chiusura della finestra): il processo resta
     app1.setLabel('tab1', 'rinominata');
-    await wait(200);
+    await until(async () => (await app1.listLive())[0].label === 'rinominata');
     app1.closeAll();
     await wait(300);
     assert.strictEqual(app1.size, 0, 'nessun client rimasto');
@@ -155,7 +166,10 @@ async function sessionLifecycle({ bin, confPath, socket, shellCommand }) {
   } finally {
     const { execFileSync } = require('child_process');
     try { execFileSync(bin, ['-L', socket, 'kill-server']); } catch {}
-    fs.rmSync(dir, { recursive: true, force: true });
+    // kill-server torna prima che la shell sia morta, e su Windows una cartella
+    // che e' ancora la cartella corrente di un processo non si cancella (EPERM).
+    // E' una tmpdir: se resta, pazienza, ma non deve coprire l'errore vero.
+    try { fs.rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }); } catch {}
   }
 }
 
@@ -447,7 +461,7 @@ ok('psmux: il testo di una shell PowerShell sopravvive alla morte della sessione
     assert.strictEqual(cmd, 'powershell');
   } finally {
     try { execFileSync(p.bin, ['-L', socket, 'kill-server']); } catch {}
-    fs.rmSync(dir, { recursive: true, force: true });
+    try { fs.rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }); } catch {}
   }
 });
 

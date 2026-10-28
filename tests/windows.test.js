@@ -84,6 +84,30 @@ ok('win: augmentedEnv riusa la chiave Path esistente invece di aggiungerne una s
   assert.strictEqual(env.TERM, 'xterm-256color');
 });
 
+/* Il PATH si legge e si scrive sotto la chiave che l'ambiente usa gia'. Leggere
+   `env.PATH` da un env Windows (chiave `Path`) dava undefined: le sessioni
+   psmux nascevano con PATH=undefined, e nessun comando si trovava piu'. */
+ok('win: pathOf legge Path o PATH, withPath riscrive quella che c e', () => {
+  const { pathOf, withPath } = require('../lib/binaries');
+  assert.strictEqual(pathOf({ Path: 'C:\\Windows;C:\\npm' }), 'C:\\Windows;C:\\npm');
+  assert.strictEqual(pathOf({ PATH: '/usr/bin' }), '/usr/bin');
+  assert.strictEqual(pathOf({}), undefined);
+  assert.deepStrictEqual(withPath({ Path: 'vecchio', HOMEPATH: '\\Users\\jack' }, 'nuovo'), { Path: 'nuovo', HOMEPATH: '\\Users\\jack' });
+  assert.deepStrictEqual(withPath({ HOME: '/h' }, '/bin'), { HOME: '/h', PATH: '/bin' });
+});
+
+ok('win: il client che crea la sessione ha un solo PATH, quello della sessione', async () => {
+  const { createTmuxControl } = require('../lib/tmux');
+  const seen = [];
+  const ctl = createTmuxControl({ bin: 'C:\\psmux.exe', confPath: 'C:\\psmux.conf', processEnv: { Path: 'C:\\Windows', USERPROFILE: HOME },
+    run: (bin, args, opts, cb) => { seen.push(opts.env); cb(null, '', ''); } });
+  await ctl.create({ name: 'ais-shell-1', cmd: 'powershell.exe', env: { PATH: 'C:\\Windows;C:\\Program Files\\Git\\cmd' } });
+  const env = seen[0];
+  assert.deepStrictEqual(Object.keys(env).filter((k) => k.toUpperCase() === 'PATH'), ['Path'], 'due chiavi PATH/Path sono ambigue');
+  assert.strictEqual(env.Path, 'C:\\Windows;C:\\Program Files\\Git\\cmd');
+  assert.strictEqual(env.USERPROFILE, HOME);
+});
+
 // ---------- lib/win-command ----------
 const { windowsCommandLine, needsCmdWrapper } = require('../lib/win-command');
 

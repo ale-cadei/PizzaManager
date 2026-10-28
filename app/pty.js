@@ -1,7 +1,7 @@
 'use strict';
 const os = require('os');
 const { buildCommand, installHint } = require('../lib/commands');
-const { augmentedEnv } = require('../lib/binaries');
+const { augmentedEnv, pathOf } = require('../lib/binaries');
 const { describeWorkdir } = require('../lib/workdir');
 const tmuxLib = require('../lib/tmux');
 const { shouldCapture } = require('../lib/scrollback');
@@ -216,7 +216,8 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
       if (viaTmux) {
         // Al processo dentro tmux arrivano esplicitamente le variabili che
         // contano; il resto lo eredita dal server (vedi lib/tmux.js, spawnArgs).
-        const sessionEnv = { PATH: env.PATH, COLORTERM: env.COLORTERM, ...localeVars(env), ...identity.vars, ...(profileEnv || {}), ...injectedEnv };
+        // pathOf: su Windows la chiave e' `Path`, e `env.PATH` darebbe undefined.
+        const sessionEnv = { PATH: pathOf(env), COLORTERM: env.COLORTERM, ...localeVars(env), ...identity.vars, ...(profileEnv || {}), ...injectedEnv };
         // Ripristino dopo un riavvio: la sessione stampa il testo di prima e
         // poi DIVENTA la shell (exec). Il testo finisce cosi' nella history di
         // tmux, che e' quella con cui scorre la rotella.

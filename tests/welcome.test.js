@@ -88,6 +88,18 @@ ok('welcome: «Riavvia ora» c e solo per tmux in attesa', () => {
   } finally { restore(); }
 });
 
+ok('welcome: su Windows con psmux si dice che chiudere l app non chiude le sessioni', () => {
+  const { restore, root, w } = mount();
+  const vive = /chiudere l'app non chiude le sessioni/i;
+  try {
+    w.update(setupReport({ binaries: { claude: found('C:\\claude.cmd') }, tmuxAvailable: true, platform: 'win32' }));
+    assert.ok(byClass(root, 'tip').map(text).some((t) => vive.test(t)), 'manca il consiglio sulle sessioni vive');
+    assert.ok(!byClass(root, 'setup-row').some((r) => /tmux|psmux/.test(text(r))), 'niente da installare');
+    w.update(setupReport({ binaries: { claude: found('C:\\claude.cmd') }, tmuxAvailable: false, platform: 'win32' }));
+    assert.ok(!byClass(root, 'tip').map(text).some((t) => vive.test(t)), 'se psmux non parte, prometterlo sarebbe falso');
+  } finally { restore(); }
+});
+
 ok('welcome: con tutto installato la sezione strumenti sparisce', () => {
   const { restore, root, w } = mount();
   try {

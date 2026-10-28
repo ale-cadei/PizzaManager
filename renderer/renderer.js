@@ -6,7 +6,7 @@ async function init() {
   Logo.hydrate(document);
   const d = await window.aisess.getDefaults();
   tmuxAvailable = Boolean(d.tmux && d.tmux.available);
-  tmuxPath = (d.tmux && d.tmux.path) || null;
+  if (d.tmux && d.tmux.name) tmuxInfo = { name: d.tmux.name, title: d.tmux.title || '' };
   $('#platform-label').textContent = d.label || `${d.platform} · ${d.shell}`;
   $('#platform-label').title = `${d.platform} · ${d.shell}`;
   $('#new-cwd').value = d.homedir;
@@ -129,7 +129,7 @@ async function init() {
   window.aisess.onData(({ id, data }) => {
     const t = tabs.get(id);
     if (!t) return;
-    t.term.write(data);
+    t.term.write(t.outputFilter ? t.outputFilter(data) : data);
     if (t.scroller) t.scroller.noteOutput();
     noteActivity(t, data ? data.length : 0);
     noteRunning(t);

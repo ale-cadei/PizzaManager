@@ -103,6 +103,41 @@ vecchio? Se no:
 - all'avvio si cancellano solo le cartelle di versioni che nessuna sessione
   viva usa più.
 
+**Letto nel codice (2026-10-11, sorgente 3.3.8 `66cf613` e storia dei tag
+v0.4.5…v3.3.8).** La risposta è «di fatto sì, ma nessuno lo promette», quindi
+il disegno qui sopra resta, tutto:
+
+- **Il protocollo non ha versione.** Client e server parlano TCP su loopback
+  (porta in `~/.psmux/<socket>__<nome>.port`): `AUTH <chiave>`, poi comandi
+  testuali una riga per volta; l'attacco (`PERSISTENT`, `client-attach`)
+  riceve frame JSON `DumpState`. Nessun controllo di versione da nessuna parte.
+- **Finora regge per disciplina.** In `DumpState` dalla 0.4.5 alla 3.3.8 i campi
+  sono passati da 26 a 84, sempre con `#[serde(default)]`: gli obbligatori sono
+  ancora solo `layout` e `windows`, e i campi in più si ignorano. Le modifiche
+  alla codifica dei comandi della 3.3.8 (#547 virgolette e backslash, #560 a
+  capo in `send-keys`) toccano solo chi codifica, il decoder non è cambiato. Un
+  frame illeggibile il client lo scarta in silenzio e ne chiede un altro
+  (`client.rs`, `JSON parse error` → `force_dump`): se un giorno il formato
+  cambiasse, la scheda resterebbe vuota senza errori.
+- **L'exe di una sessione viva è bloccato.** Il server è `current_exe()` lanciato
+  di nuovo (`platform.rs`, `spawn_server_hidden`): ogni sessione tiene aperto il
+  `psmux.exe` che l'ha creata. La cartella per versione è quindi obbligatoria
+  comunque, e quella vecchia non si cancella finché le sue sessioni vivono: la
+  pulizia deve guardare `@ais_psmux`, non affidarsi a un `rm` che fallisce.
+- **Il reaper.** Ogni invocazione di psmux (`main.rs`, `reap_orphaned_servers`)
+  termina i server con immagine `psmux`/`tmux`/`pmux` che il suo registro non
+  conosce. Dalla 3.3.8 (#510) solo quelli con un marcatore di proprietà nella
+  **sua** cartella dati: un psmux più vecchio con un'altra cartella dati
+  potrebbe uccidere i nostri. Con la stessa cartella (`~/.psmux`, quella di
+  default) i nostri hanno il `.port` e non si toccano. Caso raro, non ci si fa
+  niente; se servisse, `PSMUX_DATA_DIR` (dalla 3.3.8) separa i registri.
+
+Quindi: l'attacco usa l'exe della versione della sessione (è il pezzo più
+fragile, frame JSON e tasti), i comandi una tantum (`list`, `has`, metadati,
+cattura, `kill`) l'exe corrente. Quando si cambia la versione fissata, le prove
+di «Come rifare le prove» includono un server della versione vecchia con il
+client nuovo.
+
 ### 6. Scorrimento
 
 **Niente da fare.** Il client psmux tiene sempre il terminale in modalità
@@ -158,3 +193,91 @@ vanno aggiornati. Il `LICENSE` di psmux finisce nel pacchetto (punto 1).
 - selezione col mouse, rotella, barra di scorrimento e Ctrl+B come su Mac;
 - un aggiornamento automatico con sessioni vive non fallisce e non le uccide;
 - `npm run test:unit` verde e CI Windows verde.
+
+## Stato (2026-10-23)
+
+Punti 1–8 fatti, un commit per punto (il 7 in due: refactor e test). Provato
+sul fisso Windows 11, con l'app di sviluppo:
+
+- **chiusura e riapertura**: 6 schede, staccate e riagganciate con l'output
+  (l'utente le ha viste). psmux copiato in
+  `%LOCALAPPDATA%\PizzaManager\psmux\3.3.8\` e lanciato da lì;
+- **riavvio simulato** (`kill-server` su `aisession` ad app chiusa): modal,
+  Claude con lo stesso `@ais_resume_id`, la shell PowerShell con il testo di
+  prima (euro compreso), il separatore e il prompt;
+- **selezione, rotella, Ctrl+B**: confermati dall'utente;
+- **pacchetto**: `npm run dist:win` mette `resources\psmux` e
+  `app.asar.unpacked\app\psmux.conf`; `detectTmux` con quel layout li trova;
+- **test**: varianti psmux dei test d'integrazione (`tests/integration.test.js`),
+  che girano contro `vendor/psmux`. Su Windows la suite ha 11 fallimenti che
+  vengono da `main` e non da questo branch (percorsi POSIX nei test, permessi
+  Unix, CRLF di git, `readlink`): sono del piano 24.
+
+Ancora da fare o da vedere:
+
+- **dal pacchetto installato** (primo punto di «Fatto quando»): il setup
+  sostituisce l'app installata, quindi va chiusa prima;
+- **CI e release** su GitHub: i file sono pronti, li provano il primo push e il
+  primo tag;
+- **aggiornamento con due versioni vere** di psmux: verificato solo con versioni
+  finte nei test. Si fa quando si cambia la versione fissata;
+- **`pwsh.exe`**: stessa riga di `powershell.exe`, non installato qui;
+- **Codex dentro psmux**: le notifiche OSC 9 incapsulate (piano 46) e lo stato
+  scritto ad app chiusa non sono provati; i due test d'integrazione restano
+  solo tmux;
+- **Defender e SmartScreen su un PC pulito** (Rischi);
+- **npm 12** non esegue gli script d'installazione non autorizzati, e senza
+  quelli `npm install` non scarica Electron: la lista `allowScripts` sta nel
+  branch `chore/allow-scripts`, separato da questo.
+
+### Dal pacchetto installato (2026-10-23 / 28)
+
+Installato con `npm.cmd run install:win` (in PowerShell `npm.ps1` è bloccato
+dalla politica di esecuzione). Chiusa e riaperta l'app, la sessione di Claude
+in cui girava il lavoro è tornata viva, la stessa. Ne sono usciti due difetti,
+corretti in questo branch:
+
+- **PATH=undefined nelle sessioni** (`be58343`). Le variabili della sessione
+  leggevano `env.PATH`, ma su Windows la chiave è `Path`: nelle schede non si
+  trovava nessun comando esterno. Le prove con l'app di sviluppo lanciata da
+  Git Bash non lo vedevano, perché lì la chiave è `PATH`.
+- **Lettere sparse in Claude** (`987303c`). xterm.js misurava con Unicode 6, e
+  psmux con unicode-width: le emoji valevano 1 colonna per uno e 2 per l'altro,
+  e il client psmux, che ridisegna per differenze, scriveva spostato. Ora c'è
+  `@xterm/addon-unicode11`. Non bastava: con le larghezze di
+  `renderer/term-unicode.js` xterm conta come la griglia di psmux anche un
+  simbolo seguito da VS16 (`⚔️`, 2 colonne, `6cd0dff`) e le emoji arrivate
+  dopo Unicode 11 (`🥲 🫠`, 2 colonne, `7abce93`). Misurate sulla griglia di
+  psmux con `#{cursor_x}`. La risposta a `ESC[6n` dentro il pane non va bene
+  come misura, perché la dà la console (ConPTY) del pane, che conta in un
+  altro modo (ZWJ 1 colonna, bandiere 4).
+- **Resti di lettere sulle righe vuote** (`4dfae5f`), sempre nelle chat con
+  emoji, che sparivano scorrendo. È un difetto del client psmux 3.3.8: quando
+  ridisegna un pezzo di riga di seguito, scrive la seconda metà di una cella
+  allargata da VS16 come uno spazio (`🖥️ :` invece di `🖥️:`). Il renderer
+  toglie lo spazio (`createOutputFilter`). Il client gira nella ConPTY di
+  node-pty (`useConptyDll`), che passa l'output così com'è, perché quella di
+  Windows lo ridisegna dal suo buffer, dove l'errore è già scritto. Prova:
+  client vero in node-pty, xterm headless con le larghezze dell'app, il testo
+  delle chat fatto scorrere 83 volte e confrontato con `capture-pane`. Prima
+  66-68 passi con differenze, dopo zero. **Quando cambia la versione di
+  psmux** va rifatta questa prova: se il client è stato corretto, il filtro
+  toglierebbe spazi veri. Il difetto va anche segnalato a psmux.
+
+Ancora aperto: **la barra di scorrimento in Claude** a volte sale e il testo
+resta fermo. Misurato con una sonda che chiede il mouse come Claude, attraverso
+un client psmux vero: 120 scatti su 120 arrivano, a ritmo di rotella e tutti
+insieme. La perdita quindi non è in psmux. In cima alla conversazione la barra
+continua a salire. Ho provato a fermarla quando Claude non ridisegna niente
+dopo gli scatti (`dc326f1`), ma nell'app installata non è cambiato nulla, e il
+commit è stato annullato con un revert. Secondo l'utente succede solo nelle
+chat con emoji. Con le larghezze e il filtro (`4dfae5f`) nell'app installata
+le lettere sono a posto, ma la barra resta «non sempre sincronizzata» (utente,
+2026-10-28): fastidio piccolo, rimandato. Per riprenderlo, va misurato cosa
+scrive Claude quando riceve la rotella in cima.
+
+**Trappola per chi sviluppa:** dentro una sessione psmux l'ambiente ha
+`PSMUX_SESSION` e `TMUX`, e un client psmux lanciato da lì rifiuta di
+attaccarsi («sessions should be nested with care»). L'app di sviluppo lanciata
+da una scheda di PizzaManager non riaggancerebbe niente: va lanciata da un
+terminale normale, come per Q6.

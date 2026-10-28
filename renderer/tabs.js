@@ -96,10 +96,17 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   // Le 1000 righe di default coprivano poco: allineate all'ordine di
   // grandezza di `history-limit`. Con tmux si azzera appena si sa (sotto):
   // la history è quella di tmux, e questa sarebbe a buchi.
-  const term = new Terminal({ cursorBlink: true, scrollback: 20000, fontSize: termFont.get(), lineHeight: TERM_LINE_HEIGHT, fontFamily: "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace", theme: termTheme() });
+  // allowProposedApi: term.unicode, che serve sotto, e API sperimentale in xterm 5.
+  const term = new Terminal({ cursorBlink: true, scrollback: 20000, fontSize: termFont.get(), lineHeight: TERM_LINE_HEIGHT, fontFamily: "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace", theme: termTheme(), allowProposedApi: true });
   const fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
   try { term.loadAddon(new WebLinksAddon.WebLinksAddon()); } catch {}
+  // Larghezze dei caratteri come le conta chi sta dietro (psmux, tmux): se
+  // no i ridisegni per differenze finiscono spostati (lettere sparse in Claude).
+  const psmux = tmuxAvailable && tmuxInfo.name === 'psmux';
+  try { AisessTermUnicode.install(term, Unicode11Addon.Unicode11Addon, { psmux }); } catch (e) { console.warn('[PizzaManager] larghezze Unicode:', e); }
+  // Lo spazio di troppo del client psmux dopo ⚔️ 🖥️ (term-unicode.js).
+  try { if (psmux) tab.outputFilter = AisessTermUnicode.createOutputFilter(Unicode11Addon.Unicode11Addon); } catch (e) { console.warn('[PizzaManager] filtro psmux:', e); }
   term.open(inner);
   tab.term = term;
   tab.fit = fit;

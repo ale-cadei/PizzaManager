@@ -4,6 +4,9 @@ node_modules/
 # Electron build output (electron-builder -> dist/)
 dist/
 
+# Binari di terzi scaricati prima del build (psmux, docs/plans/52)
+vendor/
+
 # Build artifacts
 *.AppImage
 *.deb

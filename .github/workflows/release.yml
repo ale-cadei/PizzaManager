@@ -64,27 +64,19 @@ jobs:
             args: --mac --arm64 --x64
           - os: ubuntu-latest
             args: --linux
-          # WINDOWS FUORI DALLA RELEASE, dalla v1.1.0.
+          # WINDOWS, di nuovo nella release (docs/plans/52), con psmux dentro.
           #
-          # `-c.npmRebuild=false` non arriva intero a electron-builder: la shell
-          # dei runner Windows e' pwsh, che spezza l'argomento in `-c` e
-          # `.npmRebuild=false`, e quest'ultimo viene preso per il NOME di un
-          # file di configurazione: «ENOENT … open '.npmRebuild=false'».
-          # Non e' una regressione: quella riga non era mai stata eseguita in
-          # una release (la 1.0.2 aveva solo `--win`), e il difetto e' solo
-          # della shell — yargs legge bene entrambe le forme, e in locale su
-          # Unix l'argomento passa.
-          #
-          # La correzione probabile e' una riga, `shell: bash` sul passo del
-          # build (bash c'e' anche sui runner Windows, e li' l'argomento passa
-          # come su Unix). Non si mette alla cieca: va provata su una macchina
-          # Windows, insieme al resto del piano 40, altrimenti si scopre se
-          # funziona solo bruciando un giro di release.
-          #
-          # Finche' e' commentato, chi usa Windows resta alla 1.0.2 o costruisce
-          # da sorgente con `npm run install:win` (piano 24).
-          # - os: windows-2022
-          #   args: --win -c.npmRebuild=false
+          # Era fuori dalla v1.1.0: `-c.npmRebuild=false` non arrivava intero a
+          # electron-builder, perche' la shell dei runner Windows e' pwsh, che
+          # spezzava l'argomento in `-c` e `.npmRebuild=false`, e quest'ultimo
+          # veniva preso per il NOME di un file di configurazione: «ENOENT …
+          # open '.npmRebuild=false'». Due rimedi insieme: la forma lunga
+          # `--config.` e `shell: bash` sul passo del build (bash c'e' anche sui
+          # runner Windows, e li' l'argomento passa come su Unix). In locale, da
+          # Git Bash, `npm run dist:win` costruisce (2026-10-23). Sul runner
+          # non e' ancora provato: lo dira' il primo tag.
+          - os: windows-2022
+            args: --win --config.npmRebuild=false
     runs-on: ${{ matrix.os }}
     # Un build che non finisce deve fallire, non occupare un runner per ore.
     # 60 e non 40: il job macOS ora fa quattro invii ad Apple (due app, due
@@ -170,8 +162,16 @@ jobs:
       #
       # Forma lunga `--config.`, non `-c.`: la shell dei runner Windows spezza
       # `-c.x=y` in due token e il valore finisce preso per un nome di file
-      # (e' il difetto che ha tolto Windows dalla matrice).
+      # (e' il difetto che aveva tolto Windows dalla matrice). Per lo stesso
+      # motivo il passo gira in bash anche su Windows.
+      #
+      # Su Windows psmux va scaricato prima: electron-builder lo copia da
+      # vendor/psmux in resources\psmux (build.win.extraResources). Lo zip
+      # e' verificato con lo SHA-256 scritto in scripts/fetch-psmux.js.
+      - if: runner.os == 'Windows'
+        run: npm run fetch:psmux
       - run: npx electron-builder ${{ matrix.args }} --config.extraMetadata.buildFrom=release --publish always
+        shell: bash
         env:
           # Il repo di destinazione e' in package.json (build.publish).
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

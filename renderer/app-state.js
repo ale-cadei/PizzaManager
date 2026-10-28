@@ -7,9 +7,10 @@
  * usare solo ciò che sta qui o nel file stesso. */
 const tabs = new Map();
 let activeId = null;
-/* Con tmux le sessioni sopravvivono alla chiusura: la ✕ stacca, «Termina» uccide. */
+/* Con tmux (psmux su Windows) le sessioni sopravvivono alla chiusura: la ✕ stacca, «Termina» uccide. */
 let tmuxAvailable = false;
-let tmuxPath = null;
+/* Nome e tooltip del pallino nella legenda (lib/setup-check.js, backendInfo) */
+let tmuxInfo = { name: 'tmux', title: '' };
 let counter = 1;
 let pendingNewType = 'shell';
 let resumeTab = 'opencode';

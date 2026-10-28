@@ -40,26 +40,38 @@ ok('opencode: `session list --format json` produce ancora un array JSON', (t) =>
 // ---------- tmux: il ciclo per cui esiste il branch 6 ----------
 ok('tmux: la sessione sopravvive allo stacco del client e si riattacca con i metadati', async (t) => {
   const path = require('path');
-  const os = require('os');
-  const { detectTmux, createTmuxControl } = require('../lib/tmux');
-  const { createPtyManager, isPtyAvailable } = require('../app/pty');
-  const { createAccountStore } = require('../lib/accounts');
-  const { createHistoryStore } = require('../lib/history');
-  const { createProfileStore } = require('../lib/profiles');
+  const { detectTmux } = require('../lib/tmux');
+  const { isPtyAvailable } = require('../app/pty');
 
   const found = detectTmux({ confPath: null });
   if (!found) return t.skip('tmux non installato su questa macchina');
   if (!isPtyAvailable()) return t.skip('node-pty non compilato');
 
   // Socket dedicato al test: le sessioni reali dell'app (aisession) non si toccano.
-  const socket = 'aistest-' + process.pid;
-  const confPath = path.join(__dirname, '..', 'app', 'tmux.conf');
-  const control = createTmuxControl({ bin: found.bin, confPath, socket });
-  const tmux = { bin: found.bin, confPath, socket, control };
+  await sessionLifecycle({ bin: found.bin, confPath: path.join(__dirname, '..', 'app', 'tmux.conf'), socket: 'aistest-' + process.pid, shellCommand: '/bin/sh' });
+});
+
+/**
+ * Il ciclo di vita di una sessione attraverso app/pty.js: nascita coi
+ * metadati, stacco, riaggancio, hard refresh, terminate, registro per il
+ * riavvio. Uguale per tmux e per psmux (Windows): cambiano binario, config e
+ * la shell di prova.
+ */
+async function sessionLifecycle({ bin, confPath, socket, shellCommand }) {
+  const path = require('path');
+  const os = require('os');
+  const { createTmuxControl } = require('../lib/tmux');
+  const { createPtyManager } = require('../app/pty');
+  const { createAccountStore } = require('../lib/accounts');
+  const { createHistoryStore } = require('../lib/history');
+  const { createProfileStore } = require('../lib/profiles');
+
+  const control = createTmuxControl({ bin, confPath, socket });
+  const tmux = { bin, confPath, socket, control };
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-tmux-'));
   const profiles = createProfileStore({ dir });
   const cfg = profiles.load();
-  cfg.profiles.shell = [{ id: 'shell:t', label: 'Shell di prova', command: '/bin/sh', resumeArgs: '' }];
+  cfg.profiles.shell = [{ id: 'shell:t', label: 'Shell di prova', command: shellCommand, resumeArgs: '' }];
   profiles.save(cfg);
   const { createLiveSessionsStore } = require('../lib/live-sessions');
   const liveStore = () => createLiveSessionsStore({ dir });
@@ -67,6 +79,10 @@ ok('tmux: la sessione sopravvive allo stacco del client e si riattacca con i met
     accounts: () => createAccountStore({ dir }), history: () => createHistoryStore({ dir }), profiles, sendToRenderer: () => {}, tmux, liveStore,
   });
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  /** setMeta e setLabel scrivono in tmux senza aspettare: si aspetta l'effetto, non un tempo fisso. */
+  const until = async (ok, ms = 5000) => {
+    for (const end = Date.now() + ms; Date.now() < end; await wait(100)) if (await ok()) return;
+  };
 
   try {
     // 1. avvio: la sessione nasce in tmux con i metadati
@@ -76,6 +92,13 @@ ok('tmux: la sessione sopravvive allo stacco del client e si riattacca con i met
     assert.strictEqual(r.ok, true, r.error);
     assert.ok(r.session && r.session.startsWith('ais-shell-'), r.session);
     await wait(300);
+    // Il PATH arriva alla sessione davvero: su Windows (chiave `Path`) arrivava
+    // la stringa «undefined», e nelle schede nessun comando si trovava piu'.
+    // tmux stampa solo la riga chiesta, psmux tutto l'ambiente: si cerca la riga.
+    const shown = require('child_process').execFileSync(bin, ['-L', socket, 'show-environment', '-t', r.session, 'PATH'], { encoding: 'utf8', timeout: 5000 });
+    const sessionPath = shown.split(/\r?\n/).find((l) => /^PATH=/i.test(l)) || '';
+    assert.match(sessionPath, /^PATH=./i, shown);
+    assert.notStrictEqual(sessionPath.slice(5), 'undefined');
     assert.strictEqual(typeof await app1.captureShell('tab1'), 'string', 'la ricerca deve poter leggere il pane della shell');
     assert.strictEqual(await app1.captureShell('scheda-inesistente'), null);
     let live = await app1.listLive();
@@ -89,13 +112,13 @@ ok('tmux: la sessione sopravvive allo stacco del client e si riattacca con i met
 
     // l'id della conversazione, scoperto dopo, finisce in tmux e nel registro
     app1.setMeta('tab1', { resumeId: 'uuid-scoperto' });
-    await wait(300);
+    await until(async () => liveStore().read()[0] && liveStore().read()[0].resumeId === 'uuid-scoperto');
     assert.strictEqual((await app1.listLive())[0].resumeId, 'uuid-scoperto');
     assert.strictEqual(liveStore().read()[0].resumeId, 'uuid-scoperto', 'il registro deve avere l id per il ripristino');
 
     // 2. stacco (la ✕, o la chiusura della finestra): il processo resta
     app1.setLabel('tab1', 'rinominata');
-    await wait(200);
+    await until(async () => (await app1.listLive())[0].label === 'rinominata');
     app1.closeAll();
     await wait(300);
     assert.strictEqual(app1.size, 0, 'nessun client rimasto');
@@ -142,10 +165,13 @@ ok('tmux: la sessione sopravvive allo stacco del client e si riattacca con i met
     assert.deepStrictEqual(liveStore().read(), [], '"Non ora" svuota il registro');
   } finally {
     const { execFileSync } = require('child_process');
-    try { execFileSync(found.bin, ['-L', socket, 'kill-server']); } catch {}
-    fs.rmSync(dir, { recursive: true, force: true });
+    try { execFileSync(bin, ['-L', socket, 'kill-server']); } catch {}
+    // kill-server torna prima che la shell sia morta, e su Windows una cartella
+    // che e' ancora la cartella corrente di un processo non si cancella (EPERM).
+    // E' una tmpdir: se resta, pazienza, ma non deve coprire l'errore vero.
+    try { fs.rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }); } catch {}
   }
-});
+}
 
 /* Il mouse deve restare al terminale, non a tmux. Con `mouse on` tmux cattura
    il drag: al rilascio chiude la sua copy-mode e la selezione sparisce prima
@@ -333,6 +359,109 @@ ok('tmux: il testo di una shell sopravvive alla morte della sessione', async (t)
     // SOLO il socket di prova: su 'aisession' ci sono le sessioni dell'utente.
     try { execFileSync(found.bin, ['-L', socket, 'kill-server']); } catch {}
     fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// ---------- psmux: le stesse prove su Windows (docs/plans/52) ----------
+// Su Windows le prove di tmux qui sopra si saltano: /bin/sh e sleep non
+// esistono (Q1 bis di docs/plans/40-risultati.md). Queste sono le loro
+// varianti con powershell.exe, contro il psmux che l'app mette nel pacchetto.
+
+/** Il psmux di vendor/psmux, o null con il test dichiarato saltato. */
+function testPsmux(t) {
+  const path = require('path');
+  const { execFileSync } = require('child_process');
+  const { parsePsmuxVersion } = require('../lib/psmux-install');
+  if (process.platform !== 'win32') { t.skip('psmux serve solo su Windows'); return null; }
+  const bin = path.join(__dirname, '..', 'vendor', 'psmux', 'psmux.exe');
+  if (!fs.existsSync(bin)) { t.skip('psmux non scaricato: npm run fetch:psmux'); return null; }
+  const version = parsePsmuxVersion(execFileSync(bin, ['-V'], { encoding: 'utf8', timeout: 5000 }));
+  assert.ok(version, 'vendor/psmux/psmux.exe non si dichiara psmux');
+  return { bin, version, confPath: path.join(__dirname, '..', 'app', 'psmux.conf') };
+}
+
+ok('psmux: la sessione sopravvive allo stacco del client e si riattacca con i metadati', async (t) => {
+  const { isPtyAvailable } = require('../app/pty');
+  const p = testPsmux(t);
+  if (!p) return;
+  if (!isPtyAvailable()) return t.skip('node-pty non compilato');
+  await sessionLifecycle({ bin: p.bin, confPath: p.confPath, socket: 'aistest-psmux-' + process.pid, shellCommand: 'powershell.exe' });
+});
+
+/* La trappola del .deb (CLAUDE.md): un processo esterno che non legge la
+   config parte coi default, e con psmux vorrebbe dire Ctrl+B che apre
+   finestre e Claude che non seleziona piu' (mouse off). */
+ok('psmux: il server legge app/psmux.conf', async (t) => {
+  const { execFileSync } = require('child_process');
+  const { createTmuxControl } = require('../lib/tmux');
+  const p = testPsmux(t);
+  if (!p) return;
+  const socket = 'aistest-psmux-conf-' + process.pid;
+  const control = createTmuxControl({ bin: p.bin, confPath: p.confPath, socket });
+  try {
+    assert.ok((await control.create({ name: 'ais-shell-conf', cmd: 'powershell.exe', args: ['-NoProfile'], cols: 80, rows: 24 })).ok);
+    const opt = (name) => execFileSync(p.bin, ['-L', socket, 'show-options', '-gv', name], { encoding: 'utf8', timeout: 5000 }).trim();
+    assert.strictEqual(opt('prefix'), 'C-M-S-F12');
+    assert.strictEqual(opt('mouse'), 'on');
+    assert.strictEqual(opt('status'), 'off');
+    assert.strictEqual(opt('warm'), 'off');
+  } finally {
+    try { execFileSync(p.bin, ['-L', socket, 'kill-server']); } catch {}
+  }
+});
+
+/* Il giro completo dello scrollback su Windows: niente exec, e' PowerShell
+   stessa a ristampare il file e a restare la shell (-NoExit). */
+ok('psmux: il testo di una shell PowerShell sopravvive alla morte della sessione', async (t) => {
+  const os = require('os');
+  const path = require('path');
+  const { execFileSync } = require('child_process');
+  const { createTmuxControl } = require('../lib/tmux');
+  const { createScrollbackStore } = require('../lib/scrollback');
+  const { replayCommand } = require('../lib/scrollback-command');
+  const p = testPsmux(t);
+  if (!p) return;
+
+  const socket = 'aistest-psmux-sb-' + process.pid;
+  const control = createTmuxControl({ bin: p.bin, confPath: p.confPath, socket });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-sb-psmux-'));
+  const store = createScrollbackStore({ dir });
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  /** psmux e PowerShell partono con calma: si aspetta che il testo compaia. */
+  const captureUntil = async (name, text) => {
+    let got = '';
+    for (let i = 0; i < 40 && !got.includes(text); i++) { await wait(250); got = (await control.capture(name)) || ''; }
+    return got;
+  };
+  const prima = 'ais-shell-prima';
+
+  try {
+    // Una shell che ha scritto qualcosa di riconoscibile, in verde e con l'euro.
+    const say = 'Write-Host -ForegroundColor Green "CIAMBELLA-42 €"';
+    assert.ok((await control.create({ name: prima, cmd: 'powershell.exe', args: ['-NoLogo', '-NoProfile', '-NoExit', '-Command', say], cols: 120, rows: 40 })).ok);
+    const testo = await captureUntil(prima, 'CIAMBELLA-42');
+    assert.ok(testo.includes('CIAMBELLA-42'), 'la cattura non ha preso il testo');
+    assert.ok(testo.includes('\x1b['), 'senza -e i colori si perderebbero');
+    store.save(prima, testo);
+
+    // Quello che fa un riavvio della macchina: la sessione muore con tutto dentro.
+    await control.kill(prima);
+    assert.strictEqual(await control.has(prima), false);
+
+    const replay = replayCommand({ file: store.fileFor(prima), shell: 'powershell.exe', args: ['-NoProfile'], platform: 'win32' });
+    const dopo = 'ais-shell-dopo';
+    assert.ok((await control.create({ name: dopo, cmd: replay.cmd, args: replay.args, env: replay.env, cols: 120, rows: 40 })).ok);
+    const ripristinato = await captureUntil(dopo, 'cronologia ripristinata');
+    assert.ok(ripristinato.includes('CIAMBELLA-42 €'), 'il testo di prima non e tornato, o l euro si e perso (codifica OEM)');
+    assert.ok(ripristinato.includes('cronologia ripristinata'), 'manca il separatore');
+    assert.ok(ripristinato.indexOf('CIAMBELLA-42') < ripristinato.indexOf('cronologia ripristinata'), 'prima il testo, poi il separatore');
+
+    // Nessun guscio in mezzo: il processo del pane e' PowerShell.
+    const cmd = execFileSync(p.bin, ['-L', socket, 'display-message', '-p', '-t', `=${dopo}:`, '#{pane_current_command}'], { encoding: 'utf8', timeout: 5000 }).trim();
+    assert.strictEqual(cmd, 'powershell');
+  } finally {
+    try { execFileSync(p.bin, ['-L', socket, 'kill-server']); } catch {}
+    try { fs.rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }); } catch {}
   }
 });
 

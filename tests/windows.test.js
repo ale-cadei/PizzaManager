@@ -84,6 +84,30 @@ ok('win: augmentedEnv riusa la chiave Path esistente invece di aggiungerne una s
   assert.strictEqual(env.TERM, 'xterm-256color');
 });
 
+/* Il PATH si legge e si scrive sotto la chiave che l'ambiente usa gia'. Leggere
+   `env.PATH` da un env Windows (chiave `Path`) dava undefined: le sessioni
+   psmux nascevano con PATH=undefined, e nessun comando si trovava piu'. */
+ok('win: pathOf legge Path o PATH, withPath riscrive quella che c e', () => {
+  const { pathOf, withPath } = require('../lib/binaries');
+  assert.strictEqual(pathOf({ Path: 'C:\\Windows;C:\\npm' }), 'C:\\Windows;C:\\npm');
+  assert.strictEqual(pathOf({ PATH: '/usr/bin' }), '/usr/bin');
+  assert.strictEqual(pathOf({}), undefined);
+  assert.deepStrictEqual(withPath({ Path: 'vecchio', HOMEPATH: '\\Users\\jack' }, 'nuovo'), { Path: 'nuovo', HOMEPATH: '\\Users\\jack' });
+  assert.deepStrictEqual(withPath({ HOME: '/h' }, '/bin'), { HOME: '/h', PATH: '/bin' });
+});
+
+ok('win: il client che crea la sessione ha un solo PATH, quello della sessione', async () => {
+  const { createTmuxControl } = require('../lib/tmux');
+  const seen = [];
+  const ctl = createTmuxControl({ bin: 'C:\\psmux.exe', confPath: 'C:\\psmux.conf', processEnv: { Path: 'C:\\Windows', USERPROFILE: HOME },
+    run: (bin, args, opts, cb) => { seen.push(opts.env); cb(null, '', ''); } });
+  await ctl.create({ name: 'ais-shell-1', cmd: 'powershell.exe', env: { PATH: 'C:\\Windows;C:\\Program Files\\Git\\cmd' } });
+  const env = seen[0];
+  assert.deepStrictEqual(Object.keys(env).filter((k) => k.toUpperCase() === 'PATH'), ['Path'], 'due chiavi PATH/Path sono ambigue');
+  assert.strictEqual(env.Path, 'C:\\Windows;C:\\Program Files\\Git\\cmd');
+  assert.strictEqual(env.USERPROFILE, HOME);
+});
+
 // ---------- lib/win-command ----------
 const { windowsCommandLine, needsCmdWrapper } = require('../lib/win-command');
 
@@ -272,16 +296,6 @@ ok('win: il nome della cartella di progetto di Claude torna un percorso con unit
   assert.strictEqual(cwdFromProjectDir('-home-jack-repo', { platform: 'linux' }), '/home/jack/repo', 'su Unix come prima');
 });
 
-// ---------- lib/tmux ----------
-const { detectTmux } = require('../lib/tmux');
-
-ok('win: tmux non si cerca nemmeno', () => {
-  let looked = 0;
-  const r = detectTmux({ confPath: 'x', platform: 'win32', resolve: () => { looked++; return { path: 'C:\\msys64\\usr\\bin\\tmux.exe' }; } });
-  assert.strictEqual(r, null);
-  assert.strictEqual(looked, 0);
-});
-
 // ---------- renderer/session-groups ----------
 const Groups = require('../renderer/session-groups');
 
@@ -399,4 +413,129 @@ ok('windows: editor-copy confronta i nomi senza maiuscole e il dialog offre solo
   const r = await copy.planCopy([path.join(base, 'x', 'A.txt'), path.join(base, 'y', 'a.txt')], '');
   assert.deepStrictEqual(r, { ok: false, error: 'Due elementi si chiamano «a.txt»: copiali uno alla volta.' });
   assert.deepStrictEqual(pickProperties('win32'), ['openFile', 'multiSelections']);
+});
+
+// ---------- lib/tmux + lib/psmux-install: psmux al posto di tmux (piano 52) ----------
+const { detectTmux } = require('../lib/tmux');
+const { psmuxDirs } = require('../lib/psmux-install');
+
+const PSMUX = { bin: 'C:\\Users\\jack\\AppData\\Local\\PizzaManager\\psmux\\3.3.8\\psmux.exe', version: '3.3.8' };
+const WHERE = { packaged: true, resourcesPath: 'C:\\PM\\resources', appDir: 'C:\\PM\\resources\\app.asar' };
+
+ok('win: detectTmux usa il psmux del pacchetto, con la sua config fuori dall asar', () => {
+  const seen = [];
+  const d = detectTmux({
+    platform: 'win32', confPath: 'C:\\PM\\resources\\app.asar\\app\\tmux.conf', psmuxConfPath: 'C:\\PM\\resources\\app.asar\\app\\psmux.conf',
+    psmux: WHERE, installPsmux: (opts) => { seen.push(opts); return PSMUX; }, resolve: () => { throw new Error('niente PATH'); },
+  });
+  assert.strictEqual(d.bin, PSMUX.bin);
+  assert.strictEqual(d.psmuxVersion, '3.3.8');
+  assert.strictEqual(d.confPath, 'C:\\PM\\resources\\app.asar.unpacked\\app\\psmux.conf', 'tmux.conf su Windows non va: prefix None non esiste in psmux');
+  assert.strictEqual(typeof d.control.list, 'function');
+  assert.deepStrictEqual(seen, [{ ...WHERE, platform: 'win32' }]);
+});
+
+ok('win: senza psmux nel pacchetto niente tmux, e il PATH non si guarda (un tmux.exe di MSYS2 non va)', () => {
+  let searched = 0;
+  const d = detectTmux({ platform: 'win32', confPath: 'C:\\x\\tmux.conf', psmuxConfPath: 'C:\\x\\psmux.conf', psmux: WHERE,
+    installPsmux: () => null, resolve: () => { searched++; return { path: 'C:\\msys64\\usr\\bin\\tmux.exe' }; } });
+  assert.strictEqual(d, null);
+  assert.strictEqual(searched, 0);
+});
+
+ok('detectTmux fuori da Windows non installa psmux e usa tmux.conf', () => {
+  let installed = 0;
+  const d = detectTmux({ platform: 'darwin', confPath: '/a/tmux.conf', psmuxConfPath: '/a/psmux.conf', psmux: WHERE,
+    installPsmux: () => { installed++; return PSMUX; }, resolve: () => ({ path: '/opt/homebrew/bin/tmux' }) });
+  assert.strictEqual(installed, 0);
+  assert.strictEqual(d.bin, '/opt/homebrew/bin/tmux');
+  assert.strictEqual(d.confPath, '/a/tmux.conf');
+  assert.strictEqual(d.psmuxVersion, undefined);
+});
+
+/* Aggiornamenti con sessioni vive (piano 52, punto 5). Il protocollo di psmux
+   non ha versione, quindi ci si riattacca con l'exe con cui la sessione e'
+   nata, e si tolgono solo le versioni che nessuna sessione viva usa. */
+const { META_KEYS, FIELD_SEP } = require('../lib/tmux');
+/** Un psmux finto: list-sessions risponde con queste sessioni, il resto va. */
+function fakePsmux(sessions) {
+  const stdout = sessions.map(({ name, psmux }) => [name, '1000', '0', ...META_KEYS.map((k) => ({ type: 'shell', psmux })[k] || '')].join(FIELD_SEP)).join('\n');
+  return (bin, args, opts, cb) => cb(null, args.includes('list-sessions') ? stdout : '', '');
+}
+const OLD_BIN = 'C:\\Users\\jack\\AppData\\Local\\PizzaManager\\psmux\\3.3.7\\psmux.exe';
+function withVersions(sessions, { installed = ['3.3.7', '3.3.8'], pruned = [] } = {}) {
+  return detectTmux({
+    platform: 'win32', psmuxConfPath: 'C:\\x\\psmux.conf', psmux: WHERE, run: fakePsmux(sessions),
+    installPsmux: () => ({
+      ...PSMUX,
+      binFor: (v) => (installed.includes(v) ? `C:\\Users\\jack\\AppData\\Local\\PizzaManager\\psmux\\${v}\\psmux.exe` : null),
+      prune: (keep) => { pruned.push([...keep].sort()); return installed.filter((v) => !keep.includes(v)); },
+    }),
+  });
+}
+
+ok('win: ogni sessione nuova si segna la versione di psmux', async () => {
+  const calls = [];
+  const d = detectTmux({ platform: 'win32', psmuxConfPath: 'C:\\x\\psmux.conf', psmux: WHERE, installPsmux: () => PSMUX,
+    run: (bin, args, opts, cb) => { calls.push(args); cb(null, '', ''); } });
+  await d.control.create({ name: 'ais-shell-1', cmd: 'powershell.exe', meta: { type: 'shell' } });
+  assert.ok(calls.some((a) => a.slice(-2).join(' ') === '@ais_psmux 3.3.8'));
+});
+
+ok('win: ci si riattacca con l exe della versione della sessione, se c e ancora', async () => {
+  const d = withVersions([{ name: 'ais-shell-vecchia', psmux: '3.3.7' }, { name: 'ais-shell-nuova', psmux: '3.3.8' }, { name: 'ais-shell-ignota' }, { name: 'ais-shell-sparita', psmux: '3.2.0' }]);
+  assert.strictEqual(await d.attachBin('ais-shell-vecchia'), OLD_BIN);
+  assert.strictEqual(await d.attachBin('ais-shell-nuova'), PSMUX.bin);
+  assert.strictEqual(await d.attachBin('ais-shell-ignota'), PSMUX.bin, 'nata prima di @ais_psmux: l exe corrente');
+  assert.strictEqual(await d.attachBin('ais-shell-sparita'), PSMUX.bin, 'cartella della versione tolta: l exe corrente');
+  assert.strictEqual(await d.attachBin('ais-shell-nessuna'), PSMUX.bin);
+});
+
+ok('win: la pulizia tiene la versione corrente e quelle delle sessioni vive', async () => {
+  const pruned = [];
+  const d = withVersions([{ name: 'ais-shell-a', psmux: '3.3.7' }], { installed: ['3.3.6', '3.3.7', '3.3.8'], pruned });
+  assert.deepStrictEqual(await d.pruneUnused(), ['3.3.6']);
+  assert.deepStrictEqual(pruned, [['3.3.7', '3.3.8']]);
+});
+
+ok('win: con una sessione di versione ignota non si toglie niente (potrebbe usare qualunque exe)', async () => {
+  const pruned = [];
+  const d = withVersions([{ name: 'ais-shell-a', psmux: '3.3.8' }, { name: 'ais-shell-ignota' }], { installed: ['3.3.7', '3.3.8'], pruned });
+  assert.deepStrictEqual(await d.pruneUnused(), []);
+  assert.deepStrictEqual(pruned, []);
+});
+
+ok('fuori da Windows attachBin è il tmux trovato e la pulizia non fa niente', async () => {
+  const d = detectTmux({ platform: 'linux', confPath: '/a/tmux.conf', resolve: () => ({ path: '/usr/bin/tmux' }), run: fakePsmux([]) });
+  assert.strictEqual(await d.attachBin('ais-shell-1'), '/usr/bin/tmux');
+  assert.deepStrictEqual(await d.pruneUnused(), []);
+});
+
+/* Ogni riga di app/psmux.conf viene da una misura (docs/plans/40-risultati.md):
+   chi la «riallinea» a tmux.conf rompe qualcosa che su Mac non si vede. */
+ok('win: psmux.conf, le opzioni che psmux vuole diverse da tmux', () => {
+  const lines = fs.readFileSync(path.join(__dirname, '..', 'app', 'psmux.conf'), 'utf8')
+    .split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
+  const opts = new Map(lines.filter((l) => /^set -g /.test(l)).map((l) => {
+    const [, name, value] = l.match(/^set -g (\S+)\s+(.*)$/);
+    return [name, value.replace(/^'|'$/g, '')];
+  }));
+  assert.strictEqual(opts.get('prefix'), 'C-M-S-F12', 'psmux scarta "None" e lascia C-b (Q4)');
+  assert.strictEqual(opts.get('mouse'), 'on', 'con off il server butta il mouse del pane e Claude non seleziona');
+  assert.strictEqual(opts.get('warm'), 'off', 'il server caldo l app non lo usa mai');
+  for (const [name, value] of [['status', 'off'], ['escape-time', '0'], ['history-limit', '50000'], ['window-size', 'latest'], ['destroy-unattached', 'off']]) {
+    assert.strictEqual(opts.get(name), value, name);
+  }
+  assert.ok(!lines.some((l) => /terminal-(features|overrides)/.test(l)), 'terminal-features da un avviso, terminal-overrides e ignorato');
+});
+
+ok('win: psmuxDirs, l exe dalle risorse del pacchetto o da vendor/ in sviluppo, le copie in LOCALAPPDATA', () => {
+  const env = { LOCALAPPDATA: 'C:\\Users\\jack\\AppData\\Local' };
+  assert.deepStrictEqual(psmuxDirs({ ...WHERE, env }), {
+    sourceDir: 'C:\\PM\\resources\\psmux',
+    localDir: 'C:\\Users\\jack\\AppData\\Local\\PizzaManager\\psmux',
+  });
+  assert.strictEqual(psmuxDirs({ packaged: false, resourcesPath: 'C:\\electron\\resources', appDir: 'C:\\src\\PizzaManager', env }).sourceDir,
+    'C:\\src\\PizzaManager\\vendor\\psmux', 'da sorgente le risorse sono quelle di Electron, non le nostre');
+  assert.strictEqual(psmuxDirs({ ...WHERE, env: {} }), null, 'senza LOCALAPPDATA non si sa dove copiare');
 });

@@ -109,13 +109,13 @@
   }
 
   /**
-   * Le cose da sapere. Quella su tmux solo se tmux c'è: senza, le sessioni
-   * muoiono con la finestra e prometterlo sarebbe falso.
+   * Le cose da sapere. Quella sulle sessioni vive solo se lo sono (tmux, o
+   * psmux su Windows): senza, muoiono con la finestra e prometterlo sarebbe falso.
    * @param {object|null} report
    * @returns {string[]}
    */
   function tips(report) {
-    const withTmux = Boolean(report && report.tmux && report.tmux.found);
+    const withTmux = Boolean(report && report.persistent);
     return [
       'Doppio click su una chat per rinominarla.',
       'Trascina le chat per riordinarle; in modalità Progetto anche le cartelle, per la linguetta. L\'ordine resta dopo la chiusura.',

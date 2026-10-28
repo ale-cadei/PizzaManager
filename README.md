@@ -55,7 +55,7 @@ Se lavori con più agenti AI da terminale, finisci con dieci finestre aperte, ne
 |---|---|---|
 | **macOS** | [Apple Silicon (.dmg)](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-mac-arm64.dmg) · [Intel (.dmg)](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-mac-x64.dmg) | Trascina l'app in *Applicazioni* |
 | **Linux** | [AppImage](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-linux-x86_64.AppImage) · [.deb](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-linux-amd64.deb) | `chmod +x` l'AppImage, o `sudo dpkg -i` il .deb |
-| **Windows** | pacchetto non disponibile: si costruisce [dal sorgente](#dal-sorgente) | senza `tmux` (vedi [Su Windows](#su-windows)) |
+| **Windows** | pacchetto non disponibile: si costruisce [dal sorgente](#dal-sorgente) | sessioni persistenti con psmux, già incluso (vedi [Su Windows](#su-windows)) |
 
 Tutte le versioni: [Releases](https://github.com/ale-cadei/PizzaManager/releases). Le CLI (`claude`, `codex`, `opencode`) vanno installate a parte: l'app lancia quelle che trova nel PATH.
 
@@ -75,9 +75,9 @@ Serve se vuoi modificare l'app o provare `main` prima di una release.
 | **Tutti** | [Node.js](https://nodejs.org) 22 o più recente | Almeno uno fra `claude`, `codex`, `opencode`, `agy` nel PATH |
 | **macOS** | Xcode Command Line Tools (`xcode-select --install`, per compilare `node-pty`) | `brew install tmux` |
 | **Linux** | `build-essential` e `python3` (per `node-pty`) | `sudo apt install tmux` (o l'equivalente della tua distro) |
-| **Windows** | niente altro: `node-pty` usa i suoi binari precompilati | — |
+| **Windows** | niente altro: `node-pty` usa i suoi binari precompilati | `npm run fetch:psmux` |
 
-Senza `tmux` l'app funziona lo stesso: le sessioni però muoiono con la finestra. Su Windows `tmux` non esiste, quindi lì è sempre così.
+Senza `tmux` l'app funziona lo stesso: le sessioni però muoiono con la finestra. Su Windows `tmux` non serve: l'app porta con sé [psmux](https://github.com/psmux/psmux), che fa la stessa cosa. Il pacchetto lo contiene già; da sorgente lo scarica `npm run fetch:psmux` (una volta, con lo SHA-256 verificato).
 
 #### Avvio
 
@@ -181,7 +181,7 @@ Niente telemetria e nessun account. L'app stessa fa una sola richiesta di rete, 
 
 Funziona con PowerShell come terminale e con le CLI installate via `npm i -g` (`claude.cmd`, `codex.cmd`) o con l'installer nativo di Claude. Differenze rispetto a macOS/Linux:
 
-- niente `tmux`: le sessioni muoiono con la finestra e non c'è ripristino dopo il riavvio;
+- al posto di `tmux` c'è psmux, nel pacchetto: chiudere l'app stacca le sessioni e riaprirla le riaggancia, e dopo un riavvio del PC si ripropongono (Claude con `--resume`, PowerShell con il testo di prima). Rispetto a macOS la barra di scorrimento va un po' a scatti, l'ultima riga del terminale resta vuota, e in PowerShell Ctrl+B compare come `^B`;
 - Antigravity CLI non è distribuita per Windows;
 - il file delle chiavi API non ha permessi `600` (su Windows contano le ACL della cartella utente).
 
@@ -193,7 +193,7 @@ Funziona con PowerShell come terminale e con le CLI installate via `npm i -g` (`
 
 **L'app dice «node-pty non installato».** Su macOS e Linux `npm install` ricompila `node-pty` per Electron e, se manca il compilatore, lo segnala senza fermarsi: installa Xcode CLT (macOS) o `build-essential` (Linux), poi `npm run postinstall`. Su Windows non si ricompila niente: riesegui `npm install`.
 
-**Le sessioni spariscono chiudendo l'app.** `tmux` non è installato o non è nel PATH; la legenda in basso lo dice. Dopo averlo installato riavvia l'app.
+**Le sessioni spariscono chiudendo l'app.** `tmux` non è installato o non è nel PATH; la legenda in basso lo dice. Dopo averlo installato riavvia l'app. Su Windows la legenda dice psmux: se è spento, l'exe del pacchetto non è partito, e di solito è l'antivirus ad averlo bloccato (`%LOCALAPPDATA%\PizzaManager\psmux`).
 
 **Una barra verde in fondo al terminale, e Ctrl+B non arriva all'applicazione.** È la barra di stato di tmux con la configurazione di default: il server è partito senza la config dell'app (versioni fino alla 1.0.0 impacchettate, o un `tmux -L aisession attach` fatto a mano a server spento). Aggiorna l'app: ora riapplica la sua configurazione a ogni sessione nuova. Nel frattempo, ad app chiusa, `tmux -L aisession kill-server`.
 

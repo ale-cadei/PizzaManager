@@ -102,7 +102,7 @@ ok('parseSessionList: legge il formato, ignora sessioni altrui e righe rotte, or
   assert.deepStrictEqual(out[0], {
     name: 'ais-claude-b', createdAt: 2000000, attached: true, type: 'claude', cwd: '/b con spazi', label: 'Titolo: due punti',
     profileId: 'claude:default', profileLabel: null, resumeId: 'uuid-1', accountId: null, accountName: null,
-    iconKey: null, iconMode: null, turnTree: null, turnAt: null,
+    iconKey: null, iconMode: null, turnTree: null, turnAt: null, psmuxVersion: null,
   });
   assert.deepStrictEqual(t.parseSessionList(''), []);
   assert.deepStrictEqual(t.parseSessionList(null), []);
@@ -179,6 +179,28 @@ ok('createTmuxControl.create: riapplica la config al server con source-file, pri
   assert.ok(calls[i].includes(conf), 'source-file deve ricevere la config dell app');
   assert.ok(calls[0].includes('new-session'), 'prima la sessione');
   assert.ok(calls.slice(i + 1).every((a) => a.includes('set-option')), 'i metadati vengono dopo');
+});
+
+/* Con psmux ogni sessione si ricorda la versione con cui e' nata (piano 52,
+   punto 5): dopo un aggiornamento ci si riattacca con il suo exe. */
+ok('createTmuxControl.create: i metadati di base finiscono su ogni sessione, quelli espliciti vincono', async () => {
+  const calls = [];
+  const ctl = t.createTmuxControl({ bin: '/bin/tmux', confPath: conf, baseMeta: { psmux: '3.3.8' }, run: (b, a, o, cb) => { calls.push(a); cb(null, '', ''); } });
+  await ctl.create({ name: 'ais-x', cmd: '/bin/sh', meta: { type: 'shell' } });
+  const opts = calls.filter((a) => a.includes('set-option')).map((a) => a.slice(-2));
+  assert.deepStrictEqual(opts, [['@ais_type', 'shell'], ['@ais_psmux', '3.3.8']]);
+  calls.length = 0;
+  await ctl.create({ name: 'ais-y', cmd: '/bin/sh', meta: { type: 'shell', psmux: '9.9.9' } });
+  assert.ok(calls.some((a) => a.slice(-2).join(' ') === '@ais_psmux 9.9.9'));
+});
+
+ok('parseSessionList: la versione di psmux della sessione, null se manca', () => {
+  const S = t.FIELD_SEP;
+  const riga = (name, meta) => [name, '1000', '0', ...t.META_KEYS.map((k) => meta[k] || '')].join(S);
+  const [con, senza] = t.parseSessionList([riga('ais-shell-a', { type: 'shell', psmux: '3.3.7' }), riga('ais-shell-b', { type: 'shell' })].join('\n'))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  assert.strictEqual(con.psmuxVersion, '3.3.7');
+  assert.strictEqual(senza.psmuxVersion, null);
 });
 
 // ---------- scorrimento: la history vera è quella di tmux ----------

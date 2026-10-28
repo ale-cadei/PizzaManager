@@ -1,7 +1,7 @@
 'use strict';
 const os = require('os');
 const { buildCommand, installHint } = require('../lib/commands');
-const { augmentedEnv } = require('../lib/binaries');
+const { augmentedEnv, pathOf } = require('../lib/binaries');
 const { describeWorkdir } = require('../lib/workdir');
 const tmuxLib = require('../lib/tmux');
 const { shouldCapture } = require('../lib/scrollback');
@@ -48,6 +48,9 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
   /** id scheda -> { p: pty, session: nome tmux | null } */
   const clients = new Map();
   const viaTmux = Boolean(tmux && tmux.bin && tmux.control && pty);
+  // Le copie di psmux che nessuna sessione viva usa piu', dopo un aggiornamento
+  // (docs/plans/52): fire-and-forget, una cartella bloccata si riprova al prossimo avvio.
+  if (viaTmux && tmux.pruneUnused) tmux.pruneUnused().catch(() => {});
 
   /**
    * Variabili d'ambiente e nome dell'account per una sessione Claude.
@@ -172,14 +175,21 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
      tmux traduce gli attributi secondo il terminfo del client, e con
      `xterm-color` (senza `dim`) i suggerimenti grigi di Claude Code
      arrivavano a xterm.js come testo normale. Stesso valore di
-     TERMINAL_ENV in lib/binaries.js. */
-  function openPty(cmd, args, { cols, rows, cwd, env }) {
+     TERMINAL_ENV in lib/binaries.js.
+
+     `passthrough` (client psmux): la ConPTY che node-pty porta con se'
+     (conpty.dll + OpenConsole.exe) passa l'output del client a xterm cosi'
+     com'e'. Quella di Windows lo ridisegna dal suo buffer, e gli errori del
+     client psmux ci restano dentro, dove nessun filtro li raggiunge
+     (createOutputFilter in renderer/term-unicode.js, docs/plans/52). */
+  function openPty(cmd, args, { cols, rows, cwd, env, passthrough = false }) {
     return pty.spawn(cmd, args, {
       name: TERM_NAME,
       cols: cols || DEFAULT_COLS,
       rows: rows || DEFAULT_ROWS,
       cwd,
       env,
+      useConptyDll: passthrough,
     });
   }
 
@@ -213,7 +223,8 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
       if (viaTmux) {
         // Al processo dentro tmux arrivano esplicitamente le variabili che
         // contano; il resto lo eredita dal server (vedi lib/tmux.js, spawnArgs).
-        const sessionEnv = { PATH: env.PATH, COLORTERM: env.COLORTERM, ...localeVars(env), ...identity.vars, ...(profileEnv || {}), ...injectedEnv };
+        // pathOf: su Windows la chiave e' `Path`, e `env.PATH` darebbe undefined.
+        const sessionEnv = { PATH: pathOf(env), COLORTERM: env.COLORTERM, ...localeVars(env), ...identity.vars, ...(profileEnv || {}), ...injectedEnv };
         // Ripristino dopo un riavvio: la sessione stampa il testo di prima e
         // poi DIVENTA la shell (exec). Il testo finisce cosi' nella history di
         // tmux, che e' quella con cui scorre la rotella.
@@ -239,7 +250,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
         });
         if (!created.ok) return { ok: false, error: 'tmux: ' + created.error };
         // Il pty e' sempre e solo un client: uguale per sessioni nuove e riattaccate.
-        p = openPty(tmux.bin, tmuxLib.attachArgs({ confPath: tmux.confPath, socket: tmux.socket, name: session }), { cols, rows, cwd: workdir, env });
+        p = openPty(tmux.bin, tmuxLib.attachArgs({ confPath: tmux.confPath, socket: tmux.socket, name: session }), { cols, rows, cwd: workdir, env, passthrough: Boolean(tmux.attachBin) });
       } else {
         // Su Windows un .cmd passa da cmd.exe con la riga gia' composta
         // (lib/win-command.js): node-pty la usa cosi' com'e' invece di
@@ -286,8 +297,11 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     // non c'e' piu' (hard refresh): si chiude, e la scheda nuova prende il suo posto.
     for (const [oldId, c] of clients) if (c.session === session) close(oldId);
     try {
-      const p = openPty(tmux.bin, tmuxLib.attachArgs({ confPath: tmux.confPath, socket: tmux.socket, name: session }), {
-        cols, rows, cwd: os.homedir(), env: augmentedEnv([tmux.bin], {}, process.env, localeOpts()),
+      // Con psmux, l'exe della versione con cui la sessione e' nata (lib/tmux.js, attachBin)
+      const bin = tmux.attachBin ? await tmux.attachBin(session).catch(() => tmux.bin) : tmux.bin;
+      const p = openPty(bin, tmuxLib.attachArgs({ confPath: tmux.confPath, socket: tmux.socket, name: session }), {
+        cols, rows, cwd: os.homedir(), env: augmentedEnv([bin], {}, process.env, localeOpts()),
+        passthrough: Boolean(tmux.attachBin),
       });
       track(id, p, session, type);
       syncSnapshot();

@@ -5,7 +5,7 @@ const { getDefaultShell, platformLabel } = require('./lib/shell');
 const { getLoginPathSync, primeLoginPath } = require('./lib/login-path');
 const path = require('path');
 const { resolveAllBinaries } = require('./lib/binaries');
-const { checkDeps } = require('./lib/setup-check');
+const { checkDeps, backendInfo } = require('./lib/setup-check');
 const { detectTmux } = require('./lib/tmux');
 const { createHistoryStore } = require('./lib/history');
 const { createAccountStore } = require('./lib/accounts');
@@ -59,9 +59,9 @@ const signalStore = lazy(() => createAgentSignalStore({ dir: app.getPath('userDa
 // Ricerca nei messaggi delle conversazioni: in un thread, il main resta libero
 const conversationSearch = lazy(() => createSearchWorker());
 
-// tmux, se c'e', fa vivere le sessioni fuori dall'app (docs/plans/06-tmux-backend.md).
-// Senza, si ricade sul comportamento classico: il processo muore con la finestra.
-const tmux = detectTmux({ confPath: path.join(__dirname, 'app', 'tmux.conf') });
+// tmux (su Windows il psmux del pacchetto, piani 06 e 52) tiene vive le sessioni ad app chiusa; senza, muoiono con la finestra.
+const tmux = detectTmux({ confPath: path.join(__dirname, 'app', 'tmux.conf'), psmuxConfPath: path.join(__dirname, 'app', 'psmux.conf'),
+  psmux: { packaged: app.isPackaged, resourcesPath: process.resourcesPath, appDir: __dirname } });
 
 const ptys = createPtyManager({
   accounts, history, profiles: { load: () => profiles().load() }, sendToRenderer, tmux, liveStore, scrollbackStore, signalStore,
@@ -125,7 +125,7 @@ ipcMain.handle('get-defaults', async () => {
     label: platformLabel(process.platform, getDefaultShell()),
     path: getLoginPathSync(),
     binaries: resolveAllBinaries(),
-    tmux: { available: ptys.viaTmux, path: tmux ? tmux.bin : null },
+    tmux: { available: ptys.viaTmux, ...backendInfo({ available: ptys.viaTmux, path: tmux && tmux.bin, version: tmux && tmux.psmuxVersion }) },
   };
 });
 

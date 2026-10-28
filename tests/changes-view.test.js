@@ -711,3 +711,75 @@ ok('apri nell editor: niente bottone se il pannello non lo chiede o nessuno lo a
   notOpenable.view.render(baseState({ files: [file('a.js')] }));
   assert.strictEqual(openButtons(notOpenable.host).length, 0, 'senza openable, come in modalità Unisci');
 });
+
+/* Linguetta trascinabile su e giù (docs/plans/68) */
+const { clampTabTop } = require('../renderer/changes-view');
+
+ok('linguetta: la posizione resta dentro l\'area dei terminali', () => {
+  assert.strictEqual(clampTabTop(200, 600, 100), 200);
+  assert.strictEqual(clampTabTop(-50, 600, 100), 4);
+  assert.strictEqual(clampTabTop(9999, 600, 100), 496);
+  // area più bassa della linguetta: resta in cima
+  assert.strictEqual(clampTabTop(300, 50, 100), 4);
+  assert.strictEqual(clampTabTop(Number.NaN, 600, 100), 4);
+});
+
+function dragSetup(extra = {}) {
+  const moves = [];
+  const s = setup({ onTabMove: (top) => moves.push(top), ...extra });
+  const tab = one(s.host, 'changes-tab');
+  s.host.rect = { top: 50, left: 0, width: 800, height: 600 };
+  tab.rect = { top: 64, left: 778, width: 22, height: 100 };
+  s.view.render(baseState({ open: false }));
+  return { ...s, tab, moves };
+}
+
+ok('linguetta: trascinata scende col cursore, si ricorda e non apre il pannello', () => {
+  const { host, tab, calls, moves } = dragSetup();
+  fire(tab, 'pointerdown', { button: 0, clientY: 100, pointerId: 1 });
+  fire(tab, 'pointermove', { clientY: 250, pointerId: 1 });
+  assert.strictEqual(tab.style.top, '164px');
+  assert.ok(host.classes.has('changes-tab-moved'), 'spostata: la barra di scorrimento torna lunga');
+  fire(tab, 'pointerup', { clientY: 250, pointerId: 1 });
+  assert.deepStrictEqual(moves, [164]);
+  tab.onclick();
+  assert.strictEqual(calls.toggle, 0, 'il rilascio del trascinamento non è un clic');
+  tab.onclick();
+  assert.strictEqual(calls.toggle, 1);
+});
+
+ok('linguetta: non esce in fondo all\'area', () => {
+  const { tab, moves } = dragSetup();
+  fire(tab, 'pointerdown', { button: 0, clientY: 100, pointerId: 1 });
+  fire(tab, 'pointermove', { clientY: 5000, pointerId: 1 });
+  fire(tab, 'pointerup', { clientY: 5000, pointerId: 1 });
+  assert.deepStrictEqual(moves, [496]);
+});
+
+ok('linguetta: un tremolio sotto i 4 px resta un clic', () => {
+  const { host, tab, calls, moves } = dragSetup();
+  fire(tab, 'pointerdown', { button: 0, clientY: 100, pointerId: 1 });
+  fire(tab, 'pointermove', { clientY: 102, pointerId: 1 });
+  fire(tab, 'pointerup', { clientY: 102, pointerId: 1 });
+  assert.deepStrictEqual(moves, []);
+  assert.ok(!host.classes.has('changes-tab-moved'));
+  tab.onclick();
+  assert.strictEqual(calls.toggle, 1);
+});
+
+ok('linguetta: il tasto destro non trascina', () => {
+  const { tab, moves } = dragSetup();
+  fire(tab, 'pointerdown', { button: 2, clientY: 100, pointerId: 1 });
+  fire(tab, 'pointermove', { clientY: 250, pointerId: 1 });
+  fire(tab, 'pointerup', { clientY: 250, pointerId: 1 });
+  assert.deepStrictEqual(moves, []);
+});
+
+ok('linguetta: la posizione salvata si applica, ristretta alla finestra di adesso', () => {
+  const { host, tab } = dragSetup({ tabTop: 9999 });
+  assert.strictEqual(tab.style.top, '496px');
+  assert.ok(host.classes.has('changes-tab-moved'));
+  const fresh = dragSetup({ tabTop: null });
+  assert.strictEqual(fresh.tab.style.top || '', '');
+  assert.ok(!fresh.host.classes.has('changes-tab-moved'));
+});

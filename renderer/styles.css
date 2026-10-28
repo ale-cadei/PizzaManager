@@ -739,8 +739,12 @@ img.agent-icon--node { border-radius: 2px; }
 .changes-tab:focus-visible { outline: 2px solid var(--action); outline-offset: -2px; }
 .changes-tab.is-clean { border-color: var(--border-strong); background: var(--surface); }
 .changes-tab[hidden] { display: none; }
-/* Con la linguetta la barra di scorrimento del terminale comincia sotto */
-#terminals.has-changes-tab .term-scroll { top: calc(var(--changes-tab-top) + var(--changes-tab-max) + 8px); }
+/* Si trascina su e giù (docs/plans/68): il dito non deve scorrere la pagina */
+.changes-tab { touch-action: none; }
+.changes-tab.is-dragging { cursor: grabbing; border-color: var(--action); }
+/* Con la linguetta al suo posto la barra di scorrimento del terminale
+   comincia sotto; spostata altrove, la barra torna lunga e le passa sotto */
+#terminals.has-changes-tab:not(.changes-tab-moved) .term-scroll { top: calc(var(--changes-tab-top) + var(--changes-tab-max) + 8px); }
 /* Nella scheda git la linguetta coprirebbe «Aggiorna» (docs/plans/68) */
 #terminals.has-changes-tab .git-head { padding-right: 32px; }
 /* Contatori: verde le aggiunte, rosso le rimozioni (linguetta e riepilogo) */

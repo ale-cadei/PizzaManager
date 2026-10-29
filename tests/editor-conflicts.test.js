@@ -111,3 +111,17 @@ ok('editor conflitti: openEditorConflict passa i sides del pannello alle barre',
   assert.strictEqual(await s.fn('openEditorConflict')(s.tab, 'a.txt', sides), true);
   assert.deepStrictEqual(plain(s.tab.editor.conflictSides), { 'a.txt': sides });
 });
+
+ok('editor conflitti: alla prima apertura dal pannello le barre hanno già i nomi del pannello', async () => {
+  // Smoke del piano 69: openEditorFile disegna le barre prima che arrivino i
+  // sides, e il ricalcolo con gli stessi blocchi non le ridisegnava.
+  const sides = { ours: 'sviluppo', theirs: 'commit abc123' };
+  const s = setup({ main: { editorRead: read(CONFLICT), editorHeadText: async () => ({ ok: true, text: CONFLICT }) } });
+  // I nodi della pagina di prova sono stub senza figli: si registrano le
+  // etichette mentre conflictBar le chiede, una barra ogni tre
+  s.run('globalThis.drawnLabels = []; const realChoiceLabel = choiceLabel;'
+    + 'choiceLabel = (...a) => { const l = realChoiceLabel(...a); drawnLabels.push(l); return l; };');
+  await s.fn('openEditorConflict')(s.tab, 'a.txt', sides);
+  assert.strictEqual(zonesOf(s, 'a.txt').length, 1);
+  assert.deepStrictEqual(plain(s.run('drawnLabels')).slice(-3), ['Tieni sviluppo', 'Tieni commit abc123', 'Tieni entrambi']);
+});

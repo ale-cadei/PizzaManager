@@ -60,7 +60,9 @@ function updateEditorConflicts(tab, rel) {
   const text = ed.host.getText(rel);
   const blocks = typeof text === 'string' && text.includes('<<<<<<<') ? ConflictMarkers.parseBlocks(text) : [];
   const seen = ed.conflicts || {};
-  const key = JSON.stringify(blocks);
+  // sides nella chiave: arrivano dal pannello dopo che openEditorFile ha già
+  // disegnato le barre, e coi blocchi uguali non si ridisegnerebbero
+  const key = JSON.stringify({ blocks, sides });
   const prev = Object.prototype.hasOwnProperty.call(seen, rel) ? seen[rel] : null;
   if (prev && prev.key === key) return;
   if (!prev && !blocks.length) return;

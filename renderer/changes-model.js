@@ -274,7 +274,7 @@
    */
   function branchMergeFooter({ name, into }, result, tabs) {
     const text = `Unisce ${name} in ${into}: fast-forward se ${into} non è andato avanti, altrimenti un commit di merge. `
-      + 'Ai conflitti si annulla tutto e la cartella resta com\'era.';
+      + 'Ai conflitti il merge resta a metà e il pannello passa ai Conflitti, dove si risolve o si annulla.';
     const base = { text, confirmLabel: `Unisci in ${into}` };
     if (!isRepo(result)) return { ...base, warning: null, canConfirm: false };
     const pending = result.uncommitted > 0 ? result.uncommitted : 0;

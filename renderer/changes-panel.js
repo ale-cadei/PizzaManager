@@ -397,6 +397,14 @@ async function refreshChanges() {
   // Un'operazione a metà (docs/plans/69): il pannello parla di quella
   const conflicts = await readConflictsOf(target);
   if (seq !== changesState.seq) return;
+  if (conflicts && conflicts.ok === false) {
+    // Lettura fallita (es. index.lock): si tiene lo stato dei conflitti che
+    // c'era, non si scambia per "niente conflitti" e non si cade nel
+    // percorso di staging, che allo stesso giro fallirebbe allo stesso modo
+    // (fix round finale, docs/plans/69)
+    if (changesState.conflicts) setChangesState({ conflictOutcome: { ok: false, text: conflicts.error } });
+    return;
+  }
   if (conflicts || changesState.conflicts) {
     const conflictsSignature = conflicts ? JSON.stringify(conflicts) : null;
     if (conflictsSignature !== changesState.conflictsSignature) {

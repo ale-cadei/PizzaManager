@@ -8,10 +8,21 @@ const ConflictMarkers = window.AisessConflictMarkers;
 const CONFLICT_ZONE_PX = 26;
 const EDITOR_CONFLICTS_DELAY = 300;
 const CONFLICT_CHOICES = [
-  { choice: 'ours', label: 'Tieni nostro', side: 'oursLabel' },
-  { choice: 'theirs', label: 'Tieni loro', side: 'theirsLabel' },
-  { choice: 'both', label: 'Tieni entrambi', side: null },
+  { choice: 'ours', side: 'oursLabel', fallback: 'nostro' },
+  { choice: 'theirs', side: 'theirsLabel', fallback: 'loro' },
+  { choice: 'both', side: null, fallback: 'entrambi' },
 ];
+
+/* Come chiamare un pulsante: prima il nome del ramo che dice il pannello
+   (sides, da ConflictsModel.sides — stesso nome per editor e pannello, fix
+   round finale, docs/plans/69), poi l'etichetta che viene dai marcatori del
+   blocco stesso (es. "HEAD" o "feat/x" se git li scrive), infine "nostro"/
+   "loro"/"entrambi" come fallback letterale. */
+function choiceLabel(c, sides, block) {
+  if (sides && sides[c.choice]) return `Tieni ${sides[c.choice]}`;
+  if (c.side && block && block[c.side]) return `Tieni ${block[c.side]}`;
+  return `Tieni ${c.fallback}`;
+}
 
 /* Identità di un blocco che non dipende dalla sua posizione: le righe di
    nostro e di loro più le etichette dei rami. Risolvere un blocco sposta in
@@ -22,15 +33,16 @@ function blockSignature(lines, b) {
   return JSON.stringify([b.oursLabel, b.theirsLabel, lines.slice(b.ours[0] - 1, b.ours[1]), lines.slice(b.theirs[0] - 1, b.theirs[1])]);
 }
 
-function conflictBar(tab, rel, sig, block) {
+function conflictBar(tab, rel, sig, block, sides) {
   const bar = document.createElement('div');
   bar.className = 'editor-conflict-bar';
   for (const c of CONFLICT_CHOICES) {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = `editor-conflict-choice is-${c.choice}`;
-    b.textContent = c.label;
-    b.title = c.side && block[c.side] ? `${c.label} (${block[c.side]})` : c.label;
+    const label = choiceLabel(c, sides, block);
+    b.textContent = label;
+    b.title = label;
     b.addEventListener('mousedown', (e) => e.preventDefault()); // il fuoco resta nel testo
     b.addEventListener('click', () => chooseEditorConflict(tab, rel, sig, c.choice));
     bar.appendChild(b);
@@ -38,10 +50,13 @@ function conflictBar(tab, rel, sig, block) {
   return bar;
 }
 
-/* Colori e zone del file: si rifanno solo se i blocchi sono cambiati */
+/* Colori e zone del file: si rifanno solo se i blocchi sono cambiati. `sides`
+   viene dal pannello (ConflictsModel.sides) e passa dentro openEditorConflict:
+   stessi nomi nei due posti, anche in un rebase dove nostro/loro si invertono. */
 function updateEditorConflicts(tab, rel) {
   const ed = tab.editor;
   if (!ed || !ed.host) return;
+  const sides = (ed.conflictSides && ed.conflictSides[rel]) || null;
   const text = ed.host.getText(rel);
   const blocks = typeof text === 'string' && text.includes('<<<<<<<') ? ConflictMarkers.parseBlocks(text) : [];
   const seen = ed.conflicts || {};
@@ -52,7 +67,7 @@ function updateEditorConflicts(tab, rel) {
   if (prev) prev.zones.forEach((id) => ed.host.removeZone(id));
   ed.host.setConflicts(rel, blocks);
   const lines = blocks.length ? text.split(/\r\n|\r|\n/) : [];
-  const zones = blocks.map((b) => ed.host.addZone(rel, b.start, conflictBar(tab, rel, blockSignature(lines, b), b), CONFLICT_ZONE_PX)).filter(Boolean);
+  const zones = blocks.map((b) => ed.host.addZone(rel, b.start, conflictBar(tab, rel, blockSignature(lines, b), b, sides), CONFLICT_ZONE_PX)).filter(Boolean);
   const rest = Object.fromEntries(Object.entries(seen).filter(([r]) => r !== rel));
   ed.conflicts = blocks.length ? { ...rest, [rel]: { key, zones } } : rest;
 }
@@ -97,11 +112,14 @@ function chooseEditorConflict(tab, rel, sig, choice) {
   flushEditorConflicts(tab, rel);
 }
 
-/** Apre il file e porta il cursore al primo blocco (dal pannello dei conflitti) */
-async function openEditorConflict(tab, rel) {
+/** Apre il file e porta il cursore al primo blocco (dal pannello dei conflitti).
+    `sides` (da ConflictsModel.sides) chiama i pulsanti come il pannello. */
+async function openEditorConflict(tab, rel, sides) {
   if (!(await openEditorFile(tab, rel))) return false;
   const host = tab.editor && tab.editor.host;
   if (!tabs.has(tab.id) || !host) return true;
+  const ed = tab.editor;
+  if (sides) ed.conflictSides = { ...(ed.conflictSides || {}), [rel]: sides };
   updateEditorConflicts(tab, rel);
   const [first] = ConflictMarkers.parseBlocks(host.getText(rel) || '');
   if (first) host.reveal(rel, first.start);

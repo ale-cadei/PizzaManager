@@ -19,8 +19,8 @@ const one = (xy, p) => `1 ${xy} N... 100644 100644 100644 hH hI ${p}`;
  * `cont(args)`: cosa fa il continue / commit; dopo, `after` dice cosa resta a metà.
  */
 function fakeRepo({
-  heads = ['MERGE_HEAD'], rebase = null, status = [], statusAfter = null, files = {}, mergeMsg = "Merge branch 'feat/x'\n",
-  current = 'main', cont = () => '', after = [],
+  heads = ['MERGE_HEAD'], rebase = null, status = [], statusAfter = null, files = {}, symlinks = [],
+  mergeMsg = "Merge branch 'feat/x'\n", current = 'main', cont = () => '', after = [],
 } = {}) {
   const calls = [];
   let live = heads;
@@ -65,6 +65,26 @@ function fakeRepo({
       const rel = p.replace(/^\/repo\//, '');
       if (!(rel in files)) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
       return { size: Buffer.byteLength(files[rel]) };
+    },
+    // Come lib/git-changes.js: lstat non segue il collegamento, open+read legge solo l'inizio
+    lstat: async (p) => {
+      const rel = p.replace(/^\/repo\//, '');
+      if (symlinks.includes(rel)) return { size: 0, isFile: () => false, isSymbolicLink: () => true };
+      if (!(rel in files)) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+      return { size: Buffer.byteLength(files[rel]), isFile: () => true };
+    },
+    open: async (p) => {
+      const rel = p.replace(/^\/repo\//, '');
+      if (!(rel in files)) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+      const buf = Buffer.from(files[rel]);
+      return {
+        read: async (dst, offset, length, position) => {
+          const slice = buf.subarray(position, position + length);
+          slice.copy(dst, offset);
+          return { bytesRead: slice.length };
+        },
+        close: async () => {},
+      };
     },
   };
   const sent = () => calls.map((c) => c.args.join(' '));
@@ -115,6 +135,53 @@ ok('conflitti: cherry-pick e revert dicono il commit', async () => {
     assert.strictEqual(c.what.subject, 'messaggio del commit');
     assert.strictEqual(c.what.into, 'main');
   }
+});
+
+/* describeFile da sola (fix round finale, docs/plans/69): binario deciso
+   sempre dalle prime righe lette con un handle, mai da fsp.stat+readFile
+   intero, e mai seguendo un collegamento. */
+ok('describeFile: file grande sopra MAX_READ_BYTES → blocchi non contati, ma il binario si vede lo stesso', async () => {
+  const head = '<<<<<<< HEAD\na\n=======\nb\n>>>>>>> feat/x\n';
+  const fsp = {
+    lstat: async () => ({ size: 5 * 1024 * 1024, isFile: () => true }),
+    open: async () => ({
+      read: async (dst) => { const s = Buffer.from(head); s.copy(dst); return { bytesRead: s.length }; },
+      close: async () => {},
+    }),
+    readFile: async () => { throw new Error('non deve leggere un file grande tutto intero'); },
+  };
+  const f = { path: 'big.txt', kind: 'both-modified' };
+  assert.deepStrictEqual(await C.describeFile(fsp, 'linux', '/repo', f), { ...f, binary: false, blocks: null });
+});
+
+ok('describeFile: file grande e binario (NUL nelle prime righe) → binary:true senza leggerlo tutto', async () => {
+  const fsp = {
+    lstat: async () => ({ size: 5 * 1024 * 1024, isFile: () => true }),
+    open: async () => ({
+      read: async (dst) => { const s = Buffer.from('PNG\0\0resto'); s.copy(dst); return { bytesRead: s.length }; },
+      close: async () => {},
+    }),
+    readFile: async () => { throw new Error('non deve leggere un file grande tutto intero'); },
+  };
+  const f = { path: 'big.png', kind: 'both-added' };
+  assert.deepStrictEqual(await C.describeFile(fsp, 'linux', '/repo', f), { ...f, binary: true, blocks: null });
+});
+
+ok('describeFile: un collegamento non si segue, niente stat né lettura sul bersaglio', async () => {
+  const fsp = {
+    lstat: async () => ({ size: 0, isFile: () => false, isSymbolicLink: () => true }),
+    open: async () => { throw new Error('non deve aprire un collegamento'); },
+    readFile: async () => { throw new Error('non deve leggere un collegamento'); },
+  };
+  const f = { path: 'link', kind: 'both-modified' };
+  assert.deepStrictEqual(await C.describeFile(fsp, 'linux', '/repo', f), { ...f, binary: true, blocks: null });
+});
+
+ok('risolvi "mark": un collegamento si rifiuta prima di leggerlo', async () => {
+  const r = fakeRepo({ status: [u('UU', 'link.js')], symlinks: ['link.js'] });
+  const res = await C.resolveFile(opts(r, { path: 'link.js', how: 'mark' }));
+  assert.strictEqual(res.ok, false);
+  assert.match(res.error, /non è un file normale/);
 });
 
 ok('risolvi: argv per ogni scelta, sempre -- e --literal-pathspecs', async () => {

@@ -109,5 +109,9 @@
       : { ok: true, text: 'Concluso.' };
   }
 
-  return { viewState, outcomeOf, OP_NAMES };
+  // `sides` a parte: serve anche all'editor (editor-conflicts.js), per
+  // chiamare i blocchi di conflitto come fa il pannello
+  return {
+    viewState, outcomeOf, OP_NAMES, sides,
+  };
 });

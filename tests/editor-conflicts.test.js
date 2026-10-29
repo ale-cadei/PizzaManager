@@ -73,3 +73,41 @@ ok('editor conflitti: openEditorConflict porta il cursore al primo blocco', asyn
   assert.strictEqual(await s.fn('openEditorConflict')(s.tab, 'a.txt'), true);
   assert.deepStrictEqual(s.host.reveals, [['a.txt', 2]]);
 });
+
+/* choiceLabel (fix round finale, docs/plans/69): come si chiama ogni
+   pulsante. Prima i nomi del pannello (sides, gli stessi di
+   ConflictsModel.sides: fuorviante in un rebase chiamarli sempre
+   "nostro/loro"), poi le etichette dei marcatori del blocco stesso, infine
+   "nostro"/"loro"/"entrambi" come ultima spiaggia. */
+ok('choiceLabel: prima i nomi del pannello (sides)', async () => {
+  const s = setup({});
+  const choices = s.fn('CONFLICT_CHOICES');
+  const ours = choices.find((c) => c.choice === 'ours');
+  const sides = { ours: 'main', theirs: 'commit abc123 di feat/x' };
+  const block = { oursLabel: 'HEAD', theirsLabel: 'feat/x' };
+  assert.strictEqual(s.fn('choiceLabel')(ours, sides, block), 'Tieni main');
+});
+
+ok('choiceLabel: senza sides, le etichette dei marcatori del blocco', async () => {
+  const s = setup({});
+  const choices = s.fn('CONFLICT_CHOICES');
+  const theirs = choices.find((c) => c.choice === 'theirs');
+  const block = { oursLabel: 'HEAD', theirsLabel: 'feat/x' };
+  assert.strictEqual(s.fn('choiceLabel')(theirs, null, block), 'Tieni feat/x');
+});
+
+ok('choiceLabel: senza niente, "nostro"/"loro"/"entrambi" come prima', async () => {
+  const s = setup({});
+  const choices = s.fn('CONFLICT_CHOICES');
+  const [ours, theirs, both] = choices;
+  assert.strictEqual(s.fn('choiceLabel')(ours, null, {}), 'Tieni nostro');
+  assert.strictEqual(s.fn('choiceLabel')(theirs, null, {}), 'Tieni loro');
+  assert.strictEqual(s.fn('choiceLabel')(both, null, {}), 'Tieni entrambi');
+});
+
+ok('editor conflitti: openEditorConflict passa i sides del pannello alle barre', async () => {
+  const s = setup({ main: { editorRead: read(CONFLICT), editorHeadText: async () => ({ ok: true, text: CONFLICT }) } });
+  const sides = { ours: 'main', theirs: 'feat/x' };
+  assert.strictEqual(await s.fn('openEditorConflict')(s.tab, 'a.txt', sides), true);
+  assert.deepStrictEqual(plain(s.tab.editor.conflictSides), { 'a.txt': sides });
+});

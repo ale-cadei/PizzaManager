@@ -5,15 +5,24 @@
  * quelle di staging (changes-panel.js, runCommitAction). */
 const ConflictsModel = window.AisessConflictsModel;
 
-/* I conflitti della cartella del pannello, o null se non c'è niente a metà */
+/* I conflitti della cartella del pannello: l'oggetto se c'è un'operazione a
+   metà, null se non c'è niente, { ok:false, error } se la lettura è fallita
+   (es. index.lock di un'altra scrittura in corso). Un errore non è "niente
+   conflitti": prima si restituiva null e il pannello cadeva in «da
+   committare», che a sua volta falliva allo stesso modo e tornava in un
+   giro di BUSY (fix round finale, docs/plans/69). */
 async function readConflictsOf(target) {
   if (!target || !changesState.open || changesState.merge) return null;
   try {
     const r = await window.aisess.gitConflicts(target.cwd);
-    return r && r.ok && r.op ? r : null;
+    if (r && r.ok) return r.op ? r : null;
+    const error = (r && r.error) || 'gitConflicts ha rifiutato.';
+    console.warn('[conflitti]', error);
+    return { ok: false, error };
   } catch (e) {
-    console.warn('[conflitti]', e);
-    return null;
+    const error = String((e && e.message) || e);
+    console.warn('[conflitti]', error);
+    return { ok: false, error };
   }
 }
 
@@ -46,6 +55,13 @@ async function runConflictAction(action) {
   const view = conflictsStateOf(activeTab());
   if (!c || !view || changesState.writing) return;
   if (action.how === 'continue' && !view.footer.canContinue) return;
+  if (action.how !== 'continue' && action.how !== 'abort') {
+    // Come continue e abort: fra il disegno e il clic una sessione può aver
+    // rimesso il blocco (fix round finale, docs/plans/69)
+    const file = view.files.find((f) => f.path === action.path);
+    const fileAction = file && file.actions.find((a) => a.how === action.how);
+    if (!fileAction || fileAction.disabled) return;
+  }
   if (action.how === 'abort') {
     if (!view.footer.canAbort) return;
     const key = changesState.target && changesState.target.key;
@@ -101,7 +117,10 @@ async function openConflictFile(path) {
   else tab = await createTab('editor', { cwd: target.cwd });
   if (!tab || !tabs.has(tab.id)) return;
   if (changesState.open) toggleChangesPanel(false);
-  await (typeof openEditorConflict === 'function' ? openEditorConflict(tab, target.rel) : openEditorAt(tab, target.rel));
+  // Stessi nomi del pannello (fix round finale, docs/plans/69): la barra
+  // dell'editor non deve dire "nostro/loro" al contrario di un rebase.
+  const sides = ConflictsModel.sides(c);
+  await (typeof openEditorConflict === 'function' ? openEditorConflict(tab, target.rel, sides) : openEditorAt(tab, target.rel));
 }
 
 /* «Risolvi» da Unisci: una scheda sulla cartella col merge a metà (quella

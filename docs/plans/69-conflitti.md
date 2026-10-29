@@ -91,10 +91,13 @@ Un file con marcatori di conflitto, aperto in una scheda editor:
 
 ### «Unisci» al conflitto
 
-Branch (54) e worktree (36): il merge resta a metà. Al posto dell'errore
-un avviso con i file in conflitto e due pulsanti: «Risolvi» (apre il
-pannello in modalità Conflitti) e «Annulla merge» (`merge --abort`, la
-cartella torna com'era: il comportamento di oggi). Su un errore che non è un
+Branch (54) e worktree (36): il merge resta a metà. Worktree: al posto
+dell'errore un avviso con i file in conflitto e due pulsanti: «Risolvi»
+(apre il pannello in modalità Conflitti) e «Annulla merge» (`merge --abort`,
+la cartella torna com'era: il comportamento di oggi). Branch, dalla scheda
+git: il selettore dei branch non ha una bolla da appoggiare, quindi mostra
+il messaggio e il pannello si apre da sé in modalità Conflitti, dove ci sono
+sia «Concludi» sia «Annulla merge». Su un errore che non è un
 conflitto (hook che fallisce, tempo scaduto) resta l'abort automatico.
 Per un worktree, dopo «Concludi merge» la rimozione del worktree non parte
 da sola: il worktree resta e si butta col suo pulsante.
@@ -188,7 +191,25 @@ da sola: il worktree resta e si butta col suo pulsante.
     loro → concludi; rebase su due commit in conflitto; cherry-pick; abort
     → cartella intatta.
 - Smoke nell'app: repo di prova con `main` e `feat/x` in conflitto su un
-  file di testo e uno binario; «Unisci» → avviso → «Risolvi» → pannello;
+  file di testo e uno binario; «Unisci» → pannello in Conflitti;
   editor: «Tieni entrambi» su un blocco, a mano l'altro, Ctrl+Z; «Segna
   risolto», «Concludi merge», `git log`. Poi un rebase da terminale in
   conflitto: il pannello lo vede, «Continua rebase» fino in fondo.
+
+## Punti aperti (dalla review finale e dallo smoke)
+
+- Un file con marcatori letterali legittimi (documentazione, fixture) non si
+  può segnare risolto dall'app: si fa `git add` dal terminale.
+- Una risoluzione che lascia il commit vuoto vuole `--skip` (fuori, vedi
+  sopra): da terminale.
+- Un file risolto identico a HEAD sparisce da entrambi gli elenchi (git non
+  lo riporta in `status`): è risolto davvero, ma non compare fra i «Risolti».
+- `parseBlocks` su marcatori malformati (blocco aperto e mai chiuso,
+  `=======` doppio): nessun test dedicato, né a livello di editor né con CRLF.
+- La lettura dei conflitti legge fino a 500 file × 2 MB a ogni giro, senza
+  segnalare il taglio.
+- Il ramo «Concluso.» del pannello non si vede mai (il pannello torna allo
+  staging prima); il ramo «rebase avanzato senza conflitti» di `continueOp`
+  non ha un test; `rebaseStep` ripete la scelta della cartella del rebase.
+- Revert: il lato «loro» potrebbe chiamarsi «revert di ‹sha›».
+- «Segna risolto» su un file sparito dice «non è un file normale».

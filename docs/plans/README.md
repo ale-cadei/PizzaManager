@@ -76,7 +76,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 66 | [`fix/git-worktrees-in-graph`](66-grafo-worktree.md) — worktree nella timeline git: Unisci con `--no-ff` firmato, linea tratteggiata ed etichetta ⌂ | 25, 36 | ~½g | ✅ fatto |
 | 67 | [`chore/versionamento-qui`](67-versionamento-qui.md) — release, issue e feed tornano nel repo del codice: via il secondo repo e il suo PAT | 44, 18, 50 | ~½g | ✅ mergiato |
 | 68 | [`fix/linguetta-git-in-git-session`](68-linguetta-modifiche-git.md) — linguetta «Modifiche» anche nella scheda git, trascinabile su e giù | 32, 25 | ~½g | ✅ fatto, smoke ok (xvfb + CDP: linguetta nella scheda git, trascinata, clic dopo il rilascio ignorato) |
-| 69 | [`feat/conflicts`](69-conflitti.md) — conflitti git dall'app: pannello «Conflitti» per merge/rebase/cherry-pick/revert a metà, blocchi nell'editor, «Unisci» chiede invece di annullare | 53, 54, 36, 64 | ~3-4g | proposto, da fare |
+| 69 | [`feat/conflicts`](69-conflitti.md) — conflitti git dall'app: pannello «Conflitti» per merge/rebase/cherry-pick/revert a metà, blocchi nell'editor, «Unisci» chiede invece di annullare | 53, 54, 36, 64 | ~3-4g | ✅ fatto, smoke ok (xvfb + CDP: merge dalla scheda git, binari, blocchi nell'editor con Ctrl+Z, rebase da terminale, «Annulla merge» di un worktree) |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

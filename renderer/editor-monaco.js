@@ -105,7 +105,7 @@
     function make(rel, text, extra = {}) {
       const model = monaco.editor.createModel(text, undefined, uriOf(rel));
       track({
-        rel, model, savedVersion: model.getAlternativeVersionId(), viewState: null, forcedDirty: false, sub: null, gutter: [],
+        rel, model, savedVersion: model.getAlternativeVersionId(), viewState: null, forcedDirty: false, sub: null, gutter: [], conflicts: [],
         marks: new Map(), zones: new Map(), ...extra,
       });
     }
@@ -208,6 +208,41 @@
       if (!d) return;
       const lineCount = d.model.getLineCount();
       d.gutter = d.model.deltaDecorations(d.gutter, (ranges || []).map((r) => gutterDecoration(r, lineCount)));
+    }
+
+    /* Righe dei conflitti (docs/plans/69): marcatori, nostro, base e loro */
+    function conflictDecorations(b) {
+      const lines = (from, to, className) => ({
+        range: { startLineNumber: from, startColumn: 1, endLineNumber: to, endColumn: 1 },
+        options: { isWholeLine: true, className },
+      });
+      const out = [b.start, b.sep, b.end].map((n) => lines(n, n, 'editor-conflict-marker'));
+      if (b.ours[0] <= b.ours[1]) out.push(lines(b.ours[0], b.ours[1], 'editor-conflict-ours'));
+      if (b.base !== null && b.base !== undefined) out.push(lines(b.base, b.sep - 1, 'editor-conflict-base'));
+      if (b.theirs[0] <= b.theirs[1]) out.push(lines(b.theirs[0], b.theirs[1], 'editor-conflict-theirs'));
+      return out;
+    }
+
+    function setConflicts(rel, blocks) {
+      const d = docs.get(rel);
+      if (!d) return;
+      d.conflicts = d.model.deltaDecorations(d.conflicts, (blocks || []).flatMap(conflictDecorations));
+    }
+
+    /* Testo nuovo come modifica dell'utente (una scelta su un conflitto): il
+       file resta sporco e Ctrl+Z la annulla in un colpo, al contrario di
+       replaceText che è il disco che cambia */
+    function editText(rel, text) {
+      const d = docs.get(rel);
+      if (!d) return;
+      const view = current === rel ? editor.saveViewState() : null;
+      const spans = spansOf(d);
+      d.model.pushStackElement();
+      d.model.pushEditOperations([], [{ range: d.model.getFullModelRange(), text }], () => null);
+      d.model.pushStackElement();
+      putMarks(d, spans);
+      followZones(d);
+      if (view) editor.restoreViewState(view);
     }
 
     /** Porta il cursore all'inizio della riga e la mette al centro (piano 64). */
@@ -463,7 +498,7 @@
     wireComments();
 
     return {
-      open, activate, markSaved, replaceText, rename, close, dispose, setGutter, reveal,
+      open, activate, markSaved, replaceText, rename, close, dispose, setGutter, setConflicts, editText, reveal,
       trackLines, linesOf, untrack, lineText, addZone, removeZone, resizeZone,
       current: () => current,
       getText: (rel) => (docs.has(rel) ? docs.get(rel).model.getValue() : null),

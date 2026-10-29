@@ -53,7 +53,9 @@ ok('barrette: scrivendo si ricalcola 300 ms dopo l ultima modifica, una volta', 
   change(s.tab, 'a.txt', true);
   s.host.texts['a.txt'] = 'UNO\ndue';
   change(s.tab, 'a.txt', true);
-  assert.deepStrictEqual(s.timers.map((t) => [t.ms, t.cleared]), [[300, true], [300, false]]);
+  // Due scadenze per modifica: le barrette e, dallo stesso onEditorTextChange, i
+  // conflitti (editor-conflicts.js). Solo l'ultima coppia resta non cancellata.
+  assert.deepStrictEqual(s.timers.map((t) => [t.ms, t.cleared]), [[300, true], [300, true], [300, false], [300, false]]);
   assert.deepStrictEqual(s.host.gutters, [], 'niente prima del timer');
   s.flush();
   assert.deepStrictEqual(plain(s.host.gutters), [['a.txt', [{ kind: 'mod', from: 1, to: 1 }, { kind: 'add', from: 2, to: 2 }]]]);

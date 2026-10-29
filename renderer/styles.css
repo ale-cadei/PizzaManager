@@ -1262,6 +1262,14 @@ body.editor-tree-hidden .editor-resizer { display: none; }
 .monaco-editor .editor-gutter-del-end::after {
   bottom: 0; border-top: none; border-bottom: 5px solid var(--state-error);
 }
+/* Conflitti nell'editor (docs/plans/69): righe di nostro/base/loro, e la
+   zona di scelta sotto ogni blocco */
+.monaco-editor .editor-conflict-marker { background: color-mix(in srgb, var(--text-dim) 18%, transparent); }
+.monaco-editor .editor-conflict-ours { background: color-mix(in srgb, var(--state-changed) 16%, transparent); }
+.monaco-editor .editor-conflict-base { background: color-mix(in srgb, var(--text-dim) 10%, transparent); }
+.monaco-editor .editor-conflict-theirs { background: color-mix(in srgb, var(--state-ok) 16%, transparent); }
+.editor-conflict-bar { display: flex; gap: 6px; padding: 2px 8px; font-size: 12px; }
+.editor-conflict-choice { padding: 1px 8px; }
 /* Commenti sul codice (docs/plans/65): i riquadri del pannello modifiche
    dentro le zone di Monaco, che le posizionano da sé (niente sticky); il
    fondo sulle righe commentate; il «+» nel margine dei glifi */

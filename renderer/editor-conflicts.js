@@ -13,7 +13,16 @@ const CONFLICT_CHOICES = [
   { choice: 'both', label: 'Tieni entrambi', side: null },
 ];
 
-function conflictBar(tab, rel, index, block) {
+/* Identità di un blocco che non dipende dalla sua posizione: le righe di
+   nostro e di loro più le etichette dei rami. Risolvere un blocco sposta in
+   su tutti quelli dopo; un bottone nato prima di quella modifica deve
+   comunque ritrovare il blocco giusto, non uno a caso che ha preso il suo
+   indice (fix round 1, docs/plans/69). */
+function blockSignature(lines, b) {
+  return JSON.stringify([b.oursLabel, b.theirsLabel, lines.slice(b.ours[0] - 1, b.ours[1]), lines.slice(b.theirs[0] - 1, b.theirs[1])]);
+}
+
+function conflictBar(tab, rel, sig, block) {
   const bar = document.createElement('div');
   bar.className = 'editor-conflict-bar';
   for (const c of CONFLICT_CHOICES) {
@@ -23,7 +32,7 @@ function conflictBar(tab, rel, index, block) {
     b.textContent = c.label;
     b.title = c.side && block[c.side] ? `${c.label} (${block[c.side]})` : c.label;
     b.addEventListener('mousedown', (e) => e.preventDefault()); // il fuoco resta nel testo
-    b.addEventListener('click', () => chooseEditorConflict(tab, rel, index, c.choice));
+    b.addEventListener('click', () => chooseEditorConflict(tab, rel, sig, c.choice));
     bar.appendChild(b);
   }
   return bar;
@@ -42,7 +51,8 @@ function updateEditorConflicts(tab, rel) {
   if (!prev && !blocks.length) return;
   if (prev) prev.zones.forEach((id) => ed.host.removeZone(id));
   ed.host.setConflicts(rel, blocks);
-  const zones = blocks.map((b, i) => ed.host.addZone(rel, b.start, conflictBar(tab, rel, i, b), CONFLICT_ZONE_PX)).filter(Boolean);
+  const lines = blocks.length ? text.split(/\r\n|\r|\n/) : [];
+  const zones = blocks.map((b) => ed.host.addZone(rel, b.start, conflictBar(tab, rel, blockSignature(lines, b), b), CONFLICT_ZONE_PX)).filter(Boolean);
   const rest = Object.fromEntries(Object.entries(seen).filter(([r]) => r !== rel));
   ed.conflicts = blocks.length ? { ...rest, [rel]: { key, zones } } : rest;
 }
@@ -68,16 +78,23 @@ function flushEditorConflicts(tab, rel) {
   updateEditorConflicts(tab, rel);
 }
 
-/* Il blocco si rilegge adesso dal testo, per posizione: quello della zona
-   può essere di prima dell'ultima battuta */
-function chooseEditorConflict(tab, rel, index, choice) {
+/* Il blocco si ritrova dalla sua firma, non dall'indice: la barra può essere
+   nata prima di un'altra scelta che ha spostato in su le righe (e quindi gli
+   indici) di tutti i blocchi dopo di lui. Il ricalcolo è sincrono: senza
+   flushEditorConflicts qui, zone e colori restavano quelli di prima della
+   scelta fino al debounce di 300 ms, e una barra vecchia restava cliccabile
+   (fix round 1, docs/plans/69). */
+function chooseEditorConflict(tab, rel, sig, choice) {
   const host = tab.editor && tab.editor.host;
   const text = host ? host.getText(rel) : null;
   if (typeof text !== 'string') return;
-  const block = ConflictMarkers.parseBlocks(text)[index];
+  const blocks = ConflictMarkers.parseBlocks(text);
+  const lines = text.split(/\r\n|\r|\n/);
+  const block = blocks.find((b) => blockSignature(lines, b) === sig);
   const next = block ? ConflictMarkers.applyChoice(text, block, choice) : null;
   if (next === null) { updateEditorConflicts(tab, rel); return; }
   host.editText(rel, next);
+  flushEditorConflicts(tab, rel);
 }
 
 /** Apre il file e porta il cursore al primo blocco (dal pannello dei conflitti) */

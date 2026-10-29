@@ -401,6 +401,10 @@ function dropEditorFile(tab, rel) {
   ed.files = EditorFiles.close(ed.files, rel);
   if (ed.gutterTimer && ed.gutterTimer.rel === rel) { clearTimeout(ed.gutterTimer.id); ed.gutterTimer = null; }
   ed.gutterSeq.delete(rel); // una lettura di HEAD ancora in volo trova il file chiuso e si scarta
+  if (ed.conflictTimers && Object.prototype.hasOwnProperty.call(ed.conflictTimers, rel)) {
+    clearTimeout(ed.conflictTimers[rel]);
+    ed.conflictTimers = Object.fromEntries(Object.entries(ed.conflictTimers).filter(([r]) => r !== rel));
+  }
   dropEditorNotes(tab, rel);
   if (ed.conflicts) ed.conflicts = Object.fromEntries(Object.entries(ed.conflicts).filter(([r]) => r !== rel));
   if (ed.host) {

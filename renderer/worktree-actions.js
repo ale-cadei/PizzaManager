@@ -147,8 +147,10 @@
         await refresh(root);
         return;
       }
-      // Il messaggio prima del rinfresco: la riga a cui si appende c'è ancora
-      const title = res.conflict ? 'Conflitti: merge annullato' : res.merged ? 'Unito, ma la cartella è rimasta' : 'Non fatto';
+      // Il messaggio prima del rinfresco: la riga a cui si appende c'è ancora.
+      // Qui res.conflict senza res.pending vuol dire che anche l'annullo del
+      // merge è fallito (lib/worktree.js, abortFailedMerge): non è "annullato".
+      const title = res.conflict ? 'Merge non annullato' : res.merged ? 'Unito, ma la cartella è rimasta' : 'Non fatto';
       bubble.tell({ ...ctx, title, text: res.error || 'Errore sconosciuto.' }).catch(() => {});
       await refresh(root);
     }

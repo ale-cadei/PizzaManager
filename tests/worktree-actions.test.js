@@ -97,6 +97,9 @@ ok('azioni: un conflitto lascia le sessioni vive e lo dice dalla riga del worktr
   assert.ok(!log.some((l) => l.startsWith('close')), 'chiuse le sessioni dopo un conflitto');
   assert.strictEqual(told.length, 1);
   assert.strictEqual(told[0].key, 'worktree:/p.worktrees/feat-x');
+  // conflict senza pending: anche l'annullo è fallito, non va detto "annullato"
+  // (fix round finale, docs/plans/69)
+  assert.strictEqual(told[0].title, 'Merge non annullato');
   assert.match(told[0].text, /Conflitti/);
   assert.ok(log.indexOf('tell') < log.indexOf('refresh /p') || !log.includes('refresh /p'), 'il messaggio dopo che la riga è sparita');
 });

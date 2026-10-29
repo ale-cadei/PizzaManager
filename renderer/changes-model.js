@@ -328,6 +328,6 @@
   return {
     targetFor, tabLabel, headerTitle, summary, summaryParts, notice, modeChoice, emptyText, fileCounts, signature,
     diffsToReload, splitPath, displayPath, itemId, splitItemId, sections, reviewAvailable, commitChoice,
-    incomingTarget, branchMergeFooter, discardFooter, openableInEditor,
+    incomingTarget, branchMergeFooter, discardFooter, openableInEditor, writeBlock, insideRoot,
   };
 });

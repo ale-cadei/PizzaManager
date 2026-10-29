@@ -107,7 +107,7 @@
           { value: 'abort', label: 'Annulla merge', hint: 'La cartella principale torna com\'era', danger: true },
         ],
       });
-      if (pick === 'resolve' && resolve) { await resolve(res.root || root); return; }
+      if (pick === 'resolve' && resolve) { await call(() => resolve(res.root || root)); return; }
       if (pick !== 'abort') return;
       const undone = await call(() => api.abortMerge(res.root || root));
       if (!undone.ok) bubble.tell({ ...ctx, title: 'Non annullato', text: undone.error || 'Errore sconosciuto.' }).catch(() => {});

@@ -959,6 +959,18 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .changes-discard-text { margin: 0; font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; }
 .changes-discard-foot .btn[disabled] { opacity: .45; cursor: not-allowed; }
 
+/* Modalità Conflitti (docs/plans/69) */
+.conflicts-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; opacity: 0.7; }
+.conflicts-file { display: flex; align-items: center; gap: 8px; padding: 4px 12px; }
+.conflicts-path { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conflicts-kind { flex: none; font-size: 11px; opacity: 0.7; }
+.conflicts-file.is-resolved .conflicts-path { opacity: 0.7; }
+.conflicts-action { flex: none; }
+.conflicts-foot { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border); }
+.conflicts-outcome { flex: 1 1 auto; font-size: 12px; }
+.conflicts-outcome.is-error { color: var(--state-error); }
+.conflicts-abort { color: var(--state-error); }
+
 /* ---------- Animaletti (renderer/pets-view.js, piano 33) ----------
    Striscia sotto il terminale: ne ruba l'altezza invece di coprirne l'ultima
    riga. Non prende click e sta sopra i terminali, perché chi vola o salta

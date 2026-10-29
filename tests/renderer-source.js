@@ -31,6 +31,7 @@ const RENDERER_APP_FILES = [
   'extensions-panel.js',
   'feedback-panel.js',
   'changes-panel.js',
+  'changes-conflicts.js',
   'renderer.js',
 ];
 

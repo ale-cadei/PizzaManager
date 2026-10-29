@@ -21,6 +21,7 @@ const worktreeActions = window.AisessWorktreeActions.createWorktreeActions({
   api: {
     merge: (root, path) => window.aisess.worktreeMerge(root, path),
     remove: (root, path, branch, force) => window.aisess.worktreeRemove(root, path, branch, force),
+    abortMerge: (root) => window.aisess.gitOpAbort(root, 'merge'),
   },
   bubble: closeConfirm,
   sessionsIn: sessionsInWorktree,

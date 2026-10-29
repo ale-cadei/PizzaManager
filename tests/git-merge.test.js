@@ -106,7 +106,7 @@ ok('merge: rifiutato prima di cominciare, ognuno col suo motivo', async () => {
   assert.match(r.error, /rebase/);
 });
 
-ok('merge: ai conflitti si annulla subito e si elencano i file', async () => {
+ok('merge: conflitti → il merge resta a metà, coi file, niente abort', async () => {
   let aborted = false;
   const g = fakeGit({
     merge: () => { throw fail(1, '', { stdout: 'CONFLICT (content): Merge conflict in a.js\n', leavesMerge: true }); },
@@ -114,17 +114,31 @@ ok('merge: ai conflitti si annulla subito e si elencano i file', async () => {
     abort: () => { aborted = true; },
   });
   const r = await M.mergeBranch(opts(g));
-  assert.strictEqual(aborted, true);
+  assert.strictEqual(aborted, false);
   assert.strictEqual(r.ok, false);
   assert.strictEqual(r.conflict, true);
+  assert.strictEqual(r.pending, true);
+  assert.strictEqual(r.root, ROOT);
   assert.deepStrictEqual(r.files, ['a.js', 'lib/b.js']);
-  assert.match(r.error, /annullato/);
-  assert.match(r.error, /a\.js/);
+  assert.match(r.error, /a metà/);
+});
+
+ok('merge: fermo senza file in conflitto (hook) → annullato come prima', async () => {
+  let aborted = false;
+  const g = fakeGit({
+    merge: () => { throw fail(1, 'hook pre-merge-commit fallito', { leavesMerge: true }); },
+    conflicts: '',
+    abort: () => { aborted = true; },
+  });
+  const r = await M.mergeBranch(opts(g));
+  assert.strictEqual(aborted, true);
+  assert.ok(!r.pending);
 });
 
 ok('merge: se l\'annullamento non riesce lo dice, la cartella è a metà merge', async () => {
   const g = fakeGit({
     merge: () => { throw fail(1, 'conflitto', { leavesMerge: true }); },
+    conflicts: '',
     abort: () => { throw fail(128, 'fatal: boh'); },
   });
   const r = await M.mergeBranch(opts(g));

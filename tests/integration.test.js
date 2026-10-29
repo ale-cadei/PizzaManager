@@ -598,7 +598,7 @@ ok('git: worktree creato, unito, in conflitto e buttato, con il git installato',
     assert.strictEqual(git(root, 'branch', '--list', 'feat/uno'), '', 'il branch unito è rimasto');
     assert.ok(fs.existsSync(path.join(root, 'node_modules', 'pkg', 'i.js')), 'node_modules del progetto cancellato');
 
-    // Conflitto: il merge si annulla e la cartella principale torna pulita
+    // Conflitto: il merge resta a metà nella cartella principale (docs/plans/69)
     const due = await wt.createWorktree({ root, branch: 'feat/due', base: 'main' });
     assert.strictEqual(due.ok, true, due.error);
     commitFile(due.path, 'a.txt', 'dal worktree\n');
@@ -606,7 +606,10 @@ ok('git: worktree creato, unito, in conflitto e buttato, con il git installato',
     const clash = await wt.mergeWorktree({ root, path: due.path });
     assert.strictEqual(clash.ok, false);
     assert.strictEqual(clash.conflict, true, clash.error);
-    assert.strictEqual(git(root, 'status', '--porcelain', '--untracked-files=no'), '', 'cartella principale a metà merge');
+    assert.strictEqual(clash.pending, true);
+    assert.doesNotThrow(() => git(root, 'rev-parse', '-q', '--verify', 'MERGE_HEAD'), 'cartella principale a metà merge');
+    git(root, 'merge', '--abort');
+    assert.strictEqual(git(root, 'status', '--porcelain', '--untracked-files=no'), '', 'cartella principale com\'era dopo l\'abort');
     assert.ok(fs.existsSync(due.path), 'worktree tolto dopo un conflitto');
 
     // Butta con un file non committato: prima chiede, poi con force butta tutto
@@ -1226,7 +1229,7 @@ ok('git: unire un branch nel corrente, fast-forward, merge e conflitti, con il g
     assert.strictEqual(git('log', '-1', '--format=%s'), "Merge branch 'feat/div'");
     assert.strictEqual(git('rev-parse', '--short', 'HEAD'), div.commit);
 
-    // Conflitto: annullato, la cartella com'era, il file elencato
+    // Conflitto: il merge resta a metà, il file elencato (docs/plans/69)
     git('switch', '-q', '-c', 'feat/conf');
     commit('a.txt', 'dal branch\n', 'a branch');
     git('switch', '-q', 'main');
@@ -1234,8 +1237,10 @@ ok('git: unire un branch nel corrente, fast-forward, merge e conflitti, con il g
     const before = git('rev-parse', 'HEAD');
     const conf = await mergeBranch({ cwd: root, name: 'feat/conf', kind: 'local' });
     assert.strictEqual(conf.conflict, true, conf.error);
+    assert.strictEqual(conf.pending, true);
     assert.deepStrictEqual(conf.files, ['a.txt']);
-    assert.strictEqual(git('rev-parse', 'HEAD'), before);
+    git('merge', '--abort');
+    assert.strictEqual(git('rev-parse', 'HEAD'), before, 'la cartella com\'era dopo l\'abort');
     assert.strictEqual(git('status', '--porcelain'), '');
     assert.strictEqual(fs.readFileSync(path.join(root, 'a.txt'), 'utf8'), 'da main\n');
 

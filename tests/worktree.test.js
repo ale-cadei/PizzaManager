@@ -343,14 +343,24 @@ ok('worktree: Unisci senza base salvata non indovina', async () => {
   assert.ok(!argsOf(calls).some((a) => a.startsWith('merge')));
 });
 
-ok('worktree: Unisci con conflitti annulla il merge e lascia worktree e branch', async () => {
-  const { run, calls } = mergeRepo({ mergeFails: 'CONFLICT (content): Merge conflict in a.js', merging: true });
+ok('worktree: Unisci con conflitti lascia il merge a metà, worktree e branch', async () => {
+  const { run, calls } = mergeRepo({ mergeFails: 'CONFLICT (content): Merge conflict in a.js', merging: true, over: { '--diff-filter=U': 'a.js\0' } });
   const r = await mergeWorktree({ platform: 'linux', root: '/src/progetto', path: WT, run, rmdir: () => {} });
   assert.strictEqual(r.ok, false);
   assert.strictEqual(r.conflict, true);
+  assert.strictEqual(r.pending, true);
+  assert.deepStrictEqual(r.files, ['a.js']);
+  assert.strictEqual(r.root, '/src/progetto');
   const sent = argsOf(calls);
-  assert.ok(sent.includes('merge --abort'), 'la cartella principale è rimasta a metà merge');
+  assert.ok(!sent.includes('merge --abort'), 'annullato il merge');
   assert.ok(!sent.some((a) => a.startsWith('worktree remove') || a.startsWith('branch')), 'tolto il worktree dopo un conflitto');
+});
+
+ok('worktree: Unisci fermo senza file in conflitto annulla come prima', async () => {
+  const { run, calls } = mergeRepo({ mergeFails: 'hook fallito', merging: true });
+  const r = await mergeWorktree({ platform: 'linux', root: '/src/progetto', path: WT, run, rmdir: () => {} });
+  assert.ok(!r.pending);
+  assert.ok(argsOf(calls).includes('merge --abort'));
 });
 
 ok('worktree: un merge rifiutato prima di cominciare non lancia un abort inutile', async () => {

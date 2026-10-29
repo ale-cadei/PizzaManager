@@ -19,12 +19,13 @@ const one = (xy, p) => `1 ${xy} N... 100644 100644 100644 hH hI ${p}`;
  * `cont(args)`: cosa fa il continue / commit; dopo, `after` dice cosa resta a metà.
  */
 function fakeRepo({
-  heads = ['MERGE_HEAD'], rebase = null, status = [], files = {}, mergeMsg = "Merge branch 'feat/x'\n",
+  heads = ['MERGE_HEAD'], rebase = null, status = [], statusAfter = null, files = {}, mergeMsg = "Merge branch 'feat/x'\n",
   current = 'main', cont = () => '', after = [],
 } = {}) {
   const calls = [];
   let live = heads;
   let rebasing = rebase;
+  let continued = false;
   const run = async (args, opts) => {
     calls.push({ args, opts });
     const a = args.filter((x) => !['--literal-pathspecs'].includes(x));
@@ -39,10 +40,11 @@ function fakeRepo({
     if (a[0] === 'symbolic-ref') return `${current}\n`;
     if (a[0] === 'log') return 'messaggio del commit\n';
     if (a[0] === 'for-each-ref') return 'main\n';
-    if (a.includes('status')) return status.map((s) => `${s}\0`).join(''); // dopo i -c di GIT_GLOBAL
+    if (a.includes('status')) return (continued && statusAfter ? statusAfter : status).map((s) => `${s}\0`).join(''); // dopo i -c di GIT_GLOBAL
     if (a[0] === 'diff' && a.includes('--diff-filter=U')) return status.filter((s) => s.startsWith('u ')).map((s) => `${s.split(' ').slice(10).join(' ')}\0`).join('');
     if (['add', 'rm', 'checkout'].includes(a[0])) return '';
     if (a[0] === 'commit' || a.includes('--continue')) {
+      continued = true;
       const out = cont(args, opts);
       live = after; rebasing = after.includes('rebase') ? rebasing : null;
       return out;
@@ -160,10 +162,38 @@ ok('continua: merge → commit --no-edit col tempo massimo e GIT_EDITOR=true', a
 
 ok('continua: un rebase che si ferma di nuovo → stopped', async () => {
   const rebase = { 'head-name': 'refs/heads/feat/x', onto: 'aaa111', msgnum: '1', end: '2' };
-  const r = fakeRepo({ heads: [], rebase, status: [], cont: () => { throw fail(1, 'CONFLICT (content)'); }, after: ['rebase'] });
+  const r = fakeRepo({
+    heads: [], rebase, status: [], statusAfter: [u('UU', 'b.js')],
+    cont: () => { throw fail(1, 'CONFLICT (content)'); }, after: ['rebase'],
+  });
   const res = await C.continueOp(opts(r, { op: 'rebase' }));
   assert.deepStrictEqual(res, { ok: true, stopped: true });
   assert.ok(r.sent().includes('rebase --continue'));
+});
+
+ok('continua: rebase che fallisce senza conflitti e senza avanzare → ok:false, messaggio di git', async () => {
+  const rebase = { 'head-name': 'refs/heads/feat/x', onto: 'aaa111', msgnum: '1', end: '2' };
+  const r = fakeRepo({
+    heads: [], rebase, status: [], statusAfter: [],
+    cont: () => { throw fail(1, 'error: you must edit all merge conflicts and then\nmark them as resolved'); },
+    after: ['rebase'],
+  });
+  const res = await C.continueOp(opts(r, { op: 'rebase' }));
+  assert.strictEqual(res.ok, false);
+  assert.ok(!res.stopped);
+  assert.match(res.error, /edit all merge conflicts/);
+  assert.ok(r.sent().includes('rebase --continue'));
+});
+
+ok('continua: merge fermato da un hook (non timeout), MERGE_HEAD resta → ok:false, non stopped', async () => {
+  const r = fakeRepo({
+    heads: ['MERGE_HEAD'], status: [],
+    cont: () => { throw fail(1, 'hook pre-commit ha rifiutato il commit'); },
+  });
+  const res = await C.continueOp(opts(r, { op: 'merge' }));
+  assert.strictEqual(res.ok, false);
+  assert.ok(!res.stopped);
+  assert.match(res.error, /hook pre-commit/);
 });
 
 ok('continua: rifiutato con file in conflitto, con op che non combacia, con op sconosciuta', async () => {

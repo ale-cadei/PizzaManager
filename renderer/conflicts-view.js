@@ -43,7 +43,9 @@
       row.appendChild(el(doc, 'span', 'conflicts-path', f.path));
       row.appendChild(el(doc, 'span', 'conflicts-kind', [f.kindLabel, f.blocksLabel].filter(Boolean).join(' · ')));
       for (const a of f.actions) {
-        row.appendChild(button(doc, `conflicts-action is-${a.how}`, a.label, a.title, (b) => onAction({ how: a.how, path: f.path, anchor: b })));
+        const b = button(doc, `conflicts-action is-${a.how}`, a.label, a.title, (btn) => onAction({ how: a.how, path: f.path, anchor: btn }));
+        b.disabled = Boolean(a.disabled);
+        row.appendChild(b);
       }
       return row;
     }

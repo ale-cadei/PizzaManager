@@ -33,6 +33,16 @@ ok('vista conflitti: file, pulsanti e risolti, tutto come testo', () => {
   assert.deepStrictEqual(acts.map((a) => [a.how, a.path]), [['mark', '<img src=x>.js']]);
 });
 
+ok('vista conflitti: con un blocco i pulsanti di scrittura sono spenti, aprire nell\'editor resta acceso', () => {
+  const part = createConflictsPart({ doc, onAction: () => {} });
+  const state = M.viewState(c, { block: 'La sessione sta lavorando: aspetta che si fermi.' });
+  const box = createElement('div');
+  box.replaceChildren(...part.items(state));
+  const mark = byClass(box, 'conflicts-action').find((b) => b.textContent === 'Segna risolto');
+  assert.strictEqual(mark.disabled, true);
+  assert.match(mark.title, /sta lavorando/);
+});
+
 ok('vista conflitti: piè di pagina spento con conflitti, il motivo nel title', () => {
   const acts = [];
   const part = createConflictsPart({ doc, onAction: (a) => acts.push(a) });

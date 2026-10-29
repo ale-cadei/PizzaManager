@@ -61,6 +61,21 @@ ok('conflitti: Concludi solo a zero conflitti e senza sessioni al lavoro', () =>
   assert.strictEqual(M.viewState(rebase, {}).footer.abortLabel, 'Annulla rebase');
 });
 
+ok('conflitti: con un blocco le azioni si spengono, tranne aprire nell\'editor', () => {
+  const c = { ...merge, files: [
+    { path: 'a.js', kind: 'both-modified', binary: false, blocks: 2 },
+    { path: 'old.js', kind: 'deleted-by-them', binary: false, blocks: 0 },
+  ] };
+  const reason = 'La sessione sta lavorando: aspetta che si fermi.';
+  const [text, del] = M.viewState(c, { block: reason }).files;
+  assert.deepStrictEqual(text.actions.map((a) => [a.how, a.disabled]), [['open', false], ['mark', true]]);
+  assert.strictEqual(text.actions.find((a) => a.how === 'mark').title, reason);
+  assert.strictEqual(text.actions.find((a) => a.how === 'open').title, 'Apri nell\'editor');
+  assert.deepStrictEqual(del.actions.map((a) => [a.how, a.disabled]), [['keep', true], ['delete', true]]);
+  const [free] = M.viewState(c, {}).files;
+  assert.deepStrictEqual(free.actions.map((a) => a.disabled), [false, false]);
+});
+
 ok('conflitti: esiti', () => {
   assert.deepStrictEqual(M.outcomeOf({ how: 'mark' }, { ok: false, error: 'marcatori' }), { ok: false, text: 'marcatori' });
   assert.strictEqual(M.outcomeOf({ how: 'mark' }, { ok: true }), null);

@@ -46,7 +46,7 @@
 
   const blocksLabel = (n) => (typeof n !== 'number' || n === 0 ? '' : n === 1 ? '1 blocco' : `${n} blocchi`);
 
-  function actionsOf(f, s) {
+  function rawActionsOf(f, s) {
     const both = f.kind === 'both-modified' || f.kind === 'both-added';
     if (both && f.binary) {
       return [
@@ -63,6 +63,15 @@
     const keep = { how: 'keep', label: 'Tieni il file', title: 'Tieni il file com\'è nella cartella (git add)' };
     const drop = { how: 'delete', label: 'Eliminalo', title: 'Elimina il file (git rm)' };
     return f.kind === 'both-deleted' ? [drop] : [keep, drop];
+  }
+
+  /* Col blocco (scrittura in corso, sessione al lavoro…) le azioni che
+     toccano l'indice si spengono; «Apri nell'editor» resta acceso perché
+     non scrive niente. */
+  function actionsOf(f, s, block) {
+    return rawActionsOf(f, s).map((a) => (block && a.how !== 'open'
+      ? { ...a, disabled: true, title: block }
+      : { ...a, disabled: false }));
   }
 
   function footer(c, block) {
@@ -85,7 +94,7 @@
     return {
       headline: headline(c),
       sides: s,
-      files: c.files.map((f) => ({ path: f.path, kindLabel: kindLabel(f, s), blocksLabel: blocksLabel(f.blocks), actions: actionsOf(f, s) })),
+      files: c.files.map((f) => ({ path: f.path, kindLabel: kindLabel(f, s), blocksLabel: blocksLabel(f.blocks), actions: actionsOf(f, s, block) })),
       resolved: c.resolved,
       footer: footer(c, block),
       outcome,

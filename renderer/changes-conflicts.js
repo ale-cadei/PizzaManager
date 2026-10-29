@@ -48,11 +48,28 @@ async function runConflictAction(action) {
   if (action.how === 'continue' && !view.footer.canContinue) return;
   if (action.how === 'abort') {
     if (!view.footer.canAbort) return;
+    const key = changesState.target && changesState.target.key;
     const sure = await closeConfirm.ask({
       anchor: action.anchor, title: `${view.footer.abortLabel}?`, confirmLabel: view.footer.abortLabel,
       text: 'Il lavoro di risoluzione fatto finora si perde: la cartella torna com\'era prima dell\'operazione.',
     });
     if (!sure) return;
+    /* Il fumetto non è modale: nell'attesa può essere partita un'altra
+       scrittura, una sessione nello stesso repository, o l'operazione può
+       essere cambiata o conclusa. Si ricontrolla tutto da capo prima di
+       annullare davvero. */
+    const same = Boolean(changesState.target && changesState.target.key === key)
+      && changesState.conflicts && changesState.conflicts.op === c.op;
+    const recheck = same ? conflictsStateOf(activeTab()) : null;
+    if (!recheck || changesState.writing || !recheck.footer.canAbort) {
+      setChangesState({
+        conflictOutcome: {
+          ok: false,
+          text: recheck ? (recheck.footer.abortReason || 'Adesso non si può più annullare.') : 'Nel frattempo è cambiato qualcosa: riprova.',
+        },
+      });
+      return;
+    }
   }
   const key = changesState.target && changesState.target.key;
   setChangesState({ writing: true, conflictOutcome: null });

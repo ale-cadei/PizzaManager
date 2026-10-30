@@ -34,6 +34,9 @@
   const ATTENTION_TITLE = 'L\'assistente ha finito: apri la sessione per vedere il risultato';
   const PERMISSION_TITLE = 'L\'assistente ti chiede un permesso: apri la sessione per rispondere';
   const RENAME_TITLE = 'Doppio click per rinominare';
+  /* Il tooltip comincia col nome: da sidebar collassata (piano 72) la card è
+     solo icona e barretta, e il nome si legge solo lì. */
+  const cardTitle = (name, reason) => `${name}\n${reason}`;
   /* Le conversazioni di cui si legge il testo (lib/transcripts.js): solo per
      loro la card offre l'export in Markdown. Lo usa anche il Resume. */
   const EXPORTABLE_TYPES = Object.freeze(['claude', 'codex']);
@@ -421,7 +424,8 @@
         + (t.needsAttention && t.attentionKind === 'permission' ? ' needs-permission' : '')
         + (t.running ? ' is-running' : '');
       if (isActive) b.setAttribute('aria-current', 'true');
-      if (t.needsAttention) b.title = t.attentionKind === 'permission' ? PERMISSION_TITLE : ATTENTION_TITLE;
+      const reason = t.needsAttention ? (t.attentionKind === 'permission' ? PERMISSION_TITLE : ATTENTION_TITLE) : RENAME_TITLE;
+      b.title = cardTitle(t.name, reason);
       // Il comando si mostra solo se per quel tipo ce n'è più di uno configurato
       const multiCommand = Commands && Commands.profilesFor(t.type).length > 1;
       // Per tipo il worktree non ha una sotto-sezione: il branch lo dice la card
@@ -462,7 +466,6 @@
           e.preventDefault(); e.stopPropagation(); onIcon(t);
         }
       };
-      b.title = b.title || RENAME_TITLE;
       // Una sola ✕, e chiude la sessione per davvero. Prima erano due (✕ che
       // staccava, ⏻ che terminava): per sceglierne una bisognava sapere che
       // cos'è tmux. La conferma la chiede il renderer, che riceve la card su cui
@@ -550,7 +553,7 @@
         const permission = !!flags.needsAttention && !!flags.permission;
         p.card.classList.toggle('needs-attention', !!flags.needsAttention);
         p.card.classList.toggle('needs-permission', permission);
-        p.card.title = permission ? PERMISSION_TITLE : flags.needsAttention ? ATTENTION_TITLE : RENAME_TITLE;
+        p.card.title = cardTitle(p.name, permission ? PERMISSION_TITLE : flags.needsAttention ? ATTENTION_TITLE : RENAME_TITLE);
         // Se il gruppo è chiuso la card non si vede: il segnale sta sulla
         // linguetta, e lì vale per tutte le sessioni che ci sono dentro.
         if (p.body.hidden) {
@@ -678,7 +681,7 @@
         // chiuso guarda tutte le sue card, anche quelle nei worktree
         const painting = (t, card) => {
           cards.push(card);
-          painted.set(t.id, { card, header, body, cards });
+          painted.set(t.id, { card, header, body, cards, name: t.name });
           return card;
         };
         for (const t of g.items) body.appendChild(painting(t, createSessionItem(t, activeId, g.key, body)));

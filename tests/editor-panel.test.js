@@ -27,7 +27,7 @@ ok('clampWidth: fra 160 e la metà della scheda, con la scheda stretta vince il 
 });
 
 ok('readPanelPrefs: i default senza niente salvato o con valori rotti', () => {
-  const def = { width: 240, hidden: false };
+  const def = { width: 256, hidden: false };
   assert.deepStrictEqual(P.readPanelPrefs(createStorage()), def);
   assert.deepStrictEqual(P.readPanelPrefs(createStorage({ 'aisess.editorTreeW': 'abc', 'aisess.editorTreeHidden': 'forse' })), def);
   assert.deepStrictEqual(P.readPanelPrefs(createStorage({ 'aisess.editorTreeW': '90' })), def);
@@ -35,7 +35,7 @@ ok('readPanelPrefs: i default senza niente salvato o con valori rotti', () => {
 });
 
 ok('readPanelPrefs e savePanelPrefs: uno storage che lancia non ferma niente', () => {
-  assert.deepStrictEqual(P.readPanelPrefs(brokenStorage()), { width: 240, hidden: false });
+  assert.deepStrictEqual(P.readPanelPrefs(brokenStorage()), { width: 256, hidden: false });
   assert.doesNotThrow(() => P.savePanelPrefs(brokenStorage(), { width: 300, hidden: true }));
 });
 
@@ -61,7 +61,7 @@ ok('toggle: nasconde e rimostra, e se lo ricorda', () => {
   assert.strictEqual(isHidden(doc), false);
   panel.toggle();
   assert.strictEqual(isHidden(doc), true);
-  assert.deepStrictEqual(P.readPanelPrefs(storage), { width: 240, hidden: true });
+  assert.deepStrictEqual(P.readPanelPrefs(storage), { width: 256, hidden: true });
   panel.toggle();
   assert.strictEqual(isHidden(doc), false);
   assert.strictEqual(storage.getItem('aisess.editorTreeHidden'), '0');
@@ -131,12 +131,12 @@ ok('striscia: il tasto destro non comincia un trascinamento', () => {
   assert.strictEqual(win.listeners.has('pointermove'), false);
 });
 
-ok('striscia: il doppio click torna a 240 e salva', () => {
+ok('striscia: il doppio click torna a 256 e salva', () => {
   const { doc, resizer, storage } = resizable(createStorage({ 'aisess.editorTreeW': '400' }));
   assert.strictEqual(widthOf(doc), '400px');
   fire(resizer, 'dblclick', {});
-  assert.strictEqual(widthOf(doc), '240px');
-  assert.strictEqual(storage.getItem('aisess.editorTreeW'), '240');
+  assert.strictEqual(widthOf(doc), '256px');
+  assert.strictEqual(storage.getItem('aisess.editorTreeW'), '256');
 });
 
 ok('isToggleKey: solo Ctrl+B, senza altri modificatori', () => {

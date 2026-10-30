@@ -6,13 +6,15 @@
  * Anche il drop di file da fuori e Ctrl+V (docs/plans/61): la vista dice
  * in quale cartella copiare, la copia la fa chi la usa.
  *
+ * Righe con chevron e icona, menu con icone e scorciatoie (docs/plans/70).
+ *
  * Wrapper UMD come sidebar.js: globale nella pagina, module.exports sotto Node. */
 (function (root, factory) {
-  const api = factory();
+  const api = factory(root ? root.AisessEditorIcons : require('./editor-icons'));
   if (root) root.AisessEditorTree = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-})(typeof window !== 'undefined' ? window : null, function () {
-  const INDENT = 12;
+})(typeof window !== 'undefined' ? window : null, function (Icons) {
+  const INDENT = 14;
   const PAD = 8;
 
   const emptyTree = () => ({ children: {}, expanded: [], selected: null });
@@ -72,7 +74,10 @@
   // invece di restare appesa per sempre.
   const openPrompts = new WeakMap();
 
-  function createTreeView({ root, document: doc, onOpenFile, onToggleDir, onContextMenu, onCopyInto = () => {}, onDeselect = () => {} }) {
+  function createTreeView({
+    root, document: doc, onOpenFile, onToggleDir, onContextMenu,
+    onCopyInto = () => {}, onDeselect = () => {}, onRename = () => {}, onTrash = () => {},
+  }) {
     const list = doc.createElement('div');
     list.className = 'editor-tree';
     list.setAttribute('role', 'tree');
@@ -120,13 +125,24 @@
     // bersaglio): toglie la selezione, così Ctrl+V torna a incollare nella
     // radice (docs/plans/61)
     list.addEventListener('click', (e) => { if (e.target === list) onDeselect(); });
+    const selectedRow = () => shown.rows.find((r) => r.rel === shown.selected) || null;
     list.addEventListener('keydown', (e) => {
       const paste = (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 'v' || e.key === 'V');
-      if (!paste) return;
+      if (paste) {
+        e.preventDefault();
+        e.stopPropagation(); // non è l'incolla del terminale
+        const row = selectedRow();
+        onCopyInto(row ? dirOf(row) : '', { kind: 'paste' });
+        return;
+      }
+      // F2 rinomina, Canc (o Cmd+Backspace, sui Mac senza Canc) elimina
+      const action = e.key === 'F2' ? onRename
+        : e.key === 'Delete' || (e.key === 'Backspace' && e.metaKey) ? onTrash : null;
+      const row = action && selectedRow();
+      if (!row) return;
       e.preventDefault();
-      e.stopPropagation(); // non è l'incolla del terminale
-      const row = shown.rows.find((r) => r.rel === shown.selected);
-      onCopyInto(row ? dirOf(row) : '', { kind: 'paste' });
+      e.stopPropagation();
+      action(row);
     });
 
     function rowElement(r, selected) {
@@ -140,12 +156,12 @@
       el.setAttribute('role', 'treeitem');
       el.style.paddingLeft = `${PAD + r.depth * INDENT}px`;
       const twisty = doc.createElement('span');
-      twisty.className = 'editor-tree-twisty';
-      twisty.textContent = r.kind === 'dir' ? (r.expanded ? '▾' : '▸') : '';
+      twisty.className = 'editor-tree-twisty'
+        + (r.kind === 'dir' ? ` codicon codicon-chevron-${r.expanded ? 'down' : 'right'}` : '');
       const name = doc.createElement('span');
       name.className = 'editor-tree-name';
       name.textContent = r.name; // testo, mai HTML: il nome viene dal disco
-      el.append(twisty, name);
+      el.append(twisty, Icons.iconElement(doc, r.name, r.kind, r.expanded, 'editor-tree-icon'), name);
       el.onclick = () => (r.kind === 'dir' ? onToggleDir(r.rel) : onOpenFile(r.rel));
       el.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(r, e); };
       el.addEventListener('dragover', onDragOver(dirOf(r)));
@@ -203,7 +219,38 @@
     });
   }
 
-  /** Menu contestuale: si chiude su una scelta, su Esc e sul click fuori. */
+  function menuItem(doc, item, close) {
+    if (item.sep) {
+      const sep = doc.createElement('div');
+      sep.className = 'editor-menu-sep';
+      sep.setAttribute('role', 'separator');
+      return sep;
+    }
+    const b = doc.createElement('button');
+    b.className = 'editor-menu-item' + (item.danger ? ' is-danger' : '');
+    b.setAttribute('role', 'menuitem');
+    const icon = doc.createElement('span');
+    icon.className = item.icon ? `codicon codicon-${item.icon}` : 'editor-menu-noicon';
+    icon.setAttribute('aria-hidden', 'true');
+    const label = doc.createElement('span');
+    label.className = 'editor-menu-label';
+    label.textContent = item.label; // può contenere nomi di file
+    b.append(icon, label);
+    if (item.key) {
+      const key = doc.createElement('span');
+      key.className = 'editor-menu-key';
+      key.textContent = item.key;
+      b.appendChild(key);
+    }
+    b.onclick = () => { close(); item.run(); };
+    return b;
+  }
+
+  /**
+   * Menu contestuale: si chiude su una scelta, su Esc e sul click fuori.
+   * Voci `{ label, run, icon?, key?, danger? }` (icon: nome codicon senza
+   * prefisso) o `{ sep: true }`.
+   */
   function showMenu({ document: doc, x, y, items }) {
     const menu = doc.createElement('div');
     menu.className = 'editor-menu';
@@ -218,14 +265,7 @@
       doc.removeEventListener('mousedown', onDown, true);
       doc.removeEventListener('keydown', onKey, true);
     }
-    for (const item of items) {
-      const b = doc.createElement('button');
-      b.className = 'editor-menu-item' + (item.danger ? ' is-danger' : '');
-      b.setAttribute('role', 'menuitem');
-      b.textContent = item.label;
-      b.onclick = () => { close(); item.run(); };
-      menu.appendChild(b);
-    }
+    for (const item of items) menu.appendChild(menuItem(doc, item, close));
     doc.body.appendChild(menu);
     doc.addEventListener('mousedown', onDown, true);
     doc.addEventListener('keydown', onKey, true);

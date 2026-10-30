@@ -15,6 +15,7 @@ and are used here only to refer to those products.
 
 | Component | Version | License |
 |---|---|---|
+| @vscode/codicons | 0.0.45 | CC-BY-4.0 (icons), MIT (code) |
 | @xterm/addon-fit | 0.10.0 | MIT |
 | @xterm/addon-web-links | 0.11.0 | MIT |
 | @xterm/xterm | 5.5.0 | MIT |
@@ -47,6 +48,40 @@ package as `LICENSE` and `LICENSES.chromium.html`, next to the application.
 ---
 
 ## License texts
+
+### @vscode/codicons 0.0.45 — CC-BY-4.0 (icons), MIT (code)
+
+<https://github.com/microsoft/vscode-codicons>
+
+The icon font and its artwork are licensed under the Creative Commons
+Attribution 4.0 International license
+(<https://creativecommons.org/licenses/by/4.0/legalcode>), © Microsoft
+Corporation. The icons are used unmodified. The stylesheet that maps class
+names to glyphs is licensed under MIT:
+
+```
+MIT License
+
+Copyright (c) Microsoft Corporation.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
 
 ### @xterm/addon-fit 0.10.0 — MIT
 

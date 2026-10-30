@@ -45,24 +45,42 @@ async function callEditor(fn) {
 
 /* ---------- disegno ---------- */
 
+function editorEl(tag, className, parent) {
+  const n = document.createElement(tag);
+  n.className = className;
+  parent.appendChild(n);
+  return n;
+}
+
+/** Bottone a sola icona (codicon): il titolo fa da etichetta. */
+function editorIconButton(parent, { icon, title, run }) {
+  const b = editorEl('button', 'editor-icon-btn', parent);
+  editorEl('span', `codicon codicon-${icon}`, b).setAttribute('aria-hidden', 'true');
+  b.title = title;
+  b.setAttribute('aria-label', title);
+  b.onclick = run;
+  return b;
+}
+
+/** Testata di una sezione del pannello: «ETICHETTA», contatore opzionale, azioni a destra. */
+function editorSectionHead(parent, label, actions) {
+  const head = editorEl('div', 'editor-section-head', parent);
+  editorEl('span', 'editor-section-label', head).textContent = label;
+  const count = editorEl('span', 'count', head);
+  count.hidden = true;
+  editorEl('span', 'spacer', head);
+  for (const a of actions) editorIconButton(head, a);
+  return { head, count };
+}
+
 function buildEditorLayout(tab) {
-  const el = (tag, className, parent) => {
-    const n = document.createElement(tag);
-    n.className = className;
-    parent.appendChild(n);
-    return n;
-  };
+  const el = editorEl;
   const side = el('aside', 'editor-side', tab.wrap);
-  const tools = el('div', 'editor-side-tools', side);
-  const tool = (label, title, run) => {
-    const b = el('button', 'btn btn--ghost editor-tool', tools);
-    b.textContent = label;
-    b.title = title;
-    b.onclick = run;
-  };
-  tool('+ File', 'Nuovo file nella cartella della sessione', () => newEditorEntry(tab, '', 'file'));
-  tool('+ Cartella', 'Nuova cartella nella cartella della sessione', () => newEditorEntry(tab, '', 'dir'));
-  tool('⟳', 'Rileggi le cartelle aperte', () => reloadEditorTree(tab));
+  editorSectionHead(side, 'File', [
+    { icon: 'new-file', title: 'Nuovo file nella cartella della sessione', run: () => newEditorEntry(tab, '', 'file') },
+    { icon: 'new-folder', title: 'Nuova cartella nella cartella della sessione', run: () => newEditorEntry(tab, '', 'dir') },
+    { icon: 'refresh', title: 'Rileggi le cartelle aperte', run: () => reloadEditorTree(tab) },
+  ]);
   const treeHost = el('div', 'editor-tree-host', side);
   const tree = EditorTree.createTreeView({
     root: treeHost, document,
@@ -71,6 +89,8 @@ function buildEditorLayout(tab) {
     onContextMenu: (row, e) => editorTreeMenu(tab, row, e),
     onCopyInto: (dir, source) => copyIntoEditor(tab, dir, source),
     onDeselect: () => clearEditorSelection(tab),
+    onRename: (row) => renameEditorEntry(tab, row),
+    onTrash: (row) => trashEditorEntry(tab, row),
   });
   const resizer = el('div', 'editor-resizer', tab.wrap);
   resizer.title = `Trascina per allargare l'albero, doppio click per tornare a ${EditorPanel.DEFAULT_W}px`;
@@ -222,16 +242,26 @@ async function reloadEditorTree(tab) {
 function editorTreeMenu(tab, row, e) {
   const dir = !row ? '' : row.kind === 'dir' ? row.rel : EditorFiles.parentRel(row.rel);
   const items = [
-    { label: 'Nuovo file', run: () => newEditorEntry(tab, dir, 'file') },
-    { label: 'Nuova cartella', run: () => newEditorEntry(tab, dir, 'dir') },
-    { label: 'Copia qui file…', run: () => copyIntoEditor(tab, dir, { kind: 'pick' }) },
-    { label: 'Incolla', run: () => copyIntoEditor(tab, dir, { kind: 'paste' }) },
+    { label: 'Nuovo file', icon: 'new-file', run: () => newEditorEntry(tab, dir, 'file') },
+    { label: 'Nuova cartella', icon: 'new-folder', run: () => newEditorEntry(tab, dir, 'dir') },
+    { sep: true },
+    { label: 'Copia qui file…', icon: 'cloud-download', run: () => copyIntoEditor(tab, dir, { kind: 'pick' }) },
+    { label: 'Incolla', icon: 'clippy', key: 'Ctrl V', run: () => copyIntoEditor(tab, dir, { kind: 'paste' }) },
   ];
-  if (row) {
-    items.push({ label: 'Rinomina', run: () => renameEditorEntry(tab, row) });
-    items.push({ label: 'Elimina', danger: true, run: () => trashEditorEntry(tab, row) });
-  }
-  EditorTree.showMenu({ document, x: e.clientX, y: e.clientY, items });
+  const rowItems = row ? [
+    { sep: true },
+    { label: 'Rinomina', icon: 'edit', key: 'F2', run: () => renameEditorEntry(tab, row) },
+    { label: 'Copia percorso', icon: 'copy', run: () => copyEditorPath(tab, row.rel) },
+    { sep: true },
+    { label: 'Elimina', icon: 'trash', key: 'Canc', danger: true, run: () => trashEditorEntry(tab, row) },
+  ] : [];
+  EditorTree.showMenu({ document, x: e.clientX, y: e.clientY, items: [...items, ...rowItems] });
+}
+
+/** Il percorso relativo alla cartella della sessione: quello che si scrive in un prompt. */
+async function copyEditorPath(tab, rel) {
+  const r = await callEditor(() => window.aisess.clipboardWrite(rel));
+  if (!r.ok) showEditorMessage(tab, `Non si copia il percorso: ${r.error}`);
 }
 
 async function newEditorEntry(tab, dir, kind) {

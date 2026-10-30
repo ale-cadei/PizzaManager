@@ -21,6 +21,7 @@
     "install:win": "node scripts/install-win.js"
   },
   "dependencies": {
+    "@vscode/codicons": "0.0.45",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/addon-unicode11": "^0.8.0",
     "@xterm/addon-web-links": "^0.11.0",
@@ -58,7 +59,12 @@
       "!node_modules/monaco-editor/esm/**",
       "!node_modules/monaco-editor/**/*.map",
       "!node_modules/dompurify/**",
-      "!node_modules/marked/**"
+      "!node_modules/marked/**",
+      "!node_modules/@vscode/codicons/src/**",
+      "!node_modules/@vscode/codicons/_iconCloud/**",
+      "!node_modules/@vscode/codicons/scripts/**",
+      "!node_modules/@vscode/codicons/build/**",
+      "!node_modules/@vscode/codicons/preview.png"
     ],
     "npmRebuild": true,
     "artifactBuildCompleted": "scripts/notarize-dmg.js",

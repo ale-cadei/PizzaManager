@@ -1179,7 +1179,7 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .term-wrap.editor-wrap { padding: 0; }
 .term-wrap.editor-wrap.active { display: flex; }
 .editor-side {
-  width: var(--editor-tree-w, 240px); min-width: 160px; max-width: 50%; flex-shrink: 0;
+  width: var(--editor-tree-w, 256px); min-width: 160px; max-width: 50%; flex-shrink: 0;
   display: flex; flex-direction: column;
   border-right: 1px solid var(--border); background: var(--surface);
 }
@@ -1192,9 +1192,21 @@ body.editor-tree-hidden .editor-side,
 body.editor-tree-hidden .editor-resizer { display: none; }
 .editor-head { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); }
 .editor-tree-toggle { flex-shrink: 0; padding: 0 10px; border: 0; border-radius: 0; border-right: 1px solid var(--divider); }
-.editor-side-tools { display: flex; gap: 4px; padding: 6px; border-bottom: 1px solid var(--divider); }
-.editor-tool { font-size: 12px; padding: 2px 8px; }
-.editor-tree-host { flex: 1; overflow: auto; padding: 4px 0; }
+/* Testate delle sezioni del pannello, con azioni a icona (docs/plans/70) */
+.editor-section-head {
+  flex: none; height: 34px; display: flex; align-items: center; gap: 2px; padding: 0 6px 0 14px;
+  font: 500 10px var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-dim);
+}
+.editor-section-head .count { color: var(--accent); margin-left: 6px; letter-spacing: 0; }
+.editor-section-head .spacer { flex: 1; }
+.editor-icon-btn {
+  width: 24px; height: 24px; flex: none; display: grid; place-items: center; padding: 0; border: 0; border-radius: 5px;
+  background: transparent; color: var(--text-dim); cursor: pointer; font-size: 15px;
+}
+.editor-icon-btn .codicon { font-size: inherit; }
+.editor-icon-btn:hover, .editor-icon-btn:focus-visible { background: var(--surface-3); color: var(--text); outline: none; }
+.editor-icon-btn[aria-pressed="true"] { color: var(--action-text); background: var(--action-soft); }
+.editor-tree-host { flex: 1; overflow: auto; padding: 0 0 6px; }
 /* Tutta l'altezza: lo spazio vuoto sotto le righe è la radice, per il drop
    e per il click destro (docs/plans/61) */
 .editor-tree { min-height: 100%; }
@@ -1202,17 +1214,22 @@ body.editor-tree-hidden .editor-resizer { display: none; }
 .editor-tree.is-drop-target,
 .editor-tree-row.is-drop-target { outline: 1px dashed var(--type-editor); outline-offset: -1px; background: var(--surface-3); }
 .editor-tree-row {
-  display: flex; align-items: center; gap: 4px; height: 22px; padding-right: 8px;
-  font: 13px var(--font-ui); color: var(--text-2); cursor: pointer; white-space: nowrap;
+  display: flex; align-items: center; gap: 6px; height: 26px; margin: 0 6px; padding-right: 10px;
+  border-radius: 5px; font: 13px var(--font-ui); color: var(--text-2); cursor: pointer; white-space: nowrap;
 }
 .editor-tree-row:hover { background: var(--surface-2); }
-.editor-tree-row.is-selected { background: var(--surface-3); color: var(--text); }
-.editor-tree-row.is-ignored { color: var(--text-faint); }
-.editor-tree-twisty { width: 12px; flex-shrink: 0; color: var(--text-dim); }
-.editor-tree-name { overflow: hidden; text-overflow: ellipsis; }
+.editor-tree-row.is-selected {
+  background: var(--surface-lift); color: var(--text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--type-editor) 38%, transparent);
+}
+.editor-tree-row.is-ignored { opacity: .5; }
+.editor-tree-twisty { width: 14px; flex: none; color: var(--text-faint); font-size: 14px; }
+.editor-tree-icon { flex: none; font-size: 15px; }
+.editor-tree-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .editor-tree-input {
-  display: block; width: calc(100% - 24px); height: 22px; font: 13px var(--font-ui);
-  background: var(--bg); color: var(--text); border: 1px solid var(--border-strong);
+  display: block; width: calc(100% - 28px); height: 26px; padding: 0 8px; font: 13px var(--font-ui);
+  background: var(--bg); color: var(--text); border: 1px solid var(--action); border-radius: 5px;
+  box-shadow: 0 0 0 3px var(--action-ring); outline: none;
 }
 .editor-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .editor-subtabs { flex: 1; min-width: 0; display: flex; overflow-x: auto; }
@@ -1282,13 +1299,24 @@ body.editor-tree-hidden .editor-resizer { display: none; }
 .editor-notes-bar[hidden] { display: none; }
 .editor-notes-count { font: 12px var(--font-ui); color: var(--action-text); white-space: nowrap; }
 .editor-notes-bar .btn { font-size: 12px; padding: 2px 8px; }
+/* Il menu sta su body, fuori da #main: i token sono quelli di :root */
 .editor-menu {
-  position: fixed; z-index: 1000; display: flex; flex-direction: column; min-width: 160px; padding: 4px;
-  background: var(--surface); border: 1px solid var(--border-strong); border-radius: 6px;
+  position: fixed; z-index: 1000; display: flex; flex-direction: column; min-width: 232px; padding: 4px;
+  background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal); animation: editor-pop 120ms ease-out;
 }
-.editor-menu-item { text-align: left; background: none; border: 0; color: var(--text); padding: 6px 10px; font: 13px var(--font-ui); cursor: pointer; border-radius: 4px; }
-.editor-menu-item:hover { background: var(--surface-3); }
-.editor-menu-item.is-danger { color: var(--state-error); }
+.editor-menu-item {
+  display: flex; align-items: center; gap: 9px; height: 28px; padding: 0 10px; border: 0; border-radius: 5px;
+  background: none; color: var(--text); font: 12.5px var(--font-ui); text-align: left; cursor: pointer; white-space: nowrap;
+}
+.editor-menu-item:hover, .editor-menu-item:focus-visible { background: var(--action-soft); outline: none; }
+.editor-menu-item .codicon, .editor-menu-noicon { width: 15px; flex: none; color: var(--text-dim); font-size: 15px; }
+.editor-menu-item.is-danger, .editor-menu-item.is-danger .codicon { color: var(--state-error); }
+.editor-menu-label { flex: 1; }
+.editor-menu-key { margin-left: auto; padding-left: 16px; font: 11px var(--font-mono); color: var(--text-dim); }
+.editor-menu-sep { height: 1px; margin: 4px 6px; background: var(--border); }
+@keyframes editor-pop { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { .editor-menu { animation: none; } }
 
 .git-view { flex: 1; min-width: 0; display: flex; flex-direction: column; font-family: var(--font-ui); position: relative; outline: none; }
 .git-head {

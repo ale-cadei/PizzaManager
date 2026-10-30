@@ -447,6 +447,19 @@ ok('build: di monaco-editor nel pacchetto resta solo min/, senza mappe (piano 60
   assert.ok(!files.some((f) => f.startsWith('!node_modules/monaco-editor/min')), 'min/ non va escluso');
 });
 
+ok('build: di @vscode/codicons nel pacchetto resta solo dist/ (piano 70)', () => {
+  const root = path.join(__dirname, '..');
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  assert.strictEqual(pkg.dependencies['@vscode/codicons'], '0.0.45', 'le icone vanno bloccate a una versione esatta');
+  const dir = path.join(root, 'node_modules', '@vscode', 'codicons');
+  if (!fs.existsSync(dir)) return;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    // Le cartelle col punto (.github, .vscode…) sono pochi KB di config
+    if (!entry.isDirectory() || entry.name === 'dist' || entry.name.startsWith('.')) continue;
+    assert.ok(pkg.build.files.includes(`!node_modules/@vscode/codicons/${entry.name}/**`), `manca l'esclusione di codicons/${entry.name}`);
+  }
+});
+
 /* min/vs è un bundle AMD autosufficiente (il renderer non importa mai
    monaco-editor via require/import Node): le dipendenze npm di
    monaco-editor (oggi dompurify, marked) servono solo a costruire il

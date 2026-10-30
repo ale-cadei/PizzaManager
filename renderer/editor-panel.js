@@ -12,7 +12,7 @@
 })(typeof window !== 'undefined' ? window : null, function () {
   const WIDTH_KEY = 'aisess.editorTreeW';
   const HIDDEN_KEY = 'aisess.editorTreeHidden';
-  const DEFAULT_W = 240;
+  const DEFAULT_W = 256;
   const MIN_W = 160;
 
   /** Fra MIN_W e max (metà della scheda); con una scheda stretta vince il minimo. */

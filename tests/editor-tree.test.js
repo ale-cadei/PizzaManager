@@ -51,7 +51,7 @@ ok('vista: nomi come testo, classi per cartelle, ignorati e selezione', () => {
     view.render(T.visibleRows(tree), 'a.log');
     const rows = view.element.children;
     assert.strictEqual(rows.length, 3);
-    assert.strictEqual(rows[0].children[1].textContent, '<img src=x onerror=alert(1)>');
+    assert.strictEqual(rows[0].querySelectorAll('.editor-tree-name')[0].textContent, '<img src=x onerror=alert(1)>');
     assert.strictEqual(rows[0].innerHTML, '');
     assert.ok(rows[1].classList.contains('is-dir'));
     assert.ok(rows[2].classList.contains('is-ignored'));
@@ -62,6 +62,42 @@ ok('vista: nomi come testo, classi per cartelle, ignorati e selezione', () => {
     fire(view.element, 'contextmenu', {});
     assert.deepStrictEqual(calls, [['toggle', 'src'], ['open', 'a.log'], ['menu', 'a.log'], ['menu', null]]);
     assert.strictEqual(view.rowOf('src'), rows[1]);
+  } finally { restore(); }
+});
+
+ok('vista: chevron solo sulle cartelle, icona per tipo, rientro di 14px per livello', () => {
+  const restore = installDocument();
+  try {
+    const root = createElement('div');
+    const view = T.createTreeView({ root, document, onOpenFile() {}, onToggleDir() {}, onContextMenu() {} });
+    view.render(T.visibleRows(T.toggle(sample(), 'src')), null);
+    const part = (rel, cls) => view.rowOf(rel).querySelectorAll(`.${cls}`)[0];
+    assert.ok(part('src', 'editor-tree-twisty').classList.contains('codicon-chevron-down'), 'cartella aperta');
+    assert.ok(part('src/lib', 'editor-tree-twisty').classList.contains('codicon-chevron-right'), 'cartella chiusa');
+    assert.ok(!part('b.js', 'editor-tree-twisty').classList.contains('codicon'), 'i file non hanno chevron');
+    assert.ok(part('src', 'editor-tree-icon').classList.contains('codicon-folder-opened'));
+    assert.ok(part('src/lib', 'editor-tree-icon').classList.contains('codicon-folder'));
+    assert.ok(part('b.js', 'editor-tree-icon').classList.contains('codicon-file-code'));
+    assert.strictEqual(view.rowOf('src').style.paddingLeft, '8px');
+    assert.strictEqual(view.rowOf('src/x.js').style.paddingLeft, '22px');
+  } finally { restore(); }
+});
+
+ok('vista: F2 rinomina e Canc elimina la riga selezionata, solo con una selezione', () => {
+  const restore = installDocument();
+  try {
+    const root = createElement('div');
+    const calls = [];
+    const view = T.createTreeView({ root, document, onOpenFile() {}, onToggleDir() {}, onContextMenu() {},
+      onRename: (row) => calls.push(['rename', row.rel]), onTrash: (row) => calls.push(['trash', row.rel]) });
+    view.render(T.visibleRows(sample()), 'b.js');
+    assert.strictEqual(fire(view.element, 'keydown', { key: 'F2' }).defaultPrevented, true);
+    fire(view.element, 'keydown', { key: 'Delete' });
+    fire(view.element, 'keydown', { key: 'Backspace', metaKey: true });
+    fire(view.element, 'keydown', { key: 'Backspace' });
+    view.render(T.visibleRows(sample()), null);
+    fire(view.element, 'keydown', { key: 'F2' });
+    assert.deepStrictEqual(calls, [['rename', 'b.js'], ['trash', 'b.js'], ['trash', 'b.js']]);
   } finally { restore(); }
 });
 
@@ -122,6 +158,26 @@ ok('showMenu: una voce esegue e chiude, Esc chiude', () => {
     const other = T.showMenu({ document, x: 0, y: 0, items: [{ label: 'x', run: () => {} }] });
     fire(document, 'keydown', { key: 'Escape' });
     assert.strictEqual(document.body.children.includes(other.element), false);
+  } finally { restore(); }
+});
+
+ok('showMenu: icona, scorciatoia e separatori; il nome della voce resta testo', () => {
+  const restore = installDocument();
+  try {
+    const menu = T.showMenu({ document, x: 0, y: 0, items: [
+      { label: 'Nuovo file', icon: 'new-file', key: 'Ctrl Alt N', run() {} },
+      { sep: true },
+      { label: '<b>x</b>', run() {} },
+    ] });
+    const [first, sep, last] = menu.element.children;
+    assert.ok(first.querySelectorAll('.codicon-new-file').length === 1);
+    assert.strictEqual(first.querySelectorAll('.editor-menu-key')[0].textContent, 'Ctrl Alt N');
+    assert.strictEqual(first.querySelectorAll('.editor-menu-label')[0].textContent, 'Nuovo file');
+    assert.ok(sep.classList.contains('editor-menu-sep'));
+    assert.strictEqual(sep.getAttribute('role'), 'separator');
+    assert.strictEqual(last.querySelectorAll('.editor-menu-label')[0].textContent, '<b>x</b>');
+    assert.strictEqual(last.querySelectorAll('.editor-menu-key').length, 0);
+    menu.close();
   } finally { restore(); }
 });
 

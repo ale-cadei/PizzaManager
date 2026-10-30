@@ -401,7 +401,9 @@ ok('main.js e solo cablaggio: nessuna funzione di logica definita al suo interno
   // registrazione; file, watch e conferma d'uscita stanno in app/editor*.js.
   // 235: altra 1 per «Riavvia ora» della schermata vuota (piano 20): tmux si
   // attiva solo all'avvio, l'handler chiama soltanto app.relaunch e app.quit.
-  assert.ok(main.split('\n').length < 235, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
+  // 238: altre 3 per l'istanza di prova (AISESS_PROFILE, piano 70): require,
+  // commento e chiamata; nome e validazione stanno in lib/dev-profile.js.
+  assert.ok(main.split('\n').length < 238, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
 });
 
 /* I file che un PROGRAMMA ESTERNO deve aprire non bastano dentro app.asar:

@@ -54,7 +54,7 @@ function fakeMonaco() {
     (editor.listeners[name] = editor.listeners[name] || []).push(f);
     editor.mouse[name] = (e) => editor.listeners[name].forEach((g) => g(e));
   }
-  function createModel(text, _language, uri) {
+  function createModel(text, language, uri) {
     const listeners = [];
     let value = text;
     let version = 1;
@@ -63,7 +63,7 @@ function fakeMonaco() {
     const change = () => { version += 1; listeners.forEach((f) => f()); };
     const top = { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1 };
     const m = {
-      uri, disposed: false, eol: null, decorations: [], removed: [], live,
+      uri, language, disposed: false, eol: null, decorations: [], removed: [], live,
       getValue: () => value,
       getLineCount: () => lines().length,
       getLineContent: (n) => lines()[n - 1],
@@ -195,6 +195,15 @@ ok('rename: model nuovo col nome nuovo, sporco se lo era, vecchio buttato', () =
   assert.strictEqual(h.isDirty('lib/b.ts'), true);
   assert.strictEqual(h.getText('a.js'), null);
   assert.strictEqual(h.current(), 'lib/b.ts');
+});
+
+ok('open e rename: linguaggio dal nome del file, il resto lo sceglie Monaco', () => {
+  const { h, fake } = host();
+  h.open('.env', 'A=1');
+  h.open('src/a.js', 'x');
+  assert.deepStrictEqual(fake.models.map((m) => m.language), ['dotenv', undefined]);
+  h.rename('.env', 'Makefile');
+  assert.strictEqual(fake.models[2].language, 'makefile');
 });
 
 ok('close e dispose buttano i model', () => {

@@ -8,10 +8,10 @@
  *
  * Wrapper UMD come sidebar.js: globale nella pagina, module.exports sotto Node. */
 (function (root, factory) {
-  const api = factory();
+  const api = factory(root ? root.AisessEditorLanguages : require('./editor-languages'));
   if (root) root.AisessEditorMonaco = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-})(typeof window !== 'undefined' ? window : null, function () {
+})(typeof window !== 'undefined' ? window : null, function (Languages) {
   const BASE = '../node_modules/monaco-editor/min/vs';
   const THEME = 'aisess';
   const FONT = "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace";
@@ -62,6 +62,7 @@
         win.require(['vs/editor/editor.main'], () => {
           defineTheme(win, win.monaco);
           quietBuiltinDefinitions(win.monaco);
+          Languages.registerLanguages(win.monaco); // .env, .gitignore, Makefile, toml (docs/plans/74)
           resolve(win.monaco);
         }, (e) => reject(e instanceof Error ? e : new Error(String(e))));
       };
@@ -124,7 +125,8 @@
     }
 
     function make(rel, text, extra = {}) {
-      const model = monaco.editor.createModel(text, undefined, uriOf(rel));
+      // Il nome del file sceglie il linguaggio; se non lo conosce, decide Monaco dall'estensione
+      const model = monaco.editor.createModel(text, Languages.languageFor(rel), uriOf(rel));
       track({
         rel, model, savedVersion: model.getAlternativeVersionId(), viewState: null, forcedDirty: false, sub: null, gutter: [], conflicts: [],
         marks: new Map(), zones: new Map(), ...extra,

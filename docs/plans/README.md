@@ -80,6 +80,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 70 | [`feat/icone-in-filemanager`](70-icone-albero-editor.md) — icone nell'albero della scheda editor: cartella aperta/chiusa, file per nome noto o estensione (Material Icon Theme, MIT) | 60 | ~0,5g | ✅ fatto, smoke ok (xvfb + CDP: 134 righe, 134 icone caricate, console pulita) |
 | 73 | [`feat/row-last-modify`](73-autore-riga.md) — chi ha toccato la riga del cursore, e quando: testo grigio in fondo alla riga, fumetto con hash, mail e data | 60, 63 | ~0,5g | ✅ fatto, smoke ok (xvfb + CDP: testo a fine riga, fumetto al passaggio, «Modifica non committata» su riga nuova non salvata) |
 | 74 | [`feat/evidezia-sintassi`](74-evidenzia-sintassi.md) — evidenziazione anche per i file di config: `.env`, `.gitignore`, `Makefile`, `.toml`, rc di shell, `Dockerfile.*`… (nome del file → linguaggio, grammatiche Monarch per quelli che Monaco non ha) | 60 | ~0,5g | ✅ fatto, smoke ok (xvfb + CDP: `.env`, `.gitignore`, `Makefile`, `.toml`, `.bashrc`, `Dockerfile.dev` col loro linguaggio e più colori, `.txt` resta testo) |
+| 75 | [`feat/redesign-file-editor`](75-editor-1c.md) — scheda editor ridisegnata («1c»): «Aperti» al posto delle sotto-schede, icone, barra di stato, conflitto flottante, Ctrl+P, filtro | 60-65, 69, 70-74 | ~3-4g | ✅ fatto, smoke ok su macOS (istanza di prova); da provare su Windows e Linux |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

@@ -12,7 +12,7 @@
 })(typeof window !== 'undefined' ? window : null, function () {
   const WIDTH_KEY = 'aisess.editorTreeW';
   const HIDDEN_KEY = 'aisess.editorTreeHidden';
-  const DEFAULT_W = 240;
+  const DEFAULT_W = 256;
   const MIN_W = 160;
 
   /** Fra MIN_W e max (metà della scheda); con una scheda stretta vince il minimo. */
@@ -94,5 +94,27 @@
   const isToggleKey = (e) => Boolean(e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey
     && typeof e.key === 'string' && e.key.toLowerCase() === 'b');
 
-  return { WIDTH_KEY, HIDDEN_KEY, DEFAULT_W, MIN_W, clampWidth, readPanelPrefs, savePanelPrefs, applyPanelPrefs, createPanel, isToggleKey };
+  /** Alt+1…9 porta davanti l'N-esimo file aperto (docs/plans/75). Sul Mac
+   *  Ctrl: Opzione+cifra scrive caratteri (~ è Opzione+5 sulla tastiera
+   *  italiana). Ctrl+Alt fuori dal Mac è AltGr, che scrive anche lui.
+   *  @returns {number} l'indice da 0, -1 se il tasto non è questo */
+  function openIndexKey(e, isMac) {
+    const m = /^Digit([1-9])$/.exec(e.code || '');
+    if (!m || e.shiftKey || e.metaKey) return -1;
+    const mods = isMac ? e.ctrlKey && !e.altKey : e.altKey && !e.ctrlKey;
+    return mods ? Number(m[1]) - 1 : -1;
+  }
+  const openKeyLabel = (n, isMac) => (isMac ? `⌃${n}` : `Alt ${n}`);
+
+  /** Ctrl+P (Cmd+P sul Mac): «Vai al file» (docs/plans/75). */
+  const isQuickKey = (e) => Boolean((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey
+    && typeof e.key === 'string' && e.key.toLowerCase() === 'p');
+
+  /** Ctrl+Alt+N: file nuovo nella cartella selezionata (stato vuoto, docs/plans/75). */
+  const isNewFileKey = (e) => Boolean(e.ctrlKey && e.altKey && !e.shiftKey && !e.metaKey && e.code === 'KeyN');
+
+  return {
+    WIDTH_KEY, HIDDEN_KEY, DEFAULT_W, MIN_W, clampWidth, readPanelPrefs, savePanelPrefs, applyPanelPrefs, createPanel,
+    isToggleKey, isQuickKey, isNewFileKey, openIndexKey, openKeyLabel,
+  };
 });

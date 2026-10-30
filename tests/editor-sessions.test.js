@@ -14,7 +14,7 @@ function tmp(t) {
 ok('store: andata e ritorno, con savedAt', (t) => {
   const dir = tmp(t);
   const store = createEditorSessionsStore({ dir, now: () => 1234 });
-  const list = [{ name: null, cwd: '/home/u/prj', files: ['src/a.js', 'README.md'], active: 'README.md', startedAt: 10 }];
+  const list = [{ name: null, cwd: '/home/u/prj', files: ['src/a.js', 'README.md'], active: 'README.md', startedAt: 10, recent: [{ rel: 'old.js', at: 9 }] }];
   assert.deepStrictEqual(store.write(list), list);
   assert.deepStrictEqual(store.readState(), { sessions: list, savedAt: 1234 });
   assert.strictEqual(store.file, path.join(dir, EDITOR_SESSIONS_FILE));
@@ -37,8 +37,8 @@ ok('sanitize: cwd relative o sporche e file che escono si scartano', () => {
     null,
   ]);
   assert.deepStrictEqual(out, [
-    { name: null, cwd: '/home/u/prj', files: ['a.js', 'b.js'], active: 'a.js', startedAt: null },
-    { name: 'Mio', cwd: 'C:\\prj', files: [], active: null, startedAt: null },
+    { name: null, cwd: '/home/u/prj', files: ['a.js', 'b.js'], active: 'a.js', startedAt: null, recent: [] },
+    { name: 'Mio', cwd: 'C:\\prj', files: [], active: null, startedAt: null, recent: [] },
   ]);
 });
 
@@ -49,4 +49,13 @@ ok('sanitize: limiti su sessioni e file', () => {
   assert.strictEqual(out.length, MAX_SESSIONS);
   assert.strictEqual(out[0].files.length, MAX_FILES);
   assert.deepStrictEqual(sanitizeEditorSessions('no'), []);
+});
+
+ok('sanitize: i recenti restano se sono percorsi relativi validi con una data, al massimo 5 (piano 75)', () => {
+  const [s] = sanitizeEditorSessions([{ cwd: '/w', files: [], recent: [
+    { rel: 'a.js', at: 5 }, { rel: '../fuori', at: 4 }, { rel: 'b.js' }, 'c.js', { rel: 'a.js', at: 3 },
+    { rel: 'd.js', at: 2 }, { rel: 'e.js', at: 1 }, { rel: 'f.js', at: 1 }, { rel: 'g.js', at: 1 }, { rel: 'h.js', at: 1 },
+  ] }]);
+  assert.deepStrictEqual(s.recent, [{ rel: 'a.js', at: 5 }, { rel: 'd.js', at: 2 }, { rel: 'e.js', at: 1 }, { rel: 'f.js', at: 1 }, { rel: 'g.js', at: 1 }]);
+  assert.deepStrictEqual(sanitizeEditorSessions([{ cwd: '/w', recent: 'no' }])[0].recent, []);
 });

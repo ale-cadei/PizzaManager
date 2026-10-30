@@ -37,7 +37,7 @@ ok('ipc editor: ogni canale editor del preload ha il suo handler', (t) => {
 
 ok('ipc editor: payload mancanti o radici inesistenti rispondono con un errore', async (t) => {
   const { handlers, call } = setup(t);
-  for (const channel of ['editor-list', 'editor-read', 'editor-write', 'editor-stat', 'editor-create', 'editor-mkdir', 'editor-rename', 'editor-trash', 'editor-watch', 'editor-copy-plan', 'editor-copy-run', 'editor-head-text', 'editor-definition', 'editor-blame-line']) {
+  for (const channel of ['editor-list', 'editor-read', 'editor-write', 'editor-stat', 'editor-create', 'editor-mkdir', 'editor-rename', 'editor-trash', 'editor-watch', 'editor-copy-plan', 'editor-copy-run', 'editor-head-text', 'editor-definition', 'editor-blame-line', 'editor-list-all', 'editor-git-status']) {
     for (const payload of [undefined, null, {}, { root: '/non/esiste/proprio', rel: 'a' }]) {
       const r = await call(channel, payload);
       assert.strictEqual(r.ok, false, `${channel} con ${JSON.stringify(payload)}`);
@@ -96,7 +96,7 @@ ok('ipc editor: le ricariche della pagina non accumulano listener sul webContent
 
 ok('ipc editor: sessioni salvate e rilette, ask dopo un riavvio', async (t) => {
   const { call } = setup(t);
-  const list = [{ name: null, cwd: '/p', files: ['a.js'], active: 'a.js', startedAt: 1 }];
+  const list = [{ name: null, cwd: '/p', files: ['a.js'], active: 'a.js', startedAt: 1, recent: [{ rel: 'b.js', at: 2 }] }];
   assert.deepStrictEqual(await call('editor-sessions-save', { sessions: list }), { ok: true, sessions: list });
   const r = await call('editor-sessions', undefined);
   assert.strictEqual(r.ok, true);
@@ -182,4 +182,27 @@ ok('ipc editor: editor-blame-line rifiuta percorsi fuori e righe non valide', as
   assert.deepStrictEqual(await call('editor-blame-line', { root, rel: '../fuori.txt', line: 1, text: 'a' }), { ok: false, reason: 'outside' });
   assert.deepStrictEqual(await call('editor-blame-line', { root, rel: 'a.txt', line: 'uno', text: 'a' }), { ok: false, reason: 'invalid' });
   assert.deepStrictEqual(await call('editor-blame-line', { root, rel: 'a.txt', line: 1 }), { ok: false, reason: 'invalid' });
+});
+
+ok('ipc editor: elenco di tutti i file e lettere git della cartella (piano 75)', async (t) => {
+  const { call, root } = setup(t);
+  fs.mkdirSync(path.join(root, 'src'));
+  fs.writeFileSync(path.join(root, 'src', 'a.js'), '');
+  const all = await call('editor-list-all', { root });
+  assert.strictEqual(all.ok, true);
+  assert.deepStrictEqual(all.files, ['src/a.js']);
+  const st = await call('editor-git-status', { root });
+  assert.strictEqual(st.ok, true);
+  assert.strictEqual(typeof st.status, 'object');
+});
+
+ok('ipc editor: «Mostra nel Finder» riceve solo percorsi confinati (piano 75)', async (t) => {
+  const revealed = [];
+  const { call, root } = setup(t, { reveal: (p) => revealed.push(p) });
+  fs.writeFileSync(path.join(root, 'a.txt'), '');
+  assert.deepStrictEqual(await call('editor-reveal', { root, rel: 'a.txt' }), { ok: true });
+  assert.deepStrictEqual(await call('editor-reveal', { root, rel: '' }), { ok: true });
+  assert.strictEqual((await call('editor-reveal', { root, rel: '../x' })).ok, false);
+  assert.strictEqual((await call('editor-reveal', { root: '/non/esiste', rel: 'a' })).ok, false);
+  assert.deepStrictEqual(revealed, [path.join(root, 'a.txt'), root]);
 });

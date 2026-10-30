@@ -75,3 +75,15 @@ ok('joinRel, parentRel, baseName', () => {
   assert.strictEqual(F.parentRel('a.js'), '');
   assert.strictEqual(F.baseName('src/x/a.js'), 'a.js');
 });
+
+/* ---------- aperti di recente (docs/plans/75) ---------- */
+
+ok('addRecent: il più recente in cima, senza doppioni, al massimo 5', () => {
+  let list = [];
+  for (const [rel, at] of [['a', 1], ['b', 2], ['c', 3], ['a', 4], ['d', 5], ['e', 6], ['f', 7]]) list = F.addRecent(list, rel, at);
+  assert.deepStrictEqual(list.map((r) => r.rel), ['f', 'e', 'd', 'a', 'c']);
+  assert.strictEqual(list[3].at, 4);
+  const before = [{ rel: 'x', at: 1 }];
+  F.addRecent(before, 'y', 2);
+  assert.deepStrictEqual(before, [{ rel: 'x', at: 1 }], 'la lista di partenza non cambia');
+});

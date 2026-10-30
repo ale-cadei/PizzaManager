@@ -11,6 +11,7 @@
 
 const EditorFiles = window.AisessEditorFiles;
 const EditorTree = window.AisessEditorTree;
+const FileIcons = window.AisessFileIcons;
 const EditorMonaco = window.AisessEditorMonaco;
 const EditorPanel = window.AisessEditorPanel;
 // Larghezza e aperto/chiuso dell'albero, uguali per tutte le schede editor
@@ -71,6 +72,7 @@ function buildEditorLayout(tab) {
     onContextMenu: (row, e) => editorTreeMenu(tab, row, e),
     onCopyInto: (dir, source) => copyIntoEditor(tab, dir, source),
     onDeselect: () => clearEditorSelection(tab),
+    iconUrl: FileIcons.iconUrl,
   });
   const resizer = el('div', 'editor-resizer', tab.wrap);
   resizer.title = `Trascina per allargare l'albero, doppio click per tornare a ${EditorPanel.DEFAULT_W}px`;

@@ -65,6 +65,27 @@ ok('vista: nomi come testo, classi per cartelle, ignorati e selezione', () => {
   } finally { restore(); }
 });
 
+ok('vista: con iconUrl ogni riga ha la sua icona fra freccia e nome, decorativa', () => {
+  const restore = installDocument();
+  try {
+    const root = createElement('div');
+    const seen = [];
+    const view = T.createTreeView({ root, document, onOpenFile() {}, onToggleDir() {}, onContextMenu() {},
+      iconUrl: (row) => { seen.push(row); return `icone/${row.kind}${row.expanded ? '-aperta' : ''}.svg`; } });
+    view.render(T.visibleRows(T.toggle(sample(), 'src')), null);
+    const [src, lib] = view.element.children;
+    const icon = src.children[1];
+    assert.strictEqual(icon.tag, 'img');
+    assert.strictEqual(icon.className, 'editor-tree-icon');
+    assert.strictEqual(icon.src, 'icone/dir-aperta.svg');
+    assert.strictEqual(icon.alt, '');
+    assert.strictEqual(icon.getAttribute('aria-hidden'), 'true');
+    assert.strictEqual(lib.children[1].src, 'icone/dir.svg');
+    assert.strictEqual(src.children[2].textContent, 'src');
+    assert.deepStrictEqual(seen[0], { name: 'src', kind: 'dir', expanded: true });
+  } finally { restore(); }
+});
+
 ok('promptName: Invio dà il nome ripulito, Esc e blur null', async () => {
   const restore = installDocument();
   try {

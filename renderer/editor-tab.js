@@ -329,7 +329,7 @@ function onEditorTextChange(tab, rel, dirty, edited = true) {
   if (!f) return;
   if (f.dirty !== dirty) setEditorFile(tab, rel, { dirty });
   syncEditorNotes(tab, rel);
-  if (edited) scheduleEditorGutter(tab, rel);
+  if (edited) { scheduleEditorGutter(tab, rel); scheduleEditorConflicts(tab, rel); }
 }
 
 /* Una rinomina, un salvataggio o una ricarica possono finire dopo
@@ -374,6 +374,7 @@ async function openEditorFile(tab, rel, { quiet = false } = {}) {
   if (!host || !tabs.has(tab.id)) return false;
   if (ed.files.files[rel]) { activateEditorFile(tab, rel, { save: !quiet }); return true; } // aperto nel frattempo
   host.open(rel, r.text);
+  updateEditorConflicts(tab, rel);
   ed.files = EditorFiles.open(ed.files, rel, { path: r.path, mtime: r.mtime, bom: r.bom });
   hideEditorMessage(tab);
   renderEditorSubtabs(tab);
@@ -400,7 +401,12 @@ function dropEditorFile(tab, rel) {
   ed.files = EditorFiles.close(ed.files, rel);
   if (ed.gutterTimer && ed.gutterTimer.rel === rel) { clearTimeout(ed.gutterTimer.id); ed.gutterTimer = null; }
   ed.gutterSeq.delete(rel); // una lettura di HEAD ancora in volo trova il file chiuso e si scarta
+  if (ed.conflictTimers && Object.prototype.hasOwnProperty.call(ed.conflictTimers, rel)) {
+    clearTimeout(ed.conflictTimers[rel]);
+    ed.conflictTimers = Object.fromEntries(Object.entries(ed.conflictTimers).filter(([r]) => r !== rel));
+  }
   dropEditorNotes(tab, rel);
+  if (ed.conflicts) ed.conflicts = Object.fromEntries(Object.entries(ed.conflicts).filter(([r]) => r !== rel));
   if (ed.host) {
     ed.host.close(rel);
     if (ed.files.active) ed.host.activate(ed.files.active);
@@ -518,6 +524,7 @@ async function reloadEditorFile(tab, rel) {
     path: r.path, mtime: r.mtime, bom: r.bom, dirty: false, deleted: false, conflict: null, diskMtime: null, error: null,
   });
   flushEditorGutter(tab, rel); // replaceText ne ha messo uno in attesa: si fa adesso, una volta
+  flushEditorConflicts(tab, rel);
   if (f.deleted) { unwatchEditorFile(tab, rel); await watchEditorFile(tab, rel); }
   renderEditorSubtabs(tab);
 }

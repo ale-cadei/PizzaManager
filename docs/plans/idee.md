@@ -77,6 +77,17 @@ worktree. Quattro pezzi, un piano e un branch ciascuno, in quest'ordine:
 - [ ] fatto
 - [ ] provato
 
+### Conflitti risolti dall'agente
+Dal pannello «Conflitti» (piano 69) un pulsante «Chiedi all'agente» che manda
+alla sessione agente del repository un prompt con l'operazione a metà e
+l'elenco dei file, incollato come i commenti sul diff (piano 44). Lasciato
+fuori dal 69 su scelta dell'utente (2026-10-28).
+
+- [ ] studio
+- [ ] piano
+- [ ] fatto
+- [ ] provato
+
 ### Segnale esatto «ha finito / ti sta chiedendo qualcosa»
 Oggi il lampeggio c'è, ma è **dedotto dall'output** (`renderer/attention.js`:
 soglie di byte e di tempo) e si vede solo dentro l'app. L'idea:

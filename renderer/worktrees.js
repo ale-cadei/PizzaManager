@@ -21,6 +21,7 @@ const worktreeActions = window.AisessWorktreeActions.createWorktreeActions({
   api: {
     merge: (root, path) => window.aisess.worktreeMerge(root, path),
     remove: (root, path, branch, force) => window.aisess.worktreeRemove(root, path, branch, force),
+    abortMerge: (root) => window.aisess.gitOpAbort(root, 'merge'),
   },
   bubble: closeConfirm,
   sessionsIn: sessionsInWorktree,
@@ -29,6 +30,8 @@ const worktreeActions = window.AisessWorktreeActions.createWorktreeActions({
   refresh: (root) => worktreeCache.refresh(root),
   // Unisci si conferma guardando il diff nel pannello delle modifiche (changes-panel.js)
   review: (w, conf) => reviewMerge(w, conf),
+  // «Risolvi» dopo un Unisci fermo sui conflitti (docs/plans/69)
+  resolve: (root) => openConflictsFor(root),
   // terminateTab non chiede: i file non salvati delle schede editor si
   // salvano o si scartano prima, mostrando la scheda (come all'uscita)
   confirmClose: async (t) => {

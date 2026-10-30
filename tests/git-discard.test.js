@@ -30,6 +30,7 @@ function fakeRepo({ work = '', others = '', index = {}, merging = false } = {}) 
     calls.push({ args, opts });
     if (args.includes('--show-toplevel')) return `${root}\n`;
     if (args.includes('MERGE_HEAD')) { if (merging) return 'deadbeef\n'; throw fail(1, ''); }
+    if (args.includes('CHERRY_PICK_HEAD') || args.includes('REVERT_HEAD')) throw fail(1, '');
     if (args.includes('--git-path')) return '.git/rebase-merge\n.git/rebase-apply\n';
     if (args.includes('--verify')) return 'abc1234\n';
     if (args.includes('ls-files')) return others;

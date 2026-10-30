@@ -14,7 +14,7 @@ const ANCHOR = { id: 'ancora' };
  * `choice` è la risposta al menu, `asks` le risposte alle conferme in ordine,
  * `merge` / `remove` le risposte del main (una per chiamata).
  */
-function setup({ choice, asks = [], merge = [], remove = [], open = [], reviews = null, closeAnswers = null }) {
+function setup({ choice, choices = null, asks = [], merge = [], remove = [], aborts = [], open = [], reviews = null, closeAnswers = null }) {
   const log = [];
   const reviewed = [];
   const asked = [];
@@ -23,9 +23,12 @@ function setup({ choice, asks = [], merge = [], remove = [], open = [], reviews 
     api: {
       merge: async (root, path) => { log.push(`merge ${root} ${path}`); return merge.shift(); },
       remove: async (root, path, branch, force) => { log.push(`remove ${root} ${path} ${branch}${force ? ' force' : ''}`); return remove.shift(); },
+      abortMerge: async (root) => { log.push(`abort ${root}`); return aborts.shift(); },
     },
     bubble: {
-      choose: async (o) => { log.push('choose'); asked.push(o); return choice; },
+      // Il menu del worktree e, se il merge resta a metà, la scelta fra
+      // Risolvi e Annulla merge passano dalla stessa `choose`
+      choose: async (o) => { log.push('choose'); asked.push(o); return choices ? choices.shift() : choice; },
       ask: async (o) => { log.push('ask'); asked.push(o); return asks.shift(); },
       tell: async (o) => { log.push('tell'); told.push(o); return true; },
     },
@@ -40,6 +43,8 @@ function setup({ choice, asks = [], merge = [], remove = [], open = [], reviews 
     ...(reviews ? { review: async (w, conf) => { log.push('review'); reviewed.push({ w, conf }); return reviews.shift(); } } : {}),
     // Le schede editor con file non salvati (renderer/worktrees.js): una risposta per scheda
     ...(closeAnswers ? { confirmClose: async (t) => { log.push(`confirmClose ${t.id}`); return closeAnswers.shift(); } } : {}),
+    // Apre il pannello dei conflitti (Task 5): qui basta vedere che si chiama
+    resolve: async (root) => { log.push(`resolve ${root}`); },
   };
   return { actions: createWorktreeActions(deps), log, asked, told, reviewed };
 }
@@ -92,8 +97,31 @@ ok('azioni: un conflitto lascia le sessioni vive e lo dice dalla riga del worktr
   assert.ok(!log.some((l) => l.startsWith('close')), 'chiuse le sessioni dopo un conflitto');
   assert.strictEqual(told.length, 1);
   assert.strictEqual(told[0].key, 'worktree:/p.worktrees/feat-x');
+  // conflict senza pending: anche l'annullo è fallito, non va detto "annullato"
+  // (fix round finale, docs/plans/69)
+  assert.strictEqual(told[0].title, 'Merge non annullato');
   assert.match(told[0].text, /Conflitti/);
   assert.ok(log.indexOf('tell') < log.indexOf('refresh /p') || !log.includes('refresh /p'), 'il messaggio dopo che la riga è sparita');
+});
+
+const PENDING = { ok: false, conflict: true, pending: true, root: '/p', files: ['a.js'], error: 'Conflitti fra feat/x e main: il merge è a metà.' };
+
+ok('azioni: merge a metà → chiede Risolvi o Annulla merge; Risolvi apre il pannello', async () => {
+  const { actions, log, asked } = setup({ choices: ['merge', 'resolve'], asks: [true], merge: [PENDING], open: [{ id: 'a' }] });
+  await actions.openMenu(WT, '/p', ANCHOR);
+  const q = asked[asked.length - 1];
+  assert.deepStrictEqual(q.choices.map((c) => c.value), ['resolve', 'abort']);
+  assert.match(q.text, /a metà/);
+  assert.ok(log.includes('resolve /p'));
+  assert.ok(!log.some((l) => l.startsWith('close')));
+});
+
+ok('azioni: merge a metà → Annulla merge fa l abort nella cartella principale', async () => {
+  const { actions, log, told } = setup({ choices: ['merge', 'abort'], asks: [true], merge: [PENDING], aborts: [{ ok: true }] });
+  await actions.openMenu(WT, '/p', ANCHOR);
+  assert.ok(log.includes('abort /p'));
+  assert.ok(!log.includes('resolve /p'));
+  assert.strictEqual(told.length, 0);
 });
 
 ok('azioni: Butta con modifiche chiede una seconda volta, poi butta con force', async () => {

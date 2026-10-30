@@ -59,14 +59,18 @@
    *   closeSessions: (sessions: Array<{id: string}>) => Promise<void>,
    *   refresh: (root: string) => Promise<void>,
    *   review?: (w: object, conf: {title: string, text: string, confirmLabel: string}) => Promise<boolean>,
+   *   resolve?: (root: string) => Promise<void>,
    *   confirmClose?: (session: {id: string}) => Promise<boolean>}} deps
    *   `review`: Unisci si conferma guardando il diff del branch nel pannello
    *   delle modifiche (docs/plans/32), invece che dal fumetto.
+   *   `resolve`: apre il pannello dei conflitti (Task 5) sulla cartella
+   *   principale, quando un merge fermo sui conflitti resta a metà. Senza,
+   *   «Risolvi» resta spento: si può solo annullare il merge.
    *   `confirmClose`: chiede, per una sessione che verrà chiusa, se si può
    *   (una scheda editor con file non salvati: salva o scarta). Un no annulla
    *   tutto. Di default non chiede.
    */
-  function createWorktreeActions({ api, bubble, sessionsIn, closeSessions, refresh, review = null, confirmClose = async () => true }) {
+  function createWorktreeActions({ api, bubble, sessionsIn, closeSessions, refresh, review = null, resolve = null, confirmClose = async () => true }) {
     /* Chiamata al main che non lancia mai: un canale giù diventa un errore da dire */
     const call = (fn) => fn().catch((e) => ({ ok: false, error: messageOf(e) }));
 
@@ -89,6 +93,24 @@
         return call(() => api.remove(root, w.path, branch, force));
       }
       return res;
+    }
+
+    /* Merge fermo sui conflitti (docs/plans/69): si risolve o si annulla.
+       Chiudere la bolla lascia il merge a metà: il pannello lo ritrova. */
+    async function askPending(res, root, ctx) {
+      const pick = await bubble.choose({
+        ...ctx,
+        title: 'Conflitti: merge a metà',
+        text: res.error,
+        choices: [
+          { value: 'resolve', label: 'Risolvi', hint: 'Apre il pannello dei conflitti sulla cartella principale', disabled: !resolve },
+          { value: 'abort', label: 'Annulla merge', hint: 'La cartella principale torna com\'era', danger: true },
+        ],
+      });
+      if (pick === 'resolve' && resolve) { await call(() => resolve(res.root || root)); return; }
+      if (pick !== 'abort') return;
+      const undone = await call(() => api.abortMerge(res.root || root));
+      if (!undone.ok) bubble.tell({ ...ctx, title: 'Non annullato', text: undone.error || 'Errore sconosciuto.' }).catch(() => {});
     }
 
     /**
@@ -120,8 +142,15 @@
         await refresh(root);
         return;
       }
-      // Il messaggio prima del rinfresco: la riga a cui si appende c'è ancora
-      const title = res.conflict ? 'Conflitti: merge annullato' : res.merged ? 'Unito, ma la cartella è rimasta' : 'Non fatto';
+      if (res.pending) {
+        await askPending(res, root, ctx);
+        await refresh(root);
+        return;
+      }
+      // Il messaggio prima del rinfresco: la riga a cui si appende c'è ancora.
+      // Qui res.conflict senza res.pending vuol dire che anche l'annullo del
+      // merge è fallito (lib/worktree.js, abortFailedMerge): non è "annullato".
+      const title = res.conflict ? 'Merge non annullato' : res.merged ? 'Unito, ma la cartella è rimasta' : 'Non fatto';
       bubble.tell({ ...ctx, title, text: res.error || 'Errore sconosciuto.' }).catch(() => {});
       await refresh(root);
     }

@@ -783,3 +783,17 @@ ok('linguetta: la posizione salvata si applica, ristretta alla finestra di adess
   assert.strictEqual(fresh.tab.style.top || '', '');
   assert.ok(!fresh.host.classes.has('changes-tab-moved'));
 });
+
+ok('pannello: con i conflitti l elenco e il piè di pagina sono quelli dei conflitti', () => {
+  const M = require('../renderer/conflicts-model');
+  const acts = [];
+  const { host, view } = setup({ onConflict: (a) => acts.push(a) });
+  const c = { ok: true, root: '/r', op: 'merge', what: { incoming: 'feat/x', into: 'main', commit: 'a' },
+    files: [{ path: 'a.js', kind: 'both-modified', binary: false, blocks: 1 }], resolved: [] };
+  view.render(baseState({ files: [], conflicts: M.viewState(c, {}) }));
+  assert.strictEqual(byClass(host, 'conflicts-file').length, 1);
+  assert.strictEqual(byClass(host, 'changes-empty').length, 0);
+  assert.strictEqual(one(host, 'conflicts-foot').hidden, false);
+  fire(byClass(host, 'conflicts-action').find((b) => b.textContent === 'Segna risolto'), 'click');
+  assert.deepStrictEqual(acts.map((a) => a.how), ['mark']);
+});

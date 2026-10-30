@@ -598,7 +598,7 @@ ok('git: worktree creato, unito, in conflitto e buttato, con il git installato',
     assert.strictEqual(git(root, 'branch', '--list', 'feat/uno'), '', 'il branch unito è rimasto');
     assert.ok(fs.existsSync(path.join(root, 'node_modules', 'pkg', 'i.js')), 'node_modules del progetto cancellato');
 
-    // Conflitto: il merge si annulla e la cartella principale torna pulita
+    // Conflitto: il merge resta a metà nella cartella principale (docs/plans/69)
     const due = await wt.createWorktree({ root, branch: 'feat/due', base: 'main' });
     assert.strictEqual(due.ok, true, due.error);
     commitFile(due.path, 'a.txt', 'dal worktree\n');
@@ -606,7 +606,10 @@ ok('git: worktree creato, unito, in conflitto e buttato, con il git installato',
     const clash = await wt.mergeWorktree({ root, path: due.path });
     assert.strictEqual(clash.ok, false);
     assert.strictEqual(clash.conflict, true, clash.error);
-    assert.strictEqual(git(root, 'status', '--porcelain', '--untracked-files=no'), '', 'cartella principale a metà merge');
+    assert.strictEqual(clash.pending, true);
+    assert.doesNotThrow(() => git(root, 'rev-parse', '-q', '--verify', 'MERGE_HEAD'), 'cartella principale a metà merge');
+    git(root, 'merge', '--abort');
+    assert.strictEqual(git(root, 'status', '--porcelain', '--untracked-files=no'), '', 'cartella principale com\'era dopo l\'abort');
     assert.ok(fs.existsSync(due.path), 'worktree tolto dopo un conflitto');
 
     // Butta con un file non committato: prima chiede, poi con force butta tutto
@@ -1236,7 +1239,7 @@ ok('git: unire un branch nel corrente, fast-forward, merge e conflitti, con il g
     assert.strictEqual(git('log', '-1', '--format=%s'), "Merge branch 'feat/div'");
     assert.strictEqual(git('rev-parse', '--short', 'HEAD'), div.commit);
 
-    // Conflitto: annullato, la cartella com'era, il file elencato
+    // Conflitto: il merge resta a metà, il file elencato (docs/plans/69)
     git('switch', '-q', '-c', 'feat/conf');
     commit('a.txt', 'dal branch\n', 'a branch');
     git('switch', '-q', 'main');
@@ -1244,8 +1247,10 @@ ok('git: unire un branch nel corrente, fast-forward, merge e conflitti, con il g
     const before = git('rev-parse', 'HEAD');
     const conf = await mergeBranch({ cwd: root, name: 'feat/conf', kind: 'local' });
     assert.strictEqual(conf.conflict, true, conf.error);
+    assert.strictEqual(conf.pending, true);
     assert.deepStrictEqual(conf.files, ['a.txt']);
-    assert.strictEqual(git('rev-parse', 'HEAD'), before);
+    git('merge', '--abort');
+    assert.strictEqual(git('rev-parse', 'HEAD'), before, 'la cartella com\'era dopo l\'abort');
     assert.strictEqual(git('status', '--porcelain'), '');
     assert.strictEqual(fs.readFileSync(path.join(root, 'a.txt'), 'utf8'), 'da main\n');
 
@@ -1339,5 +1344,86 @@ ok('git: push di un branch su un remoto bare, nuovo upstream, push dopo, rifiuto
     assert.throws(() => gitIn(dir)('--git-dir', remote, 'rev-parse', '--verify', '--quiet', 'refs/heads/feat/hook'));
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+ok('git: conflitti di merge, rebase e cherry-pick risolti dal pannello, con il git installato', async (t) => {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const path = require('path');
+  const { resolveBinary } = require('../lib/binaries');
+  const C = require('../lib/git-conflicts');
+  const bin = resolveBinary('git');
+  if (!bin.path) return t.skip('git non installato su questa macchina');
+  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-conflitti-')));
+  const git = (...args) => String(execFileSync(bin.path, args, { cwd: root, stdio: ['ignore', 'pipe', 'ignore'] })).trim();
+  const tryGit = (...args) => { try { git(...args); } catch { /* si ferma sui conflitti: voluto */ } };
+  const write = (file, text) => fs.writeFileSync(path.join(root, file), text);
+  const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+  const commit = (file, text, msg) => { write(file, text); git('add', file); git('commit', '-q', '-m', msg); };
+  try {
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.name', 'Prova');
+    git('config', 'user.email', 'p@x');
+    git('config', 'core.hooksPath', '.git/hooks');
+    git('config', 'commit.gpgsign', 'false');
+    git('config', 'merge.conflictStyle', 'merge');
+    commit('a.txt', 'uno\n', 'init');
+    git('switch', '-q', '-c', 'feat/x');
+    commit('a.txt', 'dal branch\n', 'x1');
+    commit('b.txt', 'b del branch\n', 'x2');
+    // Il rebase sotto riscrive feat/x: per il cherry-pick in conflitto più
+    // avanti serve la x2 originale, prima che diventi identica a quella su main
+    const origX2 = git('rev-parse', 'HEAD');
+    git('switch', '-q', 'main');
+    commit('a.txt', 'da main\n', 'm1');
+    commit('b.txt', 'b di main\n', 'm2');
+    const tip = git('rev-parse', 'HEAD');
+
+    // Merge: tieni loro su a.txt, a mano b.txt, concludi
+    tryGit('merge', '--no-edit', 'feat/x');
+    let c = await C.readConflicts({ cwd: root });
+    assert.strictEqual(c.op, 'merge');
+    assert.deepStrictEqual(c.what.incoming, 'feat/x');
+    assert.deepStrictEqual(c.files.map((f) => [f.path, f.kind, f.blocks]), [['a.txt', 'both-modified', 1], ['b.txt', 'both-added', 1]]);
+    assert.match((await C.resolveFile({ cwd: root, path: 'b.txt', how: 'mark' })).error, /marcatori/);
+    assert.match((await C.continueOp({ cwd: root, op: 'merge' })).error, /ancora in conflitto/);
+    assert.deepStrictEqual(await C.resolveFile({ cwd: root, path: 'a.txt', how: 'theirs' }), { ok: true });
+    write('b.txt', 'b sistemato\n');
+    assert.deepStrictEqual(await C.resolveFile({ cwd: root, path: 'b.txt', how: 'mark' }), { ok: true });
+    c = await C.readConflicts({ cwd: root });
+    assert.deepStrictEqual(c.files, []);
+    assert.deepStrictEqual(c.resolved, ['a.txt', 'b.txt']);
+    assert.deepStrictEqual(await C.continueOp({ cwd: root, op: 'merge' }), { ok: true, done: true });
+    assert.strictEqual(read('a.txt'), 'dal branch\n');
+    assert.strictEqual(git('log', '-1', '--format=%s'), "Merge branch 'feat/x'");
+    assert.strictEqual((await C.readConflicts({ cwd: root })).op, null);
+
+    // Rebase su due commit in conflitto: si ferma due volte
+    git('reset', '-q', '--hard', tip);
+    git('switch', '-q', 'feat/x');
+    tryGit('rebase', 'main');
+    c = await C.readConflicts({ cwd: root });
+    assert.strictEqual(c.op, 'rebase');
+    assert.deepStrictEqual([c.what.incoming, c.what.into, c.what.step, c.what.total], ['feat/x', 'main', 1, 2]);
+    assert.deepStrictEqual(await C.resolveFile({ cwd: root, path: 'a.txt', how: 'ours' }), { ok: true });
+    assert.deepStrictEqual(await C.continueOp({ cwd: root, op: 'rebase' }), { ok: true, stopped: true });
+    c = await C.readConflicts({ cwd: root });
+    assert.strictEqual(c.what.step, 2);
+    assert.deepStrictEqual(await C.resolveFile({ cwd: root, path: 'b.txt', how: 'theirs' }), { ok: true });
+    assert.deepStrictEqual(await C.continueOp({ cwd: root, op: 'rebase' }), { ok: true, done: true });
+    assert.strictEqual(read('b.txt'), 'b del branch\n');
+
+    // Cherry-pick, poi abort: la cartella torna com'era
+    git('switch', '-q', 'main');
+    const before = git('rev-parse', 'HEAD');
+    tryGit('cherry-pick', origX2);
+    assert.strictEqual((await C.readConflicts({ cwd: root })).op, 'cherry-pick');
+    assert.match((await C.abortOp({ cwd: root, op: 'merge' })).error, /pannello era vecchio/);
+    assert.deepStrictEqual(await C.abortOp({ cwd: root, op: 'cherry-pick' }), { ok: true });
+    assert.strictEqual(git('rev-parse', 'HEAD'), before);
+    assert.strictEqual(git('status', '--porcelain'), '');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });

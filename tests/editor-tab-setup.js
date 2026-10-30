@@ -25,6 +25,9 @@ function fakeHost(texts) {
     texts,
     dirty,
     setGutter: (rel, ranges) => gutters.push([rel, ranges]),
+    conflicts: [], // a parte come gutters: i blocchi colorati
+    setConflicts(rel, blocks) { this.conflicts.push([rel, blocks.map((b) => b.start)]); },
+    editText(rel, text) { calls.push(['editText', rel, text]); texts[rel] = text; dirty.add(rel); },
     isDirty: (rel) => dirty.has(rel),
     reads: [], // a parte come gutters: le letture del testo per le barrette
     getText(rel) { this.reads.push(rel); return texts[rel]; },

@@ -222,8 +222,10 @@
   }
 
   const BUSY_REASONS = {
-    merge: 'C\'è un merge a metà nel repository: finiscilo o annullalo dal terminale.',
-    rebase: 'C\'è un rebase a metà nel repository: finiscilo o annullalo dal terminale.',
+    merge: 'C\'è un merge a metà nel repository: concludilo o annullalo dal pannello delle modifiche.',
+    rebase: 'C\'è un rebase a metà nel repository: continualo o annullalo dal pannello delle modifiche.',
+    'cherry-pick': 'C\'è un cherry-pick a metà nel repository: continualo o annullalo dal pannello delle modifiche.',
+    revert: 'C\'è un revert a metà nel repository: continualo o annullalo dal pannello delle modifiche.',
   };
 
   /* Perché adesso non si scrive nell'indice, o null. Una sessione che lavora
@@ -272,7 +274,7 @@
    */
   function branchMergeFooter({ name, into }, result, tabs) {
     const text = `Unisce ${name} in ${into}: fast-forward se ${into} non è andato avanti, altrimenti un commit di merge. `
-      + 'Ai conflitti si annulla tutto e la cartella resta com\'era.';
+      + 'Ai conflitti il merge resta a metà e il pannello passa ai Conflitti, dove si risolve o si annulla.';
     const base = { text, confirmLabel: `Unisci in ${into}` };
     if (!isRepo(result)) return { ...base, warning: null, canConfirm: false };
     const pending = result.uncommitted > 0 ? result.uncommitted : 0;
@@ -326,6 +328,6 @@
   return {
     targetFor, tabLabel, headerTitle, summary, summaryParts, notice, modeChoice, emptyText, fileCounts, signature,
     diffsToReload, splitPath, displayPath, itemId, splitItemId, sections, reviewAvailable, commitChoice,
-    incomingTarget, branchMergeFooter, discardFooter, openableInEditor,
+    incomingTarget, branchMergeFooter, discardFooter, openableInEditor, writeBlock, insideRoot,
   };
 });

@@ -7,7 +7,7 @@ const { test: ok } = require('node:test');
    risposte; il caso con git vero sta in tests/integration.test.js. */
 const {
   worktreeDirFor, worktreesContainer, parseWorktreeList, parseBases,
-  listWorktrees, worktreeStart, createWorktree, mergeWorktree, removeWorktree,
+  listWorktrees, worktreeStart, createWorktree, mergeWorktree, removeWorktree, busyWith,
 } = require('../lib/worktree');
 
 const win = path.win32;
@@ -169,6 +169,25 @@ ok('worktree: worktreeStart segnala un merge o un rebase in corso', async () => 
   assert.strictEqual(rebasing.busy, 'rebase');
 });
 
+ok('worktree: busyWith riconosce merge, rebase, cherry-pick e revert', async () => {
+  const repo = (heads, dirs = []) => fakeGit((args) => {
+    const ref = args[args.length - 1];
+    if (has(args, '--verify')) { if (heads.includes(ref)) return 'f00\n'; throw gitError(''); }
+    if (has(args, '--git-path')) return '.git/rebase-merge\n.git/rebase-apply\n';
+    throw new Error(`inatteso: ${args.join(' ')}`);
+  });
+  const exists = (dirs) => (p) => dirs.some((d) => p.endsWith(d));
+  const busy = (heads, dirs = []) => busyWith(repo(heads).run, '/r', exists(dirs), 'linux');
+  assert.strictEqual(await busy([]), null);
+  assert.strictEqual(await busy(['MERGE_HEAD']), 'merge');
+  assert.strictEqual(await busy([], ['rebase-merge']), 'rebase');
+  assert.strictEqual(await busy([], ['rebase-apply']), 'rebase');
+  assert.strictEqual(await busy(['CHERRY_PICK_HEAD']), 'cherry-pick');
+  assert.strictEqual(await busy(['REVERT_HEAD']), 'revert');
+  // Un rebase che riapplica un commit: vale il rebase
+  assert.strictEqual(await busy(['CHERRY_PICK_HEAD'], ['rebase-merge']), 'rebase');
+});
+
 ok('worktree: worktreeStart senza nessun commit lo dice', async () => {
   const { run } = fakeGit((args) => {
     if (has(args, 'symbolic-ref', 'HEAD')) return 'main\n';
@@ -324,14 +343,24 @@ ok('worktree: Unisci senza base salvata non indovina', async () => {
   assert.ok(!argsOf(calls).some((a) => a.startsWith('merge')));
 });
 
-ok('worktree: Unisci con conflitti annulla il merge e lascia worktree e branch', async () => {
-  const { run, calls } = mergeRepo({ mergeFails: 'CONFLICT (content): Merge conflict in a.js', merging: true });
+ok('worktree: Unisci con conflitti lascia il merge a metà, worktree e branch', async () => {
+  const { run, calls } = mergeRepo({ mergeFails: 'CONFLICT (content): Merge conflict in a.js', merging: true, over: { '--diff-filter=U': 'a.js\0' } });
   const r = await mergeWorktree({ platform: 'linux', root: '/src/progetto', path: WT, run, rmdir: () => {} });
   assert.strictEqual(r.ok, false);
   assert.strictEqual(r.conflict, true);
+  assert.strictEqual(r.pending, true);
+  assert.deepStrictEqual(r.files, ['a.js']);
+  assert.strictEqual(r.root, '/src/progetto');
   const sent = argsOf(calls);
-  assert.ok(sent.includes('merge --abort'), 'la cartella principale è rimasta a metà merge');
+  assert.ok(!sent.includes('merge --abort'), 'annullato il merge');
   assert.ok(!sent.some((a) => a.startsWith('worktree remove') || a.startsWith('branch')), 'tolto il worktree dopo un conflitto');
+});
+
+ok('worktree: Unisci fermo senza file in conflitto annulla come prima', async () => {
+  const { run, calls } = mergeRepo({ mergeFails: 'hook fallito', merging: true });
+  const r = await mergeWorktree({ platform: 'linux', root: '/src/progetto', path: WT, run, rmdir: () => {} });
+  assert.ok(!r.pending);
+  assert.ok(argsOf(calls).includes('merge --abort'));
 });
 
 ok('worktree: un merge rifiutato prima di cominciare non lancia un abort inutile', async () => {

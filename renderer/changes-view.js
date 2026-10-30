@@ -26,12 +26,13 @@
  * Wrapper UMD come worktree-section.js: globale nella pagina e module.exports
  * sotto Node. */
 (function (root, factory) {
-  const api = factory(root && root.AisessChangesModel, root && root.AisessReviewNotes);
+  const api = factory(root && root.AisessChangesModel, root && root.AisessReviewNotes, root && root.AisessConflictsView);
   if (root) root.AisessChangesView = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-})(typeof window !== 'undefined' ? window : null, function (Model, Review) {
+})(typeof window !== 'undefined' ? window : null, function (Model, Review, ConflictsView) {
   const M = Model || require('./changes-model');
   const R = Review || require('./review-notes');
+  const CV = ConflictsView || require('./conflicts-view');
   const SIGN = { add: '+', del: '-', ctx: ' ', note: '\\' };
   /* Come lib/git-commit.js, MAX_MESSAGE: la casella non accetta di più */
   const MAX_COMMIT_MESSAGE = 10000;
@@ -307,7 +308,7 @@
    */
   function createChangesView({
     doc, host, shortcut, onToggle, onClose, onFile, onMerge = () => {}, onMode = () => {}, onReview = () => {},
-    onCommit = () => {}, onOpenFile = null, tabTop = null, onTabMove = () => {},
+    onCommit = () => {}, onOpenFile = null, tabTop = null, onTabMove = () => {}, onConflict = null,
   }) {
     const tab = button(doc, 'changes-tab', '', `Modifiche di questa sessione (${shortcut})`, () => {
       if (!tabDrag.takeClick()) onToggle();
@@ -381,10 +382,12 @@
     reviewFoot.appendChild(reviewActions);
     const commitBox = createCommitBox(doc, onCommit);
     const discardFoot = createDiscardFoot(doc, onCommit);
+    const conflictsPart = CV.createConflictsPart({ doc, onAction: (a) => onConflict && onConflict(a) });
     panel.appendChild(resizer);
     panel.appendChild(head);
     panel.appendChild(body);
     panel.appendChild(discardFoot.foot);
+    panel.appendChild(conflictsPart.foot);
     panel.appendChild(commitBox.foot);
     panel.appendChild(reviewFoot);
     panel.appendChild(foot);
@@ -473,12 +476,13 @@
       renderReviewFoot(state.review || null);
       commitBox.render(state.commit || null);
       discardFoot.render(state.discard || null);
+      conflictsPart.render(state.conflicts || null);
       fillParts(doc, summary, state.summary);
       const items = [];
       if (state.notice) items.push(el(doc, 'div', 'changes-notice', state.notice));
       if (state.loading) items.push(el(doc, 'div', 'changes-empty', 'Carico…'));
       else if (state.error) items.push(el(doc, 'div', 'changes-error', state.error));
-      else if (!state.files.length) items.push(el(doc, 'div', 'changes-empty', state.emptyText || 'Nessuna modifica: tutto come all\'ultimo commit.'));
+      else if (!state.files.length && !state.conflicts) items.push(el(doc, 'div', 'changes-empty', state.emptyText || 'Nessuna modifica: tutto come all\'ultimo commit.'));
       // Proprietà proprie: un file che si chiama `constructor` o `__proto__`
       // non deve trovare quelle di Object.prototype
       const diffOf = (p) => (Object.prototype.hasOwnProperty.call(state.expanded, p) ? state.expanded[p] : null);
@@ -487,7 +491,8 @@
       const typing = typingAt();
       const cc = state.commit ? { commit: state.commit, act: onCommit } : null;
       const onOpen = state.openable && onOpenFile ? onOpenFile : null;
-      if (state.files.length) items.push(...fileItems(doc, state, diffOf, onFile, reviewOf(state), cc, onOpen));
+      if (state.conflicts) items.push(...conflictsPart.items(state.conflicts));
+      else if (state.files.length) items.push(...fileItems(doc, state, diffOf, onFile, reviewOf(state), cc, onOpen));
       body.replaceChildren(...items);
       // La textarea prende il fuoco appena aperta, o se l'aveva (si stava
       // scrivendo e l'agente ha cambiato un file); un ridisegno qualsiasi no,

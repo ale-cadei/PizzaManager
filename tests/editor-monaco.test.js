@@ -63,6 +63,7 @@ function fakeMonaco() {
         change();
       },
       pushEOL: (eol) => { m.eol = eol; },
+      pushStackElement: () => { m.stack = (m.stack || 0) + 1; },
       deltaDecorations: (old, decorations) => {
         m.removed.push(old);
         m.decorations = decorations;
@@ -244,6 +245,34 @@ ok('setGutter: barrette come decorazioni del margine, sostituite a ogni chiamata
   // la seconda chiamata toglie gli id dati dalla prima
   assert.deepStrictEqual(m.removed, [[], ['/a.js#1.0', '/a.js#1.1', '/a.js#1.2', '/a.js#1.3', '/a.js#1.4']]);
   h.setGutter('nessuno.js', [{ kind: 'add', from: 1, to: 1 }]); // file non aperto: niente
+});
+
+/* ---------- conflitti (docs/plans/69): righe colorate ed editText ---------- */
+
+ok('monaco: setConflicts colora marcatori, nostro, base e loro a righe intere', () => {
+  const { h, fake } = host();
+  h.open('a.txt', 'x\n<<<<<<< HEAD\nn\n||||||| b\nb\n=======\nl\n>>>>>>> f\n');
+  const blocks = [{ start: 2, base: 4, sep: 6, end: 8, ours: [3, 3], theirs: [7, 7] }];
+  h.setConflicts('a.txt', blocks);
+  const m = fake.models[0];
+  const classes = m.decorations.map((d) => [d.range.startLineNumber, d.range.endLineNumber, d.options.className]);
+  assert.deepStrictEqual(classes.sort((a, b) => a[0] - b[0]), [
+    [2, 2, 'editor-conflict-marker'], [3, 3, 'editor-conflict-ours'], [4, 5, 'editor-conflict-base'],
+    [6, 6, 'editor-conflict-marker'], [7, 7, 'editor-conflict-theirs'], [8, 8, 'editor-conflict-marker'],
+  ]);
+  assert.ok(m.decorations.every((d) => d.options.isWholeLine));
+  h.setConflicts('a.txt', []);
+  assert.deepStrictEqual(m.decorations, []);
+});
+
+ok('monaco: editText è una modifica dell utente, annullabile, che lascia il file sporco', () => {
+  const { h, fake, changes } = host();
+  h.open('a.txt', 'uno\n');
+  h.editText('a.txt', 'due\n');
+  assert.strictEqual(h.getText('a.txt'), 'due\n');
+  assert.strictEqual(h.isDirty('a.txt'), true);
+  assert.deepStrictEqual(changes.pop(), ['a.txt', true]);
+  assert.strictEqual(fake.models[0].stack, 2); // un passo di undo tutto suo
 });
 
 ok('reveal: attiva il file, cursore a inizio riga, riga al centro', () => {

@@ -56,6 +56,9 @@ async function mergeIntoCurrent(tab, name, kind, into) {
   const seen = await reviewBranchMerge({ cwd: tab.cwd, name, into });
   if (!seen) return { cancelled: true };
   const r = await afterBranchChange(tab, window.aisess.gitMerge(tab.cwd, name, kind, seen.tip));
+  // Fermo sui conflitti (docs/plans/69): il pannello si apre sulla scheda,
+  // lì si risolve o si annulla; il selettore dice perché
+  if (r && r.pending && typeof openConflictsFor === 'function') openConflictsFor(r.root).catch((e) => console.warn('[conflitti]', e));
   if (!r || !r.ok) return r;
   const how = r.fastForward ? 'fast-forward' : r.commit ? `commit ${r.commit}` : 'commit di merge';
   return { ok: true, text: `${r.branch} unito in ${r.into} (${how}).` };

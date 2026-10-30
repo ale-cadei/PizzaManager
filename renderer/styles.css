@@ -959,6 +959,18 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .changes-discard-text { margin: 0; font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; }
 .changes-discard-foot .btn[disabled] { opacity: .45; cursor: not-allowed; }
 
+/* Modalità Conflitti (docs/plans/69) */
+.conflicts-heading { padding: 8px 12px 4px; font-size: 11px; text-transform: uppercase; opacity: 0.7; }
+.conflicts-file { display: flex; align-items: center; gap: 8px; padding: 4px 12px; }
+.conflicts-path { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conflicts-kind { flex: none; font-size: 11px; opacity: 0.7; }
+.conflicts-file.is-resolved .conflicts-path { opacity: 0.7; }
+.conflicts-action { flex: none; }
+.conflicts-foot { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border); }
+.conflicts-outcome { flex: 1 1 auto; font-size: 12px; }
+.conflicts-outcome.is-error { color: var(--state-error); }
+.conflicts-abort { color: var(--state-error); }
+
 /* ---------- Animaletti (renderer/pets-view.js, piano 33) ----------
    Striscia sotto il terminale: ne ruba l'altezza invece di coprirne l'ultima
    riga. Non prende click e sta sopra i terminali, perché chi vola o salta
@@ -1250,6 +1262,14 @@ body.editor-tree-hidden .editor-resizer { display: none; }
 .monaco-editor .editor-gutter-del-end::after {
   bottom: 0; border-top: none; border-bottom: 5px solid var(--state-error);
 }
+/* Conflitti nell'editor (docs/plans/69): righe di nostro/base/loro, e la
+   zona di scelta sotto ogni blocco */
+.monaco-editor .editor-conflict-marker { background: color-mix(in srgb, var(--text-dim) 18%, transparent); }
+.monaco-editor .editor-conflict-ours { background: color-mix(in srgb, var(--state-changed) 16%, transparent); }
+.monaco-editor .editor-conflict-base { background: color-mix(in srgb, var(--text-dim) 10%, transparent); }
+.monaco-editor .editor-conflict-theirs { background: color-mix(in srgb, var(--state-ok) 16%, transparent); }
+.editor-conflict-bar { display: flex; gap: 6px; padding: 2px 8px; font-size: 12px; }
+.editor-conflict-choice { padding: 1px 8px; }
 /* Commenti sul codice (docs/plans/65): i riquadri del pannello modifiche
    dentro le zone di Monaco, che le posizionano da sé (niente sticky); il
    fondo sulle righe commentate; il «+» nel margine dei glifi */

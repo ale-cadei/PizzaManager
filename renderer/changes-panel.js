@@ -101,6 +101,7 @@ function readChangesMode() {
 let changesState = {
   open: false, target: null, result: null, signature: 'none', expanded: {}, seq: 0, merge: null, mode: readChangesMode(),
   reviewError: null, writing: false, commitOutcome: null, discard: null,
+  conflicts: null, conflictsSignature: null, conflictOutcome: null,
 };
 
 /* L'ultima richiesta di diff per file: una risposta più vecchia (file chiuso
@@ -146,6 +147,7 @@ function turnTimeOf(tab) {
 function renderChanges() {
   if (!changesView) return;
   const { open, target, result, expanded, merge, mode } = changesState;
+  const conflicts = conflictsStateOf(activeTab());
   const ok = Boolean(result && result.ok);
   // Fuori da un repository (o senza sessione) non c'è niente da aprire; un
   // errore di git invece si mostra, se il pannello era aperto. Per «Unisci»
@@ -158,25 +160,27 @@ function renderChanges() {
     label: ChangesModel.tabLabel(result),
     // Mentre la prima lettura di una scheda arriva, il pannello aperto resta
     // aperto e dice che sta caricando (cambiare scheda non lo fa lampeggiare)
-    open: open && Boolean(target) && (readable || Boolean(merge) || !result),
-    loading: !result,
-    title: ChangesModel.headerTitle(target, result, { turnTime: turnTimeOf(activeTab()) }),
+    open: open && Boolean(target) && (Boolean(conflicts) || readable || Boolean(merge) || !result),
+    loading: !result && !conflicts,
+    title: conflicts ? conflicts.headline : ChangesModel.headerTitle(target, result, { turnTime: turnTimeOf(activeTab()) }),
     summary: ChangesModel.summaryParts(result),
     error: unreadable,
     files: ok ? result.files : [],
     expanded,
-    heading: merge ? 'Stai per unire' : 'Modifiche',
+    heading: merge ? 'Stai per unire' : conflicts ? 'Conflitti' : 'Modifiche',
     merge: mergeFooter(merge, result),
-    // In modalità Unisci si guarda il branch contro la base, nient'altro
-    modes: merge ? null : ChangesModel.modeChoice(activeTab(), mode),
+    // In modalità Unisci si guarda il branch contro la base, nient'altro;
+    // in «Conflitti» (docs/plans/69) niente selettore, commenti, commit o scarto
+    modes: merge || conflicts ? null : ChangesModel.modeChoice(activeTab(), mode),
     sections: ChangesModel.sections(result),
     emptyText: ChangesModel.emptyText(result),
     notice: ChangesModel.notice(result),
-    review: reviewStateOf(activeTab(), merge),
-    commit: commitStateOf(activeTab(), merge),
-    discard: merge ? null : discardStateOf(activeTab()),
+    review: conflicts ? null : reviewStateOf(activeTab(), merge),
+    commit: conflicts ? null : commitStateOf(activeTab(), merge),
+    discard: merge || conflicts ? null : discardStateOf(activeTab()),
     // In modalità Unisci si guarda un altro worktree o un branch in arrivo: niente editor
     openable: !merge,
+    conflicts,
   });
 }
 
@@ -191,7 +195,7 @@ function commitStateOf(tab, merge) {
 
 /** Una sessione è partita o si è fermata (signals.js): i pulsanti di scrittura cambiano */
 function noteChangesRunning() {
-  if (changesState.open && changesState.target && (changesState.target.staging || changesState.merge)) renderChanges();
+  if (changesState.open && changesState.target && (changesState.target.staging || changesState.merge || changesState.conflicts)) renderChanges();
 }
 
 const COMMIT_CALLS = {
@@ -381,10 +385,33 @@ async function pollChanges() {
 async function refreshChanges() {
   const target = activeChangesTarget();
   const sameTarget = Boolean(target && changesState.target && target.key === changesState.target.key);
-  if (!sameTarget) setChangesState({ target, result: null, signature: 'none', expanded: {}, reviewError: null, commitOutcome: null, discard: null });
+  if (!sameTarget) {
+    setChangesState({
+      target, result: null, signature: 'none', expanded: {}, reviewError: null, commitOutcome: null, discard: null,
+      conflicts: null, conflictsSignature: null, conflictOutcome: null,
+    });
+  }
   if (!target) return;
   const seq = changesState.seq + 1;
   changesState = { ...changesState, seq };
+  // Un'operazione a metà (docs/plans/69): il pannello parla di quella
+  const conflicts = await readConflictsOf(target);
+  if (seq !== changesState.seq) return;
+  if (conflicts && conflicts.ok === false) {
+    // Lettura fallita (es. index.lock): si tiene lo stato dei conflitti che
+    // c'era, non si scambia per "niente conflitti" e non si cade nel
+    // percorso di staging, che allo stesso giro fallirebbe allo stesso modo
+    // (fix round finale, docs/plans/69)
+    if (changesState.conflicts) setChangesState({ conflictOutcome: { ok: false, text: conflicts.error } });
+    return;
+  }
+  if (conflicts || changesState.conflicts) {
+    const conflictsSignature = conflicts ? JSON.stringify(conflicts) : null;
+    if (conflictsSignature !== changesState.conflictsSignature) {
+      setChangesState({ conflicts, conflictsSignature, conflictOutcome: conflicts ? changesState.conflictOutcome : null });
+    }
+    if (conflicts) return;
+  }
   let result;
   try {
     result = target.staging
@@ -584,6 +611,7 @@ function initChangesPanel() {
     onOpenFile: (path) => { openChangedFile(path).catch((e) => console.warn('[modifiche] apri nell\'editor', e)); },
     tabTop: readChangesTabTop(),
     onTabMove: saveChangesTabTop,
+    onConflict: (action) => handleConflict(action),
   });
   initChangesResize();
   // Finestra rimpicciolita: la linguetta spostata in basso non deve uscire

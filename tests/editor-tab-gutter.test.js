@@ -53,7 +53,9 @@ ok('barrette: scrivendo si ricalcola 300 ms dopo l ultima modifica, una volta', 
   change(s.tab, 'a.txt', true);
   s.host.texts['a.txt'] = 'UNO\ndue';
   change(s.tab, 'a.txt', true);
-  assert.deepStrictEqual(s.timers.map((t) => [t.ms, t.cleared]), [[300, true], [300, false]]);
+  // Due scadenze per modifica: le barrette e, dallo stesso onEditorTextChange, i
+  // conflitti (editor-conflicts.js). Solo l'ultima coppia resta non cancellata.
+  assert.deepStrictEqual(s.timers.map((t) => [t.ms, t.cleared]), [[300, true], [300, true], [300, false], [300, false]]);
   assert.deepStrictEqual(s.host.gutters, [], 'niente prima del timer');
   s.flush();
   assert.deepStrictEqual(plain(s.host.gutters), [['a.txt', [{ kind: 'mod', from: 1, to: 1 }, { kind: 'add', from: 2, to: 2 }]]]);
@@ -151,15 +153,17 @@ ok('barrette: chiudendo la scheda il ricalcolo in attesa si toglie', () => {
 
 ok('barrette: chiudendo il file il suo ricalcolo in attesa si toglie, non quello di un altro', () => {
   const s = gutterSetup({ files: { 'a.txt': { text: 'a', mtime: 1 }, 'b.txt': { text: 'b', mtime: 1 } } });
-  s.fn('onEditorTextChange')(s.tab, 'a.txt', true);
+  s.fn('onEditorTextChange')(s.tab, 'a.txt', true); // timers[0] barrette, timers[1] conflitti (editor-conflicts.js)
   s.fn('dropEditorFile')(s.tab, 'a.txt');
   assert.strictEqual(s.timers[0].cleared, true);
+  assert.strictEqual(s.timers[1].cleared, true); // fix round 1 (docs/plans/69): anche conflictTimers si toglie alla chiusura
   assert.strictEqual(s.tab.editor.gutterTimer, null);
 
   // il timer di un file diverso da quello chiuso resta armato
-  s.fn('onEditorTextChange')(s.tab, 'b.txt', true);
+  s.fn('onEditorTextChange')(s.tab, 'b.txt', true); // timers[2] barrette, timers[3] conflitti
   s.fn('dropEditorFile')(s.tab, 'a.txt'); // già chiuso: niente da fare
-  assert.strictEqual(s.timers[1].cleared, false);
+  assert.strictEqual(s.timers[2].cleared, false);
+  assert.strictEqual(s.timers[3].cleared, false);
   assert.deepStrictEqual(plain(s.tab.editor.gutterTimer), { rel: 'b.txt', id: s.tab.editor.gutterTimer.id });
 });
 

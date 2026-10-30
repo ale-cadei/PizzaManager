@@ -1,6 +1,6 @@
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
-const { createEditorHost } = require('../renderer/editor-monaco');
+const { createEditorHost, quietBuiltinDefinitions } = require('../renderer/editor-monaco');
 
 /* Monaco non gira sotto Node: un finto con le sole cose che l'host usa
    (model con versione e decorazioni, editor con view state, comandi e zone). */
@@ -36,10 +36,22 @@ function fakeMonaco() {
     getSelection: () => editor.selection,
     // Come Monaco: i tasti di un'azione valgono solo in questo editor, e il disposable li toglie
     addAction(a) { editor.actions.push(a); return { dispose() { editor.actions = editor.actions.filter((x) => x !== a); } }; },
-    onMouseDown(f) { editor.mouse.down = f; },
-    onMouseMove(f) { editor.mouse.move = f; },
-    onMouseLeave(f) { editor.mouse.leave = f; },
+    // Come Monaco: più ascoltatori per evento; mouse.<nome>(e) li chiama tutti
+    listeners: {},
+    onMouseDown: (f) => listen('down', f),
+    onMouseUp: (f) => listen('up', f),
+    onMouseMove: (f) => listen('move', f),
+    onMouseLeave: (f) => listen('leave', f),
+    onKeyUp: (f) => listen('keyup', f),
+    messages: [],
+    getPosition: () => editor.position,
+    getContribution: (id) => (id === 'editor.contrib.messageController'
+      ? { showMessage: (text, at) => editor.messages.push([text, at]) } : null),
   };
+  function listen(name, f) {
+    (editor.listeners[name] = editor.listeners[name] || []).push(f);
+    editor.mouse[name] = (e) => editor.listeners[name].forEach((g) => g(e));
+  }
   function createModel(text, _language, uri) {
     const listeners = [];
     let value = text;
@@ -54,6 +66,15 @@ function fakeMonaco() {
       getLineCount: () => lines().length,
       getLineContent: (n) => lines()[n - 1],
       getLineMaxColumn: (n) => lines()[n - 1].length + 1,
+      getWordAtPosition: ({ lineNumber, column }) => {
+        const text = lines()[lineNumber - 1] || '';
+        for (const w of text.matchAll(/[\w$]+/g)) {
+          if (column >= w.index + 1 && column <= w.index + w[0].length + 1) {
+            return { word: w[0], startColumn: w.index + 1, endColumn: w.index + w[0].length + 1 };
+          }
+        }
+        return null;
+      },
       getAlternativeVersionId: () => version,
       getFullModelRange: () => ({ all: true }),
       // Tutto il testo sostituito: le decorazioni si schiacciano in cima, come in Monaco
@@ -500,4 +521,99 @@ ok('commenti: il «+» compare nel margine della riga sotto il mouse e sparisce 
   fake.editor.mouse.move(at(6, 1));
   fake.editor.mouse.leave({});
   assert.deepStrictEqual(plus(), []);
+});
+
+/* ---------- vai alla definizione (docs/plans/71) ---------- */
+
+const CODE = 'const a = helper(1);\nfunction helper() {}\n';
+const onText = (lineNumber, column, event = {}) => ({
+  target: { type: 6, position: { lineNumber, column } },
+  event: { leftButton: true, rightButton: false, ctrlKey: false, metaKey: false, ...event },
+});
+const ctrl = (lineNumber, column, more = {}) => onText(lineNumber, column, { ctrlKey: true, ...more });
+const click = (fake, e) => { fake.editor.mouse.down(e); fake.editor.mouse.up(e); };
+
+ok('definizione: Ctrl+click su un nome chiama onDefinition con file, nome e inizio del nome', () => {
+  const asked = [];
+  const { h, fake } = host({ onDefinition: (...a) => asked.push(a) });
+  h.open('src/a.js', CODE);
+  click(fake, ctrl(1, 13));
+  assert.deepStrictEqual(asked, [['src/a.js', 'helper', { lineNumber: 1, column: 11 }]]);
+});
+
+ok('definizione: senza modificatore, col modificatore sbagliato, fuori dal testo o trascinando non parte', () => {
+  const asked = [];
+  const { h, fake } = host({ onDefinition: (...a) => asked.push(a) });
+  h.open('a.js', CODE);
+  click(fake, onText(1, 13));
+  click(fake, onText(1, 13, { metaKey: true })); // ⌘ fuori dal Mac
+  click(fake, { ...ctrl(1, 13), target: { type: 3, position: { lineNumber: 1, column: 1 } } });
+  click(fake, ctrl(1, 9)); // `=`: nessun nome
+  click(fake, ctrl(1, 13, { leftButton: false }));
+  fake.editor.mouse.down(ctrl(1, 13));
+  fake.editor.mouse.up(ctrl(2, 12)); // giù su un nome, su altrove
+  assert.deepStrictEqual(asked, []);
+});
+
+ok('definizione: su Mac vale ⌘, non Ctrl', () => {
+  const asked = [];
+  const { h, fake } = host({ onDefinition: (...a) => asked.push(a), mac: true });
+  h.open('a.js', CODE);
+  click(fake, ctrl(1, 13));
+  click(fake, onText(2, 12, { metaKey: true }));
+  assert.deepStrictEqual(asked, [['a.js', 'helper', { lineNumber: 2, column: 10 }]]);
+});
+
+ok('definizione: col modificatore il nome sotto il mouse si sottolinea, senza no', () => {
+  const { h, fake } = host({ onDefinition: () => {} });
+  h.open('a.js', CODE);
+  const m = fake.models[0];
+  const links = () => [...m.live.values()].filter((d) => d.options.inlineClassName === 'editor-def-link').map((d) => d.range);
+  fake.editor.mouse.move(ctrl(1, 13));
+  assert.deepStrictEqual(links(), [{ startLineNumber: 1, startColumn: 11, endLineNumber: 1, endColumn: 17 }]);
+  fake.editor.mouse.move(onText(1, 13));
+  assert.deepStrictEqual(links(), []);
+  fake.editor.mouse.move(ctrl(2, 3));
+  assert.strictEqual(links().length, 1);
+  fake.editor.mouse.keyup({ ctrlKey: false });
+  assert.deepStrictEqual(links(), [], 'Ctrl lasciato');
+  fake.editor.mouse.move(ctrl(2, 3));
+  fake.editor.mouse.leave({});
+  assert.deepStrictEqual(links(), []);
+});
+
+ok('definizione: senza onDefinition l\'host non ascolta il Ctrl+click', () => {
+  const { h, fake } = host();
+  h.open('a.js', CODE);
+  assert.ok(!fake.editor.listeners.up, 'nessun onMouseUp');
+  assert.ok(!fake.editor.listeners.keyup, 'nessun onKeyUp');
+});
+
+ok('definizione: reveal porta alla colonna, hint usa il fumetto di Monaco', () => {
+  const { h, fake } = host();
+  h.open('a.js', CODE);
+  h.reveal('a.js', 2, 10);
+  assert.deepStrictEqual(fake.editor.position, { lineNumber: 2, column: 10 });
+  h.reveal('a.js', 1);
+  assert.deepStrictEqual(fake.editor.position, { lineNumber: 1, column: 1 }, 'senza colonna: inizio riga');
+  assert.strictEqual(h.hint('Nessuna definizione'), true);
+  assert.deepStrictEqual(fake.editor.messages, [['Nessuna definizione', { lineNumber: 1, column: 1 }]]);
+  fake.editor.getContribution = () => null;
+  assert.strictEqual(h.hint('x'), false);
+});
+
+ok('definizione: le definizioni interne di Monaco (JS/TS, CSS) si spengono, il resto della configurazione resta', () => {
+  const defaults = (name) => ({
+    name, modeConfiguration: { completionItems: true, definitions: true, hovers: true }, set: null,
+    setModeConfiguration(c) { this.set = c; },
+  });
+  const monaco = {
+    typescript: { typescriptDefaults: defaults('ts'), javascriptDefaults: defaults('js') },
+    css: { cssDefaults: defaults('css'), scssDefaults: defaults('scss'), lessDefaults: defaults('less') },
+  };
+  quietBuiltinDefinitions(monaco);
+  for (const d of [...Object.values(monaco.typescript), ...Object.values(monaco.css)]) {
+    assert.deepStrictEqual(d.set, { completionItems: true, definitions: false, hovers: true }, d.name);
+  }
+  quietBuiltinDefinitions({}); // senza i linguaggi non si rompe
 });

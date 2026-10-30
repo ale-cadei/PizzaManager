@@ -1279,6 +1279,7 @@ body.editor-tree-hidden .editor-resizer { display: none; }
 .editor-note-zone .changes-comment, .editor-note-zone .changes-comment-editor { position: static; }
 .monaco-editor .editor-note-line { background: color-mix(in srgb, var(--action-text) 10%, transparent); }
 .monaco-editor .editor-note-add { display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.monaco-editor .editor-def-link { text-decoration: underline; cursor: pointer; } /* Ctrl/⌘ sopra un nome (docs/plans/71) */
 .monaco-editor .editor-note-add::before { content: '+'; font: 600 14px/1 var(--font-ui); color: var(--action-text); }
 .editor-notes-bar { display: flex; align-items: center; gap: 6px; padding: 0 8px; border-left: 1px solid var(--divider); }
 .editor-notes-bar[hidden] { display: none; }

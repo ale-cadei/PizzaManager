@@ -1,4 +1,4 @@
-/* I notebook Jupyter nella scheda editor (docs/plans/75). Un .ipynb attivo
+/* I notebook Jupyter nella scheda editor (docs/plans/77). Un .ipynb attivo
    si mostra come notebook, in sola lettura, al posto di Monaco; il bottone
    nella testata passa al JSON (che resta il testo del file: si modifica e si
    salva lì) e torna indietro. La vista si ridisegna dal testo dell'editor
@@ -66,7 +66,7 @@ function showEditorNotebook(tab, rel) {
   ui.notebook.scrollTop = view.scroll;
 }
 
-/** Vista o Monaco per il file attivo; il bottone solo sui notebook. Da renderEditorSubtabs. */
+/** Vista o Monaco per il file attivo; il bottone solo sui notebook. Da renderEditorOpen. */
 function syncEditorNotebook(tab) {
   const ed = tab.editor;
   const { ui } = ed;

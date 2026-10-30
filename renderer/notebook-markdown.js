@@ -1,4 +1,4 @@
-/* Il markdown delle celle di un notebook (docs/plans/75), in un albero di
+/* Il markdown delle celle di un notebook (docs/plans/77), in un albero di
  * blocchi e inline che notebook-view.js disegna con createElement. Copre
  * quello che si scrive nei notebook: titoli, paragrafi, liste, citazioni,
  * codice, tabelle, enfasi, link, immagini. L'HTML non si interpreta: resta

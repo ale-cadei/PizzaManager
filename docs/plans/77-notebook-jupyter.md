@@ -1,4 +1,4 @@
-# 75 — `feat/jupyter-notebooks`: i notebook `.ipynb` si leggono come notebook
+# 77 — `feat/jupyter-notebooks`: i notebook `.ipynb` si leggono come notebook
 
 Dipende da: 60 (sessione editor, Monaco). Taglia: ~1 giornata.
 
@@ -56,9 +56,15 @@ su un progetto Python/dati vuole guardarlo com'è in Jupyter.
   attivo, ridisegno quando la versione del testo cambia.
 - **`renderer/editor-monaco.js`**: l'host espone `colorize(node, language)`.
 - **`renderer/editor-languages.js`**: `.ipynb` → `json`, per il sorgente.
-- **`renderer/editor-tab.js`**: il contenitore della vista accanto a quello di
-  Monaco, e una chiamata a `syncEditorNotebook` dove cambia il file attivo o
-  il suo testo.
+- **`renderer/editor-tab.js`**: il bottone in testata (dopo lo spazio, prima
+  dei commenti e di «Vai al file») e il contenitore della vista nel riquadro
+  di Monaco (`editor-stage`), sotto conflitto e stato vuoto.
+- **`renderer/editor-open-ui.js`**: `renderEditorOpen` chiama
+  `syncEditorNotebook`, dove cambia il file attivo o il suo testo.
+
+Nato come piano 75 prima del ridisegno dell'editor (75, PR #61) e dello
+schermo diviso (76): rinumerato 77 al merge, bottone e vista spostati nella
+testata e nel riquadro nuovi.
 
 ## Test
 
@@ -90,6 +96,10 @@ cambiano `parent.document.title`) non gira, le sue immagini esterne restano
 bloccate. «Sorgente» → Monaco col JSON in `json`; `1/0` → `2/0` nel JSON e
 la vista lo mostra. `a.py` senza bottone; `rotto.ipynb` → messaggio d'errore
 con «Apri il sorgente».
+
+Ripetuto dopo il merge col ridisegno: stessa vista (celle `[1]…[3]`, codice
+colorato, PNG 8px, iframe 91px con 3 righe, titolo intatto), bottone in
+testata fra spazio e «Vai al file», toggle e modifica ok, console pulita.
 
 ## Fuori
 

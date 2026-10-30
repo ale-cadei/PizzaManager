@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.36/dist/codicon.css">
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; background: #0B0908; color: #F6F1EC; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; }
+a { color: #FF9B6F; } a:hover { color: #FF6A3D; }
+button { font-family: inherit; }
+</style>
+</helmet>
+
+<section data-screen-label="Turno 1 — Editor di file" style="padding:56px 64px 80px;display:flex;flex-direction:column;gap:28px;">
+  <div style="display:flex;flex-direction:column;gap:8px;max-width:1100px;">
+    <div style="font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:#9A8A82;">Turno 1 · Scheda Editor</div>
+    <div style="font-size:26px;font-weight:600;letter-spacing:-.01em;">Editor di file: com'è oggi e due direzioni</div>
+    <div style="font-size:14px;color:#B8A79E;line-height:1.5;text-wrap:pretty;"><a href="#1a">1a</a> ricostruisce la scheda attuale da editor-tab.js, editor-tree.js e styles.css. <a href="#1b">1b</a> tiene la struttura (albero + sotto-schede) e la rifinisce. <a href="#1c">1c</a> toglie le sotto-schede: i file aperti stanno in cima al pannello e il file attivo diventa il titolo. Gli stati qui sotto valgono per tutte e tre.</div>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <span style="font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:#9A8A82;">Stato</span>
+    <div style="display:flex;gap:4px;background:#050200;border:1px solid #140805;border-radius:6px;padding:4px;">
+      <sc-for list="{{ chips }}" as="c" hint-placeholder-count="5">
+        <button onClick="{{ c.toggle }}" style="font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:{{ c.color }};background:{{ c.bg }};border:1px solid {{ c.border }};border-radius:6px;padding:6px 11px;cursor:pointer;">{{ c.label }}</button>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:56px;flex-wrap:wrap;align-items:flex-start;">
+
+    <!-- ============ 1a · OGGI ============ -->
+    <div id="1a" style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font:600 11px 'IBM Plex Mono',monospace;color:#1A0A05;background:#FF9B6F;border-radius:5px;padding:3px 7px;">1a</span>
+        <span style="font-size:15px;font-weight:600;">Oggi</span>
+        <span style="font-size:13px;color:#9A8A82;">ricostruzione dal codice</span>
+      </div>
+      <div style="width:1440px;height:900px;position:relative;overflow:hidden;display:flex;flex-direction:column;background:#070505;border-radius:10px;box-shadow:0 0 0 1px #251C19, 0 30px 80px rgba(0,0,0,.6);">
+        <div style="display:flex;flex:1;min-height:0;background:#050200;">
+          <aside style="width:300px;flex:0 0 auto;background:#070201;display:flex;flex-direction:column;">
+            <div style="display:flex;gap:14px;align-items:center;padding:22px 20px 18px;border-bottom:1px solid #140805;">
+              <svg viewBox="0 0 100 100" style="width:56px;height:56px;display:block;flex:none;"><mask id="pl-a"><rect x="0" y="0" width="100" height="100" fill="#fff"></rect><path d="M50,54 L59.3,19.2 A36,36 0 0 1 82.6,38.8 Z" fill="#000"></path></mask><g mask="url(#pl-a)"><circle cx="50" cy="54" r="34" fill="#E7A33C"></circle><circle cx="50" cy="54" r="27.5" fill="#F5C45A"></circle><circle cx="36" cy="46" r="5" fill="#E2412A"></circle><circle cx="54" cy="66" r="5.6" fill="#E2412A"></circle><circle cx="33" cy="64" r="3.6" fill="#E2412A"></circle><circle cx="47" cy="40" r="2.6" fill="#7FC45A"></circle><circle cx="28" cy="54" r="2.4" fill="#7FC45A"></circle></g><g transform="translate(7.5,-9) rotate(7 50 54)"><path d="M50,54 L59.0,20.2 A33,33 0 0 1 80.6,38.6 Z" fill="#E7A33C"></path><path d="M50,54 L58.4,26.8 A27.5,27.5 0 0 1 74.6,40.6 Z" fill="#F5C45A"></path><circle cx="63" cy="38" r="4.4" fill="#E2412A"></circle><circle cx="57" cy="45" r="2.2" fill="#7FC45A"></circle></g></svg>
+              <div style="display:flex;flex-direction:column;gap:3px;min-width:0;">
+                <div style="font-weight:700;font-size:19px;letter-spacing:-.01em;">PizzaManager</div>
+                <div style="font:10px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#9A8A82;">darwin · /bin/zsh</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px 20px;">
+              <button style="display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 8px;border-radius:6px;border:1px solid #F04E23;background:transparent;color:#FF9B6F;font-size:13px;font-weight:600;"><span style="font:14px 'IBM Plex Mono',monospace;opacity:.9;">+</span>Nuova</button>
+              <button style="display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 8px;border-radius:6px;border:1px solid #45322D;background:transparent;color:#B8A79E;font-size:13px;font-weight:500;"><span style="font:14px 'IBM Plex Mono',monospace;opacity:.9;">⟲</span>Resume</button>
+            </div>
+            <div style="padding:0 20px 16px;"><div style="padding:10px 12px;border-radius:6px;background:#050200;border:1px solid #45322D;font:12px 'IBM Plex Mono',monospace;color:#8A7A72;">Cerca nelle chat aperte…</div></div>
+            <div style="font:500 10px/1.5 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:#9A8A82;display:flex;align-items:center;gap:10px;padding:8px 20px 12px;">Sessioni aperte <span style="color:#F2C14E;">(3)</span>
+              <div style="margin-left:auto;display:flex;gap:4px;background:#050200;border:1px solid #140805;border-radius:6px;padding:4px;"><span style="padding:5px 10px;border:1px solid #F04E23;background:#2B120A;color:#F6F1EC;border-radius:6px;letter-spacing:.1em;">Tipo</span><span style="padding:5px 10px;border:1px solid transparent;letter-spacing:.1em;">Progetto</span></div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:3px;padding:0 16px 24px;">
+              <div style="position:relative;display:flex;align-items:center;gap:8px;padding:9px 7px 9px 17px;border:1px solid transparent;border-radius:6px;"><span style="position:absolute;left:6px;top:5px;bottom:5px;width:3px;border-radius:99px;background:#F2C14E;opacity:.55;"></span><span style="width:12px;"></span><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#F2C14E;"><path fill-rule="evenodd" d="M2.5 3.5h19A1.5 1.5 0 0 1 23 5v14a1.5 1.5 0 0 1-1.5 1.5h-19A1.5 1.5 0 0 1 1 19V5a1.5 1.5 0 0 1 1.5-1.5Zm.5 2v13h18v-13H3Z"></path><path d="m6.4 8.3 4 3.7-4 3.7-1.3-1.4L7.7 12 5.1 9.7l1.3-1.4Z"></path><path d="M12.2 14.2h6v1.8h-6z"></path></svg><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;color:#B8A79E;">Avvio l'app</div><div style="font:11px 'IBM Plex Mono',monospace;color:#9A8A82;">Terminale</div></div><span style="color:#9A8A82;font-size:14px;padding:2px 6px;">✕</span></div>
+              <div style="position:relative;display:flex;align-items:center;gap:8px;padding:9px 7px 9px 17px;border:1px solid rgba(180,142,240,.45);border-radius:8px;background:#2F1F1B;transform:scale(1.08);margin:6px 0;box-shadow:0 8px 20px rgba(0,0,0,.55), 0 0 0 1px #32211C;z-index:1;"><span style="position:absolute;left:6px;top:5px;bottom:5px;width:3px;border-radius:99px;background:#B48EF0;"></span><span style="width:12px;text-align:center;font-size:10px;color:#B48EF0;">◆</span><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:#B48EF0;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M14 2.5H6.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8Z"></path><path d="M14 2.5V8h5.5"></path><path d="M10 12.5l-2 2l2 2"></path><path d="M14 12.5l2 2l-2 2"></path></svg><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;color:#F6F1EC;">PizzaManager</div><div style="font:11px 'IBM Plex Mono',monospace;color:#B8A79E;">Editor</div></div><span style="color:#9A8A82;font-size:14px;padding:2px 6px;">✕</span></div>
+              <div style="position:relative;display:flex;align-items:center;gap:8px;padding:9px 7px 9px 17px;border:1px solid transparent;border-radius:6px;"><span style="position:absolute;left:6px;top:5px;bottom:5px;width:3px;border-radius:99px;background:#F1502F;opacity:.55;"></span><span style="width:12px;"></span><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:#F1502F;stroke-width:2;"><path d="M6 7.5v9"></path><path d="M18 9.5c0 4.5-6 4-10.2 7.6"></path><path d="M6 2.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5Z"></path><path d="M6 16.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5Z"></path><path d="M18 4.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5Z"></path></svg><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;color:#B8A79E;">PizzaManager</div><div style="font:11px 'IBM Plex Mono',monospace;color:#9A8A82;">Git</div></div><span style="color:#9A8A82;font-size:14px;padding:2px 6px;">✕</span></div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px 14px;font-size:12px;color:#B8A79E;padding:0 20px 18px;">
+              <span><i style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:#F2C14E;"></i>shell</span><span><i style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:#F1502F;"></i>git</span><span><i style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:#4ADE80;"></i>opencode</span><span><i style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:#FF9147;"></i>claude</span><span><i style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:#5AA2FF;"></i>codex</span>
+            </div>
+          </aside>
+          <div style="width:6px;flex:0 0 auto;position:relative;"><div style="position:absolute;top:0;bottom:0;left:2px;right:2px;background:#F04E23;opacity:.45;"></div></div>
+          <main style="flex:1;min-width:0;display:flex;flex-direction:column;background:#050200;">
+            <div style="flex:1;min-height:0;display:flex;">
+              <sc-if value="{{ treeOn }}" hint-placeholder-val="{{ true }}">
+                <aside style="width:240px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid #32211C;background:#070201;">
+                  <div style="display:flex;gap:4px;padding:6px;border-bottom:1px solid #140805;">
+                    <button style="font-size:12px;font-weight:500;padding:2px 8px;border-radius:6px;border:1px solid #45322D;background:transparent;color:#B8A79E;">+ File</button>
+                    <button style="font-size:12px;font-weight:500;padding:2px 8px;border-radius:6px;border:1px solid #45322D;background:transparent;color:#B8A79E;">+ Cartella</button>
+                    <button style="font-size:12px;font-weight:500;padding:2px 8px;border-radius:6px;border:1px solid #45322D;background:transparent;color:#B8A79E;">⟳</button>
+                  </div>
+                  <div style="flex:1;overflow:hidden;padding:4px 0;">
+                    <sc-for list="{{ rows0 }}" as="r" hint-placeholder-count="12">
+                      <div style="display:flex;align-items:center;gap:4px;height:22px;padding-right:8px;padding-left:{{ r.pad }};font-size:13px;color:{{ r.color }};background:{{ r.bg }};white-space:nowrap;"><span style="width:12px;flex-shrink:0;color:#9A8A82;">{{ r.twisty }}</span><span style="overflow:hidden;text-overflow:ellipsis;">{{ r.name }}</span></div>
+                    </sc-for>
+                  </div>
+                </aside>
+              </sc-if>
+              <section style="flex:1;min-width:0;display:flex;flex-direction:column;">
+                <div style="display:flex;border-bottom:1px solid #32211C;background:#070201;">
+                  <button style="flex-shrink:0;padding:0 10px;border:0;border-right:1px solid #140805;border-radius:0;background:transparent;color:#B8A79E;font-size:13px;font-weight:500;height:30px;">☰</button>
+                  <div style="flex:1;min-width:0;display:flex;">
+                    <sc-if value="{{ fileOn }}" hint-placeholder-val="{{ true }}">
+                      <sc-for list="{{ tabs0 }}" as="t" hint-placeholder-count="4">
+                        <div style="display:flex;align-items:center;gap:6px;padding:0 6px 0 12px;height:30px;font-size:13px;color:{{ t.color }};background:{{ t.bg }};box-shadow:{{ t.shadow }};white-space:nowrap;border-right:1px solid #140805;"><span>{{ t.name }}</span><sc-if value="{{ t.dirty }}"><span style="color:#B48EF0;font-size:10px;">●</span></sc-if><span style="color:#9A8A82;font-size:14px;padding:0 4px;">×</span></div>
+                      </sc-for>
+                    </sc-if>
+                  </div>
+                  <sc-if value="{{ notesFile }}">
+                    <div style="display:flex;align-items:center;gap:6px;padding:0 8px;border-left:1px solid #140805;">
+                      <span style="font-size:12px;color:#FF9B6F;white-space:nowrap;">1 commento</span>
+                      <button style="font-size:12px;font-weight:500;padding:2px 8px;border-radius:6px;border:1px solid #45322D;background:transparent;color:#B8A79E;">Copia prompt</button>
+                      <button style="font-size:12px;font-weight:500;padding:2px 8px;border-radius:6px;border:1px solid #45322D;background:transparent;color:#B8A79E;">Svuota</button>
+                    </div>
+                  </sc-if>
+                </div>
+                <sc-if value="{{ conflictFile }}">
+                  <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:13px;background:#261713;color:#F6F1EC;">
+                    <span style="flex:1;">Cambiato sul disco mentre lo modificavi.</span>
+                    <button style="font-size:13px;font-weight:500;padding:11px 20px;border-radius:6px;border:1px solid #45322D;background:transparent;color:#B8A79E;">Ricarica</button>
+                    <button style="font-size:13px;font-weight:500;padding:11px 20px;border-radius:6px;border:1px solid #45322D;background:transparent;color:#B8A79E;">Tieni il mio</button>
+                  </div>
+                </sc-if>
+                <div style="flex:1;min-height:0;position:relative;overflow:hidden;background:{{ hostBg0 }};">
+                  <sc-if value="{{ fileOn }}" hint-placeholder-val="{{ true }}">
+                    <div style="font:13px/20px 'IBM Plex Mono',monospace;">
+                      <sc-for list="{{ top0 }}" as="l" hint-placeholder-count="11">
+                        <div style="display:flex;height:20px;background:{{ l.bg }};"><span style="width:18px;flex:none;"></span><span style="width:38px;flex:none;text-align:right;color:{{ l.numColor }};">{{ l.n }}</span><span style="width:26px;flex:none;position:relative;"><span style="position:absolute;left:2px;top:0;bottom:0;width:3px;background:{{ l.bar }};"></span></span><span style="white-space:pre;"><sc-for list="{{ l.toks }}" as="k"><span style="color:{{ k.c }};font-style:{{ k.fs }};">{{ k.t }}</span></sc-for></span></div>
+                      </sc-for>
+                      <sc-if value="{{ notesOn }}">
+                        <div style="padding:0 16px 0 86px;">
+                          <div style="display:flex;align-items:flex-start;gap:8px;margin:2px 0 4px;padding:6px 10px 6px 12px;font:400 12px/1.45 'IBM Plex Sans',sans-serif;background:#170A06;border-left:3px solid #FF9B6F;">
+                            <span style="font-size:11px;color:#FF9B6F;">r. 57–58</span>
+                            <span style="flex:1;color:#F6F1EC;">Questi tre bottoni diventano icone nell'intestazione del pannello, con il tooltip al posto dell'etichetta.</span>
+                            <span style="color:#8A7A72;font-size:12px;padding:0 4px;">✎</span><span style="color:#8A7A72;font-size:12px;padding:0 4px;">✕</span>
+                          </div>
+                        </div>
+                      </sc-if>
+                      <sc-for list="{{ bot0 }}" as="l" hint-placeholder-count="20">
+                        <div style="display:flex;height:20px;background:{{ l.bg }};"><span style="width:18px;flex:none;"></span><span style="width:38px;flex:none;text-align:right;color:{{ l.numColor }};">{{ l.n }}</span><span style="width:26px;flex:none;position:relative;"><span style="position:absolute;left:2px;top:0;bottom:0;width:3px;background:{{ l.bar }};"></span></span><span style="white-space:pre;"><sc-for list="{{ l.toks }}" as="k"><span style="color:{{ k.c }};font-style:{{ k.fs }};">{{ k.t }}</span></sc-for></span></div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+              </section>
+            </div>
+            <div style="display:flex;flex:0 0 auto;">
+              <div style="flex:1;display:flex;align-items:center;gap:6px;height:26px;padding:0 12px;background:#070201;border-top:1px solid #32211C;font-size:11px;white-space:nowrap;"><span style="color:#B8A79E;">📁 PizzaManager</span><span style="color:#B8A79E;">·</span><span style="font-weight:600;">PizzaManager</span></div>
+              <button style="height:26px;padding:0 12px;background:#070201;color:#B8A79E;border:0;border-top:1px solid #32211C;border-left:1px solid #32211C;font-size:10px;letter-spacing:.06em;">🧩 PLUGIN E SKILL</button>
+              <button style="height:26px;padding:0 12px;background:#070201;color:#B8A79E;border:0;border-top:1px solid #32211C;border-left:1px solid #32211C;font-size:10px;letter-spacing:.06em;">📣 SEGNALAZIONI</button>
+            </div>
+          </main>
+        </div>
+        <sc-if value="{{ menuTree }}">
+          <div style="position:absolute;left:446px;top:246px;z-index:10;display:flex;flex-direction:column;min-width:160px;padding:4px;background:#0E0B0A;border:1px solid #35271F;border-radius:6px;">
+            <sc-for list="{{ menu0 }}" as="m" hint-placeholder-count="6">
+              <div style="text-align:left;color:{{ m.color }};padding:6px 10px;font-size:13px;border-radius:4px;background:{{ m.bg }};">{{ m.label }}</div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+
+    <!-- ============ 1b · EVOLUZIONE ============ -->
+    <div id="1b" style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font:600 11px 'IBM Plex Mono',monospace;color:#1A0A05;background:#FF9B6F;border-radius:5px;padding:3px 7px;">1b</span>
+        <span style="font-size:15px;font-weight:600;">Evoluzione</span>
+        <span style="font-size:13px;color:#9A8A82;">stessa struttura, rifinita: intestazione del pannello, filtro, icone, percorso, barra di stato</span>
+      </div>
+      <div style="width:1440px;height:900px;position:relative;overflow:hidden;display:flex;flex-direction:column;background:#070505;border-radius:10px;box-shadow:0 0 0 1px #251C19, 0 30px 80px rgba(0,0,0,.6);">
+        <div style="display:flex;flex:1;min-height:0;background:#050200;">
+          <aside style="width:300px;flex:0 0 auto;background:#070201;display:flex;flex-direction:column;">
+            <div style="display:flex;gap:14px;align-items:center;padding:22px 20px 18px;border-bottom:1px solid #140805;">
+              <svg viewBox="0 0 100 100" style="width:56px;height:56px;display:block;flex:none;"><mask id="pl-b"><rect x="0" y="0" width="100" height="100" fill="#fff"></rect><path d="M50,54 L59.3,19.2 A36,36 0 0 1 82.6,38.8 Z" fill="#000"></path></mask><g mask="url(#pl-b)"><circle cx="50" cy="54" r="34" fill="#E7A33C"></circle><circle cx="50" cy="54" r="27.5" fill="#F5C45A"></circle><circle cx="36" cy="46" r="5" fill="#E2412A"></circle><circle cx="54" cy="66" r="5.6" fill="#E2412A"></circle><circle cx="33" cy="64" r="3.6" fill="#E2412A"></circle><circle cx="47" cy="40" r="2.6" fill="#7FC45A"></circle><circle cx="28" cy="54" r="2.4" fill="#7FC45A"></circle></g><g transform="translate(7.5,-9) rotate(7 50 54)"><path d="M50,54 L59.0,20.2 A33,33 0 0 1 80.6,38.6 Z" fill="#E7A33C"></path><path d="M50,54 L58.4,26.8 A27.5,27.5 0 0 1 74.6,40.6 Z" fill="#F5C45A"></path><circle cx="63" cy="38" r="4.4" fill="#E2412A"></circle><circle cx="57" cy="45" r="2.2" fill="#7FC45A"></circle></g></svg>
+              <div style="display:flex;flex-direction:column;gap:3px;min-width:0;">
+                <div style="font-weight:700;font-size:19px;letter-spacing:-.01em;">PizzaManager</div>
+                <div style="font:10px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#9A8A82;">darwin · /bin/zsh</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px 20px;">
+              <button style="display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 8px;border-radius:6px;border:1px solid #F04E23;background:transparent;color:#FF9B6F;font-size:13px;font-weight:600;"><span style="font:14px 'IBM Plex Mono',monospace;opacity:.9;">+</span>Nuova</button>
+              <button style="display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 8px;border-radius:6px;border:1px solid #45322D;background:transparent;color:#B8A79E;font-size:13px;font-weight:500;"><span style="font:14px 'IBM Plex Mono',monospace;opacity:.9;">⟲</span>Resume</button>
+            </div>
+            <div style="padding:0 20px 16px;"><div style="padding:10px 12px;border-radius:6px;background:#050200;border:1px solid #45322D;font:12px 'IBM Plex Mono',monospace;color:#8A7A72;">Cerca nelle chat aperte…</div></div>
+            <div style="font:500 10px/1.5 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:#9A8A82;display:flex;align-items:center;gap:10px;padding:8px 20px 12px;">Sessioni aperte <span style="color:#F2C14E;">(3)</span>
+              <div style="margin-left:auto;display:flex;gap:4px;background:#050200;border:1px solid #140805;border-radius:6px;padding:4px;"><span style="padding:5px 10px;border:1px solid #F04E23;background:#2B120A;color:#F6F1EC;border-radius:6px;letter-spacing:.1em;">Tipo</span><span style="padding:5px 10px;border:1px solid transparent;letter-spacing:.1em;">Progetto</span></div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:3px;padding:0 16px 24px;">
+              <div style="position:relative;display:flex;align-items:center;gap:8px;padding:9px 7px 9px 17px;border:1px solid transparent;border-radius:6px;"><span style="position:absolute;left:6px;top:5px;bottom:5px;width:3px;border-radius:99px;background:#F2C14E;opacity:.55;"></span><span style="width:12px;"></span><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#F2C14E;"><path fill-rule="evenodd" d="M2.5 3.5h19A1.5 1.5 0 0 1 23 5v14a1.5 1.5 0 0 1-1.5 1.5h-19A1.5 1.5 0 0 1 1 19V5a1.5 1.5 0 0 1 1.5-1.5Zm.5 2v13h18v-13H3Z"></path><path d="m6.4 8.3 4 3.7-4 3.7-1.3-1.4L7.7 12 5.1 9.7l1.3-1.4Z"></path><path d="M12.2 14.2h6v1.8h-6z"></path></svg><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;color:#B8A79E;">Avvio l'app</div><div style="font:11px 'IBM Plex Mono',monospace;color:#9A8A82;">Terminale</div></div><span style="color:#9A8A82;font-size:14px;padding:2px 6px;">✕</span></div>
+              <div style="position:relative;display:flex;align-items:center;gap:8px;padding:9px 7px 9px 17px;border:1px solid rgba(180,142,240,.45);border-radius:8px;background:#2F1F1B;transform:scale(1.08);margin:6px 0;box-shadow:0 8px 20px rgba(0,0,0,.55), 0 0 0 1px #32211C;z-index:1;"><span style="position:absolute;left:6px;top:5px;bottom:5px;width:3px;border-radius:99px;background:#B48EF0;"></span><span style="width:12px;text-align:center;font-size:10px;color:#B48EF0;">◆</span><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:#B48EF0;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M14 2.5H6.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8Z"></path><path d="M14 2.5V8h5.5"></path><path d="M10 12.5l-2 2l2 2"></path><path d="M14 12.5l2 2l-2 2"></path></svg><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;color:#F6F1EC;">PizzaManager</div><div style="font:11px 'IBM Plex Mono',monospace;color:#B8A79E;">Editor</div></div><span style="color:#9A8A82;font-size:14px;padding:2px 6px;">✕</span></div>
+              <div style="position:relative;display:flex;align-items:center;gap:8px;padding:9px 7px 9px 17px;border:1px solid transparent;border-radius:6px;"><span style="position:absolute;left:6px;top:5px;bottom:5px;width:3px;border-radius:99px;background:#F1502F;opacity:.55;"></span><span style="width:12px;"></span><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:#F1502F;stroke-width:2;"><path d="M6 7.5v9"></path><path d="M18 9.5c0 4.5-6 4-10.2 7.6"></path><path d="M6 2.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5Z"></path><path d="M6 16.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5Z"></path><path d="M18 4.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5Z"></path></svg><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;color:#B8A79E;">PizzaManager</div><div style="font:11px 'IBM Plex Mono',monospace;color:#9A8A82;">Git</div></div><span style="color:#9A8A82;font-size:14px;padding:2px 6px;">✕</span></div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px 14px;font-size:12px;color:#B8A79E;padding:0 20px 18px;">
+              <span><i style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:#F2C14E;"></i>shell</span><span><i style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:#F1502F;"></i>git</span><span><i style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:#4ADE80;"></i>opencode</span><span><i style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:#FF9147;"></i>claude</span><span><i style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:#5AA2FF;"></i>codex</span>
+            </div>
+          </aside>
+          <div style="width:6px;flex:0 0 auto;position:relative;"><div style="position:absolute;top:0;bottom:0;left:2px;right:2px;background:#F04E23;opacity:.45;"></div></div>
+          <main style="flex:1;min-width:0;display:flex;flex-direction:column;background:#050200;">
+            <div style="flex:1;min-height:0;display:flex;">
+              <sc-if value="{{ treeOn }}" hint-placeholder-val="{{ true }}">
+                <aside style="width:248px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid #32211C;background:#070201;">
+                  <div style="height:36px;display:flex;align-items:center;gap:2px;padding:0 6px 0 14px;border-bottom:1px solid #140805;">
+                    <span style="flex:1;font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:#9A8A82;">PizzaManager</span>
+                    <sc-for list="{{ treeTools }}" as="b" hint-placeholder-count="4">
+                      <span title="{{ b.title }}" style="width:24px;height:24px;display:grid;place-items:center;border-radius:5px;color:#9A8A82;" style-hover="background:#261713;color:#F6F1EC;"><i class="codicon {{ b.icon }}" style="font-size:16px;"></i></span>
+                    </sc-for>
+                  </div>
+                  <div style="padding:8px 8px 6px;">
+                    <div style="height:28px;display:flex;align-items:center;gap:6px;padding:0 8px;border-radius:6px;background:#050200;border:1px solid #45322D;">
+                      <i class="codicon codicon-search" style="font-size:14px;color:#8A7A72;"></i>
+                      <span style="flex:1;font:12px 'IBM Plex Mono',monospace;color:#8A7A72;">Filtra file…</span>
+                    </div>
+                  </div>
+                  <div style="flex:1;overflow:hidden;padding:2px 0 8px;">
+                    <sc-for list="{{ rowsA }}" as="r" hint-placeholder-count="14">
+                      <div style="position:relative;display:flex;align-items:center;gap:5px;height:24px;margin:0 6px;padding-right:8px;padding-left:{{ r.pad }};border-radius:5px;background:{{ r.bg }};box-shadow:{{ r.shadow }};opacity:{{ r.op }};white-space:nowrap;" style-hover="background:#170A06;">
+                        <sc-for list="{{ r.guides }}" as="g"><span style="position:absolute;top:0;bottom:0;left:{{ g.x }};width:1px;background:#1E1210;"></span></sc-for>
+                        <i class="codicon {{ r.chev }}" style="font-size:14px;width:14px;flex:none;color:#8A7A72;"></i>
+                        <i class="codicon {{ r.icon }}" style="font-size:15px;flex:none;color:{{ r.tint }};"></i>
+                        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:13px;color:{{ r.color }};">{{ r.name }}</span>
+                        <sc-if value="{{ r.hasGit }}"><span style="font:500 11px 'IBM Plex Mono',monospace;color:{{ r.gitColor }};">{{ r.git }}</span></sc-if>
+                        <sc-if value="{{ r.hasDot }}"><span style="width:6px;height:6px;border-radius:50%;background:#5AA2FF;opacity:.8;"></span></sc-if>
+                      </div>
+                    </sc-for>
+                  </div>
+                </aside>
+              </sc-if>
+              <section style="flex:1;min-width:0;display:flex;flex-direction:column;">
+                <div style="display:flex;align-items:stretch;height:36px;border-bottom:1px solid #32211C;background:#070201;">
+                  <span title="Mostra/nascondi file (Ctrl+B)" style="width:38px;flex:none;display:grid;place-items:center;color:{{ toggleColor }};border-right:1px solid #140805;"><i class="codicon {{ toggleIcon }}" style="font-size:16px;"></i></span>
+                  <div style="flex:1;min-width:0;display:flex;">
+                    <sc-if value="{{ fileOn }}" hint-placeholder-val="{{ true }}">
+                      <sc-for list="{{ tabsA }}" as="t" hint-placeholder-count="4">
+                        <div style="position:relative;display:flex;align-items:center;gap:7px;padding:0 6px 0 12px;font-size:13px;color:{{ t.color }};background:{{ t.bg }};white-space:nowrap;border-right:1px solid #140805;margin-bottom:-1px;">
+                          <span style="position:absolute;left:0;right:0;top:0;height:2px;background:{{ t.top }};"></span>
+                          <i class="codicon {{ t.icon }}" style="font-size:15px;color:{{ t.tint }};opacity:{{ t.iconOp }};"></i>
+                          <span>{{ t.name }}</span>
+                          <span style="width:20px;height:20px;display:grid;place-items:center;border-radius:4px;">
+                            <sc-if value="{{ t.dirty }}"><span style="width:8px;height:8px;border-radius:50%;background:#B48EF0;"></span></sc-if>
+                            <sc-if value="{{ t.closeX }}"><i class="codicon codicon-close" style="font-size:14px;color:#9A8A82;"></i></sc-if>
+                          </span>
+                        </div>
+                      </sc-for>
+                    </sc-if>
+                  </div>
+                  <sc-if value="{{ notesFile }}">
+                    <div style="display:flex;align-items:center;gap:4px;padding:0 8px;">
+                      <span style="display:flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:6px;background:#2B120A;color:#FF9B6F;font-size:12px;font-weight:500;"><i class="codicon codicon-comment" style="font-size:14px;"></i>1 commento</span>
+                      <span style="display:flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:6px;border:1px solid #45322D;color:#D9CDC6;font-size:12px;font-weight:500;"><i class="codicon codicon-copy" style="font-size:14px;"></i>Copia prompt</span>
+                      <span title="Svuota" style="width:24px;height:24px;display:grid;place-items:center;border-radius:5px;color:#9A8A82;"><i class="codicon codicon-clear-all" style="font-size:16px;"></i></span>
+                    </div>
+                  </sc-if>
+                </div>
+                <sc-if value="{{ fileOn }}" hint-placeholder-val="{{ true }}">
+                  <div style="height:28px;display:flex;align-items:center;gap:4px;padding:0 14px;background:#070505;font-size:12px;color:#9A8A82;border-bottom:1px solid #0F0807;">
+                    <span>PizzaManager</span><i class="codicon codicon-chevron-right" style="font-size:12px;color:#6B5B54;"></i>
+                    <span>renderer</span><i class="codicon codicon-chevron-right" style="font-size:12px;color:#6B5B54;"></i>
+                    <i class="codicon codicon-file-code" style="font-size:14px;color:{{ jsTint }};"></i><span style="color:#D9CDC6;">editor-tab.js</span><i class="codicon codicon-chevron-right" style="font-size:12px;color:#6B5B54;"></i>
+                    <i class="codicon codicon-symbol-method" style="font-size:14px;color:#B48EF0;"></i><span style="color:#D9CDC6;">buildEditorLayout</span>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ conflictFile }}">
+                  <div style="display:flex;align-items:center;gap:10px;min-height:40px;padding:6px 10px 6px 14px;background:#2A1F0C;border-bottom:1px solid #3D2E12;">
+                    <i class="codicon codicon-warning" style="font-size:16px;color:#F2C14E;"></i>
+                    <span style="flex:1;font-size:13px;color:#F6F1EC;">Cambiato sul disco mentre lo modificavi. <span style="color:#B8A79E;">Le tue modifiche non sono ancora salvate.</span></span>
+                    <button style="height:26px;padding:0 10px;border-radius:6px;border:1px solid #45322D;background:#261713;color:#D9CDC6;font-size:12px;font-weight:500;">Ricarica dal disco</button>
+                    <button style="height:26px;padding:0 10px;border-radius:6px;border:1px solid transparent;background:transparent;color:#B8A79E;font-size:12px;font-weight:500;">Tieni il mio</button>
+                  </div>
+                </sc-if>
+                <div style="flex:1;min-height:0;position:relative;overflow:hidden;background:#070505;">
+                  <sc-if value="{{ fileOn }}" hint-placeholder-val="{{ true }}">
+                    <div style="font:13px/20px 'IBM Plex Mono',monospace;padding-top:6px;">
+                      <sc-for list="{{ topV }}" as="l" hint-placeholder-count="11">
+                        <div style="display:flex;height:20px;background:{{ l.bg }};"><span style="width:22px;flex:none;text-align:center;color:#FF9B6F;font:600 14px/20px 'IBM Plex Sans',sans-serif;">{{ l.glyph }}</span><span style="width:36px;flex:none;text-align:right;color:{{ l.numColor }};">{{ l.n }}</span><span style="width:18px;flex:none;position:relative;"><span style="position:absolute;left:6px;top:1px;bottom:1px;width:3px;border-radius:2px;background:{{ l.bar }};"></span></span><span style="white-space:pre;"><sc-for list="{{ l.toks }}" as="k"><span style="color:{{ k.c }};font-style:{{ k.fs }};">{{ k.t }}</span></sc-for></span></div>
+                      </sc-for>
+                      <sc-if value="{{ notesOn }}">
+                        <div style="padding:6px 24px 8px 76px;">
+                          <div style="max-width:620px;background:#170A06;border:1px solid #32211C;border-radius:8px;padding:10px 12px 11px;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 8px 20px rgba(0,0,0,.45);">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+                              <i class="codicon codicon-comment" style="font-size:14px;color:#FF9B6F;"></i>
+                              <span style="font:500 11px 'IBM Plex Mono',monospace;color:#FF9B6F;">righe 57–58</span>
+                              <span style="flex:1;"></span>
+                              <i class="codicon codicon-edit" style="font-size:14px;color:#8A7A72;"></i><i class="codicon codicon-trash" style="font-size:14px;color:#8A7A72;"></i>
+                            </div>
+                            <div style="font-size:13px;line-height:1.5;color:#F6F1EC;text-wrap:pretty;">Questi tre bottoni diventano icone nell'intestazione del pannello, con il tooltip al posto dell'etichetta.</div>
+                          </div>
+                        </div>
+                      </sc-if>
+                      <sc-for list="{{ botV }}" as="l" hint-placeholder-count="20">
+                        <div style="display:flex;height:20px;background:{{ l.bg }};"><span style="width:22px;flex:none;"></span><span style="width:36px;flex:none;text-align:right;color:{{ l.numColor }};">{{ l.n }}</span><span style="width:18px;flex:none;position:relative;"><span style="position:absolute;left:6px;top:1px;bottom:1px;width:3px;border-radius:2px;background:{{ l.bar }};"></span></span><span style="white-space:pre;"><sc-for list="{{ l.toks }}" as="k"><span style="color:{{ k.c }};font-style:{{ k.fs }};">{{ k.t }}</span></sc-for></span></div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ fileOff }}">
+                    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+                      <div style="width:360px;display:flex;flex-direction:column;gap:18px;">
+                        <div style="display:flex;flex-direction:column;gap:6px;">
+                          <svg viewBox="0 0 24 24" style="width:32px;height:32px;fill:none;stroke:#B48EF0;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;margin-bottom:6px;"><path d="M14 2.5H6.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8Z"></path><path d="M14 2.5V8h5.5"></path><path d="M10 12.5l-2 2l2 2"></path><path d="M14 12.5l2 2l-2 2"></path></svg>
+                          <div style="font-size:17px;font-weight:600;">Nessun file aperto</div>
+                          <div style="font-size:13px;color:#B8A79E;line-height:1.5;">Scegli un file dall'albero, o trascinane uno qui dentro da fuori.</div>
+                        </div>
+                        <div style="display:flex;flex-direction:column;border-top:1px solid #140805;">
+                          <sc-for list="{{ emptyKeys }}" as="e" hint-placeholder-count="3">
+                            <div style="display:flex;align-items:center;gap:10px;height:36px;border-bottom:1px solid #140805;font-size:13px;color:#D9CDC6;"><i class="codicon {{ e.icon }}" style="font-size:15px;color:#9A8A82;"></i><span style="flex:1;">{{ e.label }}</span><span style="display:flex;gap:3px;"><sc-for list="{{ e.keys }}" as="kk"><span style="font:11px 'IBM Plex Mono',monospace;padding:2px 6px;border-radius:4px;background:#170A06;border:1px solid #45322D;color:#B8A79E;">{{ kk }}</span></sc-for></span></div>
+                          </sc-for>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:2px;">
+                          <div style="font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:#9A8A82;margin-bottom:6px;">Aperti di recente</div>
+                          <sc-for list="{{ recents }}" as="f" hint-placeholder-count="3">
+                            <div style="display:flex;align-items:center;gap:8px;height:28px;padding:0 8px;margin:0 -8px;border-radius:5px;font-size:13px;" style-hover="background:#170A06;"><i class="codicon {{ f.icon }}" style="font-size:15px;color:{{ f.tint }};"></i><span style="color:#D9CDC6;">{{ f.name }}</span><span style="font:11px 'IBM Plex Mono',monospace;color:#8A7A72;">{{ f.dir }}</span></div>
+                          </sc-for>
+                        </div>
+                      </div>
+                    </div>
+                  </sc-if>
+                </div>
+                <div style="height:24px;flex:none;display:flex;align-items:center;gap:16px;padding:0 12px;background:#070201;border-top:1px solid #32211C;font:11px 'IBM Plex Mono',monospace;color:#B8A79E;white-space:nowrap;">
+                  <span style="display:flex;align-items:center;gap:5px;"><i class="codicon codicon-git-branch" style="font-size:13px;"></i>feat/editor-ui</span>
+                  <span style="display:flex;align-items:center;gap:5px;color:#5AA2FF;"><i class="codicon codicon-diff-modified" style="font-size:13px;"></i>4</span>
+                  <span style="flex:1;"></span>
+                  <sc-if value="{{ fileOn }}" hint-placeholder-val="{{ true }}">
+                    <span style="display:flex;gap:16px;"><span>Ln 57, Col 23</span><span>Spazi: 2</span><span>UTF-8</span><span>LF</span><span style="color:#D9CDC6;">JavaScript</span></span>
+                  </sc-if>
+                </div>
+              </section>
+            </div>
+            <div style="display:flex;flex:0 0 auto;">
+              <div style="flex:1;display:flex;align-items:center;gap:6px;height:26px;padding:0 12px;background:#070201;border-top:1px solid #32211C;font-size:11px;white-space:nowrap;"><span style="color:#B8A79E;">📁 PizzaManager</span><span style="color:#B8A79E;">·</span><span style="font-weight:600;">PizzaManager</span></div>
+              <button style="height:26px;padding:0 12px;background:#070201;color:#B8A79E;border:0;border-top:1px solid #32211C;border-left:1px solid #32211C;font-size:10px;letter-spacing:.06em;">🧩 PLUGIN E SKILL</button>
+              <button style="height:26px;padding:0 12px;background:#070201;color:#B8A79E;border:0;border-top:1px solid #32211C;border-left:1px solid #32211C;font-size:10px;letter-spacing:.06em;">📣 SEGNALAZIONI</button>
+            </div>
+          </main>
+        </div>
+        <sc-if value="{{ menuTree }}">
+          <div style="position:absolute;left:470px;top:322px;z-index:10;display:flex;flex-direction:column;width:232px;padding:4px;background:#151010;border:1px solid #35271F;border-radius:8px;box-shadow:0 24px 60px rgba(0,0,0,.6);">
+            <sc-for list="{{ menuV }}" as="m" hint-placeholder-count="8">
+              <sc-if value="{{ m.sep }}"><div style="height:1px;background:#251C19;margin:4px 6px;"></div></sc-if>
+              <sc-if value="{{ m.item }}">
+                <div style="display:flex;align-items:center;gap:9px;height:28px;padding:0 10px;border-radius:5px;font-size:12.5px;color:{{ m.color }};background:{{ m.bg }};"><i class="codicon {{ m.icon }}" style="font-size:15px;color:{{ m.iconColor }};"></i><span style="flex:1;">{{ m.label }}</span><span style="font:11px 'IBM Plex Mono',monospace;color:#9A8A82;">{{ m.key }}</span></div>
+              </sc-if>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+
+    <!-- ============ 1c · RIPENSATO ============ -->
+    <div id="1c" style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font:600 11px 'IBM Plex Mono',monospace;color:#1A0A05;background:#FF9B6F;border-radius:5px;padding:3px 7px;">1c</span>
+        <span style="font-size:15px;font-weight:600;">Ripensato</span>
+        <span style="font-size:13px;color:#9A8A82;">niente sotto-schede: «Aperti» in cima al pannello, il file attivo è il titolo, Vai al file con Ctrl+P</span>
+      </div>
+      <div style="width:1440px;height:900px;position:relative;overflow:hidden;display:flex;flex-direction:column;background:#070505;border-radius:10px;box-shadow:0 0 0 1px #251C19, 0 30px 80px rgba(0,0,0,.6);">
+        <div style="display:flex;flex:1;min-height:0;background:#050200;">
+          <aside style="width:300px;flex:0 0 auto;background:#070201;display:flex;flex-direction:column;">
+            <div style="display:flex;gap:14px;align-items:center;padding:22px 20px 18px;border-bottom:1px solid #140805;">
+              <svg viewBox="0 0 100 100" style="width:56px;height:56px;display:block;flex:none;"><mask id="pl-c"><rect x="0" y="0" width="100" height="100" fill="#fff"></rect><path d="M50,54 L59.3,19.2 A36,36 0 0 1 82.6,38.8 Z" fill="#000"></path></mask><g mask="url(#pl-c)"><circle cx="50" cy="54" r="34" fill="#E7A33C"></circle><circle cx="50" cy="54" r="27.5" fill="#F5C45A"></circle><circle cx="36" cy="46" r="5" fill="#E2412A"></circle><circle cx="54" cy="66" r="5.6" fill="#E2412A"></circle><circle cx="33" cy="64" r="3.6" fill="#E2412A"></circle><circle cx="47" cy="40" r="2.6" fill="#7FC45A"></circle><circle cx="28" cy="54" r="2.4" fill="#7FC45A"></circle></g><g transform="translate(7.5,-9) rotate(7 50 54)"><path d="M50,54 L59.0,20.2 A33,33 0 0 1 80.6,38.6 Z" fill="#E7A33C"></path><path d="M50,54 L58.4,26.8 A27.5,27.5 0 0 1 74.6,40.6 Z" fill="#F5C45A"></path><circle cx="63" cy="38" r="4.4" fill="#E2412A"></circle><circle cx="57" cy="45" r="2.2" fill="#7FC45A"></circle></g></svg>
+              <div style="display:flex;flex-direction:column;gap:3px;min-width:0;">
+                <div style="font-weight:700;font-size:19px;letter-spacing:-.01em;">PizzaManager</div>
+                <div style="font:10px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#9A8A82;">darwin · /bin/zsh</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px 20px;">
+              <button style="display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 8px;border-radius:6px;border:1px solid #F04E23;background:transparent;color:#FF9B6F;font-size:13px;font-weight:600;"><span style="font:14px 'IBM Plex Mono',monospace;opacity:.9;">+</span>Nuova</button>
+              <button style="display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 8px;border-radius:6px;border:1px solid #45322D;background:transparent;color:#B8A79E;font-size:13px;font-weight:500;"><span style="font:14px 'IBM Plex Mono',monospace;opacity:.9;">⟲</span>Resume</button>
+            </div>
+            <div style="padding:0 20px 16px;"><div style="padding:10px 12px;border-radius:6px;background:#050200;border:1px solid #45322D;font:12px 'IBM Plex Mono',monospace;color:#8A7A72;">Cerca nelle chat aperte…</div></div>
+            <div style="font:500 10px/1.5 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:#9A8A82;display:flex;align-items:center;gap:10px;padding:8px 20px 12px;">Sessioni aperte <span style="color:#F2C14E;">(3)</span>
+              <div style="margin-left:auto;display:flex;gap:4px;background:#050200;border:1px solid #140805;border-radius:6px;padding:4px;"><span style="padding:5px 10px;border:1px solid #F04E23;background:#2B120A;color:#F6F1EC;border-radius:6px;letter-spacing:.1em;">Tipo</span><span style="padding:5px 10px;border:1px solid transparent;letter-spacing:.1em;">Progetto</span></div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:3px;padding:0 16px 24px;">
+              <div style="position:relative;display:flex;align-items:center;gap:8px;padding:9px 7px 9px 17px;border:1px solid transparent;border-radius:6px;"><span style="position:absolute;left:6px;top:5px;bottom:5px;width:3px;border-radius:99px;background:#F2C14E;opacity:.55;"></span><span style="width:12px;"></span><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#F2C14E;"><path fill-rule="evenodd" d="M2.5 3.5h19A1.5 1.5 0 0 1 23 5v14a1.5 1.5 0 0 1-1.5 1.5h-19A1.5 1.5 0 0 1 1 19V5a1.5 1.5 0 0 1 1.5-1.5Zm.5 2v13h18v-13H3Z"></path><path d="m6.4 8.3 4 3.7-4 3.7-1.3-1.4L7.7 12 5.1 9.7l1.3-1.4Z"></path><path d="M12.2 14.2h6v1.8h-6z"></path></svg><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;color:#B8A79E;">Avvio l'app</div><div style="font:11px 'IBM Plex Mono',monospace;color:#9A8A82;">Terminale</div></div><span style="color:#9A8A82;font-size:14px;padding:2px 6px;">✕</span></div>
+              <div style="position:relative;display:flex;align-items:center;gap:8px;padding:9px 7px 9px 17px;border:1px solid rgba(180,142,240,.45);border-radius:8px;background:#2F1F1B;transform:scale(1.08);margin:6px 0;box-shadow:0 8px 20px rgba(0,0,0,.55), 0 0 0 1px #32211C;z-index:1;"><span style="position:absolute;left:6px;top:5px;bottom:5px;width:3px;border-radius:99px;background:#B48EF0;"></span><span style="width:12px;text-align:center;font-size:10px;color:#B48EF0;">◆</span><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:#B48EF0;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M14 2.5H6.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8Z"></path><path d="M14 2.5V8h5.5"></path><path d="M10 12.5l-2 2l2 2"></path><path d="M14 12.5l2 2l-2 2"></path></svg><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;color:#F6F1EC;">PizzaManager</div><div style="font:11px 'IBM Plex Mono',monospace;color:#B8A79E;">Editor</div></div><span style="color:#9A8A82;font-size:14px;padding:2px 6px;">✕</span></div>
+              <div style="position:relative;display:flex;align-items:center;gap:8px;padding:9px 7px 9px 17px;border:1px solid transparent;border-radius:6px;"><span style="position:absolute;left:6px;top:5px;bottom:5px;width:3px;border-radius:99px;background:#F1502F;opacity:.55;"></span><span style="width:12px;"></span><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:#F1502F;stroke-width:2;"><path d="M6 7.5v9"></path><path d="M18 9.5c0 4.5-6 4-10.2 7.6"></path><path d="M6 2.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5Z"></path><path d="M6 16.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5Z"></path><path d="M18 4.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5Z"></path></svg><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;color:#B8A79E;">PizzaManager</div><div style="font:11px 'IBM Plex Mono',monospace;color:#9A8A82;">Git</div></div><span style="color:#9A8A82;font-size:14px;padding:2px 6px;">✕</span></div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px 14px;font-size:12px;color:#B8A79E;padding:0 20px 18px;">
+              <span><i style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:#F2C14E;"></i>shell</span><span><i style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:#F1502F;"></i>git</span><span><i style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:#4ADE80;"></i>opencode</span><span><i style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:#FF9147;"></i>claude</span><span><i style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:#5AA2FF;"></i>codex</span>
+            </div>
+          </aside>
+          <div style="width:6px;flex:0 0 auto;position:relative;"><div style="position:absolute;top:0;bottom:0;left:2px;right:2px;background:#F04E23;opacity:.45;"></div></div>
+          <main style="flex:1;min-width:0;display:flex;flex-direction:column;background:#050200;">
+            <div style="flex:1;min-height:0;display:flex;">
+              <sc-if value="{{ treeOn }}" hint-placeholder-val="{{ true }}">
+                <aside style="width:256px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid #32211C;background:#070201;">
+                  <sc-if value="{{ fileOn }}" hint-placeholder-val="{{ true }}">
+                    <div style="display:flex;flex-direction:column;padding-bottom:8px;border-bottom:1px solid #140805;">
+                      <div style="height:34px;display:flex;align-items:center;gap:8px;padding:0 8px 0 14px;">
+                        <span style="font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:#9A8A82;">Aperti</span>
+                        <span style="font:500 10px 'IBM Plex Mono',monospace;color:#F2C14E;">4</span>
+                        <span style="flex:1;"></span>
+                        <span title="Salva tutto (Ctrl+Shift+S)" style="width:24px;height:24px;display:grid;place-items:center;border-radius:5px;color:#9A8A82;"><i class="codicon codicon-save-all" style="font-size:15px;"></i></span>
+                        <span title="Chiudi tutti" style="width:24px;height:24px;display:grid;place-items:center;border-radius:5px;color:#9A8A82;"><i class="codicon codicon-close-all" style="font-size:15px;"></i></span>
+                      </div>
+                      <sc-for list="{{ openB }}" as="o" hint-placeholder-count="4">
+                        <div style="display:flex;align-items:center;gap:8px;height:26px;margin:0 6px;padding:0 6px 0 10px;border-radius:5px;background:{{ o.bg }};box-shadow:{{ o.shadow }};" style-hover="background:#170A06;">
+                          <i class="codicon {{ o.icon }}" style="font-size:15px;color:{{ o.tint }};"></i>
+                          <span style="font-size:13px;color:{{ o.color }};white-space:nowrap;">{{ o.name }}</span>
+                          <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:11px 'IBM Plex Mono',monospace;color:#8A7A72;">{{ o.dir }}</span>
+                          <span style="width:18px;height:18px;display:grid;place-items:center;">
+                            <sc-if value="{{ o.dirty }}"><span style="width:7px;height:7px;border-radius:50%;background:#B48EF0;"></span></sc-if>
+                            <sc-if value="{{ o.warn }}"><i class="codicon codicon-warning" style="font-size:13px;color:#F2C14E;"></i></sc-if>
+                          </span>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                  <div style="height:34px;display:flex;align-items:center;gap:2px;padding:0 6px 0 14px;">
+                    <span style="flex:1;font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:#9A8A82;">File</span>
+                    <sc-for list="{{ treeToolsB }}" as="b" hint-placeholder-count="4">
+                      <span title="{{ b.title }}" style="width:24px;height:24px;display:grid;place-items:center;border-radius:5px;color:#9A8A82;" style-hover="background:#261713;color:#F6F1EC;"><i class="codicon {{ b.icon }}" style="font-size:15px;"></i></span>
+                    </sc-for>
+                  </div>
+                  <div style="flex:1;overflow:hidden;padding:0 0 8px;">
+                    <sc-for list="{{ rowsB }}" as="r" hint-placeholder-count="14">
+                      <div style="display:flex;align-items:center;gap:6px;height:26px;margin:0 6px;padding-right:10px;padding-left:{{ r.pad }};border-radius:5px;background:{{ r.bg }};box-shadow:{{ r.shadow }};opacity:{{ r.op }};white-space:nowrap;" style-hover="background:#170A06;">
+                        <i class="codicon {{ r.chev }}" style="font-size:14px;width:14px;flex:none;color:#8A7A72;"></i>
+                        <i class="codicon {{ r.icon }}" style="font-size:15px;flex:none;color:{{ r.tint }};"></i>
+                        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:13px;color:{{ r.color }};">{{ r.name }}</span>
+                        <sc-if value="{{ r.hasGit }}"><span style="width:6px;height:6px;border-radius:50%;background:{{ r.gitColor }};"></span></sc-if>
+                        <sc-if value="{{ r.hasDot }}"><span style="width:6px;height:6px;border-radius:50%;background:#5AA2FF;opacity:.5;"></span></sc-if>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:14px;padding:8px 14px;border-top:1px solid #140805;font:10px 'IBM Plex Mono',monospace;color:#9A8A82;">
+                    <span style="display:flex;align-items:center;gap:5px;"><span style="width:6px;height:6px;border-radius:50%;background:#5AA2FF;"></span>modificato</span>
+                    <span style="display:flex;align-items:center;gap:5px;"><span style="width:6px;height:6px;border-radius:50%;background:#7FC45A;"></span>nuovo</span>
+                  </div>
+                </aside>
+              </sc-if>
+              <section style="flex:1;min-width:0;display:flex;flex-direction:column;">
+                <div style="height:48px;flex:none;display:flex;align-items:center;gap:10px;padding:0 10px 0 6px;border-bottom:1px solid #32211C;background:#070201;">
+                  <span title="Mostra/nascondi file (Ctrl+B)" style="width:30px;height:30px;display:grid;place-items:center;border-radius:6px;color:{{ toggleColor }};background:{{ toggleBg }};"><i class="codicon {{ toggleIcon }}" style="font-size:16px;"></i></span>
+                  <sc-if value="{{ fileOn }}" hint-placeholder-val="{{ true }}">
+                    <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+                      <i class="codicon codicon-file-code" style="font-size:16px;color:{{ jsTint }};"></i>
+                      <span style="font:12px 'IBM Plex Mono',monospace;color:#9A8A82;white-space:nowrap;">renderer /</span>
+                      <span style="font-size:15px;font-weight:600;white-space:nowrap;">editor-tab.js</span>
+                      <span title="Non salvato" style="width:8px;height:8px;border-radius:50%;background:#B48EF0;"></span>
+                      <span style="font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#5AA2FF;background:rgba(90,162,255,.12);padding:2px 6px;border-radius:5px;">M</span>
+                      <sc-if value="{{ treeOff }}">
+                        <span style="display:flex;align-items:center;gap:6px;height:26px;padding:0 8px 0 10px;margin-left:4px;border-radius:6px;border:1px solid #45322D;color:#D9CDC6;font-size:12px;font-weight:500;white-space:nowrap;">4 aperti<i class="codicon codicon-chevron-down" style="font-size:13px;color:#9A8A82;"></i></span>
+                      </sc-if>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ fileOff }}">
+                    <span style="font-size:15px;font-weight:600;">PizzaManager</span>
+                  </sc-if>
+                  <span style="flex:1;"></span>
+                  <sc-if value="{{ notesFile }}">
+                    <span style="display:flex;align-items:center;gap:6px;height:28px;padding:0 4px 0 10px;border-radius:6px;background:#2B120A;color:#FF9B6F;font-size:12px;font-weight:500;white-space:nowrap;"><i class="codicon codicon-comment" style="font-size:14px;"></i>1 commento<span style="width:1px;height:14px;background:rgba(255,155,111,.3);margin:0 2px;"></span><span style="display:flex;align-items:center;gap:5px;padding:0 6px;color:#F6F1EC;"><i class="codicon codicon-copy" style="font-size:13px;"></i>Copia prompt</span></span>
+                  </sc-if>
+                  <div style="width:260px;height:30px;display:flex;align-items:center;gap:8px;padding:0 6px 0 10px;border-radius:6px;background:#050200;border:1px solid #45322D;">
+                    <i class="codicon codicon-search" style="font-size:14px;color:#8A7A72;"></i>
+                    <span style="flex:1;font-size:12.5px;color:#8A7A72;">Vai al file…</span>
+                    <span style="font:11px 'IBM Plex Mono',monospace;padding:1px 6px;border-radius:4px;background:#170A06;border:1px solid #45322D;color:#B8A79E;">Ctrl P</span>
+                  </div>
+                </div>
+                <div style="flex:1;min-height:0;position:relative;overflow:hidden;background:#070505;">
+                  <sc-if value="{{ fileOn }}" hint-placeholder-val="{{ true }}">
+                    <div style="font:13px/20px 'IBM Plex Mono',monospace;padding-top:10px;">
+                      <sc-for list="{{ topV }}" as="l" hint-placeholder-count="11">
+                        <div style="display:flex;height:20px;background:{{ l.bg }};"><span style="width:22px;flex:none;text-align:center;color:#FF9B6F;font:600 14px/20px 'IBM Plex Sans',sans-serif;">{{ l.glyph }}</span><span style="width:36px;flex:none;text-align:right;color:{{ l.numColor }};">{{ l.n }}</span><span style="width:18px;flex:none;position:relative;"><span style="position:absolute;left:6px;top:1px;bottom:1px;width:3px;border-radius:2px;background:{{ l.bar }};"></span></span><span style="white-space:pre;"><sc-for list="{{ l.toks }}" as="k"><span style="color:{{ k.c }};font-style:{{ k.fs }};">{{ k.t }}</span></sc-for></span></div>
+                      </sc-for>
+                      <sc-if value="{{ notesOn }}">
+                        <div style="padding:6px 24px 8px 76px;">
+                          <div style="max-width:620px;background:#170A06;border:1px solid #32211C;border-radius:8px;padding:10px 12px 11px;font-family:'IBM Plex Sans',sans-serif;box-shadow:0 8px 20px rgba(0,0,0,.45);">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+                              <i class="codicon codicon-comment" style="font-size:14px;color:#FF9B6F;"></i>
+                              <span style="font:500 11px 'IBM Plex Mono',monospace;color:#FF9B6F;">righe 57–58</span>
+                              <span style="flex:1;"></span>
+                              <i class="codicon codicon-edit" style="font-size:14px;color:#8A7A72;"></i><i class="codicon codicon-trash" style="font-size:14px;color:#8A7A72;"></i>
+                            </div>
+                            <div style="font-size:13px;line-height:1.5;color:#F6F1EC;text-wrap:pretty;">Questi tre bottoni diventano icone nell'intestazione del pannello, con il tooltip al posto dell'etichetta.</div>
+                          </div>
+                        </div>
+                      </sc-if>
+                      <sc-for list="{{ botV }}" as="l" hint-placeholder-count="20">
+                        <div style="display:flex;height:20px;background:{{ l.bg }};"><span style="width:22px;flex:none;"></span><span style="width:36px;flex:none;text-align:right;color:{{ l.numColor }};">{{ l.n }}</span><span style="width:18px;flex:none;position:relative;"><span style="position:absolute;left:6px;top:1px;bottom:1px;width:3px;border-radius:2px;background:{{ l.bar }};"></span></span><span style="white-space:pre;"><sc-for list="{{ l.toks }}" as="k"><span style="color:{{ k.c }};font-style:{{ k.fs }};">{{ k.t }}</span></sc-for></span></div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ conflictFile }}">
+                    <div style="position:absolute;top:14px;right:18px;width:340px;background:#170A06;border:1px solid #45322D;border-radius:10px;padding:14px 14px 12px;box-shadow:0 24px 60px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:10px;">
+                      <div style="display:flex;align-items:center;gap:8px;"><i class="codicon codicon-warning" style="font-size:16px;color:#F2C14E;"></i><span style="font-size:13px;font-weight:600;">Cambiato sul disco</span></div>
+                      <div style="font-size:12.5px;line-height:1.5;color:#B8A79E;text-wrap:pretty;">Qualcuno ha scritto editor-tab.js mentre lo modificavi. Le tue modifiche non sono ancora salvate.</div>
+                      <div style="display:flex;gap:6px;justify-content:flex-end;">
+                        <button style="height:28px;padding:0 12px;border-radius:6px;border:1px solid transparent;background:transparent;color:#B8A79E;font-size:12px;font-weight:500;">Tieni il mio</button>
+                        <button style="height:28px;padding:0 12px;border-radius:6px;border:1px solid #45322D;background:#261713;color:#D9CDC6;font-size:12px;font-weight:500;">Ricarica dal disco</button>
+                      </div>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ fileOff }}">
+                    <div style="position:absolute;inset:0;display:flex;align-items:flex-start;justify-content:center;padding-top:150px;">
+                      <div style="width:480px;display:flex;flex-direction:column;gap:20px;">
+                        <div style="display:flex;flex-direction:column;gap:6px;align-items:center;text-align:center;">
+                          <div style="font-size:19px;font-weight:600;letter-spacing:-.01em;">Apri un file</div>
+                          <div style="font-size:13px;color:#B8A79E;">Scrivi parte del nome, oppure riprendi da dove avevi lasciato.</div>
+                        </div>
+                        <div style="height:42px;display:flex;align-items:center;gap:10px;padding:0 10px 0 14px;border-radius:8px;background:#050200;border:1px solid #F04E23;box-shadow:0 0 0 3px rgba(240,78,35,.22);">
+                          <i class="codicon codicon-search" style="font-size:16px;color:#9A8A82;"></i>
+                          <span style="flex:1;font:13px 'IBM Plex Mono',monospace;color:#8A7A72;">es. editor-tree, styles.css…</span>
+                          <span style="font:11px 'IBM Plex Mono',monospace;padding:2px 6px;border-radius:4px;background:#170A06;border:1px solid #45322D;color:#B8A79E;">Ctrl P</span>
+                        </div>
+                        <div style="display:flex;flex-direction:column;background:#070201;border:1px solid #32211C;border-radius:8px;padding:6px;">
+                          <div style="font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:#9A8A82;padding:6px 8px 8px;">Aperti di recente</div>
+                          <sc-for list="{{ recents }}" as="f" hint-placeholder-count="3">
+                            <div style="display:flex;align-items:center;gap:10px;height:32px;padding:0 8px;border-radius:5px;font-size:13px;background:{{ f.bg }};"><i class="codicon {{ f.icon }}" style="font-size:15px;color:{{ f.tint }};"></i><span style="color:#F6F1EC;">{{ f.name }}</span><span style="flex:1;font:11px 'IBM Plex Mono',monospace;color:#8A7A72;">{{ f.dir }}</span><span style="font:11px 'IBM Plex Mono',monospace;color:#8A7A72;">{{ f.when }}</span></div>
+                          </sc-for>
+                        </div>
+                        <div style="display:flex;justify-content:center;gap:18px;font-size:12px;color:#9A8A82;">
+                          <sc-for list="{{ emptyKeysB }}" as="e" hint-placeholder-count="3">
+                            <span style="display:flex;align-items:center;gap:6px;">{{ e.label }}<span style="font:11px 'IBM Plex Mono',monospace;padding:1px 5px;border-radius:4px;border:1px solid #45322D;color:#B8A79E;">{{ e.key }}</span></span>
+                          </sc-for>
+                        </div>
+                      </div>
+                    </div>
+                  </sc-if>
+                </div>
+                <sc-if value="{{ fileOn }}" hint-placeholder-val="{{ true }}">
+                  <div style="height:24px;flex:none;display:flex;align-items:center;gap:16px;padding:0 12px;background:#070505;border-top:1px solid #140805;font:11px 'IBM Plex Mono',monospace;color:#9A8A82;white-space:nowrap;">
+                    <span style="display:flex;align-items:center;gap:6px;color:#B48EF0;"><span style="width:6px;height:6px;border-radius:50%;background:#B48EF0;"></span>Non salvato</span>
+                    <span style="display:flex;align-items:center;gap:5px;"><i class="codicon codicon-git-branch" style="font-size:13px;"></i>feat/editor-ui</span>
+                    <span style="flex:1;"></span>
+                    <span>Ln 57, Col 23</span><span>Spazi: 2</span><span>UTF-8 · LF</span><span style="color:#D9CDC6;">JavaScript</span>
+                  </div>
+                </sc-if>
+              </section>
+            </div>
+            <div style="display:flex;flex:0 0 auto;">
+              <div style="flex:1;display:flex;align-items:center;gap:6px;height:26px;padding:0 12px;background:#070201;border-top:1px solid #32211C;font-size:11px;white-space:nowrap;"><span style="color:#B8A79E;">📁 PizzaManager</span><span style="color:#B8A79E;">·</span><span style="font-weight:600;">PizzaManager</span></div>
+              <button style="height:26px;padding:0 12px;background:#070201;color:#B8A79E;border:0;border-top:1px solid #32211C;border-left:1px solid #32211C;font-size:10px;letter-spacing:.06em;">🧩 PLUGIN E SKILL</button>
+              <button style="height:26px;padding:0 12px;background:#070201;color:#B8A79E;border:0;border-top:1px solid #32211C;border-left:1px solid #32211C;font-size:10px;letter-spacing:.06em;">📣 SEGNALAZIONI</button>
+            </div>
+          </main>
+        </div>
+        <sc-if value="{{ menuTree }}">
+          <div style="position:absolute;left:470px;top:{{ menuTopB }};z-index:10;display:flex;flex-direction:column;width:232px;padding:4px;background:#151010;border:1px solid #35271F;border-radius:8px;box-shadow:0 24px 60px rgba(0,0,0,.6);">
+            <sc-for list="{{ menuV }}" as="m" hint-placeholder-count="8">
+              <sc-if value="{{ m.sep }}"><div style="height:1px;background:#251C19;margin:4px 6px;"></div></sc-if>
+              <sc-if value="{{ m.item }}">
+                <div style="display:flex;align-items:center;gap:9px;height:28px;padding:0 10px;border-radius:5px;font-size:12.5px;color:{{ m.color }};background:{{ m.bg }};"><i class="codicon {{ m.icon }}" style="font-size:15px;color:{{ m.iconColor }};"></i><span style="flex:1;">{{ m.label }}</span><span style="font:11px 'IBM Plex Mono',monospace;color:#9A8A82;">{{ m.key }}</span></div>
+              </sc-if>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;syntax&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;forno&quot;, &quot;vs&quot;], &quot;default&quot;: &quot;forno&quot;, &quot;tsType&quot;: &quot;'forno'|'vs'&quot;, &quot;section&quot;: &quot;Varianti 1b / 1c&quot;}, &quot;gitInTree&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Varianti 1b / 1c&quot;}}">
+const SRC = [
+"function buildEditorLayout(tab) {",
+"  const el = (tag, className, parent) => {",
+"    const n = document.createElement(tag);",
+"    n.className = className;",
+"    parent.appendChild(n);",
+"    return n;",
+"  };",
+"  const side = el('aside', 'editor-side', tab.wrap);",
+"  const tools = el('div', 'editor-side-tools', side);",
+"  const tool = (label, title, run) => {",
+"    const b = el('button', 'btn btn--ghost editor-tool', tools);",
+"    b.textContent = label;",
+"    b.title = title;",
+"    b.onclick = run;",
+"  };",
+"  tool('+ File', 'Nuovo file nella cartella della sessione', () => newEditorEntry(tab, '', 'file'));",
+"  tool('+ Cartella', 'Nuova cartella nella cartella della sessione', () => newEditorEntry(tab, '', 'dir'));",
+"  tool('⟳', 'Rileggi le cartelle aperte', () => reloadEditorTree(tab));",
+"  const treeHost = el('div', 'editor-tree-host', side);",
+"  const tree = EditorTree.createTreeView({",
+"    root: treeHost, document,",
+"    onOpenFile: (rel) => openEditorFile(tab, rel),",
+"    onToggleDir: (rel) => toggleEditorDir(tab, rel),",
+"    onContextMenu: (row, e) => editorTreeMenu(tab, row, e),",
+"    onCopyInto: (dir, source) => copyIntoEditor(tab, dir, source),",
+"    onDeselect: () => clearEditorSelection(tab),",
+"  });",
+"  const resizer = el('div', 'editor-resizer', tab.wrap);",
+"  resizer.title = `Trascina per allargare l'albero, doppio click per tornare a ${EditorPanel.DEFAULT_W}px`;",
+"  editorPanel.attachResizer(resizer, { side, wrap: tab.wrap, win: window });",
+"  const main = el('section', 'editor-main', tab.wrap);",
+];
+const FIRST = 48;
+const THEMES = {
+  vs: { kw: '#569CD6', ctl: '#C586C0', str: '#CE9178', com: '#6A9955', num: '#B5CEA8', fn: '#DCDCAA', id: '#9CDCFE', cls: '#4EC9B0', pun: '#D4D4D4', ln: '#858585', lnA: '#C6C6C6', it: false },
+  forno: { kw: '#FF9B6F', ctl: '#FF9B6F', str: '#E3C27A', com: '#8A7A72', num: '#C9A8F5', fn: '#F6F1EC', id: '#D9CDC6', cls: '#C9A8F5', pun: '#9A8A82', ln: '#5E4E47', lnA: '#D9CDC6', it: true },
+};
+const RE = /(\/\/.*$)|(`[^`]*`|'[^']*')|(=>)|\b(const|let|var|function|return|new|true|false|null|undefined)\b|\b(if|else|for|while|await|async)\b|(\d+)|([A-Z][\w$]*)|([a-z_$][\w$]*)(?=\s*\()|([a-zA-Z_$][\w$]*)|(\s+)|(\S)/g;
+function tokenize(line, th) {
+  const out = [];
+  let m;
+  RE.lastIndex = 0;
+  while ((m = RE.exec(line))) {
+    let c = th.pun, fs = 'normal';
+    if (m[1]) { c = th.com; if (th.it) fs = 'italic'; }
+    else if (m[2]) c = th.str;
+    else if (m[3] || m[4]) c = th.kw;
+    else if (m[5]) c = th.ctl;
+    else if (m[6]) c = th.num;
+    else if (m[7]) c = th.cls;
+    else if (m[8]) c = th.fn;
+    else if (m[9]) c = th.id;
+    const last = out[out.length - 1];
+    if (last && (last.c === c || m[10]) && last.fs === fs) last.t += m[0];
+    else out.push({ t: m[0], c, fs });
+  }
+  return out;
+}
+const EXT = {
+  js: ['codicon-file-code', 'oklch(0.82 0.11 90)'],
+  css: ['codicon-symbol-color', 'oklch(0.78 0.11 245)'],
+  html: ['codicon-code', 'oklch(0.76 0.12 40)'],
+  md: ['codicon-markdown', 'oklch(0.78 0.10 300)'],
+  json: ['codicon-json', 'oklch(0.80 0.11 145)'],
+};
+const fileIcon = (name) => {
+  if (name === '.gitignore') return ['codicon-git-commit', '#9A8A82'];
+  const ext = name.split('.').pop();
+  return EXT[ext] || ['codicon-file', '#9A8A82'];
+};
+const TREE = [
+  { name: 'app', dir: 1 }, { name: 'assets', dir: 1 }, { name: 'docs', dir: 1 }, { name: 'lib', dir: 1 },
+  { name: 'node_modules', dir: 1, ign: 1 },
+  { name: 'renderer', dir: 1, open: 1, dot: 1 },
+  { name: 'editor-files.js', d: 1 }, { name: 'editor-monaco.js', d: 1 }, { name: 'editor-panel.js', d: 1, git: 'M' },
+  { name: 'editor-tab.js', d: 1, git: 'M', sel: 1 }, { name: 'editor-tree.js', d: 1, git: 'M' },
+  { name: 'index.html', d: 1 }, { name: 'styles.css', d: 1, git: 'M' }, { name: 'tokens.css', d: 1 },
+  { name: 'tests', dir: 1 },
+  { name: '.gitignore' }, { name: 'CLAUDE.md' }, { name: 'design-system.md', git: 'U' }, { name: 'main.js' },
+  { name: 'package.json' }, { name: 'README.md' },
+];
+const OPEN = [
+  { name: 'editor-tab.js', dir: 'renderer', active: 1, dirty: 1 },
+  { name: 'editor-tree.js', dir: 'renderer' },
+  { name: 'styles.css', dir: 'renderer' },
+  { name: 'README.md', dir: '' },
+];
+const GIT_C = { M: '#5AA2FF', U: '#7FC45A' };
+const MOD = { 63: 'mod', 64: 'mod', 65: 'mod', 66: 'add' };
+
+class Component extends DCLogic {
+  state = { tree: true, file: true, conflict: false, notes: true, menu: false };
+
+  lines(th, variant, notes) {
+    const top = [], bot = [];
+    SRC.forEach((src, i) => {
+      const n = FIRST + i;
+      const active = n === 57;
+      const noted = notes && (n === 57 || n === 58);
+      const hl = variant ? '#140B09' : '#151010';
+      const bg = noted ? 'rgba(255,155,111,0.10)' : active ? hl : 'transparent';
+      const bar = MOD[n] === 'mod' ? '#5AA2FF' : MOD[n] === 'add' ? '#7FC45A' : 'transparent';
+      const row = { n, bg, bar, numColor: active ? th.lnA : th.ln, toks: tokenize(src, th), glyph: variant && active && !notes ? '+' : '' };
+      (n <= 58 ? top : bot).push(row);
+    });
+    return { top, bot };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const syntax = this.props.syntax ?? 'forno';
+    const gitInTree = this.props.gitInTree ?? true;
+    const tog = (k) => () => this.setState((p) => ({ [k]: !p[k] }));
+    const chipDefs = [['tree', 'Albero'], ['file', 'File aperto'], ['conflict', 'Conflitto col disco'], ['notes', 'Commenti'], ['menu', 'Menu contestuale']];
+    const chips = chipDefs.map(([k, label]) => ({
+      label, toggle: tog(k),
+      bg: s[k] ? '#2B120A' : 'transparent', border: s[k] ? '#F04E23' : 'transparent', color: s[k] ? '#F6F1EC' : '#9A8A82',
+    }));
+
+    // albero visibile: le righe sotto una cartella chiusa non ci sono già in TREE
+    const rows0 = TREE.map((r) => {
+      const depth = r.d || 0;
+      return {
+        name: r.name, pad: `${8 + depth * 12}px`,
+        twisty: r.dir ? (r.open ? '▾' : '▸') : '',
+        color: r.sel ? '#F6F1EC' : r.ign ? '#8A7A72' : '#D9CDC6',
+        bg: r.sel ? '#261713' : 'transparent',
+      };
+    });
+    const variantRow = (r, indent, base) => {
+      const depth = r.d || 0;
+      const [icon, tint] = r.dir ? [r.open ? 'codicon-folder-opened' : 'codicon-folder', '#A993D1'] : fileIcon(r.name);
+      return {
+        name: r.name, pad: `${base + depth * indent}px`,
+        guides: Array.from({ length: depth }, (_, i) => ({ x: `${base + i * indent + 6}px` })),
+        chev: r.dir ? (r.open ? 'codicon-chevron-down' : 'codicon-chevron-right') : '',
+        icon, tint,
+        color: r.sel ? '#F6F1EC' : '#D9CDC6',
+        op: r.ign ? 0.5 : 1,
+        bg: r.sel ? '#2F1F1B' : 'transparent',
+        shadow: r.sel ? 'inset 0 0 0 1px rgba(180,142,240,.38)' : 'none',
+        hasGit: gitInTree && !!r.git, git: r.git || '', gitColor: GIT_C[r.git] || 'transparent',
+        hasDot: gitInTree && !!r.dot,
+      };
+    };
+    const rowsA = TREE.map((r) => variantRow(r, 14, 6));
+    const rowsB = TREE.map((r) => variantRow(r, 14, 8));
+
+    const tabs0 = OPEN.map((f) => ({
+      name: f.name, dirty: !!f.dirty,
+      color: f.active ? '#F6F1EC' : '#B8A79E', bg: f.active ? '#050200' : 'transparent',
+      shadow: f.active ? 'inset 0 2px 0 #B48EF0' : 'none',
+    }));
+    const tabsA = OPEN.map((f) => {
+      const [icon, tint] = fileIcon(f.name);
+      return {
+        name: f.name, icon, tint, iconOp: f.active ? 1 : 0.7,
+        dirty: !!f.dirty, closeX: !f.dirty && !!f.active,
+        color: f.active ? '#F6F1EC' : '#9A8A82', bg: f.active ? '#070505' : 'transparent',
+        top: f.active ? '#B48EF0' : 'transparent',
+      };
+    });
+    const openB = OPEN.map((f) => {
+      const [icon, tint] = fileIcon(f.name);
+      const warn = s.conflict && !!f.active;
+      return {
+        name: f.name, dir: f.dir, icon, tint, dirty: !!f.dirty && !warn, warn,
+        color: f.active ? '#F6F1EC' : '#D9CDC6',
+        bg: f.active ? '#2F1F1B' : 'transparent',
+        shadow: f.active ? 'inset 0 0 0 1px rgba(180,142,240,.38)' : 'none',
+      };
+    });
+    const recents = [
+      { name: 'editor-tab.js', dir: 'renderer', when: '2 min fa' },
+      { name: 'styles.css', dir: 'renderer', when: 'ieri' },
+      { name: 'README.md', dir: '', when: 'lun' },
+    ].map((f, i) => { const [icon, tint] = fileIcon(f.name); return { ...f, icon, tint, bg: i === 0 ? '#170A06' : 'transparent' }; });
+
+    const sep = { sep: true, item: false };
+    const it = (icon, label, key = '', danger = false, hover = false) => ({
+      sep: false, item: true, icon, label, key,
+      color: danger ? '#FF4D74' : '#F6F1EC', iconColor: danger ? '#FF4D74' : '#9A8A82', bg: hover ? '#2B120A' : 'transparent',
+    });
+    const menuV = [
+      it('codicon-new-file', 'Nuovo file'), it('codicon-new-folder', 'Nuova cartella'), sep,
+      it('codicon-cloud-download', 'Copia qui file…'), it('codicon-clippy', 'Incolla', 'Ctrl V'), sep,
+      it('codicon-edit', 'Rinomina', 'F2', false, true), sep,
+      it('codicon-trash', 'Elimina', 'Canc', true),
+    ];
+    const menu0 = ['Nuovo file', 'Nuova cartella', 'Copia qui file…', 'Incolla', 'Rinomina', 'Elimina']
+      .map((label, i) => ({ label, color: label === 'Elimina' ? '#FF4D74' : '#F6F1EC', bg: i === 4 ? '#1C1513' : 'transparent' }));
+
+    const c0 = this.lines(THEMES.vs, false, s.notes);
+    const cV = this.lines(THEMES[syntax] || THEMES.forno, true, s.notes);
+    return {
+      chips,
+      treeOn: s.tree, treeOff: !s.tree, fileOn: s.file, fileOff: !s.file,
+      conflictFile: s.conflict && s.file, notesOn: s.notes && s.file, notesFile: s.notes && s.file,
+      menuTree: s.menu && s.tree,
+      menuTopB: s.file ? '424px' : '286px',
+      hostBg0: s.file ? '#070505' : '#050200',
+      toggleIcon: s.tree ? 'codicon-layout-sidebar-left' : 'codicon-layout-sidebar-left-off',
+      toggleColor: s.tree ? '#D9CDC6' : '#9A8A82',
+      toggleBg: s.tree ? '#170A06' : 'transparent',
+      jsTint: EXT.js[1],
+      rows0, rowsA, rowsB, tabs0, tabsA, openB, recents, menuV, menu0,
+      top0: c0.top, bot0: c0.bot, topV: cV.top, botV: cV.bot,
+      treeTools: [
+        { icon: 'codicon-new-file', title: 'Nuovo file' }, { icon: 'codicon-new-folder', title: 'Nuova cartella' },
+        { icon: 'codicon-refresh', title: 'Rileggi le cartelle aperte' }, { icon: 'codicon-collapse-all', title: 'Chiudi tutte le cartelle' },
+      ],
+      treeToolsB: [
+        { icon: 'codicon-filter', title: 'Filtra file' }, { icon: 'codicon-new-file', title: 'Nuovo file' },
+        { icon: 'codicon-new-folder', title: 'Nuova cartella' }, { icon: 'codicon-refresh', title: 'Rileggi le cartelle aperte' },
+      ],
+      emptyKeys: [
+        { icon: 'codicon-go-to-file', label: 'Vai al file per nome', keys: ['Ctrl', 'P'] },
+        { icon: 'codicon-new-file', label: 'Nuovo file nella cartella', keys: ['Ctrl', 'Alt', 'N'] },
+        { icon: 'codicon-layout-sidebar-left', label: 'Mostra/nascondi file', keys: ['Ctrl', 'B'] },
+      ],
+      emptyKeysB: [
+        { label: 'Nuovo file', key: 'Ctrl Alt N' }, { label: 'Mostra/nascondi file', key: 'Ctrl B' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

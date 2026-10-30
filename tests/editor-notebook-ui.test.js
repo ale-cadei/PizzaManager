@@ -4,7 +4,7 @@ const { createElement, createTextNode, fire } = require('./fake-dom');
 const { setup } = require('./editor-tab-setup');
 
 /* I notebook nella scheda editor (renderer/editor-notebook-ui.js,
-   docs/plans/75): la pagina vera con un document di fake-dom; Monaco è
+   docs/plans/77): la pagina vera con un document di fake-dom; Monaco è
    l'host finto di editor-tab-setup.js, il testo fa da versione. */
 
 const NB = (source) => JSON.stringify({

@@ -334,7 +334,8 @@ ok('notifiche: la scheda attiva conta come vista solo con la finestra in primo p
     assert.ok(body.includes('isWatched(t)'), `${name} non usa isWatched`);
     assert.ok(!body.includes('t.id === activeId'), `${name} esclude ancora la scheda attiva anche con l app dietro`);
   }
-  assert.ok(/function isWatched\(t\)\s*\{\s*return t\.id === activeId && windowFocused;/.test(rend), 'isWatched deve guardare anche il focus');
+  // Con lo schermo diviso (piano 76) sono sotto gli occhi entrambe le metà
+  assert.ok(/function isWatched\(t\)\s*\{[^}]*return splitVisibleIds\(\)\.includes\(t\.id\) && windowFocused;/.test(rend), 'isWatched deve guardare anche il focus');
   assert.ok(rend.includes("window.addEventListener('blur', onWindowBlur)"), 'manca il blur della finestra');
   assert.ok(rend.includes("window.addEventListener('focus', onWindowFocus)"), 'manca il focus della finestra');
   assert.ok(rend.includes('watchWindowFocus()'), 'init non collega il focus della finestra');

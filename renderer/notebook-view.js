@@ -1,5 +1,5 @@
 /* Disegna un notebook già letto (notebook-model.js) per la scheda editor
- * (docs/plans/75). Solo createElement e textContent: il testo del notebook
+ * (docs/plans/77). Solo createElement e textContent: il testo del notebook
  * non diventa mai HTML della pagina. Due eccezioni, isolate:
  * - il colore del codice lo mette Monaco (`colorize`, dall'host);
  * - l'HTML degli output (tabelle di pandas) sta in un iframe `sandbox`

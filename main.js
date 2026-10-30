@@ -7,6 +7,7 @@ const path = require('path');
 const { resolveAllBinaries } = require('./lib/binaries');
 const { checkDeps, backendInfo } = require('./lib/setup-check');
 const { detectTmux } = require('./lib/tmux');
+const { devProfile } = require('./lib/dev-profile');
 const { createHistoryStore } = require('./lib/history');
 const { createAccountStore } = require('./lib/accounts');
 const { createProfileStore } = require('./lib/profiles');
@@ -38,8 +39,10 @@ const { registerFeedbackHandlers } = require('./app/feedback');
 // productName: un rebrand ("PizzaManager") la sposterebbe in una cartella nuova
 // e vuota, e l'utente si ritroverebbe senza profili, cronologia e account —
 // e' successo. Il nome qui e' fisso per sempre, qualunque cosa dica package.json.
+// AISESS_PROFILE=nome (istanza di prova, lib/dev-profile.js): cartella e socket tmux suoi.
 const USER_DATA_DIR_NAME = 'AISessionManager';
-app.setPath('userData', path.join(app.getPath('appData'), USER_DATA_DIR_NAME));
+const profile = devProfile(process.env, USER_DATA_DIR_NAME);
+app.setPath('userData', path.join(app.getPath('appData'), profile.userDataDir));
 
 let mainWindow = null;
 
@@ -61,7 +64,7 @@ const conversationSearch = lazy(() => createSearchWorker());
 
 // tmux (su Windows il psmux del pacchetto, piani 06 e 52) tiene vive le sessioni ad app chiusa; senza, muoiono con la finestra.
 const tmux = detectTmux({ confPath: path.join(__dirname, 'app', 'tmux.conf'), psmuxConfPath: path.join(__dirname, 'app', 'psmux.conf'),
-  psmux: { packaged: app.isPackaged, resourcesPath: process.resourcesPath, appDir: __dirname } });
+  psmux: { packaged: app.isPackaged, resourcesPath: process.resourcesPath, appDir: __dirname }, socket: profile.socket });
 
 const ptys = createPtyManager({
   accounts, history, profiles: { load: () => profiles().load() }, sendToRenderer, tmux, liveStore, scrollbackStore, signalStore,

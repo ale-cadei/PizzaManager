@@ -36,6 +36,7 @@ async function init() {
 
   initSidebarResize();
   initSidebarCollapse();
+  initSplitView();
   initUsageBar();
   initUpdateBanner();
   initExtensions();
@@ -160,6 +161,7 @@ async function init() {
   await reattachLiveSessions();
   const gitToOffer = await restoreGitSessions();
   const editorToOffer = await restoreEditorSessions();
+  restoreSplit();
   await offerRestore(gitToOffer, editorToOffer);
 }
 

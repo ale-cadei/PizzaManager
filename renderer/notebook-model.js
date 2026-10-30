@@ -1,5 +1,5 @@
 /* Un notebook Jupyter (.ipynb) letto per la vista della scheda editor
- * (docs/plans/75): dal JSON nbformat 4 alle celle da disegnare, con un solo
+ * (docs/plans/77): dal JSON nbformat 4 alle celle da disegnare, con un solo
  * formato per output e le immagini già pronte come `data:`. Non disegna
  * niente: notebook-view.js. Funzioni pure.
  *

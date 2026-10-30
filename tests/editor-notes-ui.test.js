@@ -35,14 +35,15 @@ function notesSetup(main = {}) {
   return { ...s, zones, find, draft, saved, write, bar, notes: () => plain(s.tab.editor.notes.notes) };
 }
 
-ok('commenti editor: la riga dei commenti sta in testa dopo le sotto-schede, nascosta', () => {
+ok('commenti editor: la riga dei commenti sta in testa dopo titolo e menu degli aperti, nascosta', () => {
   const s = setup();
   s.page.ctx.document = fakeDocument();
   const wrap = createElement('div');
   const ui = s.fn('buildEditorLayout')({ ...s.tab, wrap });
   const head = wrap.children[2].children[0];
-  assert.deepStrictEqual(head.children.map((c) => c.className), ['btn btn--ghost editor-tree-toggle', 'editor-subtabs', 'btn btn--ghost editor-nb-toggle', 'editor-notes-bar']);
-  assert.strictEqual(ui.notesBar, head.children[3]);
+  assert.deepStrictEqual(head.children.map((c) => c.className),
+    ['editor-tree-toggle', 'editor-title', 'editor-open-menu', 'editor-head-spacer', 'editor-nb-toggle', 'editor-notes-bar', 'editor-quick']);
+  assert.strictEqual(ui.notesBar, head.children[5]);
   assert.strictEqual(ui.notesBar.hidden, true);
 });
 
@@ -64,7 +65,8 @@ ok('commenti editor: si apre la casella sotto le righe, Ctrl+Invio salva il comm
   assert.strictEqual(s.find(z.node, 'changes-comment-range').textContent, 'Righe 2–3');
   assert.strictEqual(s.find(z.node, 'changes-comment-body').textContent, 'Qui manca il null.');
   assert.strictEqual(s.bar().hidden, false);
-  assert.deepStrictEqual(s.bar().children.map((c) => c.textContent), ['1 commento', 'Copia prompt', 'Svuota']);
+  assert.deepStrictEqual(s.bar().querySelectorAll('.editor-notes-label').map((c) => c.textContent), ['1 commento', 'Copia prompt']);
+  assert.strictEqual(s.find(s.bar(), 'editor-notes-clear').title, 'Svuota: togli tutti i commenti');
 });
 
 ok('commenti editor: Esc chiude la casella senza commento e toglie il segno', () => {
@@ -155,7 +157,7 @@ ok('commenti editor: Svuota toglie tutto senza chiedere, anche la casella aperta
   s.fn('openEditorNoteDraft')(s.tab, 'b.js', 1, 1);
   s.write('due');
   s.fn('openEditorNoteDraft')(s.tab, 'a.js', 3, 3);
-  assert.strictEqual(s.bar().children[0].textContent, '2 commenti');
+  assert.strictEqual(s.bar().querySelectorAll('.editor-notes-label')[0].textContent, '2 commenti');
   s.find(s.bar(), 'editor-notes-clear').onclick();
   assert.deepStrictEqual(s.notes(), []);
   assert.strictEqual(s.zones().length, 0);

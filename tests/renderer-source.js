@@ -19,6 +19,7 @@ const RENDERER_APP_FILES = [
   'editor-tab.js',
   'editor-copy-ui.js',
   'editor-notes-ui.js',
+  'editor-definition-ui.js',
   'tab-names.js',
   'worktrees.js',
   'session-list.js',

@@ -36,6 +36,18 @@
     });
   }
 
+  /* Le definizioni interne di Monaco (JS/TS, CSS) saltano solo dentro il
+     file e, insieme a Ctrl+click dell'host, darebbero due salti: si spengono
+     e la definizione la cerca il main per tutti i linguaggi (docs/plans/71).
+     setModeConfiguration sostituisce tutto: si parte da quella che c'è. */
+  function quietBuiltinDefinitions(monaco) {
+    const ts = monaco.typescript || {};
+    const css = monaco.css || {};
+    for (const d of [ts.typescriptDefaults, ts.javascriptDefaults, css.cssDefaults, css.scssDefaults, css.lessDefaults]) {
+      if (d && typeof d.setModeConfiguration === 'function') d.setModeConfiguration({ ...d.modeConfiguration, definitions: false });
+    }
+  }
+
   /** Carica Monaco una volta. Se fallisce, la prossima chiamata ritenta. */
   function load(win) {
     if (win.monaco && win.monaco.editor) return Promise.resolve(win.monaco);
@@ -49,6 +61,7 @@
         win.require.config({ paths: { vs: BASE } });
         win.require(['vs/editor/editor.main'], () => {
           defineTheme(win, win.monaco);
+          quietBuiltinDefinitions(win.monaco);
           resolve(win.monaco);
         }, (e) => reject(e instanceof Error ? e : new Error(String(e))));
       };
@@ -61,9 +74,13 @@
    * @param {{monaco: object, container: Element, fontSize: number,
    *   onChange: (rel: string, dirty: boolean, edited: boolean) => void,
    *   onSave: (rel: string|null) => void, onSaveAll: () => void,
-   *   onComment?: (rel: string, from: number, to: number) => void}} o
+   *   onComment?: (rel: string, from: number, to: number) => void,
+   *   onDefinition?: (rel: string, word: string, at: {lineNumber: number, column: number}) => void,
+   *   mac?: boolean}} o `onDefinition`: Ctrl+click (⌘ con `mac`) su un nome (docs/plans/71)
    */
-  function createEditorHost({ monaco, container, fontSize, onChange, onSave, onSaveAll, onComment = () => {} }) {
+  function createEditorHost({
+    monaco, container, fontSize, onChange, onSave, onSaveAll, onComment = () => {}, onDefinition = null, mac = false,
+  }) {
     // Autorità diversa per host: due schede sulla stessa cartella hanno model distinti
     const authority = `h${++hosts}`;
     const docs = new Map(); // rel → { rel, model, savedVersion, viewState, forcedDirty, sub, gutter, marks, zones }
@@ -245,11 +262,11 @@
       if (view) editor.restoreViewState(view);
     }
 
-    /** Porta il cursore all'inizio della riga e la mette al centro (piano 64). */
-    function reveal(rel, line) {
+    /** Porta il cursore sulla riga (piano 64), alla colonna se c'è (piano 71), e la mette al centro. */
+    function reveal(rel, line, column = 1) {
       if (!docs.has(rel)) return;
       if (current !== rel) activate(rel);
-      editor.setPosition({ lineNumber: line, column: 1 });
+      editor.setPosition({ lineNumber: line, column });
       editor.revealLineInCenter(line);
       editor.focus();
     }
@@ -489,6 +506,66 @@
       });
     }
 
+    /* Vai alla definizione (docs/plans/71). Col modificatore il nome sotto il
+       mouse si sottolinea; il clic vale se giù e su cadono sullo stesso nome
+       (un trascinamento con Ctrl premuto resta una selezione). */
+    let link = { rel: null, ids: [] };
+    let pressed = null;
+    const held = (ev) => Boolean(ev && (mac ? ev.metaKey : ev.ctrlKey));
+
+    function wordAt(e) {
+      const d = docs.get(current);
+      const pos = e.target && e.target.position;
+      if (!d || e.target.type !== MT.CONTENT_TEXT || !pos) return null;
+      const w = d.model.getWordAtPosition(pos);
+      return w ? { word: w.word, lineNumber: pos.lineNumber, column: w.startColumn, endColumn: w.endColumn } : null;
+    }
+
+    function clearLink() {
+      const d = docs.get(link.rel);
+      if (d && link.ids.length) d.model.deltaDecorations(link.ids, []);
+      link = { rel: null, ids: [] };
+    }
+
+    function showLink(w) {
+      clearLink();
+      const d = docs.get(current);
+      const range = { startLineNumber: w.lineNumber, startColumn: w.column, endLineNumber: w.lineNumber, endColumn: w.endColumn };
+      link = { rel: current, ids: d.model.deltaDecorations([], [{ range, options: { inlineClassName: 'editor-def-link' } }]) };
+    }
+
+    const sameWord = (a, b) => a && b && a.word === b.word && a.lineNumber === b.lineNumber && a.column === b.column;
+
+    function wireDefinitions() {
+      if (!onDefinition) return;
+      editor.onMouseMove((e) => {
+        const w = held(e.event) ? wordAt(e) : null;
+        if (w) showLink(w);
+        else clearLink();
+      });
+      editor.onMouseLeave(() => clearLink());
+      editor.onKeyUp((e) => { if (!held(e)) clearLink(); });
+      editor.onMouseDown((e) => {
+        pressed = e.event && e.event.leftButton && held(e.event) ? wordAt(e) : null;
+      });
+      editor.onMouseUp((e) => {
+        const w = held(e.event) ? wordAt(e) : null;
+        const go = sameWord(w, pressed);
+        pressed = null;
+        if (!go) return;
+        clearLink();
+        onDefinition(current, w.word, { lineNumber: w.lineNumber, column: w.column });
+      });
+    }
+
+    /** Il fumetto di Monaco sul cursore («Nessuna definizione…»); false se non c'è */
+    function hint(text) {
+      const c = editor.getContribution && editor.getContribution('editor.contrib.messageController');
+      if (!c || typeof c.showMessage !== 'function' || !editor.getPosition()) return false;
+      c.showMessage(text, editor.getPosition());
+      return true;
+    }
+
     function dispose() {
       for (const rel of [...docs.keys()]) close(rel);
       owned.splice(0).forEach((d) => d.dispose());
@@ -496,9 +573,10 @@
     }
 
     wireComments();
+    wireDefinitions();
 
     return {
-      open, activate, markSaved, replaceText, rename, close, dispose, setGutter, setConflicts, editText, reveal,
+      open, activate, markSaved, replaceText, rename, close, dispose, setGutter, setConflicts, editText, reveal, hint,
       trackLines, linesOf, untrack, lineText, addZone, removeZone, resizeZone,
       current: () => current,
       getText: (rel) => (docs.has(rel) ? docs.get(rel).model.getValue() : null),
@@ -509,5 +587,5 @@
     };
   }
 
-  return { load, createEditorHost };
+  return { load, createEditorHost, quietBuiltinDefinitions };
 });

@@ -37,7 +37,7 @@ ok('ipc editor: ogni canale editor del preload ha il suo handler', (t) => {
 
 ok('ipc editor: payload mancanti o radici inesistenti rispondono con un errore', async (t) => {
   const { handlers, call } = setup(t);
-  for (const channel of ['editor-list', 'editor-read', 'editor-write', 'editor-stat', 'editor-create', 'editor-mkdir', 'editor-rename', 'editor-trash', 'editor-watch', 'editor-copy-plan', 'editor-copy-run', 'editor-head-text']) {
+  for (const channel of ['editor-list', 'editor-read', 'editor-write', 'editor-stat', 'editor-create', 'editor-mkdir', 'editor-rename', 'editor-trash', 'editor-watch', 'editor-copy-plan', 'editor-copy-run', 'editor-head-text', 'editor-definition']) {
     for (const payload of [undefined, null, {}, { root: '/non/esiste/proprio', rel: 'a' }]) {
       const r = await call(channel, payload);
       assert.strictEqual(r.ok, false, `${channel} con ${JSON.stringify(payload)}`);
@@ -164,4 +164,15 @@ ok('ipc editor: «Incolla» legge i file dagli appunti nel main', async (t) => {
 ok('ipc editor: il testo di HEAD rifiuta percorsi fuori dalla cartella', async (t) => {
   const { call, root } = setup(t);
   assert.deepStrictEqual(await call('editor-head-text', { root, rel: '../fuori.txt' }), { ok: false, reason: 'outside' });
+});
+
+ok('ipc editor: editor-definition trova la definizione nella cartella della scheda', async (t) => {
+  const { call, root } = setup(t);
+  fs.writeFileSync(path.join(root, 'a.js'), 'helper(1);\n');
+  fs.writeFileSync(path.join(root, 'b.js'), 'function helper() {}\n');
+  const r = await call('editor-definition', { root, word: 'helper', from: 'a.js', line: 1 });
+  if (r.reason === 'no-git') { t.skip('git non installato'); return; }
+  assert.strictEqual(r.ok, true);
+  assert.deepStrictEqual(r.results.map((x) => [x.rel, x.line, x.column]), [['b.js', 1, 10]]);
+  assert.deepStrictEqual(await call('editor-definition', { root, word: 'if' }), { ok: false, reason: 'invalid' });
 });

@@ -7,6 +7,7 @@ const { installEditorCloseGuard } = require('./editor-close');
 const { createEditorCopy, pickProperties } = require('../lib/editor-copy');
 const { filesFromClipboard } = require('../lib/clipboard-files');
 const { createEditorGit } = require('../lib/editor-git');
+const { createEditorDefinition } = require('../lib/editor-definition');
 
 /**
  * Canali IPC della sessione editor (docs/plans/60). La logica sta in lib/;
@@ -76,6 +77,11 @@ function registerEditorHandlers(ipcMain, {
   ipcMain.handle('editor-head-text', guard(({ root, rel }) => {
     const f = files(root);
     return createEditorGit({ root: f.realRoot, resolve: f.resolveInside }).headText(rel);
+  }));
+  // Ctrl+click su un nome: dove è definito (docs/plans/71)
+  ipcMain.handle('editor-definition', guard(({ root, word, from, line }) => {
+    const f = files(root);
+    return createEditorDefinition({ root: f.realRoot }).find({ word, from, line });
   }));
   ipcMain.handle('editor-create', guard(({ root, rel }) => files(root).create(rel)));
   ipcMain.handle('editor-mkdir', guard(({ root, rel }) => files(root).mkdir(rel)));

@@ -59,6 +59,7 @@ contextBridge.exposeInMainWorld('aisess', {
   editorWatch: (root, rel) => ipcRenderer.invoke('editor-watch', { root, rel }),
   editorUnwatch: (root, rel) => ipcRenderer.invoke('editor-unwatch', { root, rel }),
   editorHeadText: (root, rel) => ipcRenderer.invoke('editor-head-text', { root, rel }),
+  editorDefinition: (root, word, from, line) => ipcRenderer.invoke('editor-definition', { root, word, from, line }),
   editorSessions: () => ipcRenderer.invoke('editor-sessions'),
   saveEditorSessions: (sessions) => ipcRenderer.invoke('editor-sessions-save', { sessions }),
   editorCloseConfirmed: () => ipcRenderer.invoke('editor-close-confirmed'),

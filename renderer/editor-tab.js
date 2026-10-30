@@ -317,6 +317,8 @@ function ensureEditorHost(tab) {
         onSave: (rel) => saveEditorFile(tab, rel),
         onSaveAll: () => saveAllEditorFiles(tab),
         onComment: (rel, from, to) => openEditorNoteDraft(tab, rel, from, to),
+        onDefinition: (rel, word, at) => goToEditorDefinition(tab, rel, word, at),
+        mac: /mac/i.test(navigator.platform || ''),
       });
       return ed.host;
     }).finally(() => { ed.hostPending = null; });

@@ -36,7 +36,9 @@ function fakeHost(texts) {
     replaceText: (rel, text) => { calls.push(['replaceText', rel, text]); texts[rel] = text; dirty.delete(rel); },
     activate: (rel) => calls.push(['activate', rel]),
     reveals: [], // a parte come gutters: dove si è portato il cursore
-    reveal(rel, line) { this.reveals.push([rel, line]); },
+    reveal(rel, line, column) { this.reveals.push(column === undefined ? [rel, line] : [rel, line, column]); },
+    hints: [], // i fumetti sul cursore (docs/plans/71)
+    hint(text) { this.hints.push(text); return true; },
     // Commenti (docs/plans/65): segni e zone in due mappe, id da un contatore solo
     marks: new Map(), zones: new Map(), seq: 0,
     trackLines(rel, from, to) { const id = `m${++this.seq}`; this.marks.set(id, { rel, from, to }); return id; },

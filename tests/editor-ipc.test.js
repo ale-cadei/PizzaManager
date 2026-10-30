@@ -177,3 +177,14 @@ ok('ipc editor: elenco di tutti i file e lettere git della cartella (piano 70)',
   assert.strictEqual(st.ok, true);
   assert.strictEqual(typeof st.status, 'object');
 });
+
+ok('ipc editor: «Mostra nel Finder» riceve solo percorsi confinati (piano 70)', async (t) => {
+  const revealed = [];
+  const { call, root } = setup(t, { reveal: (p) => revealed.push(p) });
+  fs.writeFileSync(path.join(root, 'a.txt'), '');
+  assert.deepStrictEqual(await call('editor-reveal', { root, rel: 'a.txt' }), { ok: true });
+  assert.deepStrictEqual(await call('editor-reveal', { root, rel: '' }), { ok: true });
+  assert.strictEqual((await call('editor-reveal', { root, rel: '../x' })).ok, false);
+  assert.strictEqual((await call('editor-reveal', { root: '/non/esiste', rel: 'a' })).ok, false);
+  assert.deepStrictEqual(revealed, [path.join(root, 'a.txt'), root]);
+});

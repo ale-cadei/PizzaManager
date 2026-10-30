@@ -97,6 +97,9 @@ Un commit (o più) per passo; refactor e cambi di comportamento separati.
 - Gli script dell'app condividono lo scope globale: una `function` con lo
   stesso nome in due file vince l'ultima, in silenzio. Successo qui
   (`revealEditorDir`); ora lo controlla `tests/renderer-load.test.js`.
+- Aggiunto su richiesta durante il branch (non era nel handoff): «Mostra nel
+  Finder» / «in Esplora file» / «nel file manager» nel menu dell'albero,
+  con `shell.showItemInFolder`; dal vuoto mostra la cartella della sessione.
 - Rimandato: la × per chiudere un file dal menu «N aperti» (oggi lo chiude
   «Chiudi tutti», o riaprendo l'albero).
 

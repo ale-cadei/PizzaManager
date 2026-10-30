@@ -891,3 +891,16 @@ ok('simbolo: dopo una pausa il titolo dice in che funzione sta il cursore', asyn
   await new Promise((r) => setTimeout(r, 200));
   assert.strictEqual(s.ui.title.querySelectorAll('.sym').length, 0, 'fuori da una funzione solo la cartella');
 });
+
+ok('menu: «Mostra nel Finder» apre il file manager sulla voce, o sulla cartella dal vuoto (piano 70)', async () => {
+  const s = setup();
+  const menus = [];
+  s.page.ctx.AisessEditorTree.showMenu = (o) => menus.push(o);
+  s.fn('editorTreeMenu')(s.tab, { rel: 'src/a.js', kind: 'file' }, { clientX: 0, clientY: 0 });
+  s.fn('editorTreeMenu')(s.tab, null, { clientX: 0, clientY: 0 });
+  // La pagina finta è un Mac
+  const reveal = (m) => m.items.find((i) => i.label === 'Mostra nel Finder');
+  await reveal(menus[0]).run();
+  await reveal(menus[1]).run();
+  assert.deepStrictEqual(s.sent('editorReveal').map((c) => c.slice(1)), [['/w', 'src/a.js'], ['/w', '']]);
+});

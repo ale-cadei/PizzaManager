@@ -200,3 +200,13 @@ ok('trashTarget: la voce stessa, mai la radice', (t) => {
   assert.strictEqual(efs.trashTarget('manca').ok, false);
   assert.strictEqual(efs.trashTarget('../x').ok, false);
 });
+
+ok('revealTarget: la voce stessa, la radice con il percorso vuoto, mai fuori', (t) => {
+  const root = tmp(t);
+  put(root, 'src/a.txt', '');
+  const efs = createEditorFs({ root });
+  assert.deepStrictEqual(efs.revealTarget('src/a.txt'), { ok: true, path: path.join(root, 'src', 'a.txt') });
+  assert.deepStrictEqual(efs.revealTarget(''), { ok: true, path: efs.realRoot });
+  assert.strictEqual(efs.revealTarget('manca').ok, false);
+  assert.strictEqual(efs.revealTarget('../fuori').ok, false);
+});

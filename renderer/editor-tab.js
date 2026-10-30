@@ -30,6 +30,9 @@ const EDITOR_READ_REASONS = {
   'not-file': 'non è un file.',
 };
 const EDITOR_IS_MAC = /mac/i.test(navigator.platform || '');
+// Il file manager di sistema ha un nome per piattaforma (piano 70)
+const EDITOR_REVEAL_LABEL = EDITOR_IS_MAC ? 'Mostra nel Finder'
+  : /^win/i.test(navigator.platform || '') ? 'Mostra in Esplora file' : 'Mostra nel file manager';
 let editorExitConfirmed = false;
 let editorExitAsking = false;
 
@@ -224,6 +227,7 @@ function editorTreeMenu(tab, row, e) {
     { sep: true },
     { label: 'Copia qui file…', icon: 'cloud-download', run: () => copyIntoEditor(tab, dir, { kind: 'pick' }) },
     { label: 'Incolla', icon: 'clippy', key: 'Ctrl V', run: () => copyIntoEditor(tab, dir, { kind: 'paste' }) },
+    { label: EDITOR_REVEAL_LABEL, icon: 'folder-opened', run: () => revealEditorInFileManager(tab, row ? row.rel : '') },
   ];
   const rowItems = row ? [
     { sep: true },
@@ -233,6 +237,12 @@ function editorTreeMenu(tab, row, e) {
     { label: 'Elimina', icon: 'trash', key: 'Canc', danger: true, run: () => trashEditorEntry(tab, row) },
   ] : [];
   EditorTree.showMenu({ document, x: e.clientX, y: e.clientY, items: [...items, ...rowItems] });
+}
+
+/** Apre il file manager di sistema sulla voce (o sulla cartella della sessione, con ''). */
+async function revealEditorInFileManager(tab, rel) {
+  const r = await callEditor(() => window.aisess.editorReveal(tab.cwd, rel));
+  if (!r.ok) showEditorMessage(tab, `Non si apre il file manager: ${r.error || 'percorso non valido'}`);
 }
 
 /** Il percorso relativo alla cartella della sessione: quello che si scrive in un prompt. */

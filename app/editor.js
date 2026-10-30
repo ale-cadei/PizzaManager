@@ -18,9 +18,9 @@ const { listAllFiles, gitStatusLetters } = require('../lib/editor-index');
  * @param {Electron.IpcMain} ipcMain
  * @param {{electron: {app: Electron.App, shell: Electron.Shell, BrowserWindow: typeof Electron.BrowserWindow,
  *   dialog?: Electron.Dialog, clipboard?: Electron.Clipboard},
- *   userDataDir?: () => string, trash?: (absPath: string) => Promise<void>,
+ *   userDataDir?: () => string, trash?: (absPath: string) => Promise<void>, reveal?: (absPath: string) => void,
  *   onQuitCancelled?: () => void, platform?: string}} opts
- *   `userDataDir` e `trash` si sostituiscono nei test; `onQuitCancelled`
+ *   `userDataDir`, `trash` e `reveal` si sostituiscono nei test; `onQuitCancelled`
  *   va a app/editor-close.js (un quit fermato dai file non salvati)
  */
 function registerEditorHandlers(ipcMain, {
@@ -28,6 +28,7 @@ function registerEditorHandlers(ipcMain, {
   onQuitCancelled,
   userDataDir = () => electron.app.getPath('userData'),
   trash = (p) => electron.shell.trashItem(p),
+  reveal = (p) => electron.shell.showItemInFolder(p),
   platform = process.platform,
 } = {}) {
   let store = null;
@@ -89,6 +90,13 @@ function registerEditorHandlers(ipcMain, {
     const target = files(root).trashTarget(rel);
     if (!target.ok) return target;
     await trash(target.path);
+    return { ok: true };
+  }));
+  // «Mostra nel Finder» (piano 70): il file manager di sistema, col file selezionato
+  ipcMain.handle('editor-reveal', guard(({ root, rel }) => {
+    const target = files(root).revealTarget(rel);
+    if (!target.ok) return target;
+    reveal(target.path);
     return { ok: true };
   }));
   ipcMain.handle('editor-watch', guard(({ root, rel }, event) => {

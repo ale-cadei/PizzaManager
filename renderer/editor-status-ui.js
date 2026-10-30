@@ -1,4 +1,4 @@
-/* Intorno al codice della scheda editor (docs/plans/70): la scheda del
+/* Intorno al codice della scheda editor (docs/plans/75): la scheda del
    conflitto col disco in alto a destra, la barra di stato in fondo e lo stato
    vuoto quando non c'è nessun file aperto. Caricato dopo editor-tab.js, di
    cui usa le funzioni; le chiama renderEditorOpen (editor-open-ui.js). */
@@ -143,7 +143,7 @@ function editorRecentRow(tab, r, now) {
   row.className = 'editor-recent-row';
   row.title = r.rel;
   row.append(
-    EditorIcons.iconElement(document, name, 'file'),
+    editorFileIcon(name),
     editorText('span', 'editor-recent-name', name),
     editorText('span', 'editor-recent-dir', EditorFiles.parentRel(r.rel)),
     editorText('span', 'editor-recent-when', editorTimeAgo(r.at, now)),

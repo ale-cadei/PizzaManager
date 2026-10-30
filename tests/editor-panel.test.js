@@ -149,7 +149,7 @@ ok('isToggleKey: solo Ctrl+B, senza altri modificatori', () => {
   assert.strictEqual(k({ ctrlKey: true, key: 'v' }), false);
 });
 
-/* ---------- file aperti da tastiera (docs/plans/70) ---------- */
+/* ---------- file aperti da tastiera (docs/plans/75) ---------- */
 
 ok('openIndexKey: Alt+1…9 fuori dal Mac, Ctrl+1…9 sul Mac (Opzione+cifra scrive ~, #…)', () => {
   const key = (code, mods = {}) => ({ code, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false, ...mods });

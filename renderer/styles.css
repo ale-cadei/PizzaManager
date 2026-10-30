@@ -1285,7 +1285,7 @@ body.editor-resizing { cursor: ew-resize; user-select: none; }
 body.editor-tree-hidden .editor-side,
 body.editor-tree-hidden .editor-resizer { display: none; }
 /* Testata dell'area: bottone dell'albero, titolo col file attivo, «N aperti»,
-   commenti (docs/plans/70) */
+   commenti (docs/plans/75) */
 .editor-head {
   flex: none; height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 10px 0 8px;
   border-bottom: 1px solid var(--border); background: var(--surface);
@@ -1303,7 +1303,7 @@ body.editor-tree-hidden .editor-toggle-shown { display: none; }
 body.editor-tree-hidden .editor-toggle-hidden { display: inline-block; }
 .editor-title { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .editor-title-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.editor-title-icon { flex: none; font-size: 18px; }
+.editor-title-icon { width: 18px; height: 18px; flex: none; }
 .editor-title-name {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font: 600 14px var(--font-ui); color: var(--text);
@@ -1356,7 +1356,6 @@ body.editor-tree-hidden .editor-toggle-hidden { display: inline-block; }
   font: 13px var(--font-ui); color: var(--text-2); cursor: pointer; white-space: nowrap;
 }
 .editor-quick-row.is-selected { background: var(--action-soft); color: var(--text); }
-.editor-quick-row .editor-file-icon { flex: none; font-size: 15px; }
 .editor-quick-name { flex: none; max-width: 60%; overflow: hidden; text-overflow: ellipsis; }
 .editor-quick-dir { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 11px var(--font-mono); color: var(--text-faint); }
 .editor-quick-open {
@@ -1387,7 +1386,6 @@ body.editor-tree-hidden .editor-open-menu:not([hidden]) { display: inline-flex; 
   background: var(--surface-lift); color: var(--text);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--type-editor) 38%, transparent);
 }
-.editor-open-row .editor-file-icon { flex: none; font-size: 15px; }
 .editor-open-name { flex: none; max-width: 70%; overflow: hidden; text-overflow: ellipsis; }
 .editor-open-row.is-deleted .editor-open-name { text-decoration: line-through; }
 .editor-open-dir { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 11px var(--font-mono); color: var(--text-faint); }
@@ -1407,7 +1405,7 @@ body.editor-tree-hidden .editor-open-menu:not([hidden]) { display: inline-flex; 
 .editor-open-row:hover .editor-open-state::before,
 .editor-open-row:hover .editor-open-warn { display: none; }
 .editor-open-row:hover .editor-open-close, .editor-open-close:focus-visible { display: grid; }
-/* Testate delle sezioni del pannello, con azioni a icona (docs/plans/70) */
+/* Testate delle sezioni del pannello, con azioni a icona (docs/plans/75) */
 .editor-section-head {
   flex: none; height: 34px; display: flex; align-items: center; gap: 2px; padding: 0 6px 0 14px;
   font: 500 10px var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-dim);
@@ -1440,8 +1438,10 @@ body.editor-tree-hidden .editor-open-menu:not([hidden]) { display: inline-flex; 
 .editor-tree-row.is-ignored { opacity: .5; }
 .editor-tree-twisty { width: 14px; flex: none; color: var(--text-faint); font-size: 14px; }
 .editor-tree-icon { width: 16px; height: 16px; flex: none; }
+/* Le icone dei file (file-icons.js) fuori dall'albero: «Aperti», Ctrl+P, recenti, menu */
+.editor-file-icon, .editor-menu-image { width: 16px; height: 16px; flex: none; }
 .editor-tree-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-/* Lettere git (docs/plans/70): M cambiato, U/A nuovo, D eliminato; • sulle cartelle */
+/* Lettere git (docs/plans/75): M cambiato, U/A nuovo, D eliminato; • sulle cartelle */
 .editor-tree-git { flex: none; min-width: 10px; font: 500 11px var(--font-mono); text-align: center; }
 .editor-tree-git.is-M, .editor-tree-git.is-dir { color: var(--state-changed); }
 .editor-tree-git.is-U, .editor-tree-git.is-A { color: var(--state-ok); }
@@ -1477,7 +1477,7 @@ body.editor-tree-hidden .editor-open-menu:not([hidden]) { display: inline-flex; 
 .editor-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .editor-message { padding: 10px 12px; font: 13px var(--font-ui); color: var(--state-error); border-bottom: 1px solid var(--divider); }
 .editor-message.is-info { color: var(--text-dim); }
-/* Monaco, e sopra di lui il conflitto col disco e lo stato vuoto (docs/plans/70) */
+/* Monaco, e sopra di lui il conflitto col disco e lo stato vuoto (docs/plans/75) */
 .editor-stage { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .editor-host { flex: 1; min-height: 0; }
 .editor-bar {
@@ -1533,7 +1533,6 @@ body.editor-tree-hidden .editor-open-menu:not([hidden]) { display: inline-flex; 
   background: transparent; color: var(--text-2); font: 13px var(--font-ui); text-align: left; cursor: pointer; white-space: nowrap;
 }
 .editor-recent-row:hover, .editor-recent-row:focus-visible { background: var(--surface-2); color: var(--text); outline: none; }
-.editor-recent-row .editor-file-icon { flex: none; font-size: 15px; }
 .editor-recent-dir { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 11px var(--font-mono); color: var(--text-faint); }
 .editor-recent-when { flex: none; font: 11px var(--font-mono); color: var(--text-faint); }
 .editor-empty-keys { display: flex; flex-direction: column; gap: 8px; font: 12.5px var(--font-ui); color: var(--text-muted); }
@@ -1584,7 +1583,7 @@ body.editor-tree-hidden .editor-open-menu:not([hidden]) { display: inline-flex; 
    fondo sulle righe commentate; il «+» nel margine dei glifi */
 .editor-note-zone { box-sizing: border-box; padding: 0 16px 0 4px; }
 .editor-note-zone .changes-comment, .editor-note-zone .changes-comment-editor { position: static; }
-/* Nell'editor il commento è una scheda (docs/plans/70): righe e azioni in
+/* Nell'editor il commento è una scheda (docs/plans/75): righe e azioni in
    testa, testo sotto, niente barra colorata a sinistra */
 .editor-note-zone .changes-comment, .editor-note-zone .changes-comment-editor {
   max-width: 620px; margin: 6px 0 8px; padding: 10px 12px 11px;

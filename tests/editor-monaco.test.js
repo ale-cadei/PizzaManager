@@ -539,7 +539,7 @@ ok('commenti: il «+» compare nel margine della riga sotto il mouse e sparisce 
   assert.deepStrictEqual(plus(), []);
 });
 
-/* ---------- barra di stato (docs/plans/70) ---------- */
+/* ---------- barra di stato (docs/plans/75) ---------- */
 
 ok('cursore: onCursor dice riga e colonna del file attivo, anche quando lo si attiva', () => {
   const seen = [];
@@ -589,7 +589,7 @@ ok('tema: senza Monaco caricato applyTheme non fa niente', () => {
   assert.doesNotThrow(() => require('../renderer/editor-monaco').applyTheme({}, { background: '#000000' }));
 });
 
-/* ---------- simbolo nel percorso (docs/plans/70) ---------- */
+/* ---------- simbolo nel percorso (docs/plans/75) ---------- */
 
 const { symbolInTree } = require('../renderer/editor-monaco');
 const span = (start, length) => [{ start, length }];

@@ -401,7 +401,7 @@ ok('main.js e solo cablaggio: nessuna funzione di logica definita al suo interno
   // registrazione; file, watch e conferma d'uscita stanno in app/editor*.js.
   // 235: altra 1 per «Riavvia ora» della schermata vuota (piano 20): tmux si
   // attiva solo all'avvio, l'handler chiama soltanto app.relaunch e app.quit.
-  // 238: altre 3 per l'istanza di prova (AISESS_PROFILE, piano 70): require,
+  // 238: altre 3 per l'istanza di prova (AISESS_PROFILE, piano 75): require,
   // commento e chiamata; nome e validazione stanno in lib/dev-profile.js.
   assert.ok(main.split('\n').length < 238, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
 });
@@ -449,7 +449,7 @@ ok('build: di monaco-editor nel pacchetto resta solo min/, senza mappe (piano 60
   assert.ok(!files.some((f) => f.startsWith('!node_modules/monaco-editor/min')), 'min/ non va escluso');
 });
 
-ok('build: di @vscode/codicons nel pacchetto resta solo dist/ (piano 70)', () => {
+ok('build: di @vscode/codicons nel pacchetto resta solo dist/ (piano 75)', () => {
   const root = path.join(__dirname, '..');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   assert.strictEqual(pkg.dependencies['@vscode/codicons'], '0.0.45', 'le icone vanno bloccate a una versione esatta');

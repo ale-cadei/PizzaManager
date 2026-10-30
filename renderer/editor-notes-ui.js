@@ -98,7 +98,7 @@ function editorNoteDraftBox(tab, label, body) {
   return { box, input, warn, range };
 }
 
-/** Chip «N commenti | Copia prompt», più Svuota a icona; nascosta senza commenti (docs/plans/70) */
+/** Chip «N commenti | Copia prompt», più Svuota a icona; nascosta senza commenti (docs/plans/75) */
 function renderEditorNotesBar(tab) {
   const ed = tab.editor;
   const bar = ed.ui.notesBar;

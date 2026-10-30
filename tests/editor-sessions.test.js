@@ -51,7 +51,7 @@ ok('sanitize: limiti su sessioni e file', () => {
   assert.deepStrictEqual(sanitizeEditorSessions('no'), []);
 });
 
-ok('sanitize: i recenti restano se sono percorsi relativi validi con una data, al massimo 5 (piano 70)', () => {
+ok('sanitize: i recenti restano se sono percorsi relativi validi con una data, al massimo 5 (piano 75)', () => {
   const [s] = sanitizeEditorSessions([{ cwd: '/w', files: [], recent: [
     { rel: 'a.js', at: 5 }, { rel: '../fuori', at: 4 }, { rel: 'b.js' }, 'c.js', { rel: 'a.js', at: 3 },
     { rel: 'd.js', at: 2 }, { rel: 'e.js', at: 1 }, { rel: 'f.js', at: 1 }, { rel: 'g.js', at: 1 }, { rel: 'h.js', at: 1 },

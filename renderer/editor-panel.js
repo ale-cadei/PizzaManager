@@ -94,7 +94,7 @@
   const isToggleKey = (e) => Boolean(e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey
     && typeof e.key === 'string' && e.key.toLowerCase() === 'b');
 
-  /** Alt+1…9 porta davanti l'N-esimo file aperto (docs/plans/70). Sul Mac
+  /** Alt+1…9 porta davanti l'N-esimo file aperto (docs/plans/75). Sul Mac
    *  Ctrl: Opzione+cifra scrive caratteri (~ è Opzione+5 sulla tastiera
    *  italiana). Ctrl+Alt fuori dal Mac è AltGr, che scrive anche lui.
    *  @returns {number} l'indice da 0, -1 se il tasto non è questo */
@@ -106,11 +106,11 @@
   }
   const openKeyLabel = (n, isMac) => (isMac ? `⌃${n}` : `Alt ${n}`);
 
-  /** Ctrl+P (Cmd+P sul Mac): «Vai al file» (docs/plans/70). */
+  /** Ctrl+P (Cmd+P sul Mac): «Vai al file» (docs/plans/75). */
   const isQuickKey = (e) => Boolean((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey
     && typeof e.key === 'string' && e.key.toLowerCase() === 'p');
 
-  /** Ctrl+Alt+N: file nuovo nella cartella selezionata (stato vuoto, docs/plans/70). */
+  /** Ctrl+Alt+N: file nuovo nella cartella selezionata (stato vuoto, docs/plans/75). */
   const isNewFileKey = (e) => Boolean(e.ctrlKey && e.altKey && !e.shiftKey && !e.metaKey && e.code === 'KeyN');
 
   return {

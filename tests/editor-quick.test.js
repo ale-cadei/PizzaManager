@@ -3,7 +3,7 @@ const { test: ok } = require('node:test');
 const { createElement, installDocument, fire } = require('./fake-dom');
 const Q = require('../renderer/editor-quick');
 
-/* «Vai al file» (Ctrl+P, docs/plans/70): l'ordine dei risultati è puro, la
+/* «Vai al file» (Ctrl+P, docs/plans/75): l'ordine dei risultati è puro, la
    vista si prova con fake-dom. */
 
 const FILES = ['renderer/editor-tab.js', 'renderer/editor-tree.js', 'tests/editor-tab.test.js', 'docs/tabelle.md', 'lib/ed/itor.js', 'README.md'];

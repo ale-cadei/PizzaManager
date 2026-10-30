@@ -18,7 +18,7 @@
   let loading = null;
   let hosts = 0;
 
-  // Tema sintattico «Forno» (docs/plans/70): parole chiave arancio, stringhe
+  // Tema sintattico «Forno» (docs/plans/75): parole chiave arancio, stringhe
   // ocra, commenti in corsivo. Monaco vuole gli hex senza #
   const FORNO_RULES = [
     { token: 'keyword', foreground: 'FF9B6F' },
@@ -138,7 +138,7 @@
       model: null, theme: THEME, automaticLayout: true, fontSize, fontFamily: FONT,
       minimap: { enabled: false }, scrollBeyondLastLine: false, renderWhitespace: 'selection',
       glyphMargin: true, // il margine del «+» (docs/plans/65)
-      padding: { top: 10 }, lineDecorationsWidth: 18, // corsia delle barrette (docs/plans/70)
+      padding: { top: 10 }, lineDecorationsWidth: 18, // corsia delle barrette (docs/plans/75)
     });
     const tellCursor = (p) => { if (current && p) onCursor(current, { line: p.lineNumber, col: p.column }); };
     editor.onDidChangeCursorPosition((e) => tellCursor(e.position));

@@ -184,7 +184,7 @@ ok('ipc editor: editor-blame-line rifiuta percorsi fuori e righe non valide', as
   assert.deepStrictEqual(await call('editor-blame-line', { root, rel: 'a.txt', line: 1 }), { ok: false, reason: 'invalid' });
 });
 
-ok('ipc editor: elenco di tutti i file e lettere git della cartella (piano 70)', async (t) => {
+ok('ipc editor: elenco di tutti i file e lettere git della cartella (piano 75)', async (t) => {
   const { call, root } = setup(t);
   fs.mkdirSync(path.join(root, 'src'));
   fs.writeFileSync(path.join(root, 'src', 'a.js'), '');
@@ -196,7 +196,7 @@ ok('ipc editor: elenco di tutti i file e lettere git della cartella (piano 70)',
   assert.strictEqual(typeof st.status, 'object');
 });
 
-ok('ipc editor: «Mostra nel Finder» riceve solo percorsi confinati (piano 70)', async (t) => {
+ok('ipc editor: «Mostra nel Finder» riceve solo percorsi confinati (piano 75)', async (t) => {
   const revealed = [];
   const { call, root } = setup(t, { reveal: (p) => revealed.push(p) });
   fs.writeFileSync(path.join(root, 'a.txt'), '');

@@ -69,7 +69,7 @@ function registerEditorHandlers(ipcMain, {
   }
 
   ipcMain.handle('editor-list', guard(({ root, rel }) => files(root).list(rel)));
-  // Il progetto tutto insieme (docs/plans/70): i file per Ctrl+P, le lettere git per l'albero
+  // Il progetto tutto insieme (docs/plans/75): i file per Ctrl+P, le lettere git per l'albero
   ipcMain.handle('editor-list-all', guard(({ root }) => listAllFiles({ root })));
   ipcMain.handle('editor-git-status', guard(({ root }) => gitStatusLetters({ root })));
   ipcMain.handle('editor-read', guard(({ root, rel }) => files(root).read(rel)));
@@ -103,7 +103,7 @@ function registerEditorHandlers(ipcMain, {
     await trash(target.path);
     return { ok: true };
   }));
-  // «Mostra nel Finder» (piano 70): il file manager di sistema, col file selezionato
+  // «Mostra nel Finder» (piano 75): il file manager di sistema, col file selezionato
   ipcMain.handle('editor-reveal', guard(({ root, rel }) => {
     const target = files(root).revealTarget(rel);
     if (!target.ok) return target;

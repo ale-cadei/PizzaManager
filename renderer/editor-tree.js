@@ -6,14 +6,15 @@
  * Anche il drop di file da fuori e Ctrl+V (docs/plans/61): la vista dice
  * in quale cartella copiare, la copia la fa chi la usa.
  *
- * Righe con chevron e icona, menu con icone e scorciatoie (docs/plans/70).
+ * Righe con chevron, lettere git e filtro; menu con icone e scorciatoie
+ * (docs/plans/75).
  *
  * Wrapper UMD come sidebar.js: globale nella pagina, module.exports sotto Node. */
 (function (root, factory) {
-  const api = factory(root ? root.AisessEditorIcons : require('./editor-icons'));
+  const api = factory();
   if (root) root.AisessEditorTree = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-})(typeof window !== 'undefined' ? window : null, function (Icons) {
+})(typeof window !== 'undefined' ? window : null, function () {
   const INDENT = 14;
   const PAD = 8;
 
@@ -72,7 +73,7 @@
   }
 
   /**
-   * Filtro dell'albero (docs/plans/70): le voci delle cartelle già lette il
+   * Filtro dell'albero (docs/plans/75): le voci delle cartelle già lette il
    * cui nome contiene `query`, senza maiuscole. Prima chi comincia così, poi
    * i percorsi più corti. `at`: dove sta la corrispondenza nel nome.
    */
@@ -167,7 +168,7 @@
         onCopyInto(row ? dirOf(row) : '', { kind: 'paste' });
         return;
       }
-      // Una lettera scritta con l'albero a fuoco apre il filtro (docs/plans/70)
+      // Una lettera scritta con l'albero a fuoco apre il filtro (docs/plans/75)
       if (e.key && e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
         onTypeToFilter(e.key);
@@ -273,7 +274,7 @@
           el.setAttribute('role', 'treeitem');
           const top = doc.createElement('div');
           top.className = 'editor-tree-flat-top';
-          top.append(Icons.iconElement(doc, r.name, r.kind, false, 'editor-tree-icon'), matchedName(r), gitMark(r, git, dirs));
+          top.append(...(iconUrl ? [iconElement(r)] : []), matchedName(r), gitMark(r, git, dirs));
           const dir = doc.createElement('div');
           dir.className = 'editor-tree-dir';
           dir.textContent = r.dir || '';
@@ -339,10 +340,16 @@
     const b = doc.createElement('button');
     b.className = 'editor-menu-item' + (item.danger ? ' is-danger' : '') + (item.className ? ` ${item.className}` : '');
     b.setAttribute('role', 'menuitem');
-    const icon = doc.createElement('span');
-    icon.className = item.icon ? `codicon codicon-${item.icon}` : 'editor-menu-noicon';
+    // `image`: un'icona di file (file-icons.js); `icon`: una codicon
+    const icon = doc.createElement(item.image ? 'img' : 'span');
+    if (item.image) {
+      icon.className = 'editor-menu-image';
+      icon.alt = '';
+      icon.src = item.image;
+    } else {
+      icon.className = item.icon ? `codicon codicon-${item.icon}` : 'editor-menu-noicon';
+    }
     icon.setAttribute('aria-hidden', 'true');
-    if (item.tint) icon.style.color = item.tint;
     const text = (cls, value) => {
       const span = doc.createElement('span');
       span.className = cls;
@@ -359,8 +366,9 @@
 
   /**
    * Menu contestuale: si chiude su una scelta, su Esc e sul click fuori.
-   * Voci `{ label, run, icon?, tint?, detail?, key?, danger?, className? }`
-   * (icon: nome codicon senza prefisso) o `{ sep: true }`. `onClose` arriva
+   * Voci `{ label, run, icon?, image?, detail?, key?, danger?, className? }`
+   * (icon: nome codicon senza prefisso; image: URL di un'icona di file) o
+   * `{ sep: true }`. `onClose` arriva
    * una volta, comunque si chiuda.
    */
   function showMenu({ document: doc, x, y, items, onClose = () => {} }) {

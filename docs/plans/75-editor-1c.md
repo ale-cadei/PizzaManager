@@ -1,9 +1,19 @@
-# 70 — `feat/redesign-file-editor`: la scheda editor ridisegnata («1c»)
+# 75 — `feat/redesign-file-editor`: la scheda editor ridisegnata («1c»)
 
 Dipende da: 60-65 (sessione editor, pannello, barrette, commenti), 69
-(conflitti nell'editor). Taglia: ~3-4 giorni, in quattro passi.
+(conflitti nell'editor), 70 (icone dei file di Ale). Taglia: ~3-4 giorni,
+in quattro passi.
 
-Riferimento: il handoff di Claude Design in [`70-editor-1c/`](70-editor-1c/):
+Nato come piano 70 in parallelo al 70 di Ale (`feat/icone-in-filemanager`),
+mergiato prima: questo è diventato il 75 riallineandosi a `main`.
+
+**Icone dei file: restano quelle di Ale** (`renderer/file-icons.js`, SVG di
+Material Icon Theme), per scelta dell'utente (2026-10-30), anche fuori
+dall'albero: «Aperti», titolo, menu «N aperti», Ctrl+P, recenti. Il handoff
+voleva codicon monocromatiche con una tinta per tipo (`editor-icons.js`, tolto
+nel riallineamento). Le codicon restano per frecce, bottoni e menu.
+
+Riferimento: il handoff di Claude Design in [`75-editor-1c/`](75-editor-1c/):
 `handoff.md` (schermate, misure, comportamenti), `SPEC.md` (DOM, CSS coi
 token, ordine di lavoro), `design/*.dc.html` (prototipi da aprire nel browser
 con `support.js` accanto). Gli screenshot 2x sono rimasti fuori dal repo
@@ -21,9 +31,9 @@ codice. Il redesign rimette ordine senza cambiare cosa fa la scheda.
 - **Niente sotto-schede**: i file aperti stanno nella sezione «Aperti» in cima
   al pannello; il file attivo diventa il titolo dell'area, con cartella e
   simbolo sotto.
-- **Icone vere** (`@vscode/codicons`, caricate da `node_modules`: la CSP vieta
-  i CDN), lettere git M/U/A/D nell'albero, intestazioni di sezione con azioni a
-  icona.
+- **Codicon** per l'interfaccia (`@vscode/codicons`, caricate da
+  `node_modules`: la CSP vieta i CDN): frecce, bottoni, menu. Lettere git
+  M/U/A/D nell'albero, intestazioni di sezione con azioni a icona.
 - **Barra di stato**, conflitto col disco come **scheda flottante**, **stato
   vuoto** con i file recenti.
 - Nuovi: **Vai al file (Ctrl+P)**, **menu «N aperti»** con l'albero nascosto,
@@ -37,8 +47,8 @@ a 256).
 
 Un commit (o più) per passo; refactor e cambi di comportamento separati.
 
-1. **Icone, intestazione del pannello, righe dell'albero.** `editor-icons.js`
-   (UMD, `iconFor(name, kind, open)`), codicon in `index.html`, testata «FILE»
+1. **Icone, intestazione del pannello, righe dell'albero.** Codicon in
+   `index.html` (le icone dei file sono poi diventate quelle del piano 70), testata «FILE»
    con filtro/nuovo file/nuova cartella/rileggi al posto di
    `.editor-side-tools`, righe alte 26 con chevron e icona, menu contestuale
    con icone, scorciatoie e separatori, voce «Copia percorso».

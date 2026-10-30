@@ -331,15 +331,17 @@ ok('vista: un click che arriva (per propagazione) da un figlio - riga o input ap
   } finally { restore(); }
 });
 
-ok('showMenu: tinta dell icona, dettaglio, classi della voce e onClose', () => {
+ok('showMenu: icona di file come immagine, dettaglio, classi della voce e onClose', () => {
   const restore = installDocument();
   try {
     let closed = 0;
     const menu = T.showMenu({ document, x: 0, y: 0, onClose: () => { closed += 1; }, items: [
-      { label: 'a.js', icon: 'file-code', tint: 'red', detail: 'src/lib', className: 'is-active is-dirty', run() {} },
+      { label: 'a.js', image: 'file-icons/javascript.svg', detail: 'src/lib', className: 'is-active is-dirty', run() {} },
     ] });
     const item = menu.element.children[0];
-    assert.strictEqual(item.querySelectorAll('.codicon')[0].style.color, 'red');
+    const img = item.querySelectorAll('.editor-menu-image')[0];
+    assert.deepStrictEqual([img.tag, img.src, img.alt], ['img', 'file-icons/javascript.svg', '']);
+    assert.strictEqual(item.querySelectorAll('.codicon').length, 0);
     assert.strictEqual(item.querySelectorAll('.editor-menu-detail')[0].textContent, 'src/lib');
     assert.ok(item.classList.contains('is-active') && item.classList.contains('is-dirty'));
     fire(document, 'keydown', { key: 'Escape' });
@@ -348,7 +350,7 @@ ok('showMenu: tinta dell icona, dettaglio, classi della voce e onClose', () => {
   } finally { restore(); }
 });
 
-/* ---------- lettere git e filtro (docs/plans/70) ---------- */
+/* ---------- lettere git e filtro (docs/plans/75) ---------- */
 
 ok('vista: lettera git sui file, pallino sulle cartelle che contengono modifiche', () => {
   const restore = installDocument();

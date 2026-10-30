@@ -4,7 +4,7 @@
    lib/editor-watch.js), che confina ogni percorso nella cartella.
    Lo stato dei file aperti sta in editor-files.js, l'albero in
    editor-tree.js, Monaco in editor-monaco.js: qui il cablaggio. La sezione
-   «Aperti» e il titolo (docs/plans/70) li disegna editor-open-ui.js.
+   «Aperti» e il titolo (docs/plans/75) li disegna editor-open-ui.js.
    Le barrette delle righe cambiate (docs/plans/63) stanno in
    editor-tab-gutter.js, caricato prima di questo.
    Le schede si salvano (lib/editor-sessions.js) e tornano al riavvio coi
@@ -31,7 +31,7 @@ const EDITOR_READ_REASONS = {
   'not-file': 'non è un file.',
 };
 const EDITOR_IS_MAC = /mac/i.test(navigator.platform || '');
-// Il file manager di sistema ha un nome per piattaforma (piano 70)
+// Il file manager di sistema ha un nome per piattaforma (piano 75)
 const EDITOR_REVEAL_LABEL = EDITOR_IS_MAC ? 'Mostra nel Finder'
   : /^win/i.test(navigator.platform || '') ? 'Mostra in Esplora file' : 'Mostra nel file manager';
 let editorExitConfirmed = false;
@@ -82,7 +82,7 @@ function editorSectionHead(parent, label, actions) {
 function buildEditorLayout(tab) {
   const el = editorEl;
   const side = el('aside', 'editor-side', tab.wrap);
-  // I file aperti in cima al pannello, al posto delle sotto-schede (docs/plans/70)
+  // I file aperti in cima al pannello, al posto delle sotto-schede (docs/plans/75)
   const openSection = el('section', 'editor-open', side);
   const { count: openCount, buttons: [, closeAll] } = editorSectionHead(openSection, 'Aperti', [
     { icon: 'save-all', title: 'Salva tutto (Ctrl+Shift+S)', run: () => saveAllEditorFiles(tab) },
@@ -97,7 +97,7 @@ function buildEditorLayout(tab) {
     { icon: 'new-folder', title: 'Nuova cartella nella cartella della sessione', run: () => newEditorEntry(tab, '', 'dir') },
     { icon: 'refresh', title: 'Rileggi le cartelle aperte', run: () => reloadEditorTree(tab) },
   ]);
-  // Il filtro prende il posto della testata «File» (docs/plans/70, editor-find-ui.js)
+  // Il filtro prende il posto della testata «File» (docs/plans/75, editor-find-ui.js)
   const filter = buildEditorFilter(tab, side);
   const treeHost = el('div', 'editor-tree-host', side);
   const tree = EditorTree.createTreeView({
@@ -140,7 +140,7 @@ function buildEditorLayout(tab) {
   const message = el('div', 'editor-message', main);
   message.hidden = true;
   // Monaco ha il suo contenitore; il conflitto col disco e lo stato vuoto gli
-  // stanno sopra, nello stesso riquadro (docs/plans/70)
+  // stanno sopra, nello stesso riquadro (docs/plans/75)
   const stage = el('div', 'editor-stage', main);
   const host = el('div', 'editor-host', stage);
   const bar = el('div', 'editor-bar', stage);
@@ -468,7 +468,7 @@ async function closeEditorFile(tab, rel, anchor) {
   saveEditorSessions();
 }
 
-/** I file chiusi a mano tornano nello stato vuoto, «Aperti di recente» (docs/plans/70). */
+/** I file chiusi a mano tornano nello stato vuoto, «Aperti di recente» (docs/plans/75). */
 function rememberEditorClosed(tab, rels) {
   const at = Date.now();
   for (const rel of rels) tab.editor.recent = EditorFiles.addRecent(tab.editor.recent, rel, at);

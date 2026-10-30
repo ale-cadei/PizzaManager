@@ -67,7 +67,7 @@
   const parentRel = (rel) => { const i = rel.lastIndexOf('/'); return i < 0 ? '' : rel.slice(0, i); };
   const baseName = (rel) => rel.slice(rel.lastIndexOf('/') + 1);
 
-  // File chiusi di recente, per lo stato vuoto (docs/plans/70): il più recente in cima
+  // File chiusi di recente, per lo stato vuoto (docs/plans/75): il più recente in cima
   const MAX_RECENT = 5;
   const addRecent = (list, rel, at) => [{ rel, at }, ...list.filter((r) => r.rel !== rel)].slice(0, MAX_RECENT);
 

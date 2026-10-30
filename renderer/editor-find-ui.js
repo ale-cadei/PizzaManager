@@ -1,4 +1,4 @@
-/* Trovare i file nella scheda editor (docs/plans/70): le lettere git
+/* Trovare i file nella scheda editor (docs/plans/75): le lettere git
    nell'albero, il filtro dei nomi già letti, «Vai al file» (Ctrl+P) su tutto
    il progetto e il simbolo sotto il titolo. Caricato dopo editor-tab.js, di
    cui usa le funzioni; l'elenco dei file e le lettere li dà il main
@@ -55,6 +55,7 @@ function openEditorQuick(tab) {
       recent: ed.recent.map((r) => r.rel),
       git: ed.git,
     }),
+    iconUrl: FileIcons.iconUrl,
     onPick: (rel) => openEditorFile(tab, rel),
     onClose: () => {
       ed.quick = null;

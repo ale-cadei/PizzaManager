@@ -76,7 +76,7 @@ ok('joinRel, parentRel, baseName', () => {
   assert.strictEqual(F.baseName('src/x/a.js'), 'a.js');
 });
 
-/* ---------- aperti di recente (docs/plans/70) ---------- */
+/* ---------- aperti di recente (docs/plans/75) ---------- */
 
 ok('addRecent: il più recente in cima, senza doppioni, al massimo 5', () => {
   let list = [];

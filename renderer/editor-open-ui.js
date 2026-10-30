@@ -1,17 +1,26 @@
-/* I file aperti della scheda editor (docs/plans/70): la sezione «Aperti» in
+/* I file aperti della scheda editor (docs/plans/75): la sezione «Aperti» in
    cima al pannello, il titolo con il file attivo, e con l'albero nascosto il
    menu «N aperti». Sostituiscono le sotto-schede: stessi dati
    (files.order, active, dirty, deleted, conflict) e stessi gesti (click
    attiva, click centrale o × chiudono). Caricato dopo editor-tab.js, di cui
    usa le funzioni (activateEditorFile, closeEditorFile, dropEditorFile…). */
 
-const EditorIcons = window.AisessEditorIcons;
-
 function editorText(tag, className, text) {
   const n = document.createElement(tag);
   n.className = className;
   n.textContent = text; // nomi e cartelle vengono dal disco
   return n;
+}
+
+/** L'icona del tipo di file (file-icons.js, piano 70): decorativa, il nome accanto dice già tutto. */
+function editorFileIcon(name, className = 'editor-file-icon') {
+  const img = document.createElement('img');
+  img.className = className;
+  img.alt = '';
+  img.setAttribute('aria-hidden', 'true');
+  img.draggable = false;
+  img.src = FileIcons.iconUrl({ name, kind: 'file' });
+  return img;
 }
 
 function editorCodicon(name, extra = '') {
@@ -52,7 +61,7 @@ function editorOpenRow(tab, rel, f, active) {
   x.onclick = (e) => { e.stopPropagation(); closeEditorFile(tab, rel, row); };
   state.appendChild(x);
   row.append(
-    EditorIcons.iconElement(document, EditorFiles.baseName(rel), 'file'),
+    editorFileIcon(EditorFiles.baseName(rel)),
     editorText('span', 'editor-open-name', EditorFiles.baseName(rel)),
     editorText('span', 'editor-open-dir', EditorFiles.parentRel(rel)),
     state,
@@ -73,7 +82,7 @@ function renderEditorTitle(tab) {
   line.className = 'editor-title-row';
   const nameEl = editorText('span', 'editor-title-name', name);
   if (f.deleted) nameEl.classList.add('is-deleted');
-  line.append(EditorIcons.iconElement(document, name, 'file', false, 'editor-title-icon'), nameEl);
+  line.append(editorFileIcon(name, 'editor-title-icon'), nameEl);
   if (f.dirty) {
     const dot = editorText('span', 'editor-title-dot', '');
     dot.title = 'Non salvato';
@@ -81,7 +90,7 @@ function renderEditorTitle(tab) {
   }
   const letter = (tab.editor.git || {})[rel];
   if (letter) line.appendChild(editorText('span', `editor-tree-git is-${letter}`, letter));
-  // cartella › simbolo (docs/plans/70); senza simbolo solo la cartella
+  // cartella › simbolo (docs/plans/75); senza simbolo solo la cartella
   const crumb = document.createElement('div');
   crumb.className = 'editor-crumb';
   const dir = EditorFiles.parentRel(rel);
@@ -121,9 +130,8 @@ function showEditorOpenMenu(tab) {
   const items = files.order.map((rel, i) => {
     const f = files.files[rel];
     const name = EditorFiles.baseName(rel);
-    const { cls, tint } = EditorIcons.iconFor(name, 'file');
     return {
-      label: name, detail: EditorFiles.parentRel(rel), icon: cls.replace(/^codicon-/, ''), tint,
+      label: name, detail: EditorFiles.parentRel(rel), image: FileIcons.iconUrl({ name, kind: 'file' }),
       key: i < 9 ? EditorPanel.openKeyLabel(i + 1, EDITOR_IS_MAC) : undefined,
       className: 'editor-open-item' + (rel === files.active ? ' is-active' : '') + (f.dirty ? ' is-dirty' : ''),
       run: () => activateEditorFile(tab, rel),

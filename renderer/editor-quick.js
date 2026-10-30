@@ -1,4 +1,4 @@
-/* «Vai al file» della scheda editor (Ctrl+P, docs/plans/70). L'ordine dei
+/* «Vai al file» della scheda editor (Ctrl+P, docs/plans/75). L'ordine dei
  * risultati è puro (rankFiles): prima i file aperti, poi chi ha il testo in
  * testa al nome, dentro il nome, nel percorso, e il fuzzy sul nome. La vista
  * è un riquadro sopra il codice con un campo, i gruppi «Aperti» e «Nel
@@ -7,10 +7,10 @@
  *
  * Wrapper UMD come editor-tree.js: globale nella pagina, module.exports sotto Node. */
 (function (root, factory) {
-  const api = factory(root ? root.AisessEditorIcons : require('./editor-icons'));
+  const api = factory();
   if (root) root.AisessEditorQuick = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-})(typeof window !== 'undefined' ? window : null, function (Icons) {
+})(typeof window !== 'undefined' ? window : null, function () {
   const LIMIT = 50;
   const baseName = (rel) => rel.slice(rel.lastIndexOf('/') + 1);
   const dirName = (rel) => (rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : '');
@@ -68,9 +68,10 @@
 
   /**
    * @param {{document: Document, host: Element, onPick: (rel: string) => void, onClose: () => void,
+   *   iconUrl?: (row: {name: string, kind: string}) => string,
    *   source: () => {files: string[]|null, open: string[], recent: string[], git: object, loading?: boolean, truncated?: boolean}}} o
    */
-  function createQuickView({ document: doc, host, source, onPick, onClose }) {
+  function createQuickView({ document: doc, host, source, onPick, onClose, iconUrl = null }) {
     const el = (tag, cls, parent, text) => {
       const n = doc.createElement(tag);
       n.className = cls;
@@ -116,7 +117,13 @@
       row.dataset.rel = it.rel;
       row.setAttribute('role', 'option');
       row.setAttribute('aria-selected', at === index ? 'true' : 'false');
-      row.append(Icons.iconElement(doc, it.name, 'file'), nameEl(it));
+      if (iconUrl) {
+        const img = el('img', 'editor-file-icon', row);
+        img.alt = '';
+        img.setAttribute('aria-hidden', 'true');
+        img.src = iconUrl({ name: it.name, kind: 'file' });
+      }
+      row.appendChild(nameEl(it));
       el('span', 'editor-quick-dir', row, it.dir);
       if (isOpen) el('span', 'editor-quick-open', row, 'aperto');
       const letter = git[it.rel] || '';

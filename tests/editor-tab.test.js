@@ -408,7 +408,7 @@ ok('pannello: «Aperti» in cima, poi la testata «File» e l albero', () => {
     ['Filtra i nomi (o scrivi con l\'albero a fuoco)', 'Nuovo file nella cartella della sessione', 'Nuova cartella nella cartella della sessione', 'Rileggi le cartelle aperte']);
 });
 
-/* ---------- file aperti (docs/plans/70) ---------- */
+/* ---------- file aperti (docs/plans/75) ---------- */
 
 /** Layout vero, con dei file aperti nello stato della scheda. */
 function openLayout(files, main) {
@@ -432,7 +432,7 @@ ok('aperti: una riga per file con nome, cartella e stato; il file attivo fa da t
   assert.ok(!a.classList.contains('is-active'));
   assert.ok(readme.classList.contains('is-active'), 'l ultimo aperto è l attivo');
   assert.strictEqual(readme.getAttribute('aria-selected'), 'true');
-  assert.ok(s.part(readme, 'codicon-markdown'));
+  assert.strictEqual(s.part(readme, 'editor-file-icon').src, 'file-icons/readme.svg', 'le icone di file-icons.js (piano 70)');
   assert.strictEqual(s.ui.openCount.textContent, '2');
   assert.strictEqual(s.ui.openCount.hidden, false);
   assert.strictEqual(s.part(s.ui.title, 'editor-title-name').textContent, 'README.md');
@@ -516,7 +516,7 @@ ok('aperti: il menu «N aperti» elenca i file con la scorciatoia e attiva quell
   s.fn('showEditorOpenMenu')(s.tab);
   const [a, b, sep, saveAll, closeAll] = menus[0].items;
   // La pagina finta è un Mac (navigator.platform MacIntel): ⌃1, non Alt 1
-  assert.deepStrictEqual([a.label, a.detail, a.icon, a.key], ['a.js', 'src', 'file-code', '⌃1']);
+  assert.deepStrictEqual([a.label, a.detail, a.image, a.key], ['a.js', 'src', 'file-icons/javascript.svg', '⌃1']);
   assert.ok(b.className.includes('is-active') && b.className.includes('is-dirty'));
   assert.strictEqual(sep.sep, true);
   assert.deepStrictEqual([saveAll.label, closeAll.label], ['Salva tutto', 'Chiudi tutti']);
@@ -657,7 +657,7 @@ ok('commenti: rinominando un file aperto, il commento segue il nuovo nome', asyn
   assert.strictEqual(EditorNotes.count(s.tab.editor.notes, 'a.js'), 0, 'niente più sotto il nome vecchio');
 });
 
-/* ---------- intorno al codice: conflitto, barra di stato, stato vuoto (docs/plans/70) ---------- */
+/* ---------- intorno al codice: conflitto, barra di stato, stato vuoto (docs/plans/75) ---------- */
 
 ok('layout: Monaco, conflitto e stato vuoto nello stesso riquadro; la barra di stato in fondo', () => {
   const { wrap, ui } = layout();
@@ -771,7 +771,7 @@ ok('editorTimeAgo: adesso, minuti, ore, ieri, giorni', () => {
   assert.deepStrictEqual([ago(5e3), ago(5 * 6e4), ago(3 * 36e5), ago(30 * 36e5), ago(4 * 864e5)], ['adesso', '5 min fa', '3 h fa', 'ieri', '4 g fa']);
 });
 
-/* ---------- trovare i file: git, filtro, Ctrl+P, simbolo (docs/plans/70) ---------- */
+/* ---------- trovare i file: git, filtro, Ctrl+P, simbolo (docs/plans/75) ---------- */
 
 const ENTRIES = {
   '': [{ name: 'src', kind: 'dir', ignored: false }, { name: 'README.md', kind: 'file', ignored: false }],
@@ -892,7 +892,7 @@ ok('simbolo: dopo una pausa il titolo dice in che funzione sta il cursore', asyn
   assert.strictEqual(s.ui.title.querySelectorAll('.sym').length, 0, 'fuori da una funzione solo la cartella');
 });
 
-ok('menu: «Mostra nel Finder» apre il file manager sulla voce, o sulla cartella dal vuoto (piano 70)', async () => {
+ok('menu: «Mostra nel Finder» apre il file manager sulla voce, o sulla cartella dal vuoto (piano 75)', async () => {
   const s = setup();
   const menus = [];
   s.page.ctx.AisessEditorTree.showMenu = (o) => menus.push(o);

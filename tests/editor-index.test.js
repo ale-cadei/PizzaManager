@@ -7,7 +7,7 @@ const { test: ok } = require('node:test');
 const { listAllFiles, gitStatusLetters, letterOf, parsePorcelain } = require('../lib/editor-index');
 const { resolveBinary } = require('../lib/binaries');
 
-/* Elenco piatto dei file (Ctrl+P) e lettere git dell'albero (docs/plans/70):
+/* Elenco piatto dei file (Ctrl+P) e lettere git dell'albero (docs/plans/75):
    su cartelle vere in una tmpdir, con git vero quando c'è. */
 
 function tmp(t) {

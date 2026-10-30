@@ -62,7 +62,7 @@ ok('renderer: i terminali misurano i caratteri con Unicode 11, come psmux e tmux
 
 /* Gli script dell'app condividono lo scope globale: due `function X` con lo
    stesso nome non danno errore, vince l'ultima caricata e la prima sparisce
-   in silenzio. È successo col piano 70: revealEditorDir del filtro copriva
+   in silenzio. È successo col piano 75: revealEditorDir del filtro copriva
    quella della copia di file (editor-copy-ui.js). */
 ok('renderer: nessuna funzione globale dichiarata in due script', () => {
   const fs = require('fs');

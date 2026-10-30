@@ -72,7 +72,7 @@
   // invece di restare appesa per sempre.
   const openPrompts = new WeakMap();
 
-  function createTreeView({ root, document: doc, onOpenFile, onToggleDir, onContextMenu, onCopyInto = () => {}, onDeselect = () => {} }) {
+  function createTreeView({ root, document: doc, onOpenFile, onToggleDir, onContextMenu, onCopyInto = () => {}, onDeselect = () => {}, iconUrl = null }) {
     const list = doc.createElement('div');
     list.className = 'editor-tree';
     list.setAttribute('role', 'tree');
@@ -129,6 +129,17 @@
       onCopyInto(row ? dirOf(row) : '', { kind: 'paste' });
     });
 
+    // Icona per tipo (docs/plans/70): decorativa, il nome accanto dice già tutto
+    function iconElement(r) {
+      const img = doc.createElement('img');
+      img.className = 'editor-tree-icon';
+      img.alt = '';
+      img.setAttribute('aria-hidden', 'true');
+      img.draggable = false;
+      img.src = iconUrl({ name: r.name, kind: r.kind, expanded: r.expanded });
+      return img;
+    }
+
     function rowElement(r, selected) {
       const el = doc.createElement('div');
       el.className = 'editor-tree-row'
@@ -145,7 +156,7 @@
       const name = doc.createElement('span');
       name.className = 'editor-tree-name';
       name.textContent = r.name; // testo, mai HTML: il nome viene dal disco
-      el.append(twisty, name);
+      el.append(twisty, ...(iconUrl ? [iconElement(r)] : []), name);
       el.onclick = () => (r.kind === 'dir' ? onToggleDir(r.rel) : onOpenFile(r.rel));
       el.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(r, e); };
       el.addEventListener('dragover', onDragOver(dirOf(r)));

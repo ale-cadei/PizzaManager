@@ -31,6 +31,9 @@ function tabsContext() {
     renderSidebar() {},
     refreshUsage() {},
     refreshChanges: async () => {},
+    // Schermo diviso (renderer/split-view.js): qui una scheda sola
+    splitSelect() {},
+    applySplitLayout() {},
   };
   load('tabs.js', ctx);
   return { ctx, expanded };

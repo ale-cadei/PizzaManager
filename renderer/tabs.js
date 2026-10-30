@@ -217,8 +217,9 @@ function setActive(id, { reveal = true } = {}) {
   // è una conseguenza della visita, non un lavoro nuovo (attention.js).
   if (activeId && activeId !== id) { attention.left(activeId); leaveAgentTab(activeId); }
   const previousId = activeId;
+  splitSelect(id); // fuori dalla divisione prende la metà in primo piano
   activeId = id;
-  tabs.forEach((t) => t.wrap.classList.toggle('active', t.id === id));
+  applySplitLayout();
   // Selezionare la sessione è la conferma che l'utente ha visto il lavoro finito
   clearAttention(id);
   // Selezionare una scheda espande il suo gruppo, così la card resta visibile.
@@ -246,8 +247,9 @@ function refitTab(id) {
   if (t.scroller) t.scroller.refresh();
 }
 
+/* Tutte le schede visibili: con lo schermo diviso sono due. */
 function fitActive() {
-  if (activeId) refitTab(activeId);
+  splitVisibleIds().forEach((id) => refitTab(id));
 }
 
 async function closeTab(id) {
@@ -263,13 +265,15 @@ async function closeTab(id) {
   try { if (t.term) t.term.dispose(); } catch {}
   try { if (t.git) t.git.picker.destroy(); } catch {}
   if (t.editor) disposeEditorTab(t);
+  // Con lo schermo diviso resta sola la compagna, e prende il primo piano
+  const partner = splitForget(id);
   t.wrap.remove();
   tabs.delete(id);
   if (activeId === id) {
     const rest = [...tabs.keys()];
-    activeId = rest.length ? rest[rest.length - 1] : null;
-    if (activeId) tabs.get(activeId).wrap.classList.add('active');
+    activeId = partner || (rest.length ? rest[rest.length - 1] : null);
   }
+  applySplitLayout();
   updateEmpty();
   if (tabs.size) fitActive();
   renderSidebar();

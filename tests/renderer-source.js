@@ -10,6 +10,7 @@ const RENDERER_DIR = path.join(__dirname, '..', 'renderer');
 /** Ordine di caricamento: app-state.js per primo, renderer.js per ultimo. */
 const RENDERER_APP_FILES = [
   'app-state.js',
+  'split-view.js',
   'signals.js',
   'tabs.js',
   'shell-icon-ui.js',

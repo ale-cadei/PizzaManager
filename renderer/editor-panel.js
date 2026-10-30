@@ -106,8 +106,11 @@
   }
   const openKeyLabel = (n, isMac) => (isMac ? `⌃${n}` : `Alt ${n}`);
 
+  /** Ctrl+Alt+N: file nuovo nella cartella selezionata (stato vuoto, docs/plans/70). */
+  const isNewFileKey = (e) => Boolean(e.ctrlKey && e.altKey && !e.shiftKey && !e.metaKey && e.code === 'KeyN');
+
   return {
     WIDTH_KEY, HIDDEN_KEY, DEFAULT_W, MIN_W, clampWidth, readPanelPrefs, savePanelPrefs, applyPanelPrefs, createPanel,
-    isToggleKey, openIndexKey, openKeyLabel,
+    isToggleKey, isNewFileKey, openIndexKey, openKeyLabel,
   };
 });

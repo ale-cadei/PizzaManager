@@ -62,8 +62,8 @@ Un commit (o più) per passo; refactor e cambi di comportamento separati.
 - `@vscode/codicons`: icone CC-BY-4.0, codice MIT. Va in
   `THIRD-PARTY-NOTICES.md`.
 - Il fondo di Monaco oggi viene da `--bg` di `:root`; va letto da `#main`, così
-  segue il colore scelto in View → Colori (passo 3).
-
+  segue il colore scelto in View → Colori (passo 3). Fatto con `termTheme()`,
+  lo stesso fondo dei terminali, e ridefinito quando si cambiano i colori.
 - **Alt+1…9 sul Mac è ⌃1…9**: Opzione+cifra scrive caratteri (`~` è
   Opzione+5 sulla tastiera italiana), e catturarla romperebbe la scrittura in
   Monaco. Fuori dal Mac Ctrl+Alt è AltGr e non conta.
@@ -71,6 +71,16 @@ Un commit (o più) per passo; refactor e cambi di comportamento separati.
   è quello che serve in un prompt.
 - Chi aveva già salvato la larghezza dell'albero (anche solo aprendo e
   chiudendo il pannello) resta a 240: il 256 vale per chi non l'ha mai toccata.
+- «Aperti di recente» sono per scheda (ultimi 5 file chiusi a mano) e si
+  salvano con la scheda in `editor-sessions.json`: una scheda nuova sulla
+  stessa cartella parte senza.
+- Lo stato vuoto non ha ancora il campo «Vai al file»: arriva col passo 4,
+  insieme a Ctrl+P. Il sottotitolo per ora rimanda all'albero.
+- Tema «Forno»: le funzioni in `#F6F1EC` del mock non si possono colorare a
+  parte, perché il tokenizer di Monaco le dà come `identifier`. Restano del
+  colore degli identificatori.
+- Ctrl+Alt+N (nuovo file nella cartella selezionata) è nuovo: lo stato vuoto
+  lo mostra fra le scorciatoie.
 - Rimandato: la × per chiudere un file dal menu «N aperti» (oggi lo chiude
   «Chiudi tutti», o riaprendo l'albero).
 
@@ -78,5 +88,5 @@ Un commit (o più) per passo; refactor e cambi di comportamento separati.
 
 - [x] 1 · icone, pannello, albero
 - [x] 2 · Aperti e titolo (smoke nell'app da fare)
-- [ ] 3 · barra di stato, conflitto, stato vuoto
+- [x] 3 · barra di stato, conflitto, stato vuoto, chip dei commenti, tema (smoke da fare)
 - [ ] 4 · git, filtro, Ctrl+P, simbolo

@@ -655,3 +655,117 @@ ok('commenti: rinominando un file aperto, il commento segue il nuovo nome', asyn
   assert.strictEqual(EditorNotes.count(s.tab.editor.notes, 'b.js'), 1, 'il commento è sotto il nome nuovo');
   assert.strictEqual(EditorNotes.count(s.tab.editor.notes, 'a.js'), 0, 'niente più sotto il nome vecchio');
 });
+
+/* ---------- intorno al codice: conflitto, barra di stato, stato vuoto (docs/plans/70) ---------- */
+
+ok('layout: Monaco, conflitto e stato vuoto nello stesso riquadro; la barra di stato in fondo', () => {
+  const { wrap, ui } = layout();
+  const main = wrap.children[2];
+  assert.deepStrictEqual(main.children.map((c) => c.className), ['editor-head', 'editor-message', 'editor-stage', 'editor-status']);
+  assert.deepStrictEqual(main.children[2].children, [ui.host, ui.bar, ui.empty]);
+  assert.strictEqual(ui.status.tag, 'footer');
+});
+
+ok('conflitto: scheda con titolo, testo col nome del file, «Tieni il mio» e «Ricarica dal disco»', async () => {
+  const s = openLayout({ 'src/a.js': { text: 'a', mtime: 1, dirty: true } },
+    { editorRead: async () => ({ ok: true, text: 'disco', mtime: 2, path: '/w/src/a.js', bom: false }) });
+  s.fn('setEditorFile')(s.tab, 'src/a.js', { conflict: 'disk', diskMtime: 2 });
+  const bar = s.ui.bar;
+  assert.strictEqual(bar.hidden, false);
+  assert.ok(bar.classList.contains('is-warn'));
+  assert.strictEqual(s.part(bar, 'editor-bar-title').textContent, 'Cambiato sul disco');
+  assert.match(s.part(bar, 'editor-bar-text').textContent, /^a\.js è cambiato sul disco mentre lo modificavi/);
+  const buttons = s.part(bar, 'editor-bar-actions').children;
+  assert.deepStrictEqual(buttons.map((b) => b.textContent), ['Tieni il mio', 'Ricarica dal disco']);
+  assert.ok(buttons[1].classList.contains('editor-bar-secondary'));
+  await buttons[1].onclick();
+  assert.strictEqual(s.file('src/a.js').conflict, null);
+  assert.strictEqual(s.host.texts['src/a.js'], 'disco');
+  assert.strictEqual(bar.hidden, true);
+});
+
+ok('conflitto: un errore si divide in titolo e motivo, e si chiude', () => {
+  const s = openLayout({ 'a.js': { text: 'a', mtime: 1 } });
+  s.fn('setEditorFile')(s.tab, 'a.js', { error: 'Salvataggio non riuscito: Permesso negato.' });
+  assert.ok(s.ui.bar.classList.contains('is-error'));
+  assert.strictEqual(s.ui.bar.getAttribute('role'), 'alert');
+  assert.strictEqual(s.part(s.ui.bar, 'editor-bar-title').textContent, 'Salvataggio non riuscito');
+  assert.strictEqual(s.part(s.ui.bar, 'editor-bar-text').textContent, 'Permesso negato.');
+  s.part(s.ui.bar, 'editor-bar-actions').children[0].onclick();
+  assert.strictEqual(s.ui.bar.hidden, true);
+});
+
+ok('barra di stato: nascosta senza file; non salvato, branch, cursore e info del file', async () => {
+  const empty = openLayout({});
+  assert.strictEqual(empty.ui.status.hidden, true);
+
+  const s = openLayout({ 'a.js': { text: 'a', mtime: 1, dirty: true } },
+    { gitBranches: async () => ({ ok: true, local: [{ name: 'main', current: false }, { name: 'feat/x', current: true }] }) });
+  s.host.info = () => ({ tabSize: 2, insertSpaces: true, eol: 'LF', language: 'JavaScript' });
+  await s.fn('loadEditorBranch')(s.tab);
+  s.fn('onEditorCursor')(s.tab, 'a.js', { line: 57, col: 23 });
+  s.fn('onEditorCursor')(s.tab, 'altro.js', { line: 1, col: 1 }); // un file non attivo non conta
+  const texts = s.ui.status.children.map((c) => c.querySelectorAll('.editor-status-text').map((t) => t.textContent).join(''));
+  assert.strictEqual(s.ui.status.hidden, false);
+  assert.deepStrictEqual(texts, ['● Non salvato', 'feat/x', '', 'Ln 57, Col 23', 'Spazi: 2', 'UTF-8 · LF', 'JavaScript']);
+  assert.ok(s.part(s.ui.status, 'codicon-git-branch'));
+});
+
+ok('barra di stato: fuori da git niente branch, e un BOM si dice', async () => {
+  const s = openLayout({ 'a.js': { text: 'a', mtime: 1 } }, { gitBranches: async () => ({ ok: false, error: 'non è un repository' }) });
+  s.host.info = () => ({ tabSize: 4, insertSpaces: false, eol: 'CRLF', language: 'plaintext' });
+  s.fn('setEditorFile')(s.tab, 'a.js', { bom: true });
+  await s.fn('loadEditorBranch')(s.tab);
+  assert.strictEqual(s.ui.status.querySelectorAll('.editor-status-branch').length, 0);
+  assert.strictEqual(s.part(s.ui.status, 'editor-status-indent').textContent, '');
+  assert.strictEqual(s.part(s.part(s.ui.status, 'editor-status-indent'), 'editor-status-text').textContent, 'Tab: 4');
+  assert.strictEqual(s.part(s.part(s.ui.status, 'editor-status-enc'), 'editor-status-text').textContent, 'UTF-8 con BOM · CRLF');
+});
+
+ok('stato vuoto: si vede solo senza file; chiudere un file lo mette fra i recenti, che lo riaprono', async () => {
+  const s = openLayout({ 'src/a.js': { text: 'a', mtime: 1 } },
+    { editorRead: async () => ({ ok: true, text: 'a', mtime: 1, path: '/w/src/a.js', bom: false }) });
+  assert.strictEqual(s.ui.empty.hidden, true);
+  await s.fn('closeEditorFile')(s.tab, 'src/a.js', s.ui.title);
+  assert.strictEqual(s.ui.empty.hidden, false);
+  assert.strictEqual(s.part(s.ui.empty, 'editor-empty-title').textContent, 'Apri un file');
+  const [row] = s.ui.empty.querySelectorAll('.editor-recent-row');
+  assert.strictEqual(s.part(row, 'editor-recent-name').textContent, 'a.js');
+  assert.strictEqual(s.part(row, 'editor-recent-dir').textContent, 'src');
+  assert.strictEqual(s.part(row, 'editor-recent-when').textContent, 'adesso');
+  const saved = s.sent('saveEditorSessions').at(-1)[1][0];
+  assert.deepStrictEqual(plain(saved.recent.map((r) => r.rel)), ['src/a.js'], 'i recenti si salvano con la scheda');
+  await row.onclick();
+  assert.deepStrictEqual([...s.tab.editor.files.order], ['src/a.js']);
+  assert.strictEqual(s.ui.empty.hidden, true);
+});
+
+ok('stato vuoto: senza recenti niente scheda, solo le scorciatoie', () => {
+  const s = openLayout({});
+  assert.strictEqual(s.ui.empty.querySelectorAll('.editor-recent').length, 0);
+  assert.deepStrictEqual(s.ui.empty.querySelectorAll('.editor-empty-key').map((r) => r.children[0].textContent), ['Nuovo file', 'Mostra/nascondi file']);
+});
+
+ok('«Chiudi tutti» mette i file fra i recenti, il primo della lista in cima', async () => {
+  const s = openLayout({ 'a.js': { text: 'a', mtime: 1 }, 'b.js': { text: 'b', mtime: 1 } });
+  await s.fn('closeAllEditorFiles')(s.tab, s.ui.title);
+  assert.deepStrictEqual(plain(s.tab.editor.recent.map((r) => r.rel)), ['a.js', 'b.js']);
+});
+
+ok('editorSelectedDir: la cartella selezionata, quella del file selezionato, o la radice', () => {
+  const s = setup();
+  const T = s.page.ctx.AisessEditorTree;
+  let tree = T.setChildren(T.setChildren(T.emptyTree(), '', []), 'src', []);
+  s.tab.editor.tree = tree;
+  assert.strictEqual(s.fn('editorSelectedDir')(s.tab), '');
+  s.tab.editor.tree = T.select(tree, 'src');
+  assert.strictEqual(s.fn('editorSelectedDir')(s.tab), 'src');
+  s.tab.editor.tree = T.select(tree, 'src/lib/x.js');
+  assert.strictEqual(s.fn('editorSelectedDir')(s.tab), 'src/lib');
+});
+
+ok('editorTimeAgo: adesso, minuti, ore, ieri, giorni', () => {
+  const s = setup();
+  const ago = (ms) => s.fn('editorTimeAgo')(1e9 - ms, 1e9);
+  assert.deepStrictEqual([ago(5e3), ago(5 * 6e4), ago(3 * 36e5), ago(30 * 36e5), ago(4 * 864e5)], ['adesso', '5 min fa', '3 h fa', 'ieri', '4 g fa']);
+});

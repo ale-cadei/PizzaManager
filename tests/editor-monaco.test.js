@@ -26,8 +26,10 @@ function fakeMonaco() {
     saveViewState: () => ({ of: editor.model && editor.model.uri.path }),
     restoreViewState(v) { editor.view = v; },
     focus() {}, updateOptions() {},
-    position: null, revealed: [],
+    position: null, revealed: [], cursor: null,
     setPosition(p) { editor.position = p; },
+    getPosition: () => editor.position,
+    onDidChangeCursorPosition(f) { editor.cursor = f; },
     revealLineInCenter(line) { editor.revealed.push(line); },
     ran: [],
     getAction: (id) => ({ run() { editor.ran.push(id); } }),
@@ -51,6 +53,10 @@ function fakeMonaco() {
     const m = {
       uri, disposed: false, eol: null, decorations: [], removed: [], live,
       getValue: () => value,
+      options: { tabSize: 2, insertSpaces: true }, eolText: '\n', languageId: 'javascript',
+      getOptions: () => m.options,
+      getEOL: () => m.eolText,
+      getLanguageId: () => m.languageId,
       getLineCount: () => lines().length,
       getLineContent: (n) => lines()[n - 1],
       getLineMaxColumn: (n) => lines()[n - 1].length + 1,
@@ -99,6 +105,7 @@ function fakeMonaco() {
       MouseTargetType: { GUTTER_GLYPH_MARGIN: 2, GUTTER_LINE_NUMBERS: 3, GUTTER_LINE_DECORATIONS: 4, GUTTER_VIEW_ZONE: 5, CONTENT_TEXT: 6, CONTENT_EMPTY: 7, CONTENT_VIEW_ZONE: 8 },
     },
     Uri: { from: (o) => ({ ...o }) },
+    languages: { getLanguages: () => [{ id: 'javascript', aliases: ['JavaScript', 'javascript'] }, { id: 'plaintext' }] },
     KeyMod: { CtrlCmd: 2048, Shift: 1024, Alt: 512 },
     KeyCode: { KeyS: 49, KeyF: 36, KeyH: 38 },
   };
@@ -500,4 +507,54 @@ ok('commenti: il «+» compare nel margine della riga sotto il mouse e sparisce 
   fake.editor.mouse.move(at(6, 1));
   fake.editor.mouse.leave({});
   assert.deepStrictEqual(plus(), []);
+});
+
+/* ---------- barra di stato (docs/plans/70) ---------- */
+
+ok('cursore: onCursor dice riga e colonna del file attivo, anche quando lo si attiva', () => {
+  const seen = [];
+  const { h, fake } = host({ onCursor: (rel, pos) => seen.push([rel, pos.line, pos.col]) });
+  h.open('a.js', 'uno\ndue');
+  fake.editor.position = { lineNumber: 2, column: 3 };
+  fake.editor.cursor({ position: { lineNumber: 2, column: 3 } });
+  h.open('b.js', 'x');
+  assert.deepStrictEqual(seen.at(-2), ['a.js', 2, 3]);
+  assert.strictEqual(seen.at(-1)[0], 'b.js', 'attivando un file la barra si aggiorna subito');
+});
+
+ok('info: indentazione, fine riga e linguaggio col nome leggibile', () => {
+  const { h, fake } = host();
+  h.open('a.js', 'x');
+  assert.deepStrictEqual(h.info('a.js'), { tabSize: 2, insertSpaces: true, eol: 'LF', language: 'JavaScript' });
+  const m = fake.models[0];
+  m.options = { tabSize: 4, insertSpaces: false };
+  m.eolText = '\r\n';
+  m.languageId = 'plaintext';
+  assert.deepStrictEqual(h.info('a.js'), { tabSize: 4, insertSpaces: false, eol: 'CRLF', language: 'plaintext' });
+  assert.strictEqual(h.info('nessuno.js'), null);
+});
+
+ok('editor: margine sopra il codice e corsia delle barrette larga 18', () => {
+  const { fake } = host();
+  assert.deepStrictEqual(fake.editor.options.padding, { top: 10 });
+  assert.strictEqual(fake.editor.options.lineDecorationsWidth, 18);
+});
+
+ok('tema: fondo passato da fuori, riga corrente e numeri della palette forno', () => {
+  const themes = [];
+  const monaco = { editor: { defineTheme: (name, t) => themes.push([name, t]), setTheme: (name) => themes.push(['set', name]) } };
+  const win = { monaco, document: { documentElement: {} }, getComputedStyle: () => ({ getPropertyValue: () => '' }) };
+  require('../renderer/editor-monaco').applyTheme(win, { background: '#050200' });
+  const [[name, theme], set] = themes;
+  assert.strictEqual(name, 'aisess');
+  assert.deepStrictEqual(set, ['set', 'aisess']);
+  assert.strictEqual(theme.colors['editor.background'], '#050200');
+  assert.strictEqual(theme.colors['editorGutter.background'], '#050200');
+  assert.strictEqual(theme.colors['editor.lineHighlightBackground'], '#140B09');
+  assert.ok(theme.rules.some((r) => r.token === 'keyword' && r.foreground === 'FF9B6F'));
+  assert.ok(theme.rules.some((r) => r.token === 'comment' && r.fontStyle === 'italic'));
+});
+
+ok('tema: senza Monaco caricato applyTheme non fa niente', () => {
+  assert.doesNotThrow(() => require('../renderer/editor-monaco').applyTheme({}, { background: '#000000' }));
 });

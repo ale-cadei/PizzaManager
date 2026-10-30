@@ -87,7 +87,7 @@ function renderEditorTitle(tab) {
   ui.title.replaceChildren(line, crumb);
 }
 
-/** Sezione «Aperti», titolo, contatore del menu «N aperti», barra del conflitto. */
+/** Sezione «Aperti», titolo, «N aperti», e intorno al codice conflitto, barra di stato, stato vuoto. */
 function renderEditorOpen(tab) {
   const { files, ui } = tab.editor;
   const n = files.order.length;
@@ -98,6 +98,8 @@ function renderEditorOpen(tab) {
   ui.openMenu.hidden = n === 0;
   renderEditorTitle(tab);
   renderEditorBar(tab);
+  renderEditorStatus(tab);
+  renderEditorEmpty(tab);
 }
 
 /** Con l'albero nascosto: il menu dei file aperti, appeso sotto il titolo. */
@@ -150,6 +152,8 @@ async function closeAllEditorFiles(tab, anchor) {
   } else if (loss && !(await editorConfirm.ask({ anchor, title: 'Chiudere tutti i file?', text: loss, confirmLabel: 'Chiudi tutti' }))) {
     return;
   }
-  for (const rel of [...ed.files.order]) dropEditorFile(tab, rel);
+  const closing = [...ed.files.order];
+  rememberEditorClosed(tab, [...closing].reverse()); // il primo della lista resta il più recente
+  for (const rel of closing) dropEditorFile(tab, rel);
   saveEditorSessions();
 }

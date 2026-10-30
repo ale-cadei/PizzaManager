@@ -1304,13 +1304,67 @@ body.editor-tree-hidden .editor-open-menu:not([hidden]) { display: inline-flex; 
   box-shadow: 0 0 0 3px var(--action-ring); outline: none;
 }
 .editor-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.editor-bar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font: 13px var(--font-ui); }
-.editor-bar.is-warn { background: var(--surface-3); color: var(--text); }
-.editor-bar.is-error { background: var(--surface-3); color: var(--state-error); }
-.editor-bar-text { flex: 1; }
 .editor-message { padding: 10px 12px; font: 13px var(--font-ui); color: var(--state-error); border-bottom: 1px solid var(--divider); }
 .editor-message.is-info { color: var(--text-dim); }
+/* Monaco, e sopra di lui il conflitto col disco e lo stato vuoto (docs/plans/70) */
+.editor-stage { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .editor-host { flex: 1; min-height: 0; }
+.editor-bar {
+  position: absolute; top: 14px; right: 18px; z-index: 5; width: 340px; max-width: calc(100% - 36px); box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 10px; padding: 14px 14px 12px;
+  background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-modal); font: 12.5px/1.5 var(--font-ui); color: var(--text-muted);
+}
+.editor-bar[hidden] { display: none; }
+.editor-bar-title { display: flex; align-items: center; gap: 8px; font: 600 13px var(--font-ui); color: var(--text); }
+.editor-bar-title::before { font: 16px/1 codicon; }
+.editor-bar.is-warn .editor-bar-title::before { content: '\ea6c'; color: var(--accent); }
+.editor-bar.is-error .editor-bar-title { color: var(--state-error); }
+.editor-bar.is-error .editor-bar-title::before { content: '\ea87'; }
+.editor-bar-text { overflow-wrap: anywhere; }
+.editor-bar-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.editor-bar .btn { height: 28px; padding: 0 12px; font-size: 12px; }
+.editor-bar .btn--ghost { border-color: transparent; }
+.editor-bar-secondary { background: var(--surface-3); border: 1px solid var(--border-strong); color: var(--text-2); }
+.editor-bar-secondary:hover { color: var(--text); border-color: var(--action); }
+/* Barra di stato */
+.editor-status {
+  flex: none; height: 24px; display: flex; align-items: center; gap: 16px; padding: 0 12px; overflow: hidden;
+  background: var(--bg); border-top: 1px solid var(--divider);
+  font: 11px var(--font-mono); color: var(--text-dim); white-space: nowrap;
+}
+.editor-status[hidden] { display: none; }
+.editor-status > span { display: inline-flex; align-items: center; gap: 5px; }
+.editor-status .codicon { font-size: 13px; }
+.editor-status-spacer { flex: 1; }
+.editor-status-dirty { color: var(--type-editor); }
+.editor-status-branch { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.editor-status-lang { color: var(--text-2); }
+/* Stato vuoto: nessun file aperto */
+.editor-empty { position: absolute; inset: 0; z-index: 4; overflow: auto; background: var(--bg); }
+.editor-empty[hidden] { display: none; }
+.editor-empty-col { width: 480px; max-width: calc(100% - 48px); margin: 150px auto 40px; display: flex; flex-direction: column; gap: 18px; }
+.editor-empty-title { margin: 0; font: 600 19px var(--font-ui); color: var(--text); }
+.editor-empty-sub { margin: -10px 0 0; font: 13px/1.5 var(--font-ui); color: var(--text-muted); }
+.editor-recent { padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.editor-recent-head {
+  padding: 8px 10px 6px; font: 500 10px var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-dim);
+}
+.editor-recent-row {
+  width: 100%; height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 0; border-radius: 5px;
+  background: transparent; color: var(--text-2); font: 13px var(--font-ui); text-align: left; cursor: pointer; white-space: nowrap;
+}
+.editor-recent-row:hover, .editor-recent-row:focus-visible { background: var(--surface-2); color: var(--text); outline: none; }
+.editor-recent-row .editor-file-icon { flex: none; font-size: 15px; }
+.editor-recent-dir { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 11px var(--font-mono); color: var(--text-faint); }
+.editor-recent-when { flex: none; font: 11px var(--font-mono); color: var(--text-faint); }
+.editor-empty-keys { display: flex; flex-direction: column; gap: 8px; font: 12.5px var(--font-ui); color: var(--text-muted); }
+.editor-empty-key { display: flex; align-items: center; justify-content: space-between; }
+.editor-kbd-group { display: inline-flex; gap: 4px; }
+.kbd {
+  font: 11px var(--font-mono); padding: 1px 6px; border-radius: 4px;
+  background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text-muted);
+}
 /* Barrette delle righe cambiate rispetto a HEAD (docs/plans/63). Monaco
    mette la classe su un div .cldr a tutta altezza della riga, largo quanto
    il margine: la barretta è uno pseudo-elemento, così non dipende da lui. */
@@ -1352,13 +1406,41 @@ body.editor-tree-hidden .editor-open-menu:not([hidden]) { display: inline-flex; 
    fondo sulle righe commentate; il «+» nel margine dei glifi */
 .editor-note-zone { box-sizing: border-box; padding: 0 16px 0 4px; }
 .editor-note-zone .changes-comment, .editor-note-zone .changes-comment-editor { position: static; }
+/* Nell'editor il commento è una scheda (docs/plans/70): righe e azioni in
+   testa, testo sotto, niente barra colorata a sinistra */
+.editor-note-zone .changes-comment, .editor-note-zone .changes-comment-editor {
+  max-width: 620px; margin: 6px 0 8px; padding: 10px 12px 11px;
+  background: var(--surface-2); border: 1px solid var(--border); border-left: 1px solid var(--border);
+  border-radius: var(--radius-lg); box-shadow: 0 8px 20px rgba(0,0,0,.45);
+}
+.editor-note-zone .changes-comment { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 4px 2px; }
+.editor-note-zone .changes-comment-range {
+  grid-column: 1; display: inline-flex; align-items: center; gap: 6px;
+  font: 500 11px var(--font-mono); color: var(--action-text);
+}
+.editor-note-zone .changes-comment-range::before { content: '\ea6b'; font: 14px/1 codicon; }
+.editor-note-zone .changes-comment-body { grid-column: 1 / -1; grid-row: 2; font: 13px/1.5 var(--font-ui); }
+.editor-note-zone .changes-comment-edit, .editor-note-zone .changes-comment-remove {
+  width: 22px; height: 22px; display: grid; place-items: center; padding: 0; border-radius: 4px; font-size: 14px;
+}
+.editor-note-zone .changes-comment-edit:hover, .editor-note-zone .changes-comment-remove:hover { background: var(--surface-3); }
 .monaco-editor .editor-note-line { background: color-mix(in srgb, var(--action-text) 10%, transparent); }
 .monaco-editor .editor-note-add { display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .monaco-editor .editor-note-add::before { content: '+'; font: 600 14px/1 var(--font-ui); color: var(--action-text); }
-.editor-notes-bar { display: flex; align-items: center; gap: 6px; margin-left: auto; padding: 0 8px; }
+.editor-notes-bar {
+  flex: none; display: flex; align-items: center; gap: 8px; height: 28px; margin-left: auto; padding: 0 4px 0 10px;
+  border-radius: var(--radius); background: var(--action-soft); color: var(--action-text); font: 500 12px var(--font-ui); white-space: nowrap;
+}
 .editor-notes-bar[hidden] { display: none; }
-.editor-notes-count { font: 12px var(--font-ui); color: var(--action-text); white-space: nowrap; }
-.editor-notes-bar .btn { font-size: 12px; padding: 2px 8px; }
+.editor-notes-bar .codicon { font-size: 14px; }
+.editor-notes-count { display: inline-flex; align-items: center; gap: 6px; }
+.editor-notes-sep { width: 1px; height: 14px; background: color-mix(in srgb, var(--action-text) 30%, transparent); }
+.editor-notes-copy, .editor-notes-clear {
+  display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 6px; border: 0; border-radius: 4px;
+  background: transparent; color: var(--text); font: inherit; cursor: pointer;
+}
+.editor-notes-clear { color: var(--action-text); }
+.editor-notes-copy:hover, .editor-notes-clear:hover { background: color-mix(in srgb, var(--action-text) 14%, transparent); }
 /* Il menu sta su body, fuori da #main: i token sono quelli di :root */
 .editor-menu {
   position: fixed; z-index: 1000; display: flex; flex-direction: column; min-width: 232px; padding: 4px;

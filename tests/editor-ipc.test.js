@@ -96,7 +96,7 @@ ok('ipc editor: le ricariche della pagina non accumulano listener sul webContent
 
 ok('ipc editor: sessioni salvate e rilette, ask dopo un riavvio', async (t) => {
   const { call } = setup(t);
-  const list = [{ name: null, cwd: '/p', files: ['a.js'], active: 'a.js', startedAt: 1 }];
+  const list = [{ name: null, cwd: '/p', files: ['a.js'], active: 'a.js', startedAt: 1, recent: [{ rel: 'b.js', at: 2 }] }];
   assert.deepStrictEqual(await call('editor-sessions-save', { sessions: list }), { ok: true, sessions: list });
   const r = await call('editor-sessions', undefined);
   assert.strictEqual(r.ok, true);

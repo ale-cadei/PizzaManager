@@ -27,6 +27,8 @@ function typeColorsDialog() {
       onChange: () => {
         const theme = termTheme();
         for (const tab of tabs.values()) if (tab.term) tab.term.options.theme = theme;
+        // Il fondo dell'editor è quello dei terminali (docs/plans/70)
+        window.AisessEditorMonaco.applyTheme(window, { background: theme.background });
       },
     });
   }

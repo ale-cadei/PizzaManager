@@ -17,6 +17,17 @@ function noteEl(tag, className, text) {
   return n;
 }
 
+/** Bottone con una codicon davanti all'etichetta (o solo icona, con label ''). */
+function noteIconButton(className, icon, label, title, run) {
+  const b = noteButton(className, '', title, run);
+  const i = noteEl('span', `codicon codicon-${icon}`);
+  i.setAttribute('aria-hidden', 'true');
+  b.appendChild(i);
+  if (label) b.appendChild(noteEl('span', 'editor-notes-label', label));
+  else b.setAttribute('aria-label', title);
+  return b;
+}
+
 function noteButton(className, label, title, run) {
   const b = noteEl('button', className, label);
   b.type = 'button';
@@ -56,8 +67,8 @@ function editorNoteBox(tab, n) {
   box.append(
     label,
     noteEl('span', 'changes-comment-body', n.body),
-    noteButton('changes-comment-edit', '✎', 'Modifica il commento', () => editEditorNote(tab, n.id)),
-    noteButton('changes-comment-remove', '✕', 'Elimina il commento', () => removeEditorNote(tab, n.id)),
+    noteIconButton('changes-comment-edit', 'edit', '', 'Modifica il commento', () => editEditorNote(tab, n.id)),
+    noteIconButton('changes-comment-remove', 'trash', '', 'Elimina il commento', () => removeEditorNote(tab, n.id)),
   );
   return { box, label };
 }
@@ -87,19 +98,24 @@ function editorNoteDraftBox(tab, label, body) {
   return { box, input, warn, range };
 }
 
-/** «N commenti · Copia prompt · Svuota», nascosta senza commenti */
+/** Chip «N commenti | Copia prompt», più Svuota a icona; nascosta senza commenti (docs/plans/70) */
 function renderEditorNotesBar(tab) {
   const ed = tab.editor;
   const bar = ed.ui.notesBar;
   const n = EditorNotes.count(ed.notes);
   bar.hidden = n === 0;
   if (!n) { bar.replaceChildren(); return; }
-  const copy = noteButton('btn btn--ghost editor-notes-copy', 'Copia prompt',
+  const copy = noteIconButton('editor-notes-copy', 'copy', 'Copia prompt',
     'Copia negli appunti un prompt con tutti i commenti', () => copyEditorNotes(tab, copy));
+  const count = noteEl('span', 'editor-notes-count');
+  const icon = noteEl('span', 'codicon codicon-comment');
+  icon.setAttribute('aria-hidden', 'true');
+  count.append(icon, noteEl('span', 'editor-notes-label', EditorNotes.countLabel(n)));
   bar.replaceChildren(
-    noteEl('span', 'editor-notes-count', EditorNotes.countLabel(n)),
+    count,
+    noteEl('span', 'editor-notes-sep'),
     copy,
-    noteButton('btn btn--ghost editor-notes-clear', 'Svuota', 'Togli tutti i commenti', () => clearEditorNotes(tab)),
+    noteIconButton('editor-notes-clear', 'trash', '', 'Svuota: togli tutti i commenti', () => clearEditorNotes(tab)),
   );
 }
 

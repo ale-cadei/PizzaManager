@@ -165,3 +165,11 @@ ok('openIndexKey: Alt+1…9 fuori dal Mac, Ctrl+1…9 sul Mac (Opzione+cifra scr
   assert.strictEqual(P.openKeyLabel(3, false), 'Alt 3');
   assert.strictEqual(P.openKeyLabel(3, true), '⌃3');
 });
+
+ok('isNewFileKey: Ctrl+Alt+N, dal codice del tasto (Opzione cambia e.key sul Mac)', () => {
+  const key = (mods) => ({ code: 'KeyN', key: '˜', ctrlKey: true, altKey: true, shiftKey: false, metaKey: false, ...mods });
+  assert.strictEqual(P.isNewFileKey(key()), true);
+  assert.strictEqual(P.isNewFileKey(key({ altKey: false })), false);
+  assert.strictEqual(P.isNewFileKey(key({ shiftKey: true })), false);
+  assert.strictEqual(P.isNewFileKey(key({ code: 'KeyM' })), false);
+});

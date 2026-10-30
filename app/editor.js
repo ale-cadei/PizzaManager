@@ -78,6 +78,11 @@ function registerEditorHandlers(ipcMain, {
     const f = files(root);
     return createEditorGit({ root: f.realRoot, resolve: f.resolveInside }).headText(rel);
   }));
+  // Chi ha toccato la riga del cursore, sul testo dell'editor (docs/plans/73)
+  ipcMain.handle('editor-blame-line', guard(({ root, rel, line, text }) => {
+    const f = files(root);
+    return createEditorGit({ root: f.realRoot, resolve: f.resolveInside }).blameLine(rel, line, text);
+  }));
   // Ctrl+click su un nome: dove è definito (docs/plans/71)
   ipcMain.handle('editor-definition', guard(({ root, word, from, line }) => {
     const f = files(root);

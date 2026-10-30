@@ -78,6 +78,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 68 | [`fix/linguetta-git-in-git-session`](68-linguetta-modifiche-git.md) — linguetta «Modifiche» anche nella scheda git, trascinabile su e giù | 32, 25 | ~½g | ✅ fatto, smoke ok (xvfb + CDP: linguetta nella scheda git, trascinata, clic dopo il rilascio ignorato) |
 | 69 | [`feat/conflicts`](69-conflitti.md) — conflitti git dall'app: pannello «Conflitti» per merge/rebase/cherry-pick/revert a metà, blocchi nell'editor, «Unisci» chiede invece di annullare | 53, 54, 36, 64 | ~3-4g | ✅ fatto, smoke ok (xvfb + CDP: merge dalla scheda git, binari, blocchi nell'editor con Ctrl+Z, rebase da terminale, «Annulla merge» di un worktree) |
 | 70 | [`feat/icone-in-filemanager`](70-icone-albero-editor.md) — icone nell'albero della scheda editor: cartella aperta/chiusa, file per nome noto o estensione (Material Icon Theme, MIT) | 60 | ~0,5g | ✅ fatto, smoke ok (xvfb + CDP: 134 righe, 134 icone caricate, console pulita) |
+| 73 | [`feat/row-last-modify`](73-autore-riga.md) — chi ha toccato la riga del cursore, e quando: testo grigio in fondo alla riga, fumetto con hash, mail e data | 60, 63 | ~0,5g | ✅ fatto, smoke ok (xvfb + CDP: testo a fine riga, fumetto al passaggio, «Modifica non committata» su riga nuova non salvata) |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

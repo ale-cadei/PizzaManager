@@ -196,7 +196,10 @@ textarea.input  { resize: none; }
                   font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
 .path > span    { direction: ltr; unicode-bidi: embed; }
 
-::-webkit-scrollbar { width: 10px; height: 10px; }
+/* Le liste della sidebar riservano questa larghezza su entrambi i lati
+   (scrollbar-gutter: stable both-edges) per allinearsi alle fasce sopra. */
+:root { --scrollbar-w: 10px; }
+::-webkit-scrollbar { width: var(--scrollbar-w); height: var(--scrollbar-w); }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; border: 3px solid transparent; background-clip: content-box; }
 ::-webkit-scrollbar-thumb:hover { background: var(--action); background-clip: content-box; }

@@ -5,3 +5,5 @@
 *.png binary
 *.ico binary
 *.icns binary
+# La fixture dei marcatori con CRLF deve restare CRLF (tests/conflict-markers.test.js)
+tests/fixtures/conflicts/crlf.txt -text

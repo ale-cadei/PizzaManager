@@ -106,6 +106,11 @@ Un commit (o più) per passo; refactor e cambi di comportamento separati.
 ## Stato
 
 - [x] 1 · icone, pannello, albero
-- [x] 2 · Aperti e titolo (smoke nell'app da fare)
-- [x] 3 · barra di stato, conflitto, stato vuoto, chip dei commenti, tema (smoke da fare)
-- [x] 4 · git, filtro, Ctrl+P, simbolo (smoke da fare)
+- [x] 2 · Aperti e titolo
+- [x] 3 · barra di stato, conflitto, stato vuoto, chip dei commenti, tema
+- [x] 4 · git, filtro, Ctrl+P, simbolo
+- [x] «Mostra nel Finder» (aggiunto durante il branch)
+
+Smoke ok su macOS (2026-10-30), nell'istanza di prova `AISESS_PROFILE=editor-1c`
+accanto all'app installata. Da provare su Windows e Linux: etichetta di
+«Mostra in…», Alt+1…9, Ctrl+Alt+N.

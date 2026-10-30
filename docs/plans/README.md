@@ -77,7 +77,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 67 | [`chore/versionamento-qui`](67-versionamento-qui.md) — release, issue e feed tornano nel repo del codice: via il secondo repo e il suo PAT | 44, 18, 50 | ~½g | ✅ mergiato |
 | 68 | [`fix/linguetta-git-in-git-session`](68-linguetta-modifiche-git.md) — linguetta «Modifiche» anche nella scheda git, trascinabile su e giù | 32, 25 | ~½g | ✅ fatto, smoke ok (xvfb + CDP: linguetta nella scheda git, trascinata, clic dopo il rilascio ignorato) |
 | 69 | [`feat/conflicts`](69-conflitti.md) — conflitti git dall'app: pannello «Conflitti» per merge/rebase/cherry-pick/revert a metà, blocchi nell'editor, «Unisci» chiede invece di annullare | 53, 54, 36, 64 | ~3-4g | ✅ fatto, smoke ok (xvfb + CDP: merge dalla scheda git, binari, blocchi nell'editor con Ctrl+Z, rebase da terminale, «Annulla merge» di un worktree) |
-| 70 | [`feat/redesign-file-editor`](70-editor-1c.md) — scheda editor ridisegnata («1c»): «Aperti» al posto delle sotto-schede, icone, barra di stato, conflitto flottante, Ctrl+P, filtro | 60-65, 69 | ~3-4g | in corso |
+| 70 | [`feat/redesign-file-editor`](70-editor-1c.md) — scheda editor ridisegnata («1c»): «Aperti» al posto delle sotto-schede, icone, barra di stato, conflitto flottante, Ctrl+P, filtro | 60-65, 69 | ~3-4g | ✅ fatto, smoke ok su macOS (istanza di prova); da provare su Windows e Linux |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

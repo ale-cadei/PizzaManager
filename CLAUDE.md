@@ -120,5 +120,10 @@ L'app gira anche su Windows (`docs/plans/12-windows.md`), senza tmux. Regole:
   stesso branch: se qualcosa si rompe si capisce se è lo spostamento o la modifica.
 - Un branch fa quello che dice il suo piano in `docs/plans/`. Quello che emerge
   strada facendo si annota nel piano giusto, non si infila nel branch corrente.
+- **Provare un worktree accanto all'app installata**: `AISESS_PROFILE=nome
+  npm start` (`lib/dev-profile.js`). Cartella dati `AISessionManager-nome` e
+  socket tmux `aisession-nome`: senza, `npm start` si riattacca alle sessioni
+  dell'app vera e ne riscrive i file. Finito il branch:
+  `tmux -L aisession-nome kill-server` e via la cartella.
 - Messaggi di commit: `<tipo>: <cosa>` e poi il *perché* nel corpo.
   Tipi: feat, fix, refactor, docs, test, chore.

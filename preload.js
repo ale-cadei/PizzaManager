@@ -49,6 +49,8 @@ contextBridge.exposeInMainWorld('aisess', {
   // Sessione editor (docs/plans/60): `root` è la cartella della scheda, `rel`
   // un percorso relativo; il main confina tutto (lib/editor-fs.js)
   editorList: (root, rel) => ipcRenderer.invoke('editor-list', { root, rel }),
+  editorListAll: (root) => ipcRenderer.invoke('editor-list-all', { root }),
+  editorGitStatus: (root) => ipcRenderer.invoke('editor-git-status', { root }),
   editorRead: (root, rel) => ipcRenderer.invoke('editor-read', { root, rel }),
   editorWrite: (root, rel, text, expectedMtime, bom) => ipcRenderer.invoke('editor-write', { root, rel, text, expectedMtime, bom }),
   editorStat: (root, rel) => ipcRenderer.invoke('editor-stat', { root, rel }),

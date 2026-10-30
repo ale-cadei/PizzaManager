@@ -558,3 +558,55 @@ ok('tema: fondo passato da fuori, riga corrente e numeri della palette forno', (
 ok('tema: senza Monaco caricato applyTheme non fa niente', () => {
   assert.doesNotThrow(() => require('../renderer/editor-monaco').applyTheme({}, { background: '#000000' }));
 });
+
+/* ---------- simbolo nel percorso (docs/plans/70) ---------- */
+
+const { symbolInTree } = require('../renderer/editor-monaco');
+const span = (start, length) => [{ start, length }];
+const NAV = {
+  text: '<global>', kind: 'script', spans: span(0, 1000), childItems: [
+    { text: 'buildEditorLayout', kind: 'function', spans: span(100, 300), childItems: [
+      { text: 'el', kind: 'const', spans: span(120, 40), childItems: [] },
+      { text: 'tool', kind: 'function', spans: span(200, 50), childItems: [] },
+    ] },
+    { text: 'Panel', kind: 'class', spans: span(500, 200), childItems: [
+      { text: 'toggle', kind: 'method', spans: span(550, 30), childItems: [] },
+    ] },
+  ],
+};
+
+ok('symbolInTree: la funzione più interna che contiene il punto; fuori da tutto, niente', () => {
+  assert.strictEqual(symbolInTree(NAV, 130), 'buildEditorLayout', 'una const non è un simbolo da mostrare');
+  assert.strictEqual(symbolInTree(NAV, 210), 'tool');
+  assert.strictEqual(symbolInTree(NAV, 560), 'toggle');
+  assert.strictEqual(symbolInTree(NAV, 510), 'Panel');
+  assert.strictEqual(symbolInTree(NAV, 50), null);
+  assert.strictEqual(symbolInTree(null, 50), null);
+});
+
+ok('symbolAt: dal worker JavaScript per i file js, null per gli altri linguaggi o senza worker', async () => {
+  const { h, fake } = host();
+  h.open('a.js', 'x');
+  const asked = [];
+  fake.monaco.typescript = { getJavaScriptWorker: async () => async (uri) => ({
+    getNavigationTree: async (name) => { asked.push([uri.path, name]); return NAV; },
+  }) };
+  fake.models[0].getOffsetAt = ({ lineNumber, column }) => lineNumber * 100 + column;
+  assert.strictEqual(await h.symbolAt('a.js', 2, 10), 'tool');
+  assert.strictEqual(asked[0][0], '/a.js');
+  fake.models[0].languageId = 'markdown';
+  assert.strictEqual(await h.symbolAt('a.js', 2, 10), null);
+  fake.models[0].languageId = 'javascript';
+  delete fake.monaco.typescript;
+  assert.strictEqual(await h.symbolAt('a.js', 2, 10), null);
+  assert.strictEqual(await h.symbolAt('manca.js', 1, 1), null);
+});
+
+ok('symbolAt: un worker che fallisce non rompe niente', async () => {
+  const { h, fake } = host();
+  h.open('a.ts', 'x');
+  fake.models[0].languageId = 'typescript';
+  fake.models[0].getOffsetAt = () => 1;
+  fake.monaco.typescript = { getTypeScriptWorker: async () => { throw new Error('worker morto'); } };
+  assert.strictEqual(await h.symbolAt('a.ts', 1, 1), null);
+});

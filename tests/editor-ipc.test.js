@@ -37,7 +37,7 @@ ok('ipc editor: ogni canale editor del preload ha il suo handler', (t) => {
 
 ok('ipc editor: payload mancanti o radici inesistenti rispondono con un errore', async (t) => {
   const { handlers, call } = setup(t);
-  for (const channel of ['editor-list', 'editor-read', 'editor-write', 'editor-stat', 'editor-create', 'editor-mkdir', 'editor-rename', 'editor-trash', 'editor-watch', 'editor-copy-plan', 'editor-copy-run', 'editor-head-text']) {
+  for (const channel of ['editor-list', 'editor-read', 'editor-write', 'editor-stat', 'editor-create', 'editor-mkdir', 'editor-rename', 'editor-trash', 'editor-watch', 'editor-copy-plan', 'editor-copy-run', 'editor-head-text', 'editor-list-all', 'editor-git-status']) {
     for (const payload of [undefined, null, {}, { root: '/non/esiste/proprio', rel: 'a' }]) {
       const r = await call(channel, payload);
       assert.strictEqual(r.ok, false, `${channel} con ${JSON.stringify(payload)}`);
@@ -164,4 +164,16 @@ ok('ipc editor: «Incolla» legge i file dagli appunti nel main', async (t) => {
 ok('ipc editor: il testo di HEAD rifiuta percorsi fuori dalla cartella', async (t) => {
   const { call, root } = setup(t);
   assert.deepStrictEqual(await call('editor-head-text', { root, rel: '../fuori.txt' }), { ok: false, reason: 'outside' });
+});
+
+ok('ipc editor: elenco di tutti i file e lettere git della cartella (piano 70)', async (t) => {
+  const { call, root } = setup(t);
+  fs.mkdirSync(path.join(root, 'src'));
+  fs.writeFileSync(path.join(root, 'src', 'a.js'), '');
+  const all = await call('editor-list-all', { root });
+  assert.strictEqual(all.ok, true);
+  assert.deepStrictEqual(all.files, ['src/a.js']);
+  const st = await call('editor-git-status', { root });
+  assert.strictEqual(st.ok, true);
+  assert.strictEqual(typeof st.status, 'object');
 });

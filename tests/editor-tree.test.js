@@ -329,3 +329,69 @@ ok('showMenu: tinta dell icona, dettaglio, classi della voce e onClose', () => {
     assert.strictEqual(closed, 1, 'una volta sola');
   } finally { restore(); }
 });
+
+/* ---------- lettere git e filtro (docs/plans/70) ---------- */
+
+ok('vista: lettera git sui file, pallino sulle cartelle che contengono modifiche', () => {
+  const restore = installDocument();
+  try {
+    const root = createElement('div');
+    const view = T.createTreeView({ root, document, onOpenFile() {}, onToggleDir() {}, onContextMenu() {} });
+    view.render(T.visibleRows(sample()), null, { 'src/lib/y.js': 'M', 'b.js': 'U' });
+    const git = (rel) => view.rowOf(rel).querySelectorAll('.editor-tree-git')[0];
+    assert.strictEqual(git('b.js').textContent, 'U');
+    assert.ok(git('b.js').classList.contains('is-U'));
+    assert.strictEqual(git('src').textContent, '•');
+    assert.ok(git('src').classList.contains('is-dir'));
+    assert.strictEqual(git('a.log').textContent, '', 'senza lettera lo spazio resta, vuoto: le righe restano allineate');
+  } finally { restore(); }
+});
+
+ok('filterRows: sulle cartelle già lette, senza maiuscole; prima chi comincia così, poi i percorsi corti', () => {
+  let tree = T.setChildren(T.emptyTree(), '', entries('src/', 'Xa.js', 'b.js'));
+  tree = T.setChildren(tree, 'src', entries('lib/', 'max.js'));
+  tree = T.setChildren(tree, 'src/lib', entries('x.js'));
+  const rows = T.filterRows(tree, 'X');
+  assert.deepStrictEqual(rows.map((r) => r.rel), ['Xa.js', 'src/lib/x.js', 'src/max.js']);
+  assert.deepStrictEqual([rows[2].dir, rows[2].at], ['src', 2]);
+  assert.strictEqual(T.filterRows(tree, 'li')[0].kind, 'dir');
+  assert.deepStrictEqual(T.filterRows(tree, '   '), []);
+});
+
+ok('vista filtrata: righe piatte con la corrispondenza evidenziata, cartella sotto, nota in fondo', () => {
+  const restore = installDocument();
+  try {
+    const root = createElement('div');
+    const calls = [];
+    const view = T.createTreeView({ root, document, onOpenFile: (rel) => calls.push(rel), onToggleDir() {}, onContextMenu() {} });
+    let tree = T.setChildren(T.emptyTree(), '', entries('src/'));
+    tree = T.setChildren(tree, 'src', entries('editor-tab.js'));
+    view.renderFiltered(T.filterRows(tree, 'tab'), null, { 'src/editor-tab.js': 'M' });
+    const [row, note] = view.element.children;
+    assert.ok(row.classList.contains('is-flat'));
+    assert.strictEqual(row.querySelectorAll('.editor-match')[0].textContent, 'tab');
+    assert.strictEqual(row.querySelectorAll('.editor-tree-name')[0].children.map((c) => c.textContent).join(''), 'editor-tab.js');
+    assert.strictEqual(row.querySelectorAll('.editor-tree-dir')[0].textContent, 'src');
+    assert.strictEqual(row.querySelectorAll('.editor-tree-git')[0].textContent, 'M');
+    assert.ok(note.classList.contains('editor-filter-note'));
+    fire(row, 'click');
+    assert.deepStrictEqual(calls, ['src/editor-tab.js']);
+    view.renderFiltered([], null, {});
+    assert.strictEqual(view.element.children[0].classList.contains('editor-filter-empty'), true);
+  } finally { restore(); }
+});
+
+ok('vista: scrivere con l albero a fuoco apre il filtro con quella lettera', () => {
+  const restore = installDocument();
+  try {
+    const root = createElement('div');
+    const typed = [];
+    const view = T.createTreeView({ root, document, onOpenFile() {}, onToggleDir() {}, onContextMenu() {}, onTypeToFilter: (k) => typed.push(k) });
+    view.render(T.visibleRows(sample()), null);
+    assert.strictEqual(fire(view.element, 'keydown', { key: 'e' }).defaultPrevented, true);
+    fire(view.element, 'keydown', { key: 'e', ctrlKey: true });
+    fire(view.element, 'keydown', { key: 'Enter' });
+    fire(view.element, 'keydown', { key: ' ' });
+    assert.deepStrictEqual(typed, ['e']);
+  } finally { restore(); }
+});

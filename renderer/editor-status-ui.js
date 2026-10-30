@@ -67,6 +67,7 @@ function onEditorCursor(tab, rel, pos) {
   if (!tabs.has(tab.id) || rel !== tab.editor.files.active) return;
   tab.editor.cursor = pos;
   renderEditorStatus(tab);
+  scheduleEditorSymbol(tab, rel, pos);
 }
 
 /** Il branch della cartella, per la barra di stato: null fuori da git o con HEAD staccata. */
@@ -123,6 +124,19 @@ function editorShortcut(label, keys) {
   return row;
 }
 
+/** Sembra un campo, apre «Vai al file». */
+function editorQuickField(tab) {
+  const field = document.createElement('button');
+  field.className = 'editor-empty-field';
+  field.append(editorCodicon('search'), editorText('span', 'editor-empty-placeholder', 'Nome del file…'));
+  const keys = document.createElement('span');
+  keys.className = 'editor-kbd-group';
+  for (const k of ['Ctrl', 'P']) keys.appendChild(editorText('kbd', 'kbd', k));
+  field.appendChild(keys);
+  field.onclick = () => openEditorQuick(tab);
+  return field;
+}
+
 function editorRecentRow(tab, r, now) {
   const name = EditorFiles.baseName(r.rel);
   const row = document.createElement('button');
@@ -147,7 +161,8 @@ function renderEditorEmpty(tab) {
   col.className = 'editor-empty-col';
   col.append(
     editorText('h2', 'editor-empty-title', 'Apri un file'),
-    editorText('p', 'editor-empty-sub', 'Scegli un file dall\'albero, oppure riprendi da dove avevi lasciato.'),
+    editorText('p', 'editor-empty-sub', 'Scrivi parte del nome, oppure riprendi da dove avevi lasciato.'),
+    editorQuickField(tab),
   );
   if (recent.length) {
     const card = document.createElement('div');

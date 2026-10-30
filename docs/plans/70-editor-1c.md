@@ -81,6 +81,22 @@ Un commit (o più) per passo; refactor e cambi di comportamento separati.
   colore degli identificatori.
 - Ctrl+Alt+N (nuovo file nella cartella selezionata) è nuovo: lo stato vuoto
   lo mostra fra le scorciatoie.
+- Ctrl+P: in un repository l'elenco è `git ls-files --cached --others
+  --exclude-standard` (tracciati e nuovi, senza ignorati); fuori da git la
+  cartella letta saltando `.git` e `node_modules`. Tetto 20.000 voci. La
+  cache si butta quando una cartella già letta torna diversa e a ogni
+  «rileggi» (anche tornando in primo piano). Ordine: in testa al nome, nel
+  nome, nel percorso, fuzzy sul nome; aperti in un gruppo a parte. Anche
+  Cmd+P sul Mac.
+- Lettere git da `git status --porcelain=v1 -z --untracked-files=all`,
+  tenute solo sotto la cartella della scheda (`rev-parse --show-prefix`). Un
+  conflitto conta come M.
+- Simbolo: solo JS e TS, da `getNavigationTree` del worker di Monaco
+  (`monaco.typescript`, non più `monaco.languages.typescript` in 0.57).
+  Funzioni, metodi, classi; non le variabili.
+- Gli script dell'app condividono lo scope globale: una `function` con lo
+  stesso nome in due file vince l'ultima, in silenzio. Successo qui
+  (`revealEditorDir`); ora lo controlla `tests/renderer-load.test.js`.
 - Rimandato: la × per chiudere un file dal menu «N aperti» (oggi lo chiude
   «Chiudi tutti», o riaprendo l'albero).
 
@@ -89,4 +105,4 @@ Un commit (o più) per passo; refactor e cambi di comportamento separati.
 - [x] 1 · icone, pannello, albero
 - [x] 2 · Aperti e titolo (smoke nell'app da fare)
 - [x] 3 · barra di stato, conflitto, stato vuoto, chip dei commenti, tema (smoke da fare)
-- [ ] 4 · git, filtro, Ctrl+P, simbolo
+- [x] 4 · git, filtro, Ctrl+P, simbolo (smoke da fare)

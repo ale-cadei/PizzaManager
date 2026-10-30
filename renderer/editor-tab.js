@@ -87,21 +87,25 @@ function buildEditorLayout(tab) {
   const openList = el('div', 'editor-open-list', openSection);
   openList.setAttribute('role', 'tablist');
   openList.setAttribute('aria-label', 'File aperti');
-  editorSectionHead(side, 'File', [
+  const { head: fileHead } = editorSectionHead(side, 'File', [
+    { icon: 'filter', title: 'Filtra i nomi (o scrivi con l\'albero a fuoco)', run: () => toggleEditorFilter(tab) },
     { icon: 'new-file', title: 'Nuovo file nella cartella della sessione', run: () => newEditorEntry(tab, '', 'file') },
     { icon: 'new-folder', title: 'Nuova cartella nella cartella della sessione', run: () => newEditorEntry(tab, '', 'dir') },
     { icon: 'refresh', title: 'Rileggi le cartelle aperte', run: () => reloadEditorTree(tab) },
   ]);
+  // Il filtro prende il posto della testata «File» (docs/plans/70, editor-find-ui.js)
+  const filter = buildEditorFilter(tab, side);
   const treeHost = el('div', 'editor-tree-host', side);
   const tree = EditorTree.createTreeView({
     root: treeHost, document,
     onOpenFile: (rel) => openEditorFile(tab, rel),
-    onToggleDir: (rel) => toggleEditorDir(tab, rel),
+    onToggleDir: (rel) => (tab.editor.filter.active ? openEditorDirFromFilter(tab, rel) : toggleEditorDir(tab, rel)),
     onContextMenu: (row, e) => editorTreeMenu(tab, row, e),
     onCopyInto: (dir, source) => copyIntoEditor(tab, dir, source),
     onDeselect: () => clearEditorSelection(tab),
     onRename: (row) => renameEditorEntry(tab, row),
     onTrash: (row) => trashEditorEntry(tab, row),
+    onTypeToFilter: (key) => openEditorFilter(tab, key),
   });
   const resizer = el('div', 'editor-resizer', tab.wrap);
   resizer.title = `Trascina per allargare l'albero, doppio click per tornare a ${EditorPanel.DEFAULT_W}px`;
@@ -123,9 +127,11 @@ function buildEditorLayout(tab) {
   openMenu.setAttribute('aria-haspopup', 'menu');
   openMenu.onmousedown = (e) => e.preventDefault();
   openMenu.onclick = () => showEditorOpenMenu(tab);
+  el('div', 'editor-head-spacer', head);
   // «N commenti · Copia prompt · Svuota» (docs/plans/65), la disegna editor-notes-ui.js
   const notesBar = el('div', 'editor-notes-bar', head);
   notesBar.hidden = true;
+  buildEditorQuickButton(tab, head);
   const message = el('div', 'editor-message', main);
   message.hidden = true;
   // Monaco ha il suo contenitore; il conflitto col disco e lo stato vuoto gli
@@ -137,12 +143,19 @@ function buildEditorLayout(tab) {
   const empty = el('div', 'editor-empty', stage);
   const status = el('footer', 'editor-status', main);
   status.hidden = true;
-  return { treeHost, tree, openList, openCount, title, openMenu, notesBar, bar, message, host, empty, status };
+  return { treeHost, tree, fileHead, filter, openList, openCount, title, openMenu, notesBar, bar, message, stage, host, empty, status };
 }
 
 function renderEditorTree(tab) {
-  const { tree, ui } = tab.editor;
-  ui.tree.render(EditorTree.visibleRows(tree), tree.selected);
+  const { tree, ui, git, filter } = tab.editor;
+  if (filter.active && filter.query.trim()) {
+    const rows = EditorTree.filterRows(tree, filter.query);
+    ui.tree.renderFiltered(rows, tree.selected, git);
+    renderEditorFilterCount(tab, rows.length);
+    return;
+  }
+  ui.tree.render(EditorTree.visibleRows(tree), tree.selected, git);
+  if (filter.active) renderEditorFilterCount(tab, '');
 }
 
 function showEditorMessage(tab, text) {
@@ -176,6 +189,10 @@ async function loadEditorDir(tab, dir) {
     showEditorMessage(tab, `Impossibile leggere ${dir || 'la cartella'}: ${r.error}`);
     return;
   }
+  // Una cartella già letta che torna diversa: l'elenco per Ctrl+P va riletto
+  const before = tab.editor.tree.children[dir];
+  const names = (list) => list.map((e) => `${e.kind}:${e.name}`).join('\0');
+  if (before && names(before) !== names(r.entries)) forgetEditorFileList(tab);
   tab.editor.tree = EditorTree.setChildren(tab.editor.tree, dir, r.entries);
   renderEditorTree(tab);
 }
@@ -194,6 +211,8 @@ function clearEditorSelection(tab) {
 }
 
 async function reloadEditorTree(tab) {
+  forgetEditorFileList(tab);
+  loadEditorGitStatus(tab);
   for (const dir of ['', ...tab.editor.tree.expanded]) await loadEditorDir(tab, dir);
 }
 
@@ -460,6 +479,7 @@ async function saveEditorFile(tab, rel) {
       if (ed.host.getText(rel) === text) ed.host.markSaved(rel);
       if (f.deleted) { unwatchEditorFile(tab, rel); await watchEditorFile(tab, rel); } // ricreato: il watch si riarma
       loadEditorGutterBase(tab, rel); // un hook di git o un commit fatto altrove
+      loadEditorGitStatus(tab);
       done = true;
     } else if (r.conflict) {
       ed.files = EditorFiles.update(ed.files, rel, { conflict: 'save', diskMtime: r.mtime });
@@ -583,6 +603,8 @@ function disposeEditorTab(tab) {
   if (!ed) return;
   for (const rel of ed.files.order) unwatchEditorFile(tab, rel);
   if (ed.gutterTimer) { clearTimeout(ed.gutterTimer.id); ed.gutterTimer = null; }
+  clearTimeout(ed.symbolTimer);
+  if (ed.quick) ed.quick.close();
   try { if (ed.host) ed.host.dispose(); } catch (e) { console.warn('chiusura di Monaco fallita', e); }
 }
 
@@ -601,6 +623,7 @@ async function createEditorTab({ name, cwd, startedAt = Date.now(), files = [], 
     gutterReads: new Map(),
     notes: EditorNotes.empty(), noteViews: new Map(), noteDraft: null,
     recent, cursor: null, branch: null,
+    git: {}, filter: { active: false, query: '' }, allFiles: null, allFilesPending: null, quick: null, symbol: null, symbolTimer: null,
   };
   tabs.set(id, tab);
   updateEmpty();
@@ -615,6 +638,7 @@ async function createEditorTab({ name, cwd, startedAt = Date.now(), files = [], 
   }).catch((e) => console.warn('radice del progetto non risolta', e));
   renderEditorOpen(tab); // stato vuoto e recenti prima che arrivi l'albero
   loadEditorBranch(tab);
+  loadEditorGitStatus(tab);
   await loadEditorDir(tab, '');
   for (const rel of files) await openEditorFile(tab, rel, { quiet: true });
   if (active && tab.editor.files.files[active]) activateEditorFile(tab, active, { save: !restoring });
@@ -731,6 +755,11 @@ function initEditorTabs() {
     if (EditorPanel.isToggleKey(e)) {
       e.preventDefault();
       if (!e.repeat) editorPanel.toggle(); // tenuto premuto non fa lampeggiare l'albero
+      return;
+    }
+    if (EditorPanel.isQuickKey(e)) {
+      e.preventDefault();
+      if (!e.repeat) openEditorQuick(t);
       return;
     }
     if (EditorPanel.isNewFileKey(e)) {

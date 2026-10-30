@@ -63,6 +63,22 @@
     win.monaco.editor.setTheme(THEME);
   }
 
+  // Simboli da mostrare nel percorso sotto il titolo: non le variabili
+  const SYMBOL_KINDS = new Set(['function', 'local function', 'method', 'class', 'constructor', 'getter', 'setter', 'interface', 'enum']);
+
+  /** Il simbolo più interno, fra SYMBOL_KINDS, che contiene `offset` nell'albero di getNavigationTree. */
+  function symbolInTree(node, offset, found = null) {
+    if (!node) return found;
+    const inside = (node.spans || []).some((sp) => offset >= sp.start && offset < sp.start + sp.length);
+    if (!inside) return found;
+    const here = SYMBOL_KINDS.has(node.kind) ? node.text : found;
+    for (const child of node.childItems || []) {
+      const deeper = symbolInTree(child, offset, null);
+      if (deeper) return deeper;
+    }
+    return here;
+  }
+
   /** Carica Monaco una volta. Se fallisce, la prossima chiamata ritenta. */
   function load(win) {
     if (win.monaco && win.monaco.editor) return Promise.resolve(win.monaco);
@@ -157,6 +173,23 @@
       if (d.viewState) editor.restoreViewState(d.viewState);
       editor.focus();
       tellCursor(editor.getPosition() || { lineNumber: 1, column: 1 });
+    }
+
+    /** La funzione (o classe, metodo) che contiene la posizione, dal worker JS/TS; null negli altri linguaggi. */
+    async function symbolAt(rel, line, col) {
+      const d = docs.get(rel);
+      const ts = monaco.typescript;
+      if (!d || !ts) return null;
+      const lang = d.model.getLanguageId();
+      const getWorker = lang === 'javascript' ? ts.getJavaScriptWorker : lang === 'typescript' ? ts.getTypeScriptWorker : null;
+      if (!getWorker) return null;
+      try {
+        const worker = await (await getWorker())(d.model.uri);
+        const tree = await worker.getNavigationTree(d.model.uri.toString());
+        return symbolInTree(tree, d.model.getOffsetAt({ lineNumber: line, column: col }));
+      } catch {
+        return null; // worker non pronto o file chiuso nel frattempo: niente simbolo
+      }
     }
 
     /** Per la barra di stato: indentazione, fine riga, linguaggio col nome leggibile. */
@@ -544,7 +577,7 @@
     wireComments();
 
     return {
-      open, activate, info, markSaved, replaceText, rename, close, dispose, setGutter, setConflicts, editText, reveal,
+      open, activate, info, symbolAt, markSaved, replaceText, rename, close, dispose, setGutter, setConflicts, editText, reveal,
       trackLines, linesOf, untrack, lineText, addZone, removeZone, resizeZone,
       current: () => current,
       getText: (rel) => (docs.has(rel) ? docs.get(rel).model.getValue() : null),
@@ -555,5 +588,5 @@
     };
   }
 
-  return { load, applyTheme, createEditorHost };
+  return { load, applyTheme, createEditorHost, symbolInTree };
 });

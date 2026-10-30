@@ -79,10 +79,21 @@ function renderEditorTitle(tab) {
     dot.title = 'Non salvato';
     line.appendChild(dot);
   }
+  const letter = (tab.editor.git || {})[rel];
+  if (letter) line.appendChild(editorText('span', `editor-tree-git is-${letter}`, letter));
+  // cartella › simbolo (docs/plans/70); senza simbolo solo la cartella
   const crumb = document.createElement('div');
   crumb.className = 'editor-crumb';
   const dir = EditorFiles.parentRel(rel);
+  const sym = tab.editor.symbol && tab.editor.symbol.rel === rel ? tab.editor.symbol.name : null;
   if (dir) crumb.appendChild(editorText('span', 'editor-crumb-dir', dir));
+  if (dir && sym) crumb.appendChild(editorCodicon('chevron-right', 'editor-crumb-sep'));
+  if (sym) {
+    const s = document.createElement('span');
+    s.className = 'editor-crumb-sym';
+    s.append(editorCodicon('symbol-method'), editorText('span', 'sym', sym));
+    crumb.appendChild(s);
+  }
   ui.title.title = rel;
   ui.title.replaceChildren(line, crumb);
 }

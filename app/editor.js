@@ -7,6 +7,7 @@ const { installEditorCloseGuard } = require('./editor-close');
 const { createEditorCopy, pickProperties } = require('../lib/editor-copy');
 const { filesFromClipboard } = require('../lib/clipboard-files');
 const { createEditorGit } = require('../lib/editor-git');
+const { listAllFiles, gitStatusLetters } = require('../lib/editor-index');
 
 /**
  * Canali IPC della sessione editor (docs/plans/60). La logica sta in lib/;
@@ -66,6 +67,9 @@ function registerEditorHandlers(ipcMain, {
   }
 
   ipcMain.handle('editor-list', guard(({ root, rel }) => files(root).list(rel)));
+  // Il progetto tutto insieme (docs/plans/70): i file per Ctrl+P, le lettere git per l'albero
+  ipcMain.handle('editor-list-all', guard(({ root }) => listAllFiles({ root })));
+  ipcMain.handle('editor-git-status', guard(({ root }) => gitStatusLetters({ root })));
   ipcMain.handle('editor-read', guard(({ root, rel }) => files(root).read(rel)));
   ipcMain.handle('editor-write', guard(({ root, rel, text, expectedMtime, bom }) => files(root).write(rel, text, {
     expectedMtime: Number.isFinite(expectedMtime) ? expectedMtime : null,

@@ -398,13 +398,14 @@ ok('pannello: la striscia sta fra albero ed editor; in testa bottone e titolo', 
 ok('pannello: «Aperti» in cima, poi la testata «File» e l albero', () => {
   const { wrap, ui } = layout();
   const side = wrap.children[0];
-  assert.deepStrictEqual(side.children.map((c) => c.className), ['editor-open', 'editor-section-head', 'editor-tree-host']);
+  assert.deepStrictEqual(side.children.map((c) => c.className), ['editor-open', 'editor-section-head', 'editor-filter', 'editor-tree-host']);
+  assert.strictEqual(side.children[2].hidden, true, 'il filtro si apre a richiesta');
   const [openHead, list] = side.children[0].children;
   assert.strictEqual(list, ui.openList);
   assert.strictEqual(list.getAttribute('role'), 'tablist');
   assert.deepStrictEqual(openHead.querySelectorAll('.editor-icon-btn').map((b) => b.title), ['Salva tutto (Ctrl+Shift+S)', 'Chiudi tutti']);
   assert.deepStrictEqual(side.children[1].querySelectorAll('.editor-icon-btn').map((b) => b.title),
-    ['Nuovo file nella cartella della sessione', 'Nuova cartella nella cartella della sessione', 'Rileggi le cartelle aperte']);
+    ['Filtra i nomi (o scrivi con l\'albero a fuoco)', 'Nuovo file nella cartella della sessione', 'Nuova cartella nella cartella della sessione', 'Rileggi le cartelle aperte']);
 });
 
 /* ---------- file aperti (docs/plans/70) ---------- */
@@ -768,4 +769,125 @@ ok('editorTimeAgo: adesso, minuti, ore, ieri, giorni', () => {
   const s = setup();
   const ago = (ms) => s.fn('editorTimeAgo')(1e9 - ms, 1e9);
   assert.deepStrictEqual([ago(5e3), ago(5 * 6e4), ago(3 * 36e5), ago(30 * 36e5), ago(4 * 864e5)], ['adesso', '5 min fa', '3 h fa', 'ieri', '4 g fa']);
+});
+
+/* ---------- trovare i file: git, filtro, Ctrl+P, simbolo (docs/plans/70) ---------- */
+
+const ENTRIES = {
+  '': [{ name: 'src', kind: 'dir', ignored: false }, { name: 'README.md', kind: 'file', ignored: false }],
+  src: [{ name: 'editor-tab.js', kind: 'file', ignored: false }, { name: 'lib', kind: 'dir', ignored: false }],
+};
+
+async function findLayout(main = {}) {
+  const s = openLayout({}, {
+    editorList: async (root, dir) => ({ ok: true, entries: ENTRIES[dir] || [] }),
+    editorRead: async (root, rel) => ({ ok: true, text: rel, mtime: 1, path: `/w/${rel}`, bom: false }),
+    editorGitStatus: async () => ({ ok: true, status: { 'src/editor-tab.js': 'M' } }),
+    editorListAll: async () => ({ ok: true, files: ['README.md', 'src/editor-tab.js', 'src/lib/deep.js'], truncated: false }),
+    ...main,
+  });
+  await s.fn('loadEditorDir')(s.tab, '');
+  await s.fn('toggleEditorDir')(s.tab, 'src');
+  return s;
+}
+
+ok('git: le lettere arrivano all albero e al titolo del file', async () => {
+  const s = await findLayout();
+  await s.fn('loadEditorGitStatus')(s.tab);
+  const row = s.tab.editor.ui.tree.rowOf('src/editor-tab.js');
+  assert.strictEqual(s.part(row, 'editor-tree-git').textContent, 'M');
+  assert.strictEqual(s.part(s.tab.editor.ui.tree.rowOf('src'), 'editor-tree-git').textContent, '•');
+  await s.fn('openEditorFile')(s.tab, 'src/editor-tab.js');
+  assert.strictEqual(s.part(s.ui.title, 'editor-tree-git').textContent, 'M');
+});
+
+ok('filtro: una lettera con l albero a fuoco lo apre; righe piatte, conteggio; Esc torna all albero', async () => {
+  const s = await findLayout();
+  const tree = s.tab.editor.ui.tree.element;
+  fire(tree, 'keydown', { key: 't' });
+  const { filter, fileHead } = s.ui;
+  assert.strictEqual(filter.box.hidden, false);
+  assert.strictEqual(fileHead.hidden, true, 'il campo prende il posto della testata');
+  assert.strictEqual(filter.input.value, 't');
+  assert.strictEqual(filter.input.focused, true);
+  filter.input.value = 'tab';
+  fire(filter.input, 'input');
+  assert.deepStrictEqual(tree.querySelectorAll('.is-flat').map((r) => r.dataset.rel), ['src/editor-tab.js']);
+  assert.strictEqual(filter.count.textContent, '1');
+  const esc = fire(filter.input, 'keydown', { key: 'Escape' });
+  assert.strictEqual(esc.propagationStopped, true);
+  assert.strictEqual(filter.box.hidden, true);
+  assert.strictEqual(fileHead.hidden, false);
+  assert.deepStrictEqual(tree.children.map((r) => r.dataset.rel), ['src', 'src/editor-tab.js', 'src/lib', 'README.md'], 'l albero torna com era');
+});
+
+ok('filtro: Invio apre il primo file; una cartella fra i risultati chiude il filtro e si apre', async () => {
+  const s = await findLayout();
+  s.fn('openEditorFilter')(s.tab);
+  s.ui.filter.input.value = 'e';
+  fire(s.ui.filter.input, 'input');
+  fire(s.ui.filter.input, 'keydown', { key: 'Enter' });
+  await settle();
+  assert.deepStrictEqual([...s.tab.editor.files.order], ['src/editor-tab.js']);
+  s.ui.filter.input.value = 'lib';
+  fire(s.ui.filter.input, 'input');
+  const libRow = s.tab.editor.ui.tree.rowOf('src/lib');
+  fire(libRow, 'click');
+  await settle();
+  assert.strictEqual(s.tab.editor.filter.active, false);
+  assert.ok(s.page.ctx.AisessEditorTree.isExpanded(s.tab.editor.tree, 'src/lib'));
+});
+
+ok('Ctrl+P: apre il riquadro sul codice, legge l elenco una volta, Invio apre il file', async () => {
+  const s = await findLayout();
+  s.fn('initEditorTabs')();
+  s.run("activeId = 'tab-ed'");
+  const e = fire(s.page.ctx.document, 'keydown', { key: 'p', ctrlKey: true });
+  assert.strictEqual(e.defaultPrevented, true);
+  const quick = s.tab.editor.quick;
+  assert.ok(quick);
+  assert.strictEqual(s.ui.stage.children.at(-1), quick.element);
+  await settle();
+  assert.strictEqual(s.sent('editorListAll').length, 1);
+  quick.input.value = 'deep';
+  fire(quick.input, 'input');
+  fire(quick.input, 'keydown', { key: 'Enter' });
+  await settle();
+  assert.strictEqual(s.tab.editor.quick, null);
+  assert.deepStrictEqual([...s.tab.editor.files.order], ['src/lib/deep.js']);
+  s.fn('openEditorQuick')(s.tab);
+  await settle();
+  assert.strictEqual(s.sent('editorListAll').length, 1, 'l elenco resta in cache');
+  s.tab.editor.quick.close();
+});
+
+ok('Ctrl+P: una cartella già letta che cambia, o «rileggi», buttano l elenco', async () => {
+  const s = await findLayout();
+  s.fn('openEditorQuick')(s.tab);
+  await settle();
+  s.tab.editor.quick.close();
+  assert.ok(s.tab.editor.allFiles);
+  await s.fn('toggleEditorDir')(s.tab, 'src'); // si chiude: niente da rileggere
+  await s.fn('loadEditorDir')(s.tab, '');
+  assert.ok(s.tab.editor.allFiles, 'la stessa cartella, uguale: l elenco resta');
+  ENTRIES[''] = [...ENTRIES[''], { name: 'nuovo.js', kind: 'file', ignored: false }];
+  try {
+    await s.fn('loadEditorDir')(s.tab, '');
+    assert.strictEqual(s.tab.editor.allFiles, null);
+  } finally {
+    ENTRIES[''] = ENTRIES[''].filter((e) => e.name !== 'nuovo.js');
+  }
+});
+
+ok('simbolo: dopo una pausa il titolo dice in che funzione sta il cursore', async () => {
+  const s = await findLayout();
+  await s.fn('openEditorFile')(s.tab, 'src/editor-tab.js');
+  s.host.symbolAt = async (rel, line) => (line === 57 ? 'buildEditorLayout' : null);
+  s.fn('onEditorCursor')(s.tab, 'src/editor-tab.js', { line: 57, col: 3 });
+  await new Promise((r) => setTimeout(r, 200));
+  assert.strictEqual(s.part(s.ui.title, 'editor-crumb-dir').textContent, 'src');
+  assert.strictEqual(s.part(s.ui.title, 'sym').textContent, 'buildEditorLayout');
+  s.fn('onEditorCursor')(s.tab, 'src/editor-tab.js', { line: 1, col: 1 });
+  await new Promise((r) => setTimeout(r, 200));
+  assert.strictEqual(s.ui.title.querySelectorAll('.sym').length, 0, 'fuori da una funzione solo la cartella');
 });

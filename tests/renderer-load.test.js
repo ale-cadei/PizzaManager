@@ -59,3 +59,22 @@ ok('renderer: i terminali misurano i caratteri con Unicode 11, come psmux e tmux
   assert.match(tabs, /allowProposedApi: true/, 'term.unicode e API sperimentale: senza, l addon lancia');
   assert.match(tabs, /AisessTermUnicode\.install\(term, Unicode11Addon\.Unicode11Addon, \{ psmux \}\)/);
 });
+
+/* Gli script dell'app condividono lo scope globale: due `function X` con lo
+   stesso nome non danno errore, vince l'ultima caricata e la prima sparisce
+   in silenzio. È successo col piano 70: revealEditorDir del filtro copriva
+   quella della copia di file (editor-copy-ui.js). */
+ok('renderer: nessuna funzione globale dichiarata in due script', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const seen = new Map();
+  const doubles = [];
+  for (const f of RENDERER_APP_FILES) {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'renderer', f), 'utf8');
+    for (const m of src.matchAll(/^(?:async )?function (\w+)/gm)) {
+      if (seen.has(m[1])) doubles.push(`${m[1]} (${seen.get(m[1])}, ${f})`);
+      else seen.set(m[1], f);
+    }
+  }
+  assert.deepStrictEqual(doubles, []);
+});

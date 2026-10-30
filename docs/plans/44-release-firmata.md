@@ -406,7 +406,21 @@ Da fare dopo, a release pubblicata: il documento di processo per chi rilascia
 ## Fuori scope
 
 - **Firma Windows**: altro certificato, altra spesa, e SmartScreen resta
-  scettico finché non accumula reputazione.
+  scettico finché non accumula reputazione. **Da fare** (2026-10-30): dalla
+  1.7.0 il pacchetto Windows esce dal workflow ed è scaricato davvero, non
+  firmato. Dal 2023 la chiave deve stare su un HSM, quindi niente `.pfx` nei
+  secret come per il Mac. Le strade:
+  - *SignPath Foundation*: gratis per l'open source, ma vuole una licenza
+    OSI (oggi `LICENSE` è «All rights reserved») e firma col proprio nome;
+  - *Azure Artifact Signing* (ex Trusted Signing): ~10 $/mese, supportato da
+    electron-builder (`win.azureSignOptions`); in UE solo a un'organizzazione
+    con qualche anno di storia verificabile — da ricontrollare, cambia spesso;
+  - *certificato OV* da una CA con firma in cloud (Certum SimplySign, SSL.com
+    eSigner…): ~100–400 €/anno, Certum anche a un privato.
+
+  Nessuna toglie SmartScreen dal primo giorno (dal 2024 nemmeno un EV): cambia
+  l'editore mostrato, e la reputazione cresce coi download. Si decide con le
+  licenze.
 - **Aggiornamento automatico**: il secondo branch del piano 18. Ora è
   possibile (i `latest-*.yml` finiscono già nel repo pubblico a ogni release),
   ma è un'altra cosa: `electron-updater` nell'app e il banner «Riavvia».

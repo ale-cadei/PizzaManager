@@ -123,13 +123,22 @@
         <div class="brand-name">PizzaManager</div>
         <div class="brand-sub" id="platform-label"></div>
       </div>
+      <!-- Comprime la sidebar a una colonna di icone (renderer/sidebar-collapse.js).
+           Una sola freccia: da collassata la ruota la CSS. -->
+      <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-controls="sidebar" aria-expanded="true" title="Comprimi la sidebar">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 3.5 5 8l4.5 4.5M13 3.5 8.5 8l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
     </div>
     <div class="side-actions">
-      <button class="btn btn--outline" id="btn-new" title="Crea una nuova sessione (il tipo si sceglie nel dialog)"><span class="btn-glyph" aria-hidden="true">+</span>Nuova</button>
-      <button class="btn btn--ghost" id="btn-resume" title="Riprendi una vecchia sessione"><span class="btn-glyph" aria-hidden="true">⟲</span>Resume</button>
+      <button class="btn btn--outline" id="btn-new" title="Crea una nuova sessione (il tipo si sceglie nel dialog)"><span class="btn-glyph" aria-hidden="true">+</span><span class="btn-label">Nuova</span></button>
+      <button class="btn btn--ghost" id="btn-resume" title="Riprendi una vecchia sessione"><span class="btn-glyph" aria-hidden="true">⟲</span><span class="btn-label">Resume</span></button>
     </div>
     <div class="side-search">
       <input id="open-search" type="search" aria-label="Cerca nei messaggi delle chat aperte" placeholder="Cerca nelle chat aperte…" autocomplete="off" />
+      <!-- La ricerca da sidebar collassata: riapre e mette il cursore nella casella -->
+      <button type="button" class="side-search-lens" id="open-search-lens" aria-label="Cerca nelle chat aperte" title="Cerca nelle chat aperte">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.25" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m10.2 10.2 3.3 3.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
     </div>
     <div class="side-section">SESSIONI APERTE <span id="count"></span>
       <div class="seg" role="group" aria-label="Raggruppa le sessioni">
@@ -462,6 +471,7 @@
 <script src="session-groups.js"></script>
 <script src="session-order.js"></script>
 <script src="sidebar.js"></script>
+<script src="sidebar-collapse.js"></script>
 <script src="confirm-bubble.js"></script>
 <script src="worktree-section.js"></script>
 <script src="worktree-cache.js"></script>

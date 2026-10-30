@@ -72,12 +72,17 @@ function initSidebarResize() {
     const saved = parseInt(localStorage.getItem('aisess.sidebarW'), 10);
     if (saved >= MIN_W && saved <= MAX_W) sidebar.style.width = saved + 'px';
   } catch {}
+  // Da collassata la larghezza è fissa: la maniglia non deve salvarne una
+  // che poi la sidebar aperta erediterebbe.
+  const collapsed = () => sidebar.classList.contains('collapsed');
   resizer.addEventListener('dblclick', () => {
+    if (collapsed()) return;
     sidebar.style.width = DEFAULT_W + 'px';
     try { localStorage.setItem('aisess.sidebarW', String(DEFAULT_W)); } catch {}
     fitActive();
   });
   resizer.addEventListener('mousedown', (e) => {
+    if (collapsed()) return;
     e.preventDefault();
     resizer.classList.add('dragging');
     const startX = e.clientX;
@@ -95,6 +100,21 @@ function initSidebarResize() {
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
+  });
+}
+
+/* Sidebar collassabile a una colonna di icone (docs/plans/72-sidebar-collassabile.md).
+   La larghezza cambia di colpo: il terminale si rifitta subito. */
+function initSidebarCollapse() {
+  const sidebar = $('#sidebar');
+  const toggle = $('#sidebar-toggle');
+  if (!sidebar || !toggle || !window.AisessSidebarCollapse) return;
+  window.AisessSidebarCollapse.createSidebarCollapse({
+    sidebar, toggle,
+    searchButton: $('#open-search-lens'),
+    searchInput: $('#open-search'),
+    storage: localStorage,
+    onChange: () => fitActive(),
   });
 }
 

@@ -35,6 +35,7 @@ async function init() {
   window.onCommandProfilesChanged = () => renderSidebar();
 
   initSidebarResize();
+  initSidebarCollapse();
   initUsageBar();
   initUpdateBanner();
   initExtensions();

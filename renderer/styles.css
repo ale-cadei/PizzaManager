@@ -181,7 +181,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 #sidebar.searching #session-list, #sidebar.searching .side-section .seg { display: none; }
 #open-search-results:not([hidden]) {
   flex: 1; min-height: 0; overflow-y: auto;
-  display: flex; flex-direction: column; gap: 8px; padding: 0 16px 24px;
+  display: flex; flex-direction: column; gap: 8px; padding: 0 calc(20px - var(--scrollbar-w)) 24px;
+  scrollbar-gutter: stable both-edges;
 }
 .open-search-item {
   background: var(--surface-2); border: 1px solid var(--border);
@@ -234,7 +235,16 @@ img.agent-icon--node { border-radius: 2px; }
    appoggerebbe sui fogli di quello sopra, quando è chiuso. Il padding in basso
    serve allo stesso motivo se il gruppo chiuso è l'ultimo: dorso e fogli
    scendono 24px oltre la linguetta. */
-#session-list { flex: 1; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: var(--space-group-stack); padding: 0 16px 24px; }
+/* La scrollbar occupa spazio solo a destra e solo quando c'è: i gruppi
+   finivano più larghi a sinistra e più stretti a destra delle fasce sopra
+   (pulsanti, ricerca: 20px per lato, 12px da collassata). Il canale riservato
+   su entrambi i lati più il padding ridotto della sua larghezza rimette i
+   bordi dei gruppi sugli stessi 20px, con o senza scrollbar. */
+#session-list {
+  flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable both-edges;
+  display: flex; flex-direction: column; gap: var(--space-group-stack);
+  padding: 0 calc(20px - var(--scrollbar-w)) 24px;
+}
 .session-item {
   position: relative;
   display: flex; align-items: center; gap: var(--gap-sm);
@@ -766,7 +776,7 @@ img.agent-icon--node { border-radius: 2px; }
 #sidebar.collapsed .side-section,
 #sidebar.collapsed #open-search-results:not([hidden]) { display: none; }
 #sidebar.collapsed.searching #session-list { display: flex; }
-#sidebar.collapsed #session-list { padding: 0 6px 24px; }
+#sidebar.collapsed #session-list { padding: 0 calc(12px - var(--scrollbar-w)) 24px; }
 
 /* Gruppo: resta la linguetta con l'icona, che apre e chiude come prima */
 #sidebar.collapsed .group-cap { padding: var(--space-1) 2px 0; }

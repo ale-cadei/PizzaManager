@@ -41,8 +41,8 @@ ok('commenti editor: la riga dei commenti sta in testa dopo le sotto-schede, nas
   const wrap = createElement('div');
   const ui = s.fn('buildEditorLayout')({ ...s.tab, wrap });
   const head = wrap.children[2].children[0];
-  assert.deepStrictEqual(head.children.map((c) => c.className), ['btn btn--ghost editor-tree-toggle', 'editor-subtabs', 'editor-notes-bar']);
-  assert.strictEqual(ui.notesBar, head.children[2]);
+  assert.deepStrictEqual(head.children.map((c) => c.className), ['btn btn--ghost editor-tree-toggle', 'editor-subtabs', 'btn btn--ghost editor-nb-toggle', 'editor-notes-bar']);
+  assert.strictEqual(ui.notesBar, head.children[3]);
   assert.strictEqual(ui.notesBar.hidden, true);
 });
 

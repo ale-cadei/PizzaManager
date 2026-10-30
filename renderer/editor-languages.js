@@ -36,7 +36,7 @@
     env: 'dotenv', toml: 'toml', mk: 'makefile', dockerfile: 'dockerfile',
     zsh: 'shell', ksh: 'shell',
     cfg: 'ini', conf: 'ini', cnf: 'ini', service: 'ini', socket: 'ini', timer: 'ini', desktop: 'ini',
-    jsonc: 'json', json5: 'json', 'code-workspace': 'json', webmanifest: 'json',
+    jsonc: 'json', json5: 'json', 'code-workspace': 'json', webmanifest: 'json', ipynb: 'json',
   };
 
   /**

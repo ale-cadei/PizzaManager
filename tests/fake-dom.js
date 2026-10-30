@@ -103,6 +103,13 @@ function createElement(tag) {
   return e;
 }
 
+/** Nodo di testo: un elemento `#text` col suo testo (la vista dei notebook li usa). */
+function createTextNode(text) {
+  const n = createElement('#text');
+  n.textContent = String(text);
+  return n;
+}
+
 function descendants(node) {
   const out = [];
   for (const child of node.children) {
@@ -120,6 +127,7 @@ function installDocument() {
   const previous = global.document;
   const doc = createElement('html');
   doc.createElement = createElement;
+  doc.createTextNode = createTextNode;
   doc.body = createElement('body');
   doc.appendChild(doc.body);
   global.document = doc;
@@ -160,4 +168,4 @@ function fire(el, type, props) {
   return event;
 }
 
-module.exports = { createElement, descendants, installDocument, createStorage, createEvent, fire };
+module.exports = { createElement, createTextNode, descendants, installDocument, createStorage, createEvent, fire };

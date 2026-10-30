@@ -88,6 +88,10 @@ function buildEditorLayout(tab) {
   toggle.onclick = () => editorPanel.toggle();
   const subtabs = el('div', 'editor-subtabs', head);
   subtabs.setAttribute('role', 'tablist');
+  // Notebook ↔ JSON per un .ipynb (docs/plans/75), lo mostra editor-notebook-ui.js
+  const nbToggle = el('button', 'btn btn--ghost editor-nb-toggle', head);
+  nbToggle.hidden = true;
+  nbToggle.onclick = () => toggleEditorNotebook(tab);
   // «N commenti · Copia prompt · Svuota» (docs/plans/65), la disegna editor-notes-ui.js
   const notesBar = el('div', 'editor-notes-bar', head);
   notesBar.hidden = true;
@@ -96,7 +100,9 @@ function buildEditorLayout(tab) {
   const message = el('div', 'editor-message', main);
   message.hidden = true;
   const host = el('div', 'editor-host', main);
-  return { treeHost, tree, subtabs, notesBar, bar, message, host };
+  const notebook = el('div', 'editor-notebook', main);
+  notebook.hidden = true;
+  return { treeHost, tree, subtabs, nbToggle, notesBar, bar, message, host, notebook };
 }
 
 function renderEditorTree(tab) {
@@ -151,6 +157,7 @@ function renderEditorSubtabs(tab) {
     return b;
   }));
   renderEditorBar(tab);
+  syncEditorNotebook(tab);
 }
 
 /* La barra sotto le sotto-schede parla del file attivo: errore,
@@ -411,6 +418,7 @@ function dropEditorFile(tab, rel) {
     ed.conflictTimers = Object.fromEntries(Object.entries(ed.conflictTimers).filter(([r]) => r !== rel));
   }
   dropEditorNotes(tab, rel);
+  dropEditorNotebook(tab, rel);
   if (ed.conflicts) ed.conflicts = Object.fromEntries(Object.entries(ed.conflicts).filter(([r]) => r !== rel));
   if (ed.host) {
     ed.host.close(rel);

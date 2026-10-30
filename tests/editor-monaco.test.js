@@ -691,3 +691,14 @@ ok('version: cambia col testo, per la cache della scheda', () => {
   assert.notStrictEqual(h.version('a.js'), v);
   assert.strictEqual(h.version('nessuno.js'), null);
 });
+
+ok('colorize: celle dei notebook col tema dell editor, mai quello di default', async () => {
+  const { h, fake } = host();
+  const calls = [];
+  fake.monaco.editor.colorizeElement = (node, options) => { calls.push([node, options]); return Promise.resolve(); };
+  const node = { textContent: 'x = 1' };
+  h.colorize(node, 'python');
+  // Senza `theme` colorizeElement fa setTheme('vs') per tutta la pagina (docs/plans/75)
+  assert.deepStrictEqual(calls, [[node, { mimeType: 'python', tabSize: 4, theme: fake.editor.options.theme }]]);
+  assert.ok(fake.editor.options.theme);
+});

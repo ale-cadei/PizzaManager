@@ -35,14 +35,14 @@ function notesSetup(main = {}) {
   return { ...s, zones, find, draft, saved, write, bar, notes: () => plain(s.tab.editor.notes.notes) };
 }
 
-ok('commenti editor: la riga dei commenti sta in testa dopo le sotto-schede, nascosta', () => {
+ok('commenti editor: la riga dei commenti sta in testa dopo titolo e menu degli aperti, nascosta', () => {
   const s = setup();
   s.page.ctx.document = fakeDocument();
   const wrap = createElement('div');
   const ui = s.fn('buildEditorLayout')({ ...s.tab, wrap });
   const head = wrap.children[2].children[0];
-  assert.deepStrictEqual(head.children.map((c) => c.className), ['btn btn--ghost editor-tree-toggle', 'editor-subtabs', 'editor-notes-bar']);
-  assert.strictEqual(ui.notesBar, head.children[2]);
+  assert.deepStrictEqual(head.children.map((c) => c.className), ['editor-tree-toggle', 'editor-title', 'editor-open-menu', 'editor-notes-bar']);
+  assert.strictEqual(ui.notesBar, head.children[3]);
   assert.strictEqual(ui.notesBar.hidden, true);
 });
 

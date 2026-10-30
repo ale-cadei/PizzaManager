@@ -148,3 +148,20 @@ ok('isToggleKey: solo Ctrl+B, senza altri modificatori', () => {
   assert.strictEqual(k({ ctrlKey: true, altKey: true, key: 'b' }), false);
   assert.strictEqual(k({ ctrlKey: true, key: 'v' }), false);
 });
+
+/* ---------- file aperti da tastiera (docs/plans/70) ---------- */
+
+ok('openIndexKey: Alt+1…9 fuori dal Mac, Ctrl+1…9 sul Mac (Opzione+cifra scrive ~, #…)', () => {
+  const key = (code, mods = {}) => ({ code, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false, ...mods });
+  assert.strictEqual(P.openIndexKey(key('Digit1', { altKey: true }), false), 0);
+  assert.strictEqual(P.openIndexKey(key('Digit9', { altKey: true }), false), 8);
+  assert.strictEqual(P.openIndexKey(key('Digit0', { altKey: true }), false), -1);
+  assert.strictEqual(P.openIndexKey(key('Digit1'), false), -1);
+  assert.strictEqual(P.openIndexKey(key('Digit1', { altKey: true, ctrlKey: true }), false), -1, 'AltGr su Windows è Ctrl+Alt');
+  assert.strictEqual(P.openIndexKey(key('Digit1', { altKey: true, shiftKey: true }), false), -1);
+  assert.strictEqual(P.openIndexKey(key('Digit5', { altKey: true }), true), -1, 'sul Mac Opzione+5 è ~');
+  assert.strictEqual(P.openIndexKey(key('Digit5', { ctrlKey: true }), true), 4);
+  assert.strictEqual(P.openIndexKey(key('Digit5', { ctrlKey: true }), false), -1);
+  assert.strictEqual(P.openKeyLabel(3, false), 'Alt 3');
+  assert.strictEqual(P.openKeyLabel(3, true), '⌃3');
+});

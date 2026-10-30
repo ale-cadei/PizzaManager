@@ -227,31 +227,33 @@
       return sep;
     }
     const b = doc.createElement('button');
-    b.className = 'editor-menu-item' + (item.danger ? ' is-danger' : '');
+    b.className = 'editor-menu-item' + (item.danger ? ' is-danger' : '') + (item.className ? ` ${item.className}` : '');
     b.setAttribute('role', 'menuitem');
     const icon = doc.createElement('span');
     icon.className = item.icon ? `codicon codicon-${item.icon}` : 'editor-menu-noicon';
     icon.setAttribute('aria-hidden', 'true');
-    const label = doc.createElement('span');
-    label.className = 'editor-menu-label';
-    label.textContent = item.label; // può contenere nomi di file
-    b.append(icon, label);
-    if (item.key) {
-      const key = doc.createElement('span');
-      key.className = 'editor-menu-key';
-      key.textContent = item.key;
-      b.appendChild(key);
-    }
+    if (item.tint) icon.style.color = item.tint;
+    const text = (cls, value) => {
+      const span = doc.createElement('span');
+      span.className = cls;
+      span.textContent = value; // può contenere nomi di file
+      b.appendChild(span);
+    };
+    b.appendChild(icon);
+    text('editor-menu-label', item.label);
+    if (item.detail) text('editor-menu-detail', item.detail);
+    if (item.key) text('editor-menu-key', item.key);
     b.onclick = () => { close(); item.run(); };
     return b;
   }
 
   /**
    * Menu contestuale: si chiude su una scelta, su Esc e sul click fuori.
-   * Voci `{ label, run, icon?, key?, danger? }` (icon: nome codicon senza
-   * prefisso) o `{ sep: true }`.
+   * Voci `{ label, run, icon?, tint?, detail?, key?, danger?, className? }`
+   * (icon: nome codicon senza prefisso) o `{ sep: true }`. `onClose` arriva
+   * una volta, comunque si chiuda.
    */
-  function showMenu({ document: doc, x, y, items }) {
+  function showMenu({ document: doc, x, y, items, onClose = () => {} }) {
     const menu = doc.createElement('div');
     menu.className = 'editor-menu';
     menu.setAttribute('role', 'menu');
@@ -260,7 +262,11 @@
     const inside = (node) => { for (let n = node; n; n = n.parentNode) if (n === menu) return true; return false; };
     const onDown = (e) => { if (!inside(e.target)) close(); };
     const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); close(); } };
+    let open = true;
     function close() {
+      if (!open) return;
+      open = false;
+      onClose();
       menu.remove();
       doc.removeEventListener('mousedown', onDown, true);
       doc.removeEventListener('keydown', onKey, true);

@@ -17,6 +17,7 @@ const RENDERER_APP_FILES = [
   'editor-tab-gutter.js',
   'editor-conflicts.js',
   'editor-tab.js',
+  'editor-open-ui.js',
   'editor-copy-ui.js',
   'editor-notes-ui.js',
   'tab-names.js',

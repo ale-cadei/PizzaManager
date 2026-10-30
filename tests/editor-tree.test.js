@@ -312,3 +312,20 @@ ok('vista: un click che arriva (per propagazione) da un figlio - riga o input ap
     assert.deepStrictEqual(deselects, []);
   } finally { restore(); }
 });
+
+ok('showMenu: tinta dell icona, dettaglio, classi della voce e onClose', () => {
+  const restore = installDocument();
+  try {
+    let closed = 0;
+    const menu = T.showMenu({ document, x: 0, y: 0, onClose: () => { closed += 1; }, items: [
+      { label: 'a.js', icon: 'file-code', tint: 'red', detail: 'src/lib', className: 'is-active is-dirty', run() {} },
+    ] });
+    const item = menu.element.children[0];
+    assert.strictEqual(item.querySelectorAll('.codicon')[0].style.color, 'red');
+    assert.strictEqual(item.querySelectorAll('.editor-menu-detail')[0].textContent, 'src/lib');
+    assert.ok(item.classList.contains('is-active') && item.classList.contains('is-dirty'));
+    fire(document, 'keydown', { key: 'Escape' });
+    menu.close();
+    assert.strictEqual(closed, 1, 'una volta sola');
+  } finally { restore(); }
+});

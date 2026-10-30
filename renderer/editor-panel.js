@@ -94,5 +94,20 @@
   const isToggleKey = (e) => Boolean(e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey
     && typeof e.key === 'string' && e.key.toLowerCase() === 'b');
 
-  return { WIDTH_KEY, HIDDEN_KEY, DEFAULT_W, MIN_W, clampWidth, readPanelPrefs, savePanelPrefs, applyPanelPrefs, createPanel, isToggleKey };
+  /** Alt+1…9 porta davanti l'N-esimo file aperto (docs/plans/70). Sul Mac
+   *  Ctrl: Opzione+cifra scrive caratteri (~ è Opzione+5 sulla tastiera
+   *  italiana). Ctrl+Alt fuori dal Mac è AltGr, che scrive anche lui.
+   *  @returns {number} l'indice da 0, -1 se il tasto non è questo */
+  function openIndexKey(e, isMac) {
+    const m = /^Digit([1-9])$/.exec(e.code || '');
+    if (!m || e.shiftKey || e.metaKey) return -1;
+    const mods = isMac ? e.ctrlKey && !e.altKey : e.altKey && !e.ctrlKey;
+    return mods ? Number(m[1]) - 1 : -1;
+  }
+  const openKeyLabel = (n, isMac) => (isMac ? `⌃${n}` : `Alt ${n}`);
+
+  return {
+    WIDTH_KEY, HIDDEN_KEY, DEFAULT_W, MIN_W, clampWidth, readPanelPrefs, savePanelPrefs, applyPanelPrefs, createPanel,
+    isToggleKey, openIndexKey, openKeyLabel,
+  };
 });

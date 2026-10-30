@@ -1,6 +1,6 @@
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
-const { createElement } = require('./fake-dom');
+const { createElement, fire } = require('./fake-dom');
 const { settle, deferred, setup, plain } = require('./editor-tab-setup');
 
 /* La scheda editor (renderer/editor-tab.js) vive nello scope globale del
@@ -387,12 +387,156 @@ function layout() {
   return { ...env, wrap, ui, head, toggle: head.children[0] };
 }
 
-ok('pannello: la striscia sta fra albero ed editor, il bottone fuori dalle sotto-schede', () => {
+ok('pannello: la striscia sta fra albero ed editor; in testa bottone e titolo', () => {
   const { wrap, ui, head, toggle } = layout();
   assert.deepStrictEqual(wrap.children.map((c) => c.className), ['editor-side', 'editor-resizer', 'editor-main']);
   assert.ok(toggle.classList.contains('editor-tree-toggle'));
   assert.strictEqual(toggle.title, 'Mostra/nascondi file (Ctrl+B)');
-  assert.strictEqual(head.children[1], ui.subtabs, 'le sotto-schede si ridisegnano da sole, il bottone resta');
+  assert.strictEqual(head.children[1], ui.title);
+});
+
+ok('pannello: «Aperti» in cima, poi la testata «File» e l albero', () => {
+  const { wrap, ui } = layout();
+  const side = wrap.children[0];
+  assert.deepStrictEqual(side.children.map((c) => c.className), ['editor-open', 'editor-section-head', 'editor-tree-host']);
+  const [openHead, list] = side.children[0].children;
+  assert.strictEqual(list, ui.openList);
+  assert.strictEqual(list.getAttribute('role'), 'tablist');
+  assert.deepStrictEqual(openHead.querySelectorAll('.editor-icon-btn').map((b) => b.title), ['Salva tutto (Ctrl+Shift+S)', 'Chiudi tutti']);
+  assert.deepStrictEqual(side.children[1].querySelectorAll('.editor-icon-btn').map((b) => b.title),
+    ['Nuovo file nella cartella della sessione', 'Nuova cartella nella cartella della sessione', 'Rileggi le cartelle aperte']);
+});
+
+/* ---------- file aperti (docs/plans/70) ---------- */
+
+/** Layout vero, con dei file aperti nello stato della scheda. */
+function openLayout(files, main) {
+  const env = setup({ files, main });
+  env.page.ctx.document = fakeDocument();
+  const wrap = createElement('div');
+  env.tab.editor.ui = env.fn('buildEditorLayout')({ ...env.tab, wrap });
+  const ui = env.tab.editor.ui;
+  const rows = () => ui.openList.children;
+  const part = (el, cls) => el.querySelectorAll(`.${cls}`)[0];
+  env.fn('renderEditorOpen')(env.tab);
+  return { ...env, ui, rows, part, render: () => env.fn('renderEditorOpen')(env.tab) };
+}
+
+ok('aperti: una riga per file con nome, cartella e stato; il file attivo fa da titolo', () => {
+  const s = openLayout({ 'src/lib/a.js': { text: 'a', mtime: 1, dirty: true }, 'README.md': { text: 'r', mtime: 1 } });
+  const [a, readme] = s.rows();
+  assert.strictEqual(s.part(a, 'editor-open-name').textContent, 'a.js');
+  assert.strictEqual(s.part(a, 'editor-open-dir').textContent, 'src/lib');
+  assert.ok(a.classList.contains('is-dirty'));
+  assert.ok(!a.classList.contains('is-active'));
+  assert.ok(readme.classList.contains('is-active'), 'l ultimo aperto è l attivo');
+  assert.strictEqual(readme.getAttribute('aria-selected'), 'true');
+  assert.ok(s.part(readme, 'codicon-markdown'));
+  assert.strictEqual(s.ui.openCount.textContent, '2');
+  assert.strictEqual(s.ui.openCount.hidden, false);
+  assert.strictEqual(s.part(s.ui.title, 'editor-title-name').textContent, 'README.md');
+  assert.strictEqual(s.ui.title.querySelectorAll('.editor-crumb-dir').length, 0, 'un file della radice non ha cartella');
+  assert.strictEqual(s.ui.title.querySelectorAll('.editor-title-dot').length, 0);
+  assert.strictEqual(s.part(s.ui.openMenu, 'editor-open-menu-label').textContent, '2 aperti');
+});
+
+ok('aperti: click attiva, e il titolo segue con cartella e pallino', () => {
+  const s = openLayout({ 'src/lib/a.js': { text: 'a', mtime: 1, dirty: true }, 'README.md': { text: 'r', mtime: 1 } });
+  fire(s.rows()[0], 'click');
+  assert.strictEqual(s.tab.editor.files.active, 'src/lib/a.js');
+  assert.deepStrictEqual(s.host.calls.at(-1), ['activate', 'src/lib/a.js']);
+  assert.ok(s.rows()[0].classList.contains('is-active'));
+  assert.strictEqual(s.part(s.ui.title, 'editor-title-name').textContent, 'a.js');
+  assert.strictEqual(s.part(s.ui.title, 'editor-crumb-dir').textContent, 'src/lib');
+  assert.strictEqual(s.ui.title.querySelectorAll('.editor-title-dot').length, 1);
+});
+
+ok('aperti: la × e il click centrale chiudono; un file pulito senza domande', async () => {
+  const s = openLayout({ 'a.js': { text: 'a', mtime: 1 }, 'b.js': { text: 'b', mtime: 1 }, 'c.js': { text: 'c', mtime: 1 } });
+  const close = s.part(s.rows()[0], 'editor-open-close');
+  const e = fire(close, 'click');
+  assert.strictEqual(e.propagationStopped, true, 'la × non attiva la riga');
+  await settle();
+  assert.deepStrictEqual([...s.tab.editor.files.order], ['b.js', 'c.js']);
+  fire(s.rows()[0], 'auxclick', { button: 1 });
+  await settle();
+  assert.deepStrictEqual([...s.tab.editor.files.order], ['c.js']);
+  fire(s.rows()[0], 'auxclick', { button: 2 });
+  await settle();
+  assert.strictEqual(s.rows().length, 1, 'il tasto destro non chiude');
+  assert.strictEqual(s.part(s.ui.openMenu, 'editor-open-menu-label').textContent, '1 aperto');
+});
+
+ok('aperti: conflitto col disco ed eliminato si vedono sulla riga', () => {
+  const s = openLayout({ 'a.js': { text: 'a', mtime: 1 }, 'b.js': { text: 'b', mtime: 1 } });
+  s.fn('setEditorFile')(s.tab, 'a.js', { conflict: 'disk', diskMtime: 2 });
+  s.fn('setEditorFile')(s.tab, 'b.js', { deleted: true });
+  const [a, b] = s.rows();
+  assert.ok(a.classList.contains('is-trouble'));
+  assert.ok(s.part(a, 'editor-open-warn'));
+  assert.match(a.title, /cambiato sul disco/);
+  assert.ok(b.classList.contains('is-deleted'));
+  assert.ok(!b.classList.contains('is-trouble'));
+});
+
+ok('aperti: senza file la sezione è vuota, contatore e menu spariscono', () => {
+  const s = openLayout({});
+  assert.strictEqual(s.rows().length, 0);
+  assert.strictEqual(s.ui.openCount.hidden, true);
+  assert.strictEqual(s.ui.openMenu.hidden, true);
+  assert.strictEqual(s.ui.title.children.length, 0);
+});
+
+ok('aperti: «Chiudi tutti» senza modifiche chiude tutto e salva la lista', async () => {
+  const s = openLayout({ 'a.js': { text: 'a', mtime: 1 }, 'b.js': { text: 'b', mtime: 1 } });
+  await s.fn('closeAllEditorFiles')(s.tab, s.ui.title);
+  assert.strictEqual(s.tab.editor.files.order.length, 0);
+  assert.strictEqual(s.rows().length, 0);
+  assert.ok(s.sent('saveEditorSessions').length >= 1);
+});
+
+ok('aperti: «Chiudi tutti» con un file sporco chiede, e annullando non chiude niente', async () => {
+  const s = openLayout({ 'a.js': { text: 'a', mtime: 1, dirty: true }, 'b.js': { text: 'b', mtime: 1 } });
+  const asked = [];
+  s.run('editorConfirm').choose = async (o) => { asked.push(o); return null; };
+  await s.fn('closeAllEditorFiles')(s.tab, s.ui.title);
+  assert.strictEqual(asked[0].title, '«a.js» ha modifiche non salvate');
+  assert.strictEqual(asked[0].anchor, s.ui.title);
+  assert.strictEqual(s.tab.editor.files.order.length, 2);
+  s.run('editorConfirm').choose = async () => 'discard';
+  await s.fn('closeAllEditorFiles')(s.tab, s.ui.title);
+  assert.strictEqual(s.tab.editor.files.order.length, 0);
+});
+
+ok('aperti: il menu «N aperti» elenca i file con la scorciatoia e attiva quello scelto', () => {
+  const s = openLayout({ 'src/a.js': { text: 'a', mtime: 1 }, 'b.css': { text: 'b', mtime: 1, dirty: true } });
+  const menus = [];
+  s.page.ctx.AisessEditorTree.showMenu = (o) => { menus.push(o); return { close() {} }; };
+  s.fn('showEditorOpenMenu')(s.tab);
+  const [a, b, sep, saveAll, closeAll] = menus[0].items;
+  // La pagina finta è un Mac (navigator.platform MacIntel): ⌃1, non Alt 1
+  assert.deepStrictEqual([a.label, a.detail, a.icon, a.key], ['a.js', 'src', 'file-code', '⌃1']);
+  assert.ok(b.className.includes('is-active') && b.className.includes('is-dirty'));
+  assert.strictEqual(sep.sep, true);
+  assert.deepStrictEqual([saveAll.label, closeAll.label], ['Salva tutto', 'Chiudi tutti']);
+  assert.ok(s.ui.openMenu.classList.contains('is-open'));
+  a.run();
+  assert.strictEqual(s.tab.editor.files.active, 'src/a.js');
+  menus[0].onClose();
+  assert.ok(!s.ui.openMenu.classList.contains('is-open'));
+});
+
+ok('aperti: ⌃N (Alt+N fuori dal Mac) porta davanti l N-esimo file, solo con una scheda editor davanti', () => {
+  const s = openLayout({ 'a.js': { text: 'a', mtime: 1 }, 'b.js': { text: 'b', mtime: 1 } });
+  s.fn('initEditorTabs')();
+  const press = (code) => fire(s.page.ctx.document, 'keydown', { code, key: code.slice(-1), ctrlKey: true });
+  s.run("activeId = 'tab-ed'");
+  assert.strictEqual(press('Digit1').defaultPrevented, true);
+  assert.strictEqual(s.tab.editor.files.active, 'a.js');
+  assert.strictEqual(press('Digit3').defaultPrevented, false, 'non c è un terzo file: il tasto passa');
+  s.run('activeId = null');
+  assert.strictEqual(press('Digit2').defaultPrevented, false);
+  assert.strictEqual(s.tab.editor.files.active, 'a.js');
 });
 
 ok('pannello: il bottone apre e chiude l albero e se lo ricorda', () => {

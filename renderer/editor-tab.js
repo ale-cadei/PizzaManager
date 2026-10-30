@@ -1,9 +1,10 @@
 /* Scheda di tipo editor (docs/plans/60): niente pty, l'albero della cartella
-   della sessione e Monaco con una sotto-scheda per file aperto. Leggere,
+   della sessione, i file aperti e Monaco. Leggere,
    scrivere e sorvegliare i file lo fa il main (lib/editor-fs.js,
    lib/editor-watch.js), che confina ogni percorso nella cartella.
    Lo stato dei file aperti sta in editor-files.js, l'albero in
-   editor-tree.js, Monaco in editor-monaco.js: qui il cablaggio.
+   editor-tree.js, Monaco in editor-monaco.js: qui il cablaggio. La sezione
+   «Aperti» e il titolo (docs/plans/70) li disegna editor-open-ui.js.
    Le barrette delle righe cambiate (docs/plans/63) stanno in
    editor-tab-gutter.js, caricato prima di questo.
    Le schede si salvano (lib/editor-sessions.js) e tornano al riavvio coi
@@ -28,6 +29,7 @@ const EDITOR_READ_REASONS = {
   missing: 'non esiste più.',
   'not-file': 'non è un file.',
 };
+const EDITOR_IS_MAC = /mac/i.test(navigator.platform || '');
 let editorExitConfirmed = false;
 let editorExitAsking = false;
 
@@ -69,13 +71,22 @@ function editorSectionHead(parent, label, actions) {
   const count = editorEl('span', 'count', head);
   count.hidden = true;
   editorEl('span', 'spacer', head);
-  for (const a of actions) editorIconButton(head, a);
-  return { head, count };
+  const buttons = actions.map((a) => editorIconButton(head, a));
+  return { head, count, buttons };
 }
 
 function buildEditorLayout(tab) {
   const el = editorEl;
   const side = el('aside', 'editor-side', tab.wrap);
+  // I file aperti in cima al pannello, al posto delle sotto-schede (docs/plans/70)
+  const openSection = el('section', 'editor-open', side);
+  const { count: openCount, buttons: [, closeAll] } = editorSectionHead(openSection, 'Aperti', [
+    { icon: 'save-all', title: 'Salva tutto (Ctrl+Shift+S)', run: () => saveAllEditorFiles(tab) },
+    { icon: 'close-all', title: 'Chiudi tutti', run: () => closeAllEditorFiles(tab, closeAll) },
+  ]);
+  const openList = el('div', 'editor-open-list', openSection);
+  openList.setAttribute('role', 'tablist');
+  openList.setAttribute('aria-label', 'File aperti');
   editorSectionHead(side, 'File', [
     { icon: 'new-file', title: 'Nuovo file nella cartella della sessione', run: () => newEditorEntry(tab, '', 'file') },
     { icon: 'new-folder', title: 'Nuova cartella nella cartella della sessione', run: () => newEditorEntry(tab, '', 'dir') },
@@ -96,16 +107,22 @@ function buildEditorLayout(tab) {
   resizer.title = `Trascina per allargare l'albero, doppio click per tornare a ${EditorPanel.DEFAULT_W}px`;
   editorPanel.attachResizer(resizer, { side, wrap: tab.wrap, win: window });
   const main = el('section', 'editor-main', tab.wrap);
-  // Il bottone sta fuori dal tablist: renderEditorSubtabs ne rimpiazza i figli
-  const head = el('div', 'editor-head', main);
-  const toggle = el('button', 'btn btn--ghost editor-tree-toggle', head);
-  toggle.textContent = '☰';
+  const head = el('header', 'editor-head', main);
+  const toggle = el('button', 'editor-tree-toggle', head);
+  // Le due icone ci sono sempre: quale si vede lo dice body.editor-tree-hidden
+  el('span', 'codicon codicon-layout-sidebar-left editor-toggle-shown', toggle).setAttribute('aria-hidden', 'true');
+  el('span', 'codicon codicon-layout-sidebar-left-off editor-toggle-hidden', toggle).setAttribute('aria-hidden', 'true');
   toggle.title = 'Mostra/nascondi file (Ctrl+B)';
   toggle.setAttribute('aria-label', 'Mostra/nascondi file');
   toggle.onmousedown = (e) => e.preventDefault(); // il fuoco resta a Monaco
   toggle.onclick = () => editorPanel.toggle();
-  const subtabs = el('div', 'editor-subtabs', head);
-  subtabs.setAttribute('role', 'tablist');
+  // Il file attivo: icona, nome, pallino; sotto la cartella. Lo disegna renderEditorOpen
+  const title = el('div', 'editor-title', head);
+  // «N aperti ▾»: si vede solo con l'albero nascosto, al posto della sezione Aperti
+  const openMenu = el('button', 'editor-open-menu', head);
+  openMenu.setAttribute('aria-haspopup', 'menu');
+  openMenu.onmousedown = (e) => e.preventDefault();
+  openMenu.onclick = () => showEditorOpenMenu(tab);
   // «N commenti · Copia prompt · Svuota» (docs/plans/65), la disegna editor-notes-ui.js
   const notesBar = el('div', 'editor-notes-bar', head);
   notesBar.hidden = true;
@@ -114,7 +131,7 @@ function buildEditorLayout(tab) {
   const message = el('div', 'editor-message', main);
   message.hidden = true;
   const host = el('div', 'editor-host', main);
-  return { treeHost, tree, subtabs, notesBar, bar, message, host };
+  return { treeHost, tree, openList, openCount, title, openMenu, notesBar, bar, message, host };
 }
 
 function renderEditorTree(tab) {
@@ -139,40 +156,8 @@ function hideEditorMessage(tab) {
   tab.editor.ui.message.hidden = true;
 }
 
-function renderEditorSubtabs(tab) {
-  const { files, ui } = tab.editor;
-  ui.subtabs.replaceChildren(...files.order.map((rel) => {
-    const f = files.files[rel];
-    const b = document.createElement('div');
-    b.className = 'editor-subtab'
-      + (rel === files.active ? ' is-active' : '')
-      + (f.dirty ? ' is-dirty' : '')
-      + (f.deleted ? ' is-deleted' : '');
-    b.title = rel + (f.deleted ? ' — eliminato dal disco' : '');
-    b.setAttribute('role', 'tab');
-    const name = document.createElement('span');
-    name.className = 'editor-subtab-name';
-    name.textContent = EditorFiles.baseName(rel);
-    const dot = document.createElement('span');
-    dot.className = 'editor-subtab-dot';
-    dot.textContent = '●';
-    dot.title = 'Non salvato';
-    const x = document.createElement('button');
-    x.className = 'editor-subtab-close';
-    x.textContent = '×';
-    x.title = 'Chiudi';
-    x.setAttribute('aria-label', `Chiudi ${rel}`);
-    x.onclick = (e) => { e.stopPropagation(); closeEditorFile(tab, rel, x); };
-    b.onclick = () => activateEditorFile(tab, rel);
-    b.onauxclick = (e) => { if (e.button === 1) closeEditorFile(tab, rel, x); };
-    b.append(name, dot, x);
-    return b;
-  }));
-  renderEditorBar(tab);
-}
-
-/* La barra sotto le sotto-schede parla del file attivo: errore,
-   conflitto col disco, file eliminato. */
+/* La barra parla del file attivo: errore, conflitto col disco, file
+   eliminato. */
 function renderEditorBar(tab) {
   const { files, ui } = tab.editor;
   const f = files.active ? files.files[files.active] : null;
@@ -206,7 +191,7 @@ function renderEditorBar(tab) {
 
 function setEditorFile(tab, rel, patch) {
   tab.editor.files = EditorFiles.update(tab.editor.files, rel, patch);
-  renderEditorSubtabs(tab);
+  renderEditorOpen(tab);
 }
 
 /* ---------- albero ---------- */
@@ -305,7 +290,7 @@ async function renameEditorEntry(tab, row) {
   }
   ed.tree = EditorTree.renamePath(ed.tree, row.rel, r.rel);
   await loadEditorDir(tab, EditorFiles.parentRel(row.rel));
-  renderEditorSubtabs(tab);
+  renderEditorOpen(tab);
   saveEditorSessions();
 }
 
@@ -327,7 +312,7 @@ async function trashEditorEntry(tab, row) {
   }
   ed.tree = EditorTree.removePath(ed.tree, row.rel);
   await loadEditorDir(tab, EditorFiles.parentRel(row.rel));
-  renderEditorSubtabs(tab);
+  renderEditorOpen(tab);
   saveEditorSessions();
 }
 
@@ -407,7 +392,7 @@ async function openEditorFile(tab, rel, { quiet = false } = {}) {
   updateEditorConflicts(tab, rel);
   ed.files = EditorFiles.open(ed.files, rel, { path: r.path, mtime: r.mtime, bom: r.bom });
   hideEditorMessage(tab);
-  renderEditorSubtabs(tab);
+  renderEditorOpen(tab);
   loadEditorGutterBase(tab, rel); // senza aspettare: le barrette arrivano dopo il testo
   await watchEditorFile(tab, rel);
   if (!quiet) saveEditorSessions();
@@ -420,11 +405,11 @@ function activateEditorFile(tab, rel, { save = true } = {}) {
   ed.files = EditorFiles.activate(ed.files, rel);
   if (ed.host) ed.host.activate(rel);
   hideEditorMessage(tab);
-  renderEditorSubtabs(tab);
+  renderEditorOpen(tab);
   if (save) saveEditorSessions();
 }
 
-/* Toglie la sotto-scheda senza chiedere niente (chi chiama ha già chiesto) */
+/* Toglie il file dagli aperti senza chiedere niente (chi chiama ha già chiesto) */
 function dropEditorFile(tab, rel) {
   const ed = tab.editor;
   if (!ed.files.files[rel]) return;
@@ -442,7 +427,7 @@ function dropEditorFile(tab, rel) {
     if (ed.files.active) ed.host.activate(ed.files.active);
   }
   unwatchEditorFile(tab, rel);
-  renderEditorSubtabs(tab);
+  renderEditorOpen(tab);
 }
 
 async function closeEditorFile(tab, rel, anchor) {
@@ -491,7 +476,7 @@ async function saveEditorFile(tab, rel) {
     } else {
       ed.files = EditorFiles.update(ed.files, rel, { error: `Salvataggio non riuscito: ${r.error}` });
     }
-    renderEditorSubtabs(tab);
+    renderEditorOpen(tab);
     return done;
   } finally {
     ed.saving.delete(rel);
@@ -527,14 +512,14 @@ function handleEditorFileChange(tab, rel, change) {
   if (!change.exists) {
     if (f.deleted) return;
     ed.files = EditorFiles.markDeleted(ed.files, rel);
-    renderEditorSubtabs(tab);
+    renderEditorOpen(tab);
     return;
   }
   if (change.mtime === f.mtime) return; // il nostro salvataggio
   if (!(ed.host && ed.host.isDirty(rel))) { reloadEditorFile(tab, rel); return; }
   if (f.conflict === 'disk' && f.diskMtime === change.mtime) return;
   ed.files = EditorFiles.update(ed.files, rel, { conflict: 'disk', diskMtime: change.mtime });
-  renderEditorSubtabs(tab);
+  renderEditorOpen(tab);
 }
 
 async function reloadEditorFile(tab, rel) {
@@ -546,7 +531,7 @@ async function reloadEditorFile(tab, rel) {
     ed.files = r.reason === 'missing'
       ? EditorFiles.markDeleted(ed.files, rel)
       : EditorFiles.update(ed.files, rel, { error: `Non si ricarica: ${readReason(r)}` });
-    renderEditorSubtabs(tab);
+    renderEditorOpen(tab);
     return;
   }
   ed.host.replaceText(rel, r.text);
@@ -556,7 +541,7 @@ async function reloadEditorFile(tab, rel) {
   flushEditorGutter(tab, rel); // replaceText ne ha messo uno in attesa: si fa adesso, una volta
   flushEditorConflicts(tab, rel);
   if (f.deleted) { unwatchEditorFile(tab, rel); await watchEditorFile(tab, rel); }
-  renderEditorSubtabs(tab);
+  renderEditorOpen(tab);
 }
 
 /* «Tieni il mio» / «Sovrascrivi»: l'mtime atteso diventa quello del disco,
@@ -592,7 +577,7 @@ async function confirmEditorClose(tab, anchor) {
   const loss = editorNotesLoss(EditorNotes.count(tab.editor.notes), 'la scheda');
   if (!dirty.length && !loss) return true;
   const bubble = anchor ? closeConfirm : editorConfirm;
-  const where = { anchor: anchor || tab.editor.ui.subtabs, key: anchor ? tab.id : null };
+  const where = { anchor: anchor || tab.editor.ui.title, key: anchor ? tab.id : null };
   if (!dirty.length) return bubble.ask({ ...where, title: `Chiudere «${tab.name}»?`, text: loss, confirmLabel: 'Chiudi' });
   const choice = await bubble.choose({
     ...where, text: loss,
@@ -697,7 +682,7 @@ async function askEditorExit() {
     setActive(first.id);
     const count = dirty.reduce((n, t) => n + EditorFiles.dirtyFiles(t.editor.files).length, 0);
     const choice = await editorConfirm.choose({
-      anchor: first.editor.ui.subtabs,
+      anchor: first.editor.ui.title,
       title: count === 1 ? 'Un file con modifiche non salvate' : `${count} file con modifiche non salvate`,
       text: 'Uscendo senza salvare le modifiche si perdono.',
       choices: [{ value: 'save', label: 'Salva tutto ed esci' }, { value: 'discard', label: 'Esci senza salvare', danger: true }],
@@ -744,12 +729,20 @@ function initEditorTabs() {
     e.dataTransfer.dropEffect = 'none'; // il cursore dice «qui no»
   });
   document.addEventListener('drop', (e) => { if (isFileDrag(e)) e.preventDefault(); });
-  // Ctrl+B apre e chiude l'albero solo con una scheda editor davanti: nei
-  // terminali il tasto resta della shell. In cattura, così arriva prima di Monaco.
+  // Ctrl+B apre e chiude l'albero, Alt+1…9 (⌃ sul Mac) porta davanti un file
+  // aperto: solo con una scheda editor davanti, nei terminali i tasti restano
+  // della shell. In cattura, così arrivano prima di Monaco.
   document.addEventListener('keydown', (e) => {
     const t = activeId ? tabs.get(activeId) : null;
-    if (!t || !t.editor || !EditorPanel.isToggleKey(e)) return;
+    if (!t || !t.editor) return;
+    if (EditorPanel.isToggleKey(e)) {
+      e.preventDefault();
+      if (!e.repeat) editorPanel.toggle(); // tenuto premuto non fa lampeggiare l'albero
+      return;
+    }
+    const rel = t.editor.files.order[EditorPanel.openIndexKey(e, EDITOR_IS_MAC)];
+    if (!rel) return;
     e.preventDefault();
-    if (!e.repeat) editorPanel.toggle(); // tenuto premuto non fa lampeggiare l'albero
+    activateEditorFile(t, rel);
   }, true);
 }

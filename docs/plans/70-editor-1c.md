@@ -64,9 +64,19 @@ Un commit (o più) per passo; refactor e cambi di comportamento separati.
 - Il fondo di Monaco oggi viene da `--bg` di `:root`; va letto da `#main`, così
   segue il colore scelto in View → Colori (passo 3).
 
+- **Alt+1…9 sul Mac è ⌃1…9**: Opzione+cifra scrive caratteri (`~` è
+  Opzione+5 sulla tastiera italiana), e catturarla romperebbe la scrittura in
+  Monaco. Fuori dal Mac Ctrl+Alt è AltGr e non conta.
+- «Copia percorso» copia il percorso relativo alla cartella della sessione:
+  è quello che serve in un prompt.
+- Chi aveva già salvato la larghezza dell'albero (anche solo aprendo e
+  chiudendo il pannello) resta a 240: il 256 vale per chi non l'ha mai toccata.
+- Rimandato: la × per chiudere un file dal menu «N aperti» (oggi lo chiude
+  «Chiudi tutti», o riaprendo l'albero).
+
 ## Stato
 
-- [ ] 1 · icone, pannello, albero
-- [ ] 2 · Aperti e titolo
+- [x] 1 · icone, pannello, albero
+- [x] 2 · Aperti e titolo (smoke nell'app da fare)
 - [ ] 3 · barra di stato, conflitto, stato vuoto
 - [ ] 4 · git, filtro, Ctrl+P, simbolo

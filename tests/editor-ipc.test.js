@@ -37,7 +37,7 @@ ok('ipc editor: ogni canale editor del preload ha il suo handler', (t) => {
 
 ok('ipc editor: payload mancanti o radici inesistenti rispondono con un errore', async (t) => {
   const { handlers, call } = setup(t);
-  for (const channel of ['editor-list', 'editor-read', 'editor-write', 'editor-stat', 'editor-create', 'editor-mkdir', 'editor-rename', 'editor-trash', 'editor-watch', 'editor-copy-plan', 'editor-copy-run', 'editor-head-text', 'editor-definition']) {
+  for (const channel of ['editor-list', 'editor-read', 'editor-write', 'editor-stat', 'editor-create', 'editor-mkdir', 'editor-rename', 'editor-trash', 'editor-watch', 'editor-copy-plan', 'editor-copy-run', 'editor-head-text', 'editor-definition', 'editor-blame-line']) {
     for (const payload of [undefined, null, {}, { root: '/non/esiste/proprio', rel: 'a' }]) {
       const r = await call(channel, payload);
       assert.strictEqual(r.ok, false, `${channel} con ${JSON.stringify(payload)}`);
@@ -175,4 +175,11 @@ ok('ipc editor: editor-definition trova la definizione nella cartella della sche
   assert.strictEqual(r.ok, true);
   assert.deepStrictEqual(r.results.map((x) => [x.rel, x.line, x.column]), [['b.js', 1, 10]]);
   assert.deepStrictEqual(await call('editor-definition', { root, word: 'if' }), { ok: false, reason: 'invalid' });
+});
+
+ok('ipc editor: editor-blame-line rifiuta percorsi fuori e righe non valide', async (t) => {
+  const { call, root } = setup(t);
+  assert.deepStrictEqual(await call('editor-blame-line', { root, rel: '../fuori.txt', line: 1, text: 'a' }), { ok: false, reason: 'outside' });
+  assert.deepStrictEqual(await call('editor-blame-line', { root, rel: 'a.txt', line: 'uno', text: 'a' }), { ok: false, reason: 'invalid' });
+  assert.deepStrictEqual(await call('editor-blame-line', { root, rel: 'a.txt', line: 1 }), { ok: false, reason: 'invalid' });
 });

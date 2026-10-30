@@ -318,6 +318,7 @@ function ensureEditorHost(tab) {
         onSaveAll: () => saveAllEditorFiles(tab),
         onComment: (rel, from, to) => openEditorNoteDraft(tab, rel, from, to),
         onDefinition: (rel, word, at) => goToEditorDefinition(tab, rel, word, at),
+        onCursorLine: (rel, line) => scheduleEditorBlame(tab, rel, line),
         mac: /mac/i.test(navigator.platform || ''),
       });
       return ed.host;
@@ -582,6 +583,7 @@ function disposeEditorTab(tab) {
   if (!ed) return;
   for (const rel of ed.files.order) unwatchEditorFile(tab, rel);
   if (ed.gutterTimer) { clearTimeout(ed.gutterTimer.id); ed.gutterTimer = null; }
+  stopEditorBlame(tab);
   try { if (ed.host) ed.host.dispose(); } catch (e) { console.warn('chiusura di Monaco fallita', e); }
 }
 

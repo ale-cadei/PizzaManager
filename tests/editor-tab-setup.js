@@ -37,6 +37,10 @@ function fakeHost(texts) {
     activate: (rel) => calls.push(['activate', rel]),
     reveals: [], // a parte come gutters: dove si è portato il cursore
     reveal(rel, line, column) { this.reveals.push(column === undefined ? [rel, line] : [rel, line, column]); },
+    // Chi ha toccato la riga (docs/plans/73): il testo stesso fa da versione
+    lineInfos: [],
+    setLineInfo(rel, line, info) { this.lineInfos.push([rel, line, info]); },
+    version: (rel) => (rel in texts ? texts[rel] : null),
     hints: [], // i fumetti sul cursore (docs/plans/71)
     hint(text) { this.hints.push(text); return true; },
     // Commenti (docs/plans/65): segni e zone in due mappe, id da un contatore solo

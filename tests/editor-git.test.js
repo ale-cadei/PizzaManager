@@ -199,3 +199,70 @@ ok('headText: non in HEAD → si chiede a check-ignore, nella cartella del file'
   assert.deepStrictEqual(calls[1], [['check-ignore', '-q', '--', '-x'], path.join('/w', 'd')]);
   assert.deepStrictEqual(await g(false).headText('d/x'), { ok: true, text: null });
 });
+
+/* Chi ha toccato una riga, per la scheda editor (docs/plans/73) */
+const { parseBlame } = require('../lib/editor-git');
+
+ok('blameLine: riga committata → autore, data, messaggio; numeri di riga del testo dell editor', async (t) => {
+  if (!GIT) return t.skip('git non installato su questa macchina');
+  const { dir, git } = repo(t);
+  put(dir, 'sub/f.txt', 'a\nb\n');
+  git('add', '-A');
+  git('commit', '-q', '-m', 'primo messaggio', '--date', '2026-01-02T03:04:05+01:00');
+  const g = createEditorGit({ root: dir });
+  // Il testo dell'editor ha una riga in più, non salvata: «b» ora è la 3
+  const r = await g.blameLine('sub/f.txt', 3, 'a\nnuova\nb\n');
+  assert.strictEqual(r.ok, true);
+  assert.match(r.blame.hash, /^[0-9a-f]{40}$/);
+  assert.deepStrictEqual({ ...r.blame, hash: 'h' }, {
+    hash: 'h', uncommitted: false, author: 'Prova', mail: 'p@x', time: Date.parse('2026-01-02T03:04:05+01:00') / 1000, summary: 'primo messaggio',
+  });
+  assert.deepStrictEqual(await g.blameLine('sub/f.txt', 2, 'a\nnuova\nb\n'), { ok: true, blame: { uncommitted: true } });
+});
+
+ok('blameLine: file non in HEAD, repository senza commit → non committata', async (t) => {
+  if (!GIT) return t.skip('git non installato su questa macchina');
+  const { dir, git } = repo(t);
+  put(dir, 'nuovo.txt', 'n\n');
+  assert.deepStrictEqual(await createEditorGit({ root: dir }).blameLine('nuovo.txt', 1, 'n\n'), { ok: true, blame: { uncommitted: true } });
+  commit(git);
+  put(dir, 'dopo.txt', 'd\n');
+  assert.deepStrictEqual(await createEditorGit({ root: dir }).blameLine('dopo.txt', 1, 'd\n'), { ok: true, blame: { uncommitted: true } });
+});
+
+ok('blameLine: ignorato, fuori da git, riga oltre il testo', async (t) => {
+  if (!GIT) return t.skip('git non installato su questa macchina');
+  const { dir, git } = repo(t);
+  put(dir, '.gitignore', '.env\n');
+  put(dir, 'a.txt', 'a\n');
+  commit(git);
+  put(dir, '.env', 'X=1\n');
+  const g = createEditorGit({ root: dir });
+  assert.deepStrictEqual(await g.blameLine('.env', 1, 'X=1\n'), { ok: false, reason: 'ignored' });
+  assert.deepStrictEqual(await g.blameLine('a.txt', 5, 'a\n'), { ok: false, reason: 'no-line' });
+  const root = tmp(t);
+  put(root, 'a.txt', 'a\n');
+  const run = (args, o) => runGit(args, { ...o, env: { GIT_CEILING_DIRECTORIES: path.dirname(root) } });
+  assert.deepStrictEqual(await createEditorGit({ root, run }).blameLine('a.txt', 1, 'a\n'), { ok: false, reason: 'not-repo' });
+});
+
+ok('blameLine: argomenti rifiutati senza lanciare git; argv e stdin', async () => {
+  const calls = [];
+  const resolve = (rel) => path.join('/w', rel);
+  const out = 'abc 1 1 1\nauthor A\nauthor-mail <a@b>\nauthor-time 10\nsummary s\nfilename x\n\tt\n';
+  const g = createEditorGit({ root: '/w', resolve, maxRead: 5, run: async (a, o) => { calls.push([a, o.cwd, o.input]); return out; } });
+  for (const [rel, line, text] of [['../x', 1, 'a'], ['a', 0, 'a'], ['a', 1.5, 'a'], ['a', '1', 'a'], ['a', 1, null], ['a', 1, 'troppo lungo']]) {
+    const r = await g.blameLine(rel, line, text);
+    assert.strictEqual(r.ok, false, JSON.stringify([rel, line, text]));
+  }
+  assert.deepStrictEqual(calls, []);
+  assert.deepStrictEqual(await g.blameLine('d/-f', 2, 'a\nb'), { ok: true, blame: { hash: 'abc', uncommitted: false, author: 'A', mail: 'a@b', time: 10, summary: 's' } });
+  assert.deepStrictEqual(calls, [[['blame', '--porcelain', '-L', '2,2', '--contents', '-', '--', '-f'], path.join('/w', 'd'), 'a\nb']]);
+});
+
+ok('parseBlame: porcelain di una riga; riga non committata; uscita vuota', () => {
+  assert.deepStrictEqual(parseBlame('0000000000000000000000000000000000000000 2 2 1\nauthor Not Committed Yet\nauthor-time 5\nsummary x\n\tX\n'), { uncommitted: true });
+  assert.deepStrictEqual(parseBlame('ff 1 1 1\nauthor  Spazi  \nauthor-mail <>\nsummary \n\tcontenuto author finto\n'),
+    { hash: 'ff', uncommitted: false, author: ' Spazi  ', mail: '', time: null, summary: '' });
+  assert.strictEqual(parseBlame(''), null);
+});

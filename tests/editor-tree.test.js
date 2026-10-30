@@ -65,7 +65,7 @@ ok('vista: nomi come testo, classi per cartelle, ignorati e selezione', () => {
   } finally { restore(); }
 });
 
-ok('vista: chevron solo sulle cartelle, icona per tipo, rientro di 14px per livello', () => {
+ok('vista: chevron solo sulle cartelle, rientro di 14px per livello', () => {
   const restore = installDocument();
   try {
     const root = createElement('div');
@@ -75,9 +75,6 @@ ok('vista: chevron solo sulle cartelle, icona per tipo, rientro di 14px per live
     assert.ok(part('src', 'editor-tree-twisty').classList.contains('codicon-chevron-down'), 'cartella aperta');
     assert.ok(part('src/lib', 'editor-tree-twisty').classList.contains('codicon-chevron-right'), 'cartella chiusa');
     assert.ok(!part('b.js', 'editor-tree-twisty').classList.contains('codicon'), 'i file non hanno chevron');
-    assert.ok(part('src', 'editor-tree-icon').classList.contains('codicon-folder-opened'));
-    assert.ok(part('src/lib', 'editor-tree-icon').classList.contains('codicon-folder'));
-    assert.ok(part('b.js', 'editor-tree-icon').classList.contains('codicon-file-code'));
     assert.strictEqual(view.rowOf('src').style.paddingLeft, '8px');
     assert.strictEqual(view.rowOf('src/x.js').style.paddingLeft, '22px');
   } finally { restore(); }
@@ -98,6 +95,27 @@ ok('vista: F2 rinomina e Canc elimina la riga selezionata, solo con una selezion
     view.render(T.visibleRows(sample()), null);
     fire(view.element, 'keydown', { key: 'F2' });
     assert.deepStrictEqual(calls, [['rename', 'b.js'], ['trash', 'b.js'], ['trash', 'b.js']]);
+  } finally { restore(); }
+});
+
+ok('vista: con iconUrl ogni riga ha la sua icona fra freccia e nome, decorativa', () => {
+  const restore = installDocument();
+  try {
+    const root = createElement('div');
+    const seen = [];
+    const view = T.createTreeView({ root, document, onOpenFile() {}, onToggleDir() {}, onContextMenu() {},
+      iconUrl: (row) => { seen.push(row); return `icone/${row.kind}${row.expanded ? '-aperta' : ''}.svg`; } });
+    view.render(T.visibleRows(T.toggle(sample(), 'src')), null);
+    const [src, lib] = view.element.children;
+    const icon = src.children[1];
+    assert.strictEqual(icon.tag, 'img');
+    assert.strictEqual(icon.className, 'editor-tree-icon');
+    assert.strictEqual(icon.src, 'icone/dir-aperta.svg');
+    assert.strictEqual(icon.alt, '');
+    assert.strictEqual(icon.getAttribute('aria-hidden'), 'true');
+    assert.strictEqual(lib.children[1].src, 'icone/dir.svg');
+    assert.strictEqual(src.children[2].textContent, 'src');
+    assert.deepStrictEqual(seen[0], { name: 'src', kind: 'dir', expanded: true });
   } finally { restore(); }
 });
 

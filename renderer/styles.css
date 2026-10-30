@@ -107,6 +107,18 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   letter-spacing: .12em; text-transform: uppercase; color: var(--text-dim);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* Comprimi/espandi: discreto come la ✕ delle card, si accende al passaggio.
+   La doppia freccia punta a sinistra (comprimi); da collassata ruota. */
+.sidebar-toggle {
+  flex: none; margin-left: auto; align-self: flex-start;
+  width: 26px; height: 26px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 0; border-radius: 6px;
+  color: var(--text-dim); cursor: pointer;
+}
+.sidebar-toggle svg { width: 16px; height: 16px; display: block; }
+.sidebar-toggle:hover { color: var(--action); background: var(--action-soft); }
+.sidebar-toggle:focus-visible { outline: 2px solid var(--action); }
 
 /* Etichette di sezione: mono 10-11px maiuscolo.
    La riga ospita anche il selettore di raggruppamento; quando la sidebar è
@@ -164,6 +176,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .side-search input::placeholder { color: var(--text-faint); }
 .side-search input:focus { border-color: var(--action); }
+/* La lente esiste solo da collassata (vedi sotto) */
+.side-search-lens { display: none; }
 #sidebar.searching #session-list, #sidebar.searching .side-section .seg { display: none; }
 #open-search-results:not([hidden]) {
   flex: 1; min-height: 0; overflow-y: auto;
@@ -707,6 +721,86 @@ img.agent-icon--node { border-radius: 2px; }
 .worktree-empty { padding: 2px 0 4px 4px; font-size: 11px; font-style: italic; color: var(--text-dim); }
 .worktree-body.reordering .session-item { transition: transform .16s ease; }
 .worktree-body.reordering .session-item.dragging { transition: none; }
+
+/* ---------- Sidebar collassata (docs/plans/72-sidebar-collassabile.md) ----------
+   Una colonna di icone: stesse azioni, meno testo. Il markup è quello della
+   sidebar aperta; qui si nasconde il testo e si ricentra quello che resta.
+   Le card tengono icona e barretta del tipo, quindi segnali (al lavoro, ha
+   finito, permesso) e selezione si vedono come da aperta. Il nome è nel
+   tooltip della card.
+   La larghezza vince su quella inline del ridimensionamento: !important,
+   perché la maniglia la scrive in style e da aperta deve ritrovarla. */
+#sidebar { --sidebar-collapsed-w: 72px; }
+#sidebar.collapsed {
+  width: var(--sidebar-collapsed-w) !important;
+  min-width: var(--sidebar-collapsed-w); max-width: var(--sidebar-collapsed-w);
+}
+#sidebar.collapsed + #sidebar-resizer { cursor: default; }
+#sidebar.collapsed + #sidebar-resizer:hover::before { inset: 0 2px; background: var(--action); opacity: .45; }
+
+#sidebar.collapsed .brand { flex-direction: column; gap: 10px; padding: 16px 0 12px; }
+#sidebar.collapsed .logo { width: 40px; height: 40px; }
+#sidebar.collapsed .brand-text { display: none; }
+#sidebar.collapsed .sidebar-toggle { margin-left: 0; align-self: center; }
+#sidebar.collapsed .sidebar-toggle svg { transform: rotate(180deg); }
+
+#sidebar.collapsed .side-actions { grid-template-columns: 1fr; gap: 8px; padding: 12px 12px; }
+#sidebar.collapsed .side-actions .btn { padding: 8px 0; }
+#sidebar.collapsed .btn-label { display: none; }
+#sidebar.collapsed .btn-glyph { font-size: 16px; }
+
+#sidebar.collapsed .side-search { padding: 0 12px 12px; }
+#sidebar.collapsed .side-search input { display: none; }
+#sidebar.collapsed .side-search-lens {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; padding: 8px 0; box-sizing: border-box;
+  background: var(--bg); border: 1px solid var(--border-strong); border-radius: var(--radius);
+  color: var(--text-muted); cursor: pointer;
+}
+#sidebar.collapsed .side-search-lens svg { width: 16px; height: 16px; display: block; }
+#sidebar.collapsed .side-search-lens:hover { border-color: var(--action); color: var(--action-text); }
+#sidebar.collapsed .side-search-lens:focus-visible { outline: none; border-color: var(--action); box-shadow: 0 0 0 3px var(--action-ring); }
+
+/* Etichetta e selettore Tipo/Progetto non stanno in 72px; i risultati della
+   ricerca neppure: da collassata si vede la lista, anche con una ricerca in corso. */
+#sidebar.collapsed .side-section,
+#sidebar.collapsed #open-search-results:not([hidden]) { display: none; }
+#sidebar.collapsed.searching #session-list { display: flex; }
+#sidebar.collapsed #session-list { padding: 0 6px 24px; }
+
+/* Gruppo: resta la linguetta con l'icona, che apre e chiude come prima */
+#sidebar.collapsed .group-cap { padding: var(--space-1) 2px 0; }
+#sidebar.collapsed .group-cap:has(> .group-header[aria-expanded="false"]) { padding-bottom: var(--space-1); }
+#sidebar.collapsed .group-header { justify-content: center; padding: 6px 0 var(--space-2); }
+#sidebar.collapsed .group-header .chevron,
+#sidebar.collapsed .group-header .group-name,
+#sidebar.collapsed .group-header .group-count,
+#sidebar.collapsed .group-header .sel-mark,
+#sidebar.collapsed .group-add,
+#sidebar.collapsed .group-resume,
+#sidebar.collapsed .group-worktree { display: none; }
+#sidebar.collapsed .group-header .icon { font-size: 16px; }
+#sidebar.collapsed .group-body { padding: 4px; padding-top: 0; }
+
+/* Card: barretta del tipo + icona, centrate */
+#sidebar.collapsed .session-item { justify-content: center; padding: 9px 0 9px 8px; }
+#sidebar.collapsed .session-item .sel-mark,
+#sidebar.collapsed .session-item .meta,
+#sidebar.collapsed .close-x,
+#sidebar.collapsed .export-md { display: none; }
+#sidebar.collapsed .session-item::before { left: 4px; }
+
+/* Worktree: solo il glifo del branch */
+#sidebar.collapsed .worktree-row { justify-content: center; padding: 4px 0 2px; }
+#sidebar.collapsed .worktree-row > :not(.worktree-glyph) { display: none; }
+#sidebar.collapsed .worktree-body { margin-left: 0; padding-left: 2px; }
+#sidebar.collapsed .worktree-empty { display: none; }
+
+/* Legenda: solo i pallini (il nome è un nodo di testo: si spegne col font) */
+#sidebar.collapsed .side-footer { justify-content: center; gap: 8px; padding: 0 10px; }
+#sidebar.collapsed .legend { font-size: 0; }
+#sidebar.collapsed .legend .dot { margin-right: 0; }
+#sidebar.collapsed #deps-status { display: none; }
 
 /* ---------- Area terminale ---------- */
 /* Colonna: terminale sopra, barra dell'uso sotto. La barra sta qui e non in
@@ -1345,7 +1439,7 @@ body.editor-tree-hidden .editor-open-menu:not([hidden]) { display: inline-flex; 
 }
 .editor-tree-row.is-ignored { opacity: .5; }
 .editor-tree-twisty { width: 14px; flex: none; color: var(--text-faint); font-size: 14px; }
-.editor-tree-icon { flex: none; font-size: 15px; }
+.editor-tree-icon { width: 16px; height: 16px; flex: none; }
 .editor-tree-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* Lettere git (docs/plans/70): M cambiato, U/A nuovo, D eliminato; • sulle cartelle */
 .editor-tree-git { flex: none; min-width: 10px; font: 500 11px var(--font-mono); text-align: center; }
@@ -1510,6 +1604,8 @@ body.editor-tree-hidden .editor-open-menu:not([hidden]) { display: inline-flex; 
 .editor-note-zone .changes-comment-edit:hover, .editor-note-zone .changes-comment-remove:hover { background: var(--surface-3); }
 .monaco-editor .editor-note-line { background: color-mix(in srgb, var(--action-text) 10%, transparent); }
 .monaco-editor .editor-note-add { display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.monaco-editor .editor-def-link { text-decoration: underline; cursor: pointer; } /* Ctrl/⌘ sopra un nome (docs/plans/71) */
+.monaco-editor .editor-blame { color: var(--text-dim); opacity: .7; font-style: italic; } /* chi ha toccato la riga (docs/plans/73) */
 .monaco-editor .editor-note-add::before { content: '+'; font: 600 14px/1 var(--font-ui); color: var(--action-text); }
 .editor-notes-bar {
   flex: none; display: flex; align-items: center; gap: 8px; height: 28px; margin-left: auto; padding: 0 4px 0 10px;

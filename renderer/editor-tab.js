@@ -12,6 +12,7 @@
 
 const EditorFiles = window.AisessEditorFiles;
 const EditorTree = window.AisessEditorTree;
+const FileIcons = window.AisessFileIcons;
 const EditorMonaco = window.AisessEditorMonaco;
 const EditorPanel = window.AisessEditorPanel;
 // Larghezza e aperto/chiuso dell'albero, uguali per tutte le schede editor
@@ -109,6 +110,7 @@ function buildEditorLayout(tab) {
     onRename: (row) => renameEditorEntry(tab, row),
     onTrash: (row) => trashEditorEntry(tab, row),
     onTypeToFilter: (key) => openEditorFilter(tab, key),
+    iconUrl: FileIcons.iconUrl,
   });
   const resizer = el('div', 'editor-resizer', tab.wrap);
   resizer.title = `Trascina per allargare l'albero, doppio click per tornare a ${EditorPanel.DEFAULT_W}px`;
@@ -340,6 +342,9 @@ function ensureEditorHost(tab) {
         onSaveAll: () => saveAllEditorFiles(tab),
         onComment: (rel, from, to) => openEditorNoteDraft(tab, rel, from, to),
         onCursor: (rel, pos) => onEditorCursor(tab, rel, pos),
+        onDefinition: (rel, word, at) => goToEditorDefinition(tab, rel, word, at),
+        onCursorLine: (rel, line) => scheduleEditorBlame(tab, rel, line),
+        mac: /mac/i.test(navigator.platform || ''),
       });
       // Il fondo di #main, come i terminali: segue il colore scelto in View → Colori
       EditorMonaco.applyTheme(window, { background: termTheme().background });
@@ -615,6 +620,7 @@ function disposeEditorTab(tab) {
   if (ed.gutterTimer) { clearTimeout(ed.gutterTimer.id); ed.gutterTimer = null; }
   clearTimeout(ed.symbolTimer);
   if (ed.quick) ed.quick.close();
+  stopEditorBlame(tab);
   try { if (ed.host) ed.host.dispose(); } catch (e) { console.warn('chiusura di Monaco fallita', e); }
 }
 

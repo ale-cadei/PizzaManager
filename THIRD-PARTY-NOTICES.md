@@ -11,7 +11,9 @@ The artwork is ours: the application icon and the pixel-art characters were
 drawn for PizzaManager. The exception are the product logos that identify the
 tools PizzaManager runs or talks to — Docker, GitHub, Node.js, Python, Claude
 Code and Antigravity. Those names and logos belong to their respective owners
-and are used here only to refer to those products.
+and are used here only to refer to those products. The file and folder icons
+of the editor tree (`renderer/file-icons/`) come from Material Icon Theme; the
+language and tool logos among them belong to their respective owners too.
 
 | Component | Version | License |
 |---|---|---|
@@ -32,6 +34,7 @@ and are used here only to refer to those products.
 | lazy-val | 1.0.5 | MIT |
 | lodash.escaperegexp | 4.1.2 | MIT |
 | lodash.isequal | 4.5.0 | MIT |
+| material-icon-theme (icons only) | 5.40.0 | MIT |
 | monaco-editor | 0.57.0 | MIT |
 | ms | 2.1.3 | MIT |
 | node-addon-api | 7.1.1 | MIT |
@@ -733,6 +736,19 @@ Files located in the node_modules and vendor directories are externally
 maintained libraries used by this software which have their own
 licenses; we recommend you read them, as their terms may differ from the
 terms above.
+```
+
+### material-icon-theme 5.40.0 — MIT
+
+```
+The MIT License (MIT)
+Copyright (c) 2025 Material Extensions
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
 ### monaco-editor 0.57.0 — MIT

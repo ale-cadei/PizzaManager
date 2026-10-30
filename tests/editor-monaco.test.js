@@ -1,6 +1,6 @@
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
-const { createEditorHost } = require('../renderer/editor-monaco');
+const { createEditorHost, quietBuiltinDefinitions } = require('../renderer/editor-monaco');
 
 /* Monaco non gira sotto Node: un finto con le sole cose che l'host usa
    (model con versione e decorazioni, editor con view state, comandi e zone). */
@@ -26,10 +26,8 @@ function fakeMonaco() {
     saveViewState: () => ({ of: editor.model && editor.model.uri.path }),
     restoreViewState(v) { editor.view = v; },
     focus() {}, updateOptions() {},
-    position: null, revealed: [], cursor: null,
+    position: null, revealed: [],
     setPosition(p) { editor.position = p; },
-    getPosition: () => editor.position,
-    onDidChangeCursorPosition(f) { editor.cursor = f; },
     revealLineInCenter(line) { editor.revealed.push(line); },
     ran: [],
     getAction: (id) => ({ run() { editor.ran.push(id); } }),
@@ -38,11 +36,25 @@ function fakeMonaco() {
     getSelection: () => editor.selection,
     // Come Monaco: i tasti di un'azione valgono solo in questo editor, e il disposable li toglie
     addAction(a) { editor.actions.push(a); return { dispose() { editor.actions = editor.actions.filter((x) => x !== a); } }; },
-    onMouseDown(f) { editor.mouse.down = f; },
-    onMouseMove(f) { editor.mouse.move = f; },
-    onMouseLeave(f) { editor.mouse.leave = f; },
+    // Come Monaco: più ascoltatori per evento; mouse.<nome>(e) li chiama tutti
+    listeners: {},
+    onMouseDown: (f) => listen('down', f),
+    onMouseUp: (f) => listen('up', f),
+    onMouseMove: (f) => listen('move', f),
+    onMouseLeave: (f) => listen('leave', f),
+    onKeyUp: (f) => listen('keyup', f),
+    // mouse.cursor({position}) come Monaco quando il cursore si sposta (docs/plans/73)
+    onDidChangeCursorPosition: (f) => listen('cursor', f),
+    messages: [],
+    getPosition: () => editor.position,
+    getContribution: (id) => (id === 'editor.contrib.messageController'
+      ? { showMessage: (text, at) => editor.messages.push([text, at]) } : null),
   };
-  function createModel(text, _language, uri) {
+  function listen(name, f) {
+    (editor.listeners[name] = editor.listeners[name] || []).push(f);
+    editor.mouse[name] = (e) => editor.listeners[name].forEach((g) => g(e));
+  }
+  function createModel(text, language, uri) {
     const listeners = [];
     let value = text;
     let version = 1;
@@ -51,7 +63,7 @@ function fakeMonaco() {
     const change = () => { version += 1; listeners.forEach((f) => f()); };
     const top = { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1 };
     const m = {
-      uri, disposed: false, eol: null, decorations: [], removed: [], live,
+      uri, language, disposed: false, eol: null, decorations: [], removed: [], live,
       getValue: () => value,
       options: { tabSize: 2, insertSpaces: true }, eolText: '\n', languageId: 'javascript',
       getOptions: () => m.options,
@@ -60,6 +72,15 @@ function fakeMonaco() {
       getLineCount: () => lines().length,
       getLineContent: (n) => lines()[n - 1],
       getLineMaxColumn: (n) => lines()[n - 1].length + 1,
+      getWordAtPosition: ({ lineNumber, column }) => {
+        const text = lines()[lineNumber - 1] || '';
+        for (const w of text.matchAll(/[\w$]+/g)) {
+          if (column >= w.index + 1 && column <= w.index + w[0].length + 1) {
+            return { word: w[0], startColumn: w.index + 1, endColumn: w.index + w[0].length + 1 };
+          }
+        }
+        return null;
+      },
       getAlternativeVersionId: () => version,
       getFullModelRange: () => ({ all: true }),
       // Tutto il testo sostituito: le decorazioni si schiacciano in cima, come in Monaco
@@ -179,6 +200,15 @@ ok('rename: model nuovo col nome nuovo, sporco se lo era, vecchio buttato', () =
   assert.strictEqual(h.isDirty('lib/b.ts'), true);
   assert.strictEqual(h.getText('a.js'), null);
   assert.strictEqual(h.current(), 'lib/b.ts');
+});
+
+ok('open e rename: linguaggio dal nome del file, il resto lo sceglie Monaco', () => {
+  const { h, fake } = host();
+  h.open('.env', 'A=1');
+  h.open('src/a.js', 'x');
+  assert.deepStrictEqual(fake.models.map((m) => m.language), ['dotenv', undefined]);
+  h.rename('.env', 'Makefile');
+  assert.strictEqual(fake.models[2].language, 'makefile');
 });
 
 ok('close e dispose buttano i model', () => {
@@ -516,7 +546,7 @@ ok('cursore: onCursor dice riga e colonna del file attivo, anche quando lo si at
   const { h, fake } = host({ onCursor: (rel, pos) => seen.push([rel, pos.line, pos.col]) });
   h.open('a.js', 'uno\ndue');
   fake.editor.position = { lineNumber: 2, column: 3 };
-  fake.editor.cursor({ position: { lineNumber: 2, column: 3 } });
+  fake.editor.mouse.cursor({ position: { lineNumber: 2, column: 3 } });
   h.open('b.js', 'x');
   assert.deepStrictEqual(seen.at(-2), ['a.js', 2, 3]);
   assert.strictEqual(seen.at(-1)[0], 'b.js', 'attivando un file la barra si aggiorna subito');
@@ -609,4 +639,162 @@ ok('symbolAt: un worker che fallisce non rompe niente', async () => {
   fake.models[0].getOffsetAt = () => 1;
   fake.monaco.typescript = { getTypeScriptWorker: async () => { throw new Error('worker morto'); } };
   assert.strictEqual(await h.symbolAt('a.ts', 1, 1), null);
+});
+
+/* ---------- vai alla definizione (docs/plans/71) ---------- */
+
+const CODE = 'const a = helper(1);\nfunction helper() {}\n';
+const onText = (lineNumber, column, event = {}) => ({
+  target: { type: 6, position: { lineNumber, column } },
+  event: { leftButton: true, rightButton: false, ctrlKey: false, metaKey: false, ...event },
+});
+const ctrl = (lineNumber, column, more = {}) => onText(lineNumber, column, { ctrlKey: true, ...more });
+const click = (fake, e) => { fake.editor.mouse.down(e); fake.editor.mouse.up(e); };
+
+ok('definizione: Ctrl+click su un nome chiama onDefinition con file, nome e inizio del nome', () => {
+  const asked = [];
+  const { h, fake } = host({ onDefinition: (...a) => asked.push(a) });
+  h.open('src/a.js', CODE);
+  click(fake, ctrl(1, 13));
+  assert.deepStrictEqual(asked, [['src/a.js', 'helper', { lineNumber: 1, column: 11 }]]);
+});
+
+ok('definizione: senza modificatore, col modificatore sbagliato, fuori dal testo o trascinando non parte', () => {
+  const asked = [];
+  const { h, fake } = host({ onDefinition: (...a) => asked.push(a) });
+  h.open('a.js', CODE);
+  click(fake, onText(1, 13));
+  click(fake, onText(1, 13, { metaKey: true })); // ⌘ fuori dal Mac
+  click(fake, { ...ctrl(1, 13), target: { type: 3, position: { lineNumber: 1, column: 1 } } });
+  click(fake, ctrl(1, 9)); // `=`: nessun nome
+  click(fake, ctrl(1, 13, { leftButton: false }));
+  fake.editor.mouse.down(ctrl(1, 13));
+  fake.editor.mouse.up(ctrl(2, 12)); // giù su un nome, su altrove
+  assert.deepStrictEqual(asked, []);
+});
+
+ok('definizione: su Mac vale ⌘, non Ctrl', () => {
+  const asked = [];
+  const { h, fake } = host({ onDefinition: (...a) => asked.push(a), mac: true });
+  h.open('a.js', CODE);
+  click(fake, ctrl(1, 13));
+  click(fake, onText(2, 12, { metaKey: true }));
+  assert.deepStrictEqual(asked, [['a.js', 'helper', { lineNumber: 2, column: 10 }]]);
+});
+
+ok('definizione: col modificatore il nome sotto il mouse si sottolinea, senza no', () => {
+  const { h, fake } = host({ onDefinition: () => {} });
+  h.open('a.js', CODE);
+  const m = fake.models[0];
+  const links = () => [...m.live.values()].filter((d) => d.options.inlineClassName === 'editor-def-link').map((d) => d.range);
+  fake.editor.mouse.move(ctrl(1, 13));
+  assert.deepStrictEqual(links(), [{ startLineNumber: 1, startColumn: 11, endLineNumber: 1, endColumn: 17 }]);
+  fake.editor.mouse.move(onText(1, 13));
+  assert.deepStrictEqual(links(), []);
+  fake.editor.mouse.move(ctrl(2, 3));
+  assert.strictEqual(links().length, 1);
+  fake.editor.mouse.keyup({ ctrlKey: false });
+  assert.deepStrictEqual(links(), [], 'Ctrl lasciato');
+  fake.editor.mouse.move(ctrl(2, 3));
+  fake.editor.mouse.leave({});
+  assert.deepStrictEqual(links(), []);
+});
+
+ok('definizione: senza onDefinition l\'host non ascolta il Ctrl+click', () => {
+  const { h, fake } = host();
+  h.open('a.js', CODE);
+  assert.ok(!fake.editor.listeners.up, 'nessun onMouseUp');
+  assert.ok(!fake.editor.listeners.keyup, 'nessun onKeyUp');
+});
+
+ok('definizione: reveal porta alla colonna, hint usa il fumetto di Monaco', () => {
+  const { h, fake } = host();
+  h.open('a.js', CODE);
+  h.reveal('a.js', 2, 10);
+  assert.deepStrictEqual(fake.editor.position, { lineNumber: 2, column: 10 });
+  h.reveal('a.js', 1);
+  assert.deepStrictEqual(fake.editor.position, { lineNumber: 1, column: 1 }, 'senza colonna: inizio riga');
+  assert.strictEqual(h.hint('Nessuna definizione'), true);
+  assert.deepStrictEqual(fake.editor.messages, [['Nessuna definizione', { lineNumber: 1, column: 1 }]]);
+  fake.editor.getContribution = () => null;
+  assert.strictEqual(h.hint('x'), false);
+});
+
+ok('definizione: le definizioni interne di Monaco (JS/TS, CSS) si spengono, il resto della configurazione resta', () => {
+  const defaults = (name) => ({
+    name, modeConfiguration: { completionItems: true, definitions: true, hovers: true }, set: null,
+    setModeConfiguration(c) { this.set = c; },
+  });
+  const monaco = {
+    typescript: { typescriptDefaults: defaults('ts'), javascriptDefaults: defaults('js') },
+    css: { cssDefaults: defaults('css'), scssDefaults: defaults('scss'), lessDefaults: defaults('less') },
+  };
+  quietBuiltinDefinitions(monaco);
+  for (const d of [...Object.values(monaco.typescript), ...Object.values(monaco.css)]) {
+    assert.deepStrictEqual(d.set, { completionItems: true, definitions: false, hovers: true }, d.name);
+  }
+  quietBuiltinDefinitions({}); // senza i linguaggi non si rompe
+});
+
+/* Chi ha toccato la riga del cursore (docs/plans/73) */
+const blameOf = (fake) => [...fake.editor.model.live.values()].filter((d) => d.options.after);
+
+ok('riga del cursore: onCursorLine col file e la riga, anche quando il testo cambia', () => {
+  const lines = [];
+  const { h, fake } = host({ onCursorLine: (...a) => lines.push(a) });
+  h.open('a.js', 'uno\ndue');
+  lines.length = 0;
+  fake.editor.position = { lineNumber: 2, column: 1 };
+  fake.editor.mouse.cursor({ position: fake.editor.position });
+  fake.editor.model.type('!');
+  assert.deepStrictEqual(lines, [['a.js', 2], ['a.js', 2]]);
+});
+
+ok('riga del cursore: aprire un file lo dice subito', () => {
+  const lines = [];
+  const { h, fake } = host({ onCursorLine: (...a) => lines.push(a) });
+  fake.editor.position = { lineNumber: 1, column: 1 };
+  h.open('a.js', 'uno');
+  assert.deepStrictEqual(lines, [['a.js', 1]]);
+});
+
+ok('setLineInfo: testo in fondo alla riga, fumetto con markdown escapato; uno solo alla volta', () => {
+  const { h, fake } = host({ onCursorLine: () => {} });
+  h.open('a.js', 'uno\ndue');
+  h.setLineInfo('a.js', 2, { text: 'Ale, ieri · fix', title: 'abc · *Ale*\n\n[x](http://y)' });
+  const [d] = blameOf(fake);
+  assert.deepStrictEqual(d.range, { startLineNumber: 2, startColumn: 4, endLineNumber: 2, endColumn: 4 });
+  assert.strictEqual(d.options.after.content.trimStart(), 'Ale, ieri · fix');
+  assert.strictEqual(d.options.after.inlineClassName, 'editor-blame');
+  assert.strictEqual(d.options.showIfCollapsed, true);
+  assert.strictEqual(d.options.hoverMessage.value, 'abc · \\*Ale\\*  \n  \n\\[x\\]\\(http://y\\)');
+  h.setLineInfo('a.js', 1, { text: 'b', title: 'b' });
+  assert.deepStrictEqual(blameOf(fake).map((x) => x.range.startLineNumber), [1]);
+  h.setLineInfo('a.js', 1, null);
+  assert.deepStrictEqual(blameOf(fake), []);
+});
+
+ok('setLineInfo: si toglie quando il cursore si sposta o il testo cambia; file non attivo o riga fuori → niente', () => {
+  const { h, fake } = host({ onCursorLine: () => {} });
+  h.open('b.js', 'b');
+  h.open('a.js', 'uno\ndue');
+  h.setLineInfo('a.js', 1, { text: 't', title: 't' });
+  fake.editor.position = { lineNumber: 2, column: 1 };
+  fake.editor.mouse.cursor({ position: fake.editor.position });
+  assert.deepStrictEqual(blameOf(fake), []);
+  h.setLineInfo('a.js', 1, { text: 't', title: 't' });
+  fake.editor.model.type('x');
+  assert.deepStrictEqual(blameOf(fake), []);
+  h.setLineInfo('b.js', 1, { text: 't', title: 't' });
+  h.setLineInfo('a.js', 9, { text: 't', title: 't' });
+  assert.deepStrictEqual(blameOf(fake), []);
+});
+
+ok('version: cambia col testo, per la cache della scheda', () => {
+  const { h, fake } = host();
+  h.open('a.js', 'uno');
+  const v = h.version('a.js');
+  fake.editor.model.type('x');
+  assert.notStrictEqual(h.version('a.js'), v);
+  assert.strictEqual(h.version('nessuno.js'), null);
 });

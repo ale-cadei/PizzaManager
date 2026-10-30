@@ -24,7 +24,7 @@ ok('renderer: tutti gli script si caricano insieme e init parte al DOMContentLoa
   // Una funzione per file: se uno script manca o non si carica, qui si vede
   const expected = ['escapeHtml', 'flagAttention', 'createTab', 'renameTab', 'renderSidebar', 'openNewModal',
     'fillAccountSelect', 'openResumeModal', 'offerRestore', 'runEditAction', 'refreshDeps', 'init',
-    'createEditorTab', 'initEditorTabs', 'loadEditorGutterBase', 'renderEditorNotes'];
+    'createEditorTab', 'initEditorTabs', 'loadEditorGutterBase', 'renderEditorNotes', 'goToEditorDefinition', 'scheduleEditorBlame'];
   const missing = expected.filter((n) => vm.runInContext(`typeof ${n}`, ctx) !== 'function');
   assert.deepStrictEqual(missing, []);
 });

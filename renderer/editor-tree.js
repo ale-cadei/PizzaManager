@@ -108,7 +108,7 @@
 
   function createTreeView({
     root, document: doc, onOpenFile, onToggleDir, onContextMenu,
-    onCopyInto = () => {}, onDeselect = () => {}, onRename = () => {}, onTrash = () => {}, onTypeToFilter = () => {},
+    onCopyInto = () => {}, onDeselect = () => {}, onRename = () => {}, onTrash = () => {}, onTypeToFilter = () => {}, iconUrl = null,
   }) {
     const list = doc.createElement('div');
     list.className = 'editor-tree';
@@ -183,6 +183,17 @@
       action(row);
     });
 
+    // Icona per tipo (docs/plans/70): decorativa, il nome accanto dice già tutto
+    function iconElement(r) {
+      const img = doc.createElement('img');
+      img.className = 'editor-tree-icon';
+      img.alt = '';
+      img.setAttribute('aria-hidden', 'true');
+      img.draggable = false;
+      img.src = iconUrl({ name: r.name, kind: r.kind, expanded: r.expanded });
+      return img;
+    }
+
     function gitMark(r, git, dirs) {
       const mark = doc.createElement('span');
       const letter = r.kind === 'dir' ? (dirs.has(r.rel) ? '•' : '') : git[r.rel] || '';
@@ -224,7 +235,7 @@
       const name = doc.createElement('span');
       name.className = 'editor-tree-name';
       name.textContent = r.name; // testo, mai HTML: il nome viene dal disco
-      el.append(twisty, Icons.iconElement(doc, r.name, r.kind, r.expanded, 'editor-tree-icon'), name, gitMark(r, git, dirs));
+      el.append(twisty, ...(iconUrl ? [iconElement(r)] : []), name, gitMark(r, git, dirs));
       el.onclick = () => (r.kind === 'dir' ? onToggleDir(r.rel) : onOpenFile(r.rel));
       el.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(r, e); };
       el.addEventListener('dragover', onDragOver(dirOf(r)));

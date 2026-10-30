@@ -8,10 +8,10 @@
  *
  * Wrapper UMD come sidebar.js: globale nella pagina, module.exports sotto Node. */
 (function (root, factory) {
-  const api = factory();
+  const api = factory(root ? root.AisessEditorLanguages : require('./editor-languages'));
   if (root) root.AisessEditorMonaco = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-})(typeof window !== 'undefined' ? window : null, function () {
+})(typeof window !== 'undefined' ? window : null, function (Languages) {
   const BASE = '../node_modules/monaco-editor/min/vs';
   const THEME = 'aisess';
   const FONT = "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace";
@@ -79,6 +79,18 @@
     return here;
   }
 
+  /* Le definizioni interne di Monaco (JS/TS, CSS) saltano solo dentro il
+     file e, insieme a Ctrl+click dell'host, darebbero due salti: si spengono
+     e la definizione la cerca il main per tutti i linguaggi (docs/plans/71).
+     setModeConfiguration sostituisce tutto: si parte da quella che c'è. */
+  function quietBuiltinDefinitions(monaco) {
+    const ts = monaco.typescript || {};
+    const css = monaco.css || {};
+    for (const d of [ts.typescriptDefaults, ts.javascriptDefaults, css.cssDefaults, css.scssDefaults, css.lessDefaults]) {
+      if (d && typeof d.setModeConfiguration === 'function') d.setModeConfiguration({ ...d.modeConfiguration, definitions: false });
+    }
+  }
+
   /** Carica Monaco una volta. Se fallisce, la prossima chiamata ritenta. */
   function load(win) {
     if (win.monaco && win.monaco.editor) return Promise.resolve(win.monaco);
@@ -92,6 +104,8 @@
         win.require.config({ paths: { vs: BASE } });
         win.require(['vs/editor/editor.main'], () => {
           defineTheme(win, win.monaco);
+          quietBuiltinDefinitions(win.monaco);
+          Languages.registerLanguages(win.monaco); // .env, .gitignore, Makefile, toml (docs/plans/74)
           resolve(win.monaco);
         }, (e) => reject(e instanceof Error ? e : new Error(String(e))));
       };
@@ -105,9 +119,17 @@
    *   onChange: (rel: string, dirty: boolean, edited: boolean) => void,
    *   onSave: (rel: string|null) => void, onSaveAll: () => void,
    *   onComment?: (rel: string, from: number, to: number) => void,
-   *   onCursor?: (rel: string, pos: {line: number, col: number}) => void}} o
+   *   onCursor?: (rel: string, pos: {line: number, col: number}) => void,
+   *   onDefinition?: (rel: string, word: string, at: {lineNumber: number, column: number}) => void,
+   *   onCursorLine?: (rel: string, line: number) => void,
+   *   mac?: boolean}} o `onDefinition`: Ctrl+click (⌘ con `mac`) su un nome (docs/plans/71);
+   *   `onCursorLine`: il cursore è su una riga, o il suo testo è cambiato (docs/plans/73);
+   *   `onCursor`: riga e colonna per la barra di stato (docs/plans/75)
    */
-  function createEditorHost({ monaco, container, fontSize, onChange, onSave, onSaveAll, onComment = () => {}, onCursor = () => {} }) {
+  function createEditorHost({
+    monaco, container, fontSize, onChange, onSave, onSaveAll, onComment = () => {}, onDefinition = null,
+    onCursorLine = null, mac = false, onCursor = () => {},
+  }) {
     // Autorità diversa per host: due schede sulla stessa cartella hanno model distinti
     const authority = `h${++hosts}`;
     const docs = new Map(); // rel → { rel, model, savedVersion, viewState, forcedDirty, sub, gutter, marks, zones }
@@ -145,12 +167,14 @@
       d.sub = d.model.onDidChangeContent(() => {
         followZones(d);
         onChange(d.rel, dirtyOf(d), true);
+        if (d.rel === current) cursorLine();
       });
       docs.set(d.rel, d);
     }
 
     function make(rel, text, extra = {}) {
-      const model = monaco.editor.createModel(text, undefined, uriOf(rel));
+      // Il nome del file sceglie il linguaggio; se non lo conosce, decide Monaco dall'estensione
+      const model = monaco.editor.createModel(text, Languages.languageFor(rel), uriOf(rel));
       track({
         rel, model, savedVersion: model.getAlternativeVersionId(), viewState: null, forcedDirty: false, sub: null, gutter: [], conflicts: [],
         marks: new Map(), zones: new Map(), ...extra,
@@ -172,6 +196,7 @@
       if (fresh) d.zones.forEach(showZone);
       if (d.viewState) editor.restoreViewState(d.viewState);
       editor.focus();
+      cursorLine();
       tellCursor(editor.getPosition() || { lineNumber: 1, column: 1 });
     }
 
@@ -324,11 +349,11 @@
       if (view) editor.restoreViewState(view);
     }
 
-    /** Porta il cursore all'inizio della riga e la mette al centro (piano 64). */
-    function reveal(rel, line) {
+    /** Porta il cursore sulla riga (piano 64), alla colonna se c'è (piano 71), e la mette al centro. */
+    function reveal(rel, line, column = 1) {
       if (!docs.has(rel)) return;
       if (current !== rel) activate(rel);
-      editor.setPosition({ lineNumber: line, column: 1 });
+      editor.setPosition({ lineNumber: line, column });
       editor.revealLineInCenter(line);
       editor.focus();
     }
@@ -568,6 +593,111 @@
       });
     }
 
+    /* Vai alla definizione (docs/plans/71). Col modificatore il nome sotto il
+       mouse si sottolinea; il clic vale se giù e su cadono sullo stesso nome
+       (un trascinamento con Ctrl premuto resta una selezione). */
+    let link = { rel: null, ids: [] };
+    let pressed = null;
+    const held = (ev) => Boolean(ev && (mac ? ev.metaKey : ev.ctrlKey));
+
+    function wordAt(e) {
+      const d = docs.get(current);
+      const pos = e.target && e.target.position;
+      if (!d || e.target.type !== MT.CONTENT_TEXT || !pos) return null;
+      const w = d.model.getWordAtPosition(pos);
+      return w ? { word: w.word, lineNumber: pos.lineNumber, column: w.startColumn, endColumn: w.endColumn } : null;
+    }
+
+    function clearLink() {
+      const d = docs.get(link.rel);
+      if (d && link.ids.length) d.model.deltaDecorations(link.ids, []);
+      link = { rel: null, ids: [] };
+    }
+
+    function showLink(w) {
+      clearLink();
+      const d = docs.get(current);
+      const range = { startLineNumber: w.lineNumber, startColumn: w.column, endLineNumber: w.lineNumber, endColumn: w.endColumn };
+      link = { rel: current, ids: d.model.deltaDecorations([], [{ range, options: { inlineClassName: 'editor-def-link' } }]) };
+    }
+
+    const sameWord = (a, b) => a && b && a.word === b.word && a.lineNumber === b.lineNumber && a.column === b.column;
+
+    function wireDefinitions() {
+      if (!onDefinition) return;
+      editor.onMouseMove((e) => {
+        const w = held(e.event) ? wordAt(e) : null;
+        if (w) showLink(w);
+        else clearLink();
+      });
+      editor.onMouseLeave(() => clearLink());
+      editor.onKeyUp((e) => { if (!held(e)) clearLink(); });
+      editor.onMouseDown((e) => {
+        pressed = e.event && e.event.leftButton && held(e.event) ? wordAt(e) : null;
+      });
+      editor.onMouseUp((e) => {
+        const w = held(e.event) ? wordAt(e) : null;
+        const go = sameWord(w, pressed);
+        pressed = null;
+        if (!go) return;
+        clearLink();
+        onDefinition(current, w.word, { lineNumber: w.lineNumber, column: w.column });
+      });
+    }
+
+    /** Il fumetto di Monaco sul cursore («Nessuna definizione…»); false se non c'è */
+    function hint(text) {
+      const c = editor.getContribution && editor.getContribution('editor.contrib.messageController');
+      if (!c || typeof c.showMessage !== 'function' || !editor.getPosition()) return false;
+      c.showMessage(text, editor.getPosition());
+      return true;
+    }
+
+    /* Chi ha toccato la riga del cursore (docs/plans/73): un testo in fondo
+       alla riga (decorazione `after`) col fumetto; uno solo per host. Si
+       toglie appena il cursore cambia riga o il testo cambia: chi lo mette
+       (editor-blame-ui.js) aspetta che il cursore si fermi. */
+    let blame = { rel: null, ids: [] };
+
+    function clearLineInfo() {
+      const d = docs.get(blame.rel);
+      if (d && blame.ids.length) d.model.deltaDecorations(blame.ids, []);
+      blame = { rel: null, ids: [] };
+    }
+
+    function cursorLine() {
+      clearLineInfo();
+      const pos = editor.getPosition();
+      if (onCursorLine && current && pos) onCursorLine(current, pos.lineNumber);
+    }
+
+    // Stacco dal codice dentro il testo: Monaco può spezzare il testo iniettato in
+    // più span e un margine CSS cadrebbe su ognuno, aprendo buchi a metà frase
+    const LINE_INFO_GAP = '\u00a0'.repeat(6);
+
+    // Il fumetto è markdown: autore e messaggio vengono da git, si mostrano come testo
+    const markdownText = (text) => text.replace(/[\\`*_{}[\]()#+\-!|<>~]/g, '\\$&').replace(/\n/g, '  \n');
+
+    /** @param {{text: string, title: string}|null} info null toglie il testo */
+    function setLineInfo(rel, line, info) {
+      clearLineInfo();
+      const d = docs.get(rel);
+      if (!info || !d || rel !== current || !validLines(d.model, line, line)) return;
+      const end = d.model.getLineMaxColumn(line);
+      const range = { startLineNumber: line, startColumn: end, endLineNumber: line, endColumn: end };
+      const options = {
+        after: { content: LINE_INFO_GAP + info.text, inlineClassName: 'editor-blame' },
+        hoverMessage: { value: markdownText(info.title) },
+        showIfCollapsed: true,
+      };
+      blame = { rel, ids: d.model.deltaDecorations([], [{ range, options }]) };
+    }
+
+    function wireCursorLine() {
+      if (!onCursorLine) return;
+      editor.onDidChangeCursorPosition(() => cursorLine());
+    }
+
     function dispose() {
       for (const rel of [...docs.keys()]) close(rel);
       owned.splice(0).forEach((d) => d.dispose());
@@ -575,18 +705,22 @@
     }
 
     wireComments();
+    wireDefinitions();
+    wireCursorLine();
 
     return {
-      open, activate, info, symbolAt, markSaved, replaceText, rename, close, dispose, setGutter, setConflicts, editText, reveal,
+      open, activate, info, symbolAt, markSaved, replaceText, rename, close, dispose, setGutter, setConflicts, editText, reveal, hint, setLineInfo,
       trackLines, linesOf, untrack, lineText, addZone, removeZone, resizeZone,
       current: () => current,
       getText: (rel) => (docs.has(rel) ? docs.get(rel).model.getValue() : null),
       // Senza copiare il testo: le barrette saltano i file troppo lunghi (docs/plans/63)
       lineCount: (rel) => (docs.has(rel) ? docs.get(rel).model.getLineCount() : 0),
+      // Cambia a ogni modifica del testo: editor-blame-ui.js scarta le risposte per un testo vecchio
+      version: (rel) => (docs.has(rel) ? docs.get(rel).model.getAlternativeVersionId() : null),
       isDirty: (rel) => docs.has(rel) && dirtyOf(docs.get(rel)),
       focus: () => editor.focus(),
     };
   }
 
-  return { load, applyTheme, createEditorHost, symbolInTree };
+  return { load, applyTheme, createEditorHost, symbolInTree, quietBuiltinDefinitions };
 });

@@ -53,6 +53,8 @@ function fakeHost(texts) {
     removeZone(id) { this.zones.delete(id); },
     resizeZone() {},
     focus: () => {},
+    colorized: [], // le celle dei notebook (docs/plans/77)
+    colorize(node, language) { this.colorized.push([node.textContent, language]); },
     open: (rel, text) => { texts[rel] = text; }, close: () => {}, rename: () => {}, dispose: () => {},
   };
 }
@@ -88,7 +90,7 @@ function setup({ files = {}, main = {} } = {}) {
   const tab = {
     id: 'tab-ed', type: 'editor', cwd: '/w', name: 'w', wrap: stub(),
     editor: {
-      ui: { tree: stub(), treeHost: stub(), openList: stub(), openCount: stub(), title: stub(), openMenu: stub(), bar: stub(), message: stub(), host: stub(), notesBar: stub(), empty: stub(), status: stub(), stage: stub(), fileHead: stub(), filter: stub() },
+      ui: { tree: stub(), treeHost: stub(), openList: stub(), openCount: stub(), title: stub(), openMenu: stub(), bar: stub(), message: stub(), host: stub(), notesBar: stub(), empty: stub(), status: stub(), stage: stub(), fileHead: stub(), filter: stub(), nbToggle: stub(), notebook: stub() },
       files: state, tree: page.ctx.AisessEditorTree.emptyTree(),
       host, hostPending: null, saving: new Set(), pendingChanges: new Map(), gutterTimer: null, gutterSeq: new Map(), gutterSeqLast: 0,
       gutterReads: new Map(),

@@ -659,11 +659,11 @@ ok('commenti: rinominando un file aperto, il commento segue il nuovo nome', asyn
 
 /* ---------- intorno al codice: conflitto, barra di stato, stato vuoto (docs/plans/75) ---------- */
 
-ok('layout: Monaco, conflitto e stato vuoto nello stesso riquadro; la barra di stato in fondo', () => {
+ok('layout: Monaco, notebook, conflitto e stato vuoto nello stesso riquadro; la barra di stato in fondo', () => {
   const { wrap, ui } = layout();
   const main = wrap.children[2];
   assert.deepStrictEqual(main.children.map((c) => c.className), ['editor-head', 'editor-message', 'editor-stage', 'editor-status']);
-  assert.deepStrictEqual(main.children[2].children, [ui.host, ui.bar, ui.empty]);
+  assert.deepStrictEqual(main.children[2].children, [ui.host, ui.notebook, ui.bar, ui.empty]);
   assert.strictEqual(ui.status.tag, 'footer');
 });
 

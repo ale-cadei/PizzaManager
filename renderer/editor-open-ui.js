@@ -120,6 +120,7 @@ function renderEditorOpen(tab) {
   renderEditorBar(tab);
   renderEditorStatus(tab);
   renderEditorEmpty(tab);
+  syncEditorNotebook(tab); // notebook o Monaco per il file attivo (docs/plans/77)
 }
 
 /** Con l'albero nascosto: il menu dei file aperti, appeso sotto il titolo. */

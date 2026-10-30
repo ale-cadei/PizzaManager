@@ -42,8 +42,8 @@ ok('commenti editor: la riga dei commenti sta in testa dopo titolo e menu degli 
   const ui = s.fn('buildEditorLayout')({ ...s.tab, wrap });
   const head = wrap.children[2].children[0];
   assert.deepStrictEqual(head.children.map((c) => c.className),
-    ['editor-tree-toggle', 'editor-title', 'editor-open-menu', 'editor-head-spacer', 'editor-notes-bar', 'editor-quick']);
-  assert.strictEqual(ui.notesBar, head.children[4]);
+    ['editor-tree-toggle', 'editor-title', 'editor-open-menu', 'editor-head-spacer', 'editor-nb-toggle', 'editor-notes-bar', 'editor-quick']);
+  assert.strictEqual(ui.notesBar, head.children[5]);
   assert.strictEqual(ui.notesBar.hidden, true);
 });
 

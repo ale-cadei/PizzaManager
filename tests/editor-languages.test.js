@@ -23,7 +23,7 @@ ok('editor-languages: varianti per inizio del nome', () => {
 ok('editor-languages: estensioni', () => {
   const cases = {
     'pyproject.toml': 'toml', 'rules.mk': 'makefile', 'prod.env': 'dotenv', 'x.zsh': 'shell',
-    'nginx.conf': 'ini', 'app.service': 'ini', 'tsconfig.base.jsonc': 'json', 'a.json5': 'json',
+    'nginx.conf': 'ini', 'app.service': 'ini', 'tsconfig.base.jsonc': 'json', 'a.json5': 'json', 'nb/Analisi.IPYNB': 'json',
     'build.Dockerfile': 'dockerfile',
   };
   for (const [rel, id] of Object.entries(cases)) assert.strictEqual(languageFor(rel), id, rel);

@@ -133,6 +133,11 @@ function buildEditorLayout(tab) {
   openMenu.onmousedown = (e) => e.preventDefault();
   openMenu.onclick = () => showEditorOpenMenu(tab);
   el('div', 'editor-head-spacer', head);
+  // Notebook ↔ JSON per un .ipynb (docs/plans/77), lo mostra editor-notebook-ui.js
+  const nbToggle = el('button', 'editor-nb-toggle', head);
+  nbToggle.hidden = true;
+  nbToggle.onmousedown = (e) => e.preventDefault();
+  nbToggle.onclick = () => toggleEditorNotebook(tab);
   // «N commenti · Copia prompt · Svuota» (docs/plans/65), la disegna editor-notes-ui.js
   const notesBar = el('div', 'editor-notes-bar', head);
   notesBar.hidden = true;
@@ -143,12 +148,14 @@ function buildEditorLayout(tab) {
   // stanno sopra, nello stesso riquadro (docs/plans/75)
   const stage = el('div', 'editor-stage', main);
   const host = el('div', 'editor-host', stage);
+  const notebook = el('div', 'editor-notebook', stage);
+  notebook.hidden = true;
   const bar = el('div', 'editor-bar', stage);
   bar.hidden = true;
   const empty = el('div', 'editor-empty', stage);
   const status = el('footer', 'editor-status', main);
   status.hidden = true;
-  return { treeHost, tree, fileHead, filter, openList, openCount, title, openMenu, notesBar, bar, message, stage, host, empty, status };
+  return { treeHost, tree, fileHead, filter, openList, openCount, title, openMenu, notesBar, bar, message, stage, host, notebook, nbToggle, empty, status };
 }
 
 function renderEditorTree(tab) {
@@ -438,6 +445,7 @@ function dropEditorFile(tab, rel) {
     ed.conflictTimers = Object.fromEntries(Object.entries(ed.conflictTimers).filter(([r]) => r !== rel));
   }
   dropEditorNotes(tab, rel);
+  dropEditorNotebook(tab, rel);
   if (ed.conflicts) ed.conflicts = Object.fromEntries(Object.entries(ed.conflicts).filter(([r]) => r !== rel));
   if (ed.host) {
     ed.host.close(rel);

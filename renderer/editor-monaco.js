@@ -719,6 +719,13 @@
       version: (rel) => (docs.has(rel) ? docs.get(rel).model.getAlternativeVersionId() : null),
       isDirty: (rel) => docs.has(rel) && dirtyOf(docs.get(rel)),
       focus: () => editor.focus(),
+      /* Colora il testo di un nodo fuori dall'editor: le celle dei notebook
+         (docs/plans/77). Il tema va passato: senza, colorizeElement fa
+         setTheme('vs') per tutta la pagina e anche l'editor diventa chiaro. */
+      colorize: (node, language) => {
+        monaco.editor.colorizeElement(node, { mimeType: language, tabSize: 4, theme: THEME })
+          .catch((e) => console.warn('colorize fallito', language, e));
+      },
     };
   }
 

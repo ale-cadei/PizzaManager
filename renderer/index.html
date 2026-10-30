@@ -166,7 +166,18 @@
     <div id="empty">
       <p class="muted">Nessuna sessione aperta — usa la sidebar a sinistra per avviarne una o fare resume.</p>
     </div>
-    <div id="terminals"></div>
+    <div id="terminals">
+      <!-- Schermo diviso (renderer/split-view.js, piano 75): la linea fra le
+           due metà, con scambio e chiusura all'hover, e la velina che appare
+           trascinando una card della sidebar sopra i terminali. -->
+      <div id="split-divider" class="split-divider" role="separator" aria-orientation="vertical" title="Trascina per ridimensionare (doppio clic: metà e metà)" hidden>
+        <div class="split-actions">
+          <button type="button" class="split-swap" title="Scambia le due sessioni" aria-label="Scambia le due sessioni">⇄</button>
+          <button type="button" class="split-close" title="Togli la divisione" aria-label="Togli la divisione">✕</button>
+        </div>
+      </div>
+      <div id="split-drop" class="split-drop" hidden><div class="split-drop-preview"></div></div>
+    </div>
     <!-- Animaletti in fondo ai terminali (renderer/pets-view.js, piano 33): la
          riempie il JS, nascosta finché non si accendono dal menu View. -->
     <div id="pets-strip" aria-hidden="true" hidden></div>
@@ -470,6 +481,7 @@
 <script src="session-titles.js"></script>
 <script src="session-groups.js"></script>
 <script src="session-order.js"></script>
+<script src="split-layout.js"></script>
 <script src="sidebar.js"></script>
 <script src="sidebar-collapse.js"></script>
 <script src="confirm-bubble.js"></script>
@@ -542,6 +554,7 @@
 <!-- Il renderer vero e proprio, diviso per area (docs/plans/21-split-renderer.md):
      app-state.js per primo, renderer.js per ultimo. -->
 <script src="app-state.js"></script>
+<script src="split-view.js"></script>
 <script src="signals.js"></script>
 <script src="tabs.js"></script>
 <script src="shell-icon-ui.js"></script>

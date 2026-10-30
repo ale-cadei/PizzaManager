@@ -18,7 +18,8 @@ const attention = Attention.createAttention();
 let windowFocused = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
 
 function isWatched(t) {
-  return t.id === activeId && windowFocused;
+  // Con lo schermo diviso anche l'altra metà è sotto gli occhi
+  return splitVisibleIds().includes(t.id) && windowFocused;
 }
 
 function noteActivity(t, bytes) {

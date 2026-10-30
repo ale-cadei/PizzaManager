@@ -1,7 +1,7 @@
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
 
-/* Schermo diviso (docs/plans/75-schermo-diviso.md): le regole stanno in un
+/* Schermo diviso (docs/plans/76-schermo-diviso.md): le regole stanno in un
    modulo puro, il DOM lo tocca split-view.js. */
 const Split = require('../renderer/split-layout');
 

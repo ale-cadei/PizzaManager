@@ -42,6 +42,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" />
 <link rel="stylesheet" href="../node_modules/@xterm/xterm/css/xterm.css" />
+<link rel="stylesheet" href="../node_modules/@vscode/codicons/dist/codicon.css" />
 <link rel="stylesheet" href="tokens.css" />
 <link rel="stylesheet" href="tokens-gruppo-pila.css" />
 <link rel="stylesheet" href="styles.css" />
@@ -167,7 +168,7 @@
       <p class="muted">Nessuna sessione aperta — usa la sidebar a sinistra per avviarne una o fare resume.</p>
     </div>
     <div id="terminals">
-      <!-- Schermo diviso (renderer/split-view.js, piano 75): la linea fra le
+      <!-- Schermo diviso (renderer/split-view.js, piano 76): la linea fra le
            due metà, con scambio e chiusura all'hover, e la velina che appare
            trascinando una card della sidebar sopra i terminali. -->
       <div id="split-divider" class="split-divider" role="separator" aria-orientation="vertical" title="Trascina per ridimensionare (doppio clic: metà e metà)" hidden>
@@ -516,6 +517,7 @@
 <script src="editor-files.js"></script>
 <script src="file-icons.js"></script>
 <script src="editor-tree.js"></script>
+<script src="editor-quick.js"></script>
 <script src="editor-panel.js"></script>
 <script src="editor-languages.js"></script>
 <script src="editor-monaco.js"></script>
@@ -562,6 +564,9 @@
 <script src="editor-tab-gutter.js"></script>
 <script src="editor-conflicts.js"></script>
 <script src="editor-tab.js"></script>
+<script src="editor-open-ui.js"></script>
+<script src="editor-status-ui.js"></script>
+<script src="editor-find-ui.js"></script>
 <script src="editor-copy-ui.js"></script>
 <script src="editor-notes-ui.js"></script>
 <script src="editor-definition-ui.js"></script>

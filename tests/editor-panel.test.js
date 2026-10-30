@@ -27,7 +27,7 @@ ok('clampWidth: fra 160 e la metà della scheda, con la scheda stretta vince il 
 });
 
 ok('readPanelPrefs: i default senza niente salvato o con valori rotti', () => {
-  const def = { width: 240, hidden: false };
+  const def = { width: 256, hidden: false };
   assert.deepStrictEqual(P.readPanelPrefs(createStorage()), def);
   assert.deepStrictEqual(P.readPanelPrefs(createStorage({ 'aisess.editorTreeW': 'abc', 'aisess.editorTreeHidden': 'forse' })), def);
   assert.deepStrictEqual(P.readPanelPrefs(createStorage({ 'aisess.editorTreeW': '90' })), def);
@@ -35,7 +35,7 @@ ok('readPanelPrefs: i default senza niente salvato o con valori rotti', () => {
 });
 
 ok('readPanelPrefs e savePanelPrefs: uno storage che lancia non ferma niente', () => {
-  assert.deepStrictEqual(P.readPanelPrefs(brokenStorage()), { width: 240, hidden: false });
+  assert.deepStrictEqual(P.readPanelPrefs(brokenStorage()), { width: 256, hidden: false });
   assert.doesNotThrow(() => P.savePanelPrefs(brokenStorage(), { width: 300, hidden: true }));
 });
 
@@ -61,7 +61,7 @@ ok('toggle: nasconde e rimostra, e se lo ricorda', () => {
   assert.strictEqual(isHidden(doc), false);
   panel.toggle();
   assert.strictEqual(isHidden(doc), true);
-  assert.deepStrictEqual(P.readPanelPrefs(storage), { width: 240, hidden: true });
+  assert.deepStrictEqual(P.readPanelPrefs(storage), { width: 256, hidden: true });
   panel.toggle();
   assert.strictEqual(isHidden(doc), false);
   assert.strictEqual(storage.getItem('aisess.editorTreeHidden'), '0');
@@ -131,12 +131,12 @@ ok('striscia: il tasto destro non comincia un trascinamento', () => {
   assert.strictEqual(win.listeners.has('pointermove'), false);
 });
 
-ok('striscia: il doppio click torna a 240 e salva', () => {
+ok('striscia: il doppio click torna a 256 e salva', () => {
   const { doc, resizer, storage } = resizable(createStorage({ 'aisess.editorTreeW': '400' }));
   assert.strictEqual(widthOf(doc), '400px');
   fire(resizer, 'dblclick', {});
-  assert.strictEqual(widthOf(doc), '240px');
-  assert.strictEqual(storage.getItem('aisess.editorTreeW'), '240');
+  assert.strictEqual(widthOf(doc), '256px');
+  assert.strictEqual(storage.getItem('aisess.editorTreeW'), '256');
 });
 
 ok('isToggleKey: solo Ctrl+B, senza altri modificatori', () => {
@@ -147,4 +147,29 @@ ok('isToggleKey: solo Ctrl+B, senza altri modificatori', () => {
   assert.strictEqual(k({ ctrlKey: true, shiftKey: true, key: 'B' }), false);
   assert.strictEqual(k({ ctrlKey: true, altKey: true, key: 'b' }), false);
   assert.strictEqual(k({ ctrlKey: true, key: 'v' }), false);
+});
+
+/* ---------- file aperti da tastiera (docs/plans/75) ---------- */
+
+ok('openIndexKey: Alt+1…9 fuori dal Mac, Ctrl+1…9 sul Mac (Opzione+cifra scrive ~, #…)', () => {
+  const key = (code, mods = {}) => ({ code, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false, ...mods });
+  assert.strictEqual(P.openIndexKey(key('Digit1', { altKey: true }), false), 0);
+  assert.strictEqual(P.openIndexKey(key('Digit9', { altKey: true }), false), 8);
+  assert.strictEqual(P.openIndexKey(key('Digit0', { altKey: true }), false), -1);
+  assert.strictEqual(P.openIndexKey(key('Digit1'), false), -1);
+  assert.strictEqual(P.openIndexKey(key('Digit1', { altKey: true, ctrlKey: true }), false), -1, 'AltGr su Windows è Ctrl+Alt');
+  assert.strictEqual(P.openIndexKey(key('Digit1', { altKey: true, shiftKey: true }), false), -1);
+  assert.strictEqual(P.openIndexKey(key('Digit5', { altKey: true }), true), -1, 'sul Mac Opzione+5 è ~');
+  assert.strictEqual(P.openIndexKey(key('Digit5', { ctrlKey: true }), true), 4);
+  assert.strictEqual(P.openIndexKey(key('Digit5', { ctrlKey: true }), false), -1);
+  assert.strictEqual(P.openKeyLabel(3, false), 'Alt 3');
+  assert.strictEqual(P.openKeyLabel(3, true), '⌃3');
+});
+
+ok('isNewFileKey: Ctrl+Alt+N, dal codice del tasto (Opzione cambia e.key sul Mac)', () => {
+  const key = (mods) => ({ code: 'KeyN', key: '˜', ctrlKey: true, altKey: true, shiftKey: false, metaKey: false, ...mods });
+  assert.strictEqual(P.isNewFileKey(key()), true);
+  assert.strictEqual(P.isNewFileKey(key({ altKey: false })), false);
+  assert.strictEqual(P.isNewFileKey(key({ shiftKey: true })), false);
+  assert.strictEqual(P.isNewFileKey(key({ code: 'KeyM' })), false);
 });

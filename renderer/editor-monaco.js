@@ -18,22 +18,65 @@
   let loading = null;
   let hosts = 0;
 
+  // Tema sintattico «Forno» (docs/plans/75): parole chiave arancio, stringhe
+  // ocra, commenti in corsivo. Monaco vuole gli hex senza #
+  const FORNO_RULES = [
+    { token: 'keyword', foreground: 'FF9B6F' },
+    { token: 'string', foreground: 'E3C27A' },
+    { token: 'comment', foreground: '8A7A72', fontStyle: 'italic' },
+    { token: 'number', foreground: 'C9A8F5' },
+    { token: 'type', foreground: 'C9A8F5' },
+    { token: 'identifier', foreground: 'D9CDC6' },
+    { token: 'delimiter', foreground: '9A8A82' },
+  ];
+  // Non sono token: la riga corrente e i numeri di riga del mock 1c
+  const LINE_HIGHLIGHT = '#140B09';
+  const LINE_NUMBER = '#5E4E47';
+
   function cssColor(win, name, fallback) {
     const v = win.getComputedStyle(win.document.documentElement).getPropertyValue(name).trim();
     return /^#[0-9a-f]{6}$/i.test(v) ? v : fallback;
   }
 
-  function defineTheme(win, monaco) {
-    const bg = cssColor(win, '--bg', '#070505');
+  /** `background`: il fondo di #main già in hex (lo calcola termTheme, come per i terminali). */
+  function defineTheme(win, monaco, { background } = {}) {
+    const bg = background || cssColor(win, '--bg', '#070505');
     monaco.editor.defineTheme(THEME, {
-      base: 'vs-dark', inherit: true, rules: [],
+      base: 'vs-dark', inherit: true, rules: FORNO_RULES,
       colors: {
         'editor.background': bg,
         'editorGutter.background': bg,
-        'editor.lineHighlightBackground': cssColor(win, '--surface-2', '#151010'),
+        'editor.foreground': cssColor(win, '--text', '#F6F1EC'),
+        'editor.lineHighlightBackground': LINE_HIGHLIGHT,
+        'editor.lineHighlightBorder': '#00000000',
+        'editorLineNumber.foreground': LINE_NUMBER,
+        'editorLineNumber.activeForeground': cssColor(win, '--text-2', '#D9CDC6'),
         'editorWidget.background': cssColor(win, '--surface', '#0E0B0A'),
       },
     });
+  }
+
+  /** Ridefinisce il tema col fondo dato; senza Monaco caricato non fa niente (lo fa load). */
+  function applyTheme(win, colors) {
+    if (!win.monaco || !win.monaco.editor) return;
+    defineTheme(win, win.monaco, colors);
+    win.monaco.editor.setTheme(THEME);
+  }
+
+  // Simboli da mostrare nel percorso sotto il titolo: non le variabili
+  const SYMBOL_KINDS = new Set(['function', 'local function', 'method', 'class', 'constructor', 'getter', 'setter', 'interface', 'enum']);
+
+  /** Il simbolo più interno, fra SYMBOL_KINDS, che contiene `offset` nell'albero di getNavigationTree. */
+  function symbolInTree(node, offset, found = null) {
+    if (!node) return found;
+    const inside = (node.spans || []).some((sp) => offset >= sp.start && offset < sp.start + sp.length);
+    if (!inside) return found;
+    const here = SYMBOL_KINDS.has(node.kind) ? node.text : found;
+    for (const child of node.childItems || []) {
+      const deeper = symbolInTree(child, offset, null);
+      if (deeper) return deeper;
+    }
+    return here;
   }
 
   /* Le definizioni interne di Monaco (JS/TS, CSS) saltano solo dentro il
@@ -76,14 +119,16 @@
    *   onChange: (rel: string, dirty: boolean, edited: boolean) => void,
    *   onSave: (rel: string|null) => void, onSaveAll: () => void,
    *   onComment?: (rel: string, from: number, to: number) => void,
+   *   onCursor?: (rel: string, pos: {line: number, col: number}) => void,
    *   onDefinition?: (rel: string, word: string, at: {lineNumber: number, column: number}) => void,
    *   onCursorLine?: (rel: string, line: number) => void,
    *   mac?: boolean}} o `onDefinition`: Ctrl+click (⌘ con `mac`) su un nome (docs/plans/71);
-   *   `onCursorLine`: il cursore è su una riga, o il suo testo è cambiato (docs/plans/73)
+   *   `onCursorLine`: il cursore è su una riga, o il suo testo è cambiato (docs/plans/73);
+   *   `onCursor`: riga e colonna per la barra di stato (docs/plans/75)
    */
   function createEditorHost({
     monaco, container, fontSize, onChange, onSave, onSaveAll, onComment = () => {}, onDefinition = null,
-    onCursorLine = null, mac = false,
+    onCursorLine = null, mac = false, onCursor = () => {},
   }) {
     // Autorità diversa per host: due schede sulla stessa cartella hanno model distinti
     const authority = `h${++hosts}`;
@@ -93,7 +138,10 @@
       model: null, theme: THEME, automaticLayout: true, fontSize, fontFamily: FONT,
       minimap: { enabled: false }, scrollBeyondLastLine: false, renderWhitespace: 'selection',
       glyphMargin: true, // il margine del «+» (docs/plans/65)
+      padding: { top: 10 }, lineDecorationsWidth: 18, // corsia delle barrette (docs/plans/75)
     });
+    const tellCursor = (p) => { if (current && p) onCursor(current, { line: p.lineNumber, col: p.column }); };
+    editor.onDidChangeCursorPosition((e) => tellCursor(e.position));
     // Le azioni di Monaco legano i tasti a questo editor (precondizione
     // `editorId`) e tornano un disposable, che dispose() chiude. addCommand no:
     // è globale e resta, così con due schede editor Ctrl+S andava all'ultimo
@@ -149,6 +197,38 @@
       if (d.viewState) editor.restoreViewState(d.viewState);
       editor.focus();
       cursorLine();
+      tellCursor(editor.getPosition() || { lineNumber: 1, column: 1 });
+    }
+
+    /** La funzione (o classe, metodo) che contiene la posizione, dal worker JS/TS; null negli altri linguaggi. */
+    async function symbolAt(rel, line, col) {
+      const d = docs.get(rel);
+      const ts = monaco.typescript;
+      if (!d || !ts) return null;
+      const lang = d.model.getLanguageId();
+      const getWorker = lang === 'javascript' ? ts.getJavaScriptWorker : lang === 'typescript' ? ts.getTypeScriptWorker : null;
+      if (!getWorker) return null;
+      try {
+        const worker = await (await getWorker())(d.model.uri);
+        const tree = await worker.getNavigationTree(d.model.uri.toString());
+        return symbolInTree(tree, d.model.getOffsetAt({ lineNumber: line, column: col }));
+      } catch {
+        return null; // worker non pronto o file chiuso nel frattempo: niente simbolo
+      }
+    }
+
+    /** Per la barra di stato: indentazione, fine riga, linguaggio col nome leggibile. */
+    function info(rel) {
+      const d = docs.get(rel);
+      if (!d) return null;
+      const { tabSize, insertSpaces } = d.model.getOptions();
+      const id = d.model.getLanguageId();
+      const lang = monaco.languages.getLanguages().find((l) => l.id === id);
+      return {
+        tabSize, insertSpaces,
+        eol: d.model.getEOL() === '\r\n' ? 'CRLF' : 'LF',
+        language: (lang && lang.aliases && lang.aliases[0]) || id,
+      };
     }
 
     function open(rel, text) {
@@ -629,7 +709,7 @@
     wireCursorLine();
 
     return {
-      open, activate, markSaved, replaceText, rename, close, dispose, setGutter, setConflicts, editText, reveal, hint, setLineInfo,
+      open, activate, info, symbolAt, markSaved, replaceText, rename, close, dispose, setGutter, setConflicts, editText, reveal, hint, setLineInfo,
       trackLines, linesOf, untrack, lineText, addZone, removeZone, resizeZone,
       current: () => current,
       getText: (rel) => (docs.has(rel) ? docs.get(rel).model.getValue() : null),
@@ -642,5 +722,5 @@
     };
   }
 
-  return { load, createEditorHost, quietBuiltinDefinitions };
+  return { load, applyTheme, createEditorHost, symbolInTree, quietBuiltinDefinitions };
 });

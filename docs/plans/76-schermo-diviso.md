@@ -1,4 +1,4 @@
-# 75 — `feat/multi-window`: due sessioni a schermo diviso
+# 76 — `feat/multi-window`: due sessioni a schermo diviso
 
 Taglia: ~1 giornata.
 

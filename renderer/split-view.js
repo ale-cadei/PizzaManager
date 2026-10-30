@@ -1,4 +1,4 @@
-/* Schermo diviso nella pagina (docs/plans/75-schermo-diviso.md): due wrap
+/* Schermo diviso nella pagina (docs/plans/76-schermo-diviso.md): due wrap
    visibili in #terminals, la linea fra loro, la velina del trascinamento e il
    salvataggio. Le regole stanno in renderer/split-layout.js.
 

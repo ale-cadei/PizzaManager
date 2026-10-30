@@ -1,5 +1,5 @@
 /* Schermo diviso: due sessioni affiancate o impilate
- * (docs/plans/75-schermo-diviso.md).
+ * (docs/plans/76-schermo-diviso.md).
  *
  * Qui solo le regole: lo stato è `null` (una sessione sola) oppure
  * `{ orientation, first, second, ratio }`, dove `row` affianca (first a

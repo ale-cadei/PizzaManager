@@ -19,7 +19,8 @@
 
   /**
    * @typedef {{colorize?: (node: object, language: string) => void, htmlCss?: string,
-   *   attachments?: Object<string, string>}} ViewOptions
+   *   attachments?: Object<string, string>, selected?: number}} ViewOptions
+   * `selected`: l'indice (nel JSON) della cella selezionata (docs/plans/78)
    */
 
   function el(doc, tag, className, text) {
@@ -164,7 +165,9 @@
   }
 
   function cellNode(doc, cell, language, opts) {
-    const box = el(doc, 'div', `nb-cell nb-cell--${cell.type}`);
+    const selected = Number.isInteger(opts.selected) && opts.selected === cell.index ? ' nb-cell--selected' : '';
+    const box = el(doc, 'div', `nb-cell nb-cell--${cell.type}${selected}`);
+    box.dataset.index = String(cell.index);
     if (cell.type === 'markdown') {
       box.append(row(doc, 'nb-row', '', renderMarkdown(doc, cell.source, { ...opts, attachments: cell.attachments })));
     } else if (cell.type === 'code') {

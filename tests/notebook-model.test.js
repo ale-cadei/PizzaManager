@@ -85,6 +85,11 @@ ok('notebook-model: celle e output strani non rompono il resto', () => {
   const r = parseNotebook(nb([null, { cell_type: 'boh', source: 'x' }, { cell_type: 'code', source: 7, outputs: 'no' }, { cell_type: 'code', source: '', outputs: [null, { output_type: 'stream' }] }]));
   assert.ok(r.ok);
   assert.deepStrictEqual(r.cells.map((c) => c.type), ['raw', 'code', 'code']);
-  assert.deepStrictEqual(r.cells[1], { type: 'code', source: '', count: null, outputs: [], attachments: {} });
+  assert.deepStrictEqual(r.cells[1], { index: 2, type: 'code', source: '', count: null, outputs: [], attachments: {} });
   assert.deepStrictEqual(r.cells[2].outputs, [{ kind: 'text', text: '', stream: 'stdout' }]);
+});
+
+ok('notebook-model: ogni cella sa la sua posizione nel JSON, anche dopo una cella non oggetto', () => {
+  const r = parseNotebook(nb([{ cell_type: 'code', source: 'a' }, 7, { cell_type: 'markdown', source: 'b' }]));
+  assert.deepStrictEqual(r.cells.map((c) => [c.index, c.source]), [[0, 'a'], [2, 'b']]);
 });

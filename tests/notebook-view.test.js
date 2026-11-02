@@ -124,3 +124,10 @@ ok('notebook-view: notebook vuoto → messaggio', () => {
   const r = render({ language: 'python', cells: [] });
   assert.strictEqual(r.byClass('nb-empty')[0].textContent, 'Il notebook non ha celle.');
 });
+
+ok('notebook-view: la cella selezionata ha la sua classe, ognuna il suo indice', () => {
+  const cells = NB.cells.map((c, index) => ({ ...c, index: index * 2 }));
+  const r = render({ ...NB, cells }, { selected: 2 });
+  assert.deepStrictEqual(r.byClass('nb-cell').map((c) => c.dataset.index), ['0', '2', '4', '6']);
+  assert.deepStrictEqual(r.byClass('nb-cell--selected').map((c) => c.dataset.index), ['2']);
+});

@@ -150,6 +150,9 @@ function buildEditorLayout(tab) {
   const host = el('div', 'editor-host', stage);
   const notebook = el('div', 'editor-notebook', stage);
   notebook.hidden = true;
+  // Col fuoco riceve i tasti del modo comando (docs/plans/78)
+  notebook.tabIndex = 0;
+  notebook.addEventListener('keydown', (e) => onEditorNotebookKey(tab, e));
   const bar = el('div', 'editor-bar', stage);
   bar.hidden = true;
   const empty = el('div', 'editor-empty', stage);
@@ -457,6 +460,7 @@ function dropEditorFile(tab, rel) {
 
 async function closeEditorFile(tab, rel, anchor) {
   const ed = tab.editor;
+  flushEditorNotebook(tab);
   const f = ed.files.files[rel];
   if (!f) return;
   const name = EditorFiles.baseName(rel);
@@ -489,6 +493,7 @@ async function saveEditorFile(tab, rel) {
   const ed = tab.editor;
   const f = rel && ed.files.files[rel];
   if (!f || !ed.host || ed.saving.has(rel)) return false;
+  flushEditorNotebook(tab);
   if (f.conflict) { renderEditorBar(tab); return false; } // la barra chiede già che fare
   ed.saving.add(rel);
   let done = false;
@@ -524,7 +529,7 @@ async function saveEditorFile(tab, rel) {
 async function saveAllEditorFiles(tab) {
   let allSaved = true;
   let firstFailed = null;
-  for (const rel of EditorFiles.dirtyFiles(tab.editor.files)) {
+  for (const rel of editorDirtyFiles(tab)) {
     const ok = await saveEditorFile(tab, rel);
     allSaved = ok && allSaved;
     if (!ok && !firstFailed) firstFailed = rel;
@@ -606,7 +611,7 @@ async function refreshEditorTab(tab) {
 
 /** Chiudendo la scheda: i file con modifiche si salvano o si scartano, i commenti si perdono (docs/plans/65). */
 async function confirmEditorClose(tab, anchor) {
-  const dirty = EditorFiles.dirtyFiles(tab.editor.files);
+  const dirty = editorDirtyFiles(tab);
   const loss = editorNotesLoss(EditorNotes.count(tab.editor.notes), 'la scheda');
   if (!dirty.length && !loss) return true;
   const bubble = anchor ? closeConfirm : editorConfirm;
@@ -629,6 +634,7 @@ function disposeEditorTab(tab) {
   clearTimeout(ed.symbolTimer);
   if (ed.quick) ed.quick.close();
   stopEditorBlame(tab);
+  if (ed.notebook) releaseEditorNotebookCell(ed.notebook);
   try { if (ed.host) ed.host.dispose(); } catch (e) { console.warn('chiusura di Monaco fallita', e); }
 }
 
@@ -708,7 +714,9 @@ async function restoreEditorSessions() {
 
 /* ---------- uscita con file non salvati ---------- */
 
-const editorDirtyTabs = () => [...tabs.values()].filter((t) => t.editor && EditorFiles.dirtyFiles(t.editor.files).length);
+/* Con la cella del notebook in modifica i suoi ultimi tasti sono ancora fuori dal file (docs/plans/78) */
+const editorDirtyFiles = (tab) => { flushEditorNotebook(tab); return EditorFiles.dirtyFiles(tab.editor.files); };
+const editorDirtyTabs = () => [...tabs.values()].filter((t) => t.editor && editorDirtyFiles(t).length);
 
 /* Il beforeunload ha fermato l'uscita (o la chiusura, o una ricarica):
    si chiede, e alla conferma il main rifà quello che era stato fermato

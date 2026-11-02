@@ -809,3 +809,37 @@ ok('colorize: celle dei notebook col tema dell editor, mai quello di default', a
   assert.deepStrictEqual(calls, [[node, { mimeType: 'python', tabSize: 4, theme: fake.editor.options.theme }]]);
   assert.ok(fake.editor.options.theme);
 });
+
+ok('undo e redo: sul model del file, anche senza il fuoco in Monaco (docs/plans/78)', () => {
+  const { h, fake } = host();
+  h.open('a.ipynb', '{}');
+  const [m] = fake.models;
+  const calls = [];
+  m.undo = () => calls.push('undo');
+  m.redo = () => calls.push('redo');
+  h.undo('a.ipynb');
+  h.redo('a.ipynb');
+  h.undo('altro.ipynb');
+  assert.deepStrictEqual(calls, ['undo', 'redo']);
+});
+
+ok('cellEditor: un editor nella cella col tema, il carattere e la misura dell host', () => {
+  const { h, fake } = host();
+  const created = [];
+  const realCreate = fake.monaco.editor.create;
+  fake.monaco.editor.create = (node, options) => { created.push([node, options]); return realCreate(node, options); };
+  fake.editor.getContentHeight = () => 40;
+  fake.editor.onDidContentSizeChange = () => ({ dispose() {} });
+  fake.editor.layout = () => {};
+  fake.monaco.KeyCode.Enter = 3;
+  fake.monaco.KeyCode.Escape = 9;
+  const main = fake.editor.options; // il fake riusa lo stesso editor: si legge prima
+  const node = { style: {} };
+  const cell = h.cellEditor(node, { text: 'x', language: 'javascript', onChange() {}, onKey() {} });
+  const [[where, options]] = created;
+  assert.strictEqual(where, node);
+  assert.deepStrictEqual([options.theme, options.fontSize, options.fontFamily], [main.theme, 13, main.fontFamily]);
+  assert.strictEqual(options.model.getValue(), 'x');
+  assert.strictEqual(node.style.height, '40px');
+  assert.strictEqual(typeof cell.dispose, 'function');
+});

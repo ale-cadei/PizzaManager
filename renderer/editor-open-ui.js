@@ -159,7 +159,7 @@ function showEditorOpenMenu(tab) {
 async function closeAllEditorFiles(tab, anchor) {
   const ed = tab.editor;
   if (!ed.files.order.length) return;
-  const dirty = EditorFiles.dirtyFiles(ed.files);
+  const dirty = editorDirtyFiles(tab);
   const loss = editorNotesLoss(EditorNotes.count(ed.notes), 'i file');
   if (dirty.length) {
     const choice = await editorConfirm.choose({

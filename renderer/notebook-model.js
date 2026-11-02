@@ -1,6 +1,7 @@
 /* Un notebook Jupyter (.ipynb) letto per la vista della scheda editor
  * (docs/plans/77): dal JSON nbformat 4 alle celle da disegnare, con un solo
- * formato per output e le immagini già pronte come `data:`. Non disegna
+ * formato per output e le immagini già pronte come `data:`. Ogni cella porta
+ * `index`, la sua posizione nel JSON: le modifiche (notebook-edit.js) lavorano lì. Non disegna
  * niente: notebook-view.js. Funzioni pure.
  *
  * Wrapper UMD come sidebar.js: globale nella pagina, module.exports sotto Node. */
@@ -78,11 +79,11 @@
     return Object.fromEntries(entries.filter(Boolean));
   }
 
-  function cell(c) {
+  function cell(c, index) {
     const type = c.cell_type === 'markdown' || c.cell_type === 'code' ? c.cell_type : 'raw';
     const outputs = type === 'code' && Array.isArray(c.outputs) ? c.outputs.map(output).filter(Boolean) : [];
     const count = Number.isInteger(c.execution_count) ? c.execution_count : null;
-    return { type, source: joined(c.source), count, outputs, attachments: attachmentsOf(c) };
+    return { index, type, source: joined(c.source), count, outputs, attachments: attachmentsOf(c) };
   }
 
   function languageOf(metadata) {
@@ -108,7 +109,7 @@
       return { ok: false, error: `Formato nbformat ${doc.nbformat}: la vista legge solo nbformat 4.` };
     }
     if (!Array.isArray(doc.cells)) return { ok: false, error: 'Non è un notebook: mancano le celle.' };
-    return { ok: true, language: languageOf(doc.metadata), cells: doc.cells.filter(isObject).map(cell) };
+    return { ok: true, language: languageOf(doc.metadata), cells: doc.cells.map((c, k) => (isObject(c) ? cell(c, k) : null)).filter(Boolean) };
   }
 
   return { isNotebook, parseNotebook };

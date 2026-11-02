@@ -8,10 +8,12 @@
  *
  * Wrapper UMD come sidebar.js: globale nella pagina, module.exports sotto Node. */
 (function (root, factory) {
-  const api = factory(root ? root.AisessEditorLanguages : require('./editor-languages'));
+  const api = root
+    ? factory(root.AisessEditorLanguages, root.AisessNotebookCellEditor)
+    : factory(require('./editor-languages'), require('./notebook-cell-editor'));
   if (root) root.AisessEditorMonaco = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-})(typeof window !== 'undefined' ? window : null, function (Languages) {
+})(typeof window !== 'undefined' ? window : null, function (Languages, CellEditor) {
   const BASE = '../node_modules/monaco-editor/min/vs';
   const THEME = 'aisess';
   const FONT = "'IBM Plex Mono', JetBrains Mono, Menlo, Consolas, monospace";
@@ -726,6 +728,11 @@
         monaco.editor.colorizeElement(node, { mimeType: language, tabSize: 4, theme: THEME })
           .catch((e) => console.warn('colorize fallito', language, e));
       },
+      /* Le modifiche dalla vista del notebook (docs/plans/78): l'editor di una
+         cella, e l'undo del file quando il fuoco è sulla vista e non su Monaco. */
+      cellEditor: (node, opts) => CellEditor.createCellEditor({ ...opts, monaco, node, fontSize, theme: THEME, font: FONT }),
+      undo: (rel) => { if (docs.has(rel)) docs.get(rel).model.undo(); },
+      redo: (rel) => { if (docs.has(rel)) docs.get(rel).model.redo(); },
     };
   }
 

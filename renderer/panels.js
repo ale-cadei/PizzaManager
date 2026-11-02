@@ -104,7 +104,7 @@ function initSidebarResize() {
 }
 
 /* Sidebar collassabile a una colonna di icone (docs/plans/72-sidebar-collassabile.md).
-   La larghezza cambia di colpo: il terminale si rifitta subito. */
+   La larghezza cambia animata: il terminale si rifitta subito e a fine corsa. */
 function initSidebarCollapse() {
   const sidebar = $('#sidebar');
   const toggle = $('#sidebar-toggle');
@@ -115,6 +115,7 @@ function initSidebarCollapse() {
     searchInput: $('#open-search'),
     storage: localStorage,
     onChange: () => fitActive(),
+    motion: window.AisessMotion ? window.AisessMotion.createPageMotion(window) : null,
   });
 }
 

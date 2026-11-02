@@ -68,6 +68,13 @@ contextBridge.exposeInMainWorld('aisess', {
   saveEditorSessions: (sessions) => ipcRenderer.invoke('editor-sessions-save', { sessions }),
   editorCloseConfirmed: () => ipcRenderer.invoke('editor-close-confirmed'),
   onEditorFileChanged: (cb) => ipcRenderer.on('editor-file-changed', (_e, v) => cb(v)),
+  // Kernel dei notebook (docs/plans/79): `dir` è la cartella del notebook, gli eventi portano l'id
+  kernelStart: (dir, kernel) => ipcRenderer.invoke('kernel-start', { dir, kernel }),
+  kernelExecute: (id, run, code) => ipcRenderer.invoke('kernel-execute', { id, run, code }),
+  kernelInterrupt: (id) => ipcRenderer.invoke('kernel-interrupt', { id }),
+  kernelRestart: (id) => ipcRenderer.invoke('kernel-restart', { id }),
+  kernelShutdown: (id) => ipcRenderer.invoke('kernel-shutdown', { id }),
+  onKernelEvent: (cb) => ipcRenderer.on('kernel-event', (_e, v) => cb(v)),
   // Copiare da fuori (docs/plans/61): `sources` sono percorsi assoluti
   editorCopyPlan: (root, rel, sources) => ipcRenderer.invoke('editor-copy-plan', { root, rel, sources }),
   editorCopyRun: (root, rel, sources, decisions) => ipcRenderer.invoke('editor-copy-run', { root, rel, sources, decisions }),

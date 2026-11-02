@@ -31,6 +31,7 @@ const { installQuitCapture } = require('./app/quit-capture');
 const { registerExportHandlers } = require('./app/export');
 const { registerGitHandlers } = require('./app/git');
 const { registerEditorHandlers } = require('./app/editor');
+const { registerKernelHandlers } = require('./app/notebook-kernel');
 const { registerNotifyHandlers } = require('./app/notify');
 const { registerUpdateHandlers } = require('./app/updater');
 const { registerFeedbackHandlers } = require('./app/feedback');
@@ -231,6 +232,7 @@ registerFeedbackHandlers(ipcMain, { electron: { app, shell }, viaTmux: () => pty
 registerGitHandlers(ipcMain, { userDataDir: () => app.getPath('userData') });
 const quitCapture = installQuitCapture({ app, ptys }); // un quit annullato dall'editor la fa ripartire
 registerEditorHandlers(ipcMain, { electron: { app, shell, BrowserWindow, dialog, clipboard }, onQuitCancelled: quitCapture.reset });
+registerKernelHandlers(ipcMain, { app }); // kernel dei notebook (docs/plans/79)
 
 // ---------- Notifiche di sistema e badge (docs/plans/38) ----------
 registerNotifyHandlers(ipcMain, { electron: { app, Notification, Menu }, getWindow: () => mainWindow, sendToRenderer });

@@ -129,13 +129,14 @@ function runEditorNotebookCommand(tab, rel, command) {
     up: () => moveEditorNotebookSelection(tab, rel, -1),
     down: () => moveEditorNotebookSelection(tab, rel, 1),
     edit: () => { if (index !== null) editEditorNotebookCell(tab, rel, index); },
-    // Shift+Invio: la cella dopo; dall'ultima se ne crea una e ci si entra, come in Jupyter
+    // Shift+Invio: esegue e passa alla cella dopo; dall'ultima se ne crea una e ci si entra, come in Jupyter
     next: () => {
+      if (index !== null) runEditorNotebookCell(tab, rel, index);
       if (at < cells.length - 1) { moveEditorNotebookSelection(tab, rel, 1); return; }
       insertEditorNotebookBelow(tab, rel, 'code');
       editEditorNotebookCell(tab, rel, editorNotebookPlace(tab, rel).index);
     },
-    run: () => {},
+    run: () => { if (index !== null) runEditorNotebookCell(tab, rel, index); },
     above: () => insertEditorNotebookCell(tab, rel, index === null ? 0 : index, 'code'),
     below: () => insertEditorNotebookBelow(tab, rel, 'code'),
     delete: () => { if (index !== null) deleteEditorNotebookCell(tab, rel, index); },
@@ -258,7 +259,7 @@ function onEditorNotebookCellKey(tab, key) {
     return;
   }
   finishEditorNotebookCell(tab);
-  if (key === 'next') runEditorNotebookCommand(tab, rel, 'next');
+  if (key === 'next' || key === 'run') runEditorNotebookCommand(tab, rel, key);
 }
 
 /* ---------- barre e click ---------- */
@@ -304,6 +305,7 @@ function editorNotebookCellTools(tab, rel, cell) {
     editorNotebookTypePicker(tab, rel, cell),
   );
   if (cell.type === 'code') {
+    tools.append(editorNotebookButton('play', '', 'Esegui la cella (Ctrl+Invio)', act(() => runEditorNotebookCell(tab, rel, cell.index))));
     tools.append(editorNotebookButton('clear-all', '', 'Cancella output', act(() => clearEditorNotebookOutputs(tab, rel, cell.index))));
   }
   tools.append(editorNotebookButton('trash', '', 'Elimina la cella (D D)', act(() => deleteEditorNotebookCell(tab, rel, cell.index))));
@@ -334,6 +336,7 @@ function editorNotebookBar(tab, rel) {
       editorNotebookAction(tab, () => insertEditorNotebookBelow(tab, rel, 'markdown'))),
     editorNotebookButton('clear-all', 'Cancella output', 'Cancella gli output di tutte le celle',
       editorNotebookAction(tab, () => clearEditorNotebookOutputs(tab, rel))),
+    ...editorNotebookRunTools(tab, rel),
   );
   return bar;
 }

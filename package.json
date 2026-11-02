@@ -124,6 +124,7 @@
     "asarUnpack": [
       "app/tmux.conf",
       "app/psmux.conf",
+      "app/kernel-bridge.py",
       "LICENSE",
       "THIRD-PARTY-NOTICES.md"
     ]

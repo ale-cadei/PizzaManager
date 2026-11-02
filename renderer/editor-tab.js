@@ -635,6 +635,7 @@ function disposeEditorTab(tab) {
   if (ed.quick) ed.quick.close();
   stopEditorBlame(tab);
   if (ed.notebook) releaseEditorNotebookCell(ed.notebook);
+  stopEditorNotebookKernels(tab);
   try { if (ed.host) ed.host.dispose(); } catch (e) { console.warn('chiusura di Monaco fallita', e); }
 }
 
@@ -753,6 +754,7 @@ async function askEditorExit() {
 
 /** Da init(): gli eventi del watch e la guardia sull'uscita. */
 function initEditorTabs() {
+  initEditorNotebookRun();
   window.aisess.onEditorFileChanged((change) => {
     if (!change || typeof change.path !== 'string') return;
     for (const t of tabs.values()) {

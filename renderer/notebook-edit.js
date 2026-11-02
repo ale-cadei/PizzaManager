@@ -130,6 +130,34 @@
     return withCells(raw, raw.doc.cells.map((c) => (isObject(c) ? cleared(c) : c)));
   }
 
+  /**
+   * Il risultato di un'esecuzione (docs/plans/79): output e numero nella
+   * cella di codice `index`. Le chiavi restano dove sono nel file.
+   */
+  function setOutputs(raw, index, outputs, count) {
+    return updateCell(raw, index, (c) => (c.cell_type === 'code' ? { ...c, execution_count: count, outputs } : c));
+  }
+
+  const sourceText = (c) => (Array.isArray(c.source) ? c.source.join('') : String(c.source || ''));
+  const isCodeWith = (c, source) => isObject(c) && c.cell_type === 'code' && sourceText(c) === source;
+
+  /**
+   * Dove sta ora la cella che girava: dal suo `id` (nbformat 4.5), che
+   * resta anche se intanto se ne aggiungono o spostano altre. Senza id
+   * (nbformat < 4.5) dal sorgente di quando è partita: all'indice di
+   * allora se c'è ancora lei, se no l'unica cella di codice con quel
+   * sorgente. -1 se non c'è più o non si sa quale: meglio perdere un
+   * output che scriverlo nella cella di un altro.
+   */
+  function cellIndexById(raw, id, fallback, source) {
+    const { cells } = raw.doc;
+    if (typeof id === 'string' && id) return cells.findIndex((c) => isObject(c) && c.id === id);
+    if (typeof source !== 'string') return -1;
+    if (Number.isInteger(fallback) && isCodeWith(cells[fallback], source)) return fallback;
+    const found = cells.reduce((acc, c, i) => (isCodeWith(c, source) ? [...acc, i] : acc), []);
+    return found.length === 1 ? found[0] : -1;
+  }
+
   /* Modo comando di Jupyter: una lettera, senza modificatori */
   const PLAIN = {
     ArrowUp: 'up', k: 'up', ArrowDown: 'down', j: 'down', Enter: 'edit', a: 'above', b: 'below',
@@ -160,5 +188,8 @@
     return PLAIN[e.key] || null;
   }
 
-  return { commandForKey, parseRaw, serialize, setSource, insertCell, deleteCell, moveCell, setType, clearOutputs };
+  return {
+    commandForKey, parseRaw, serialize, setSource, insertCell, deleteCell, moveCell, setType, clearOutputs,
+    setOutputs, cellIndexById,
+  };
 });

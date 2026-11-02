@@ -403,7 +403,9 @@ ok('main.js e solo cablaggio: nessuna funzione di logica definita al suo interno
   // attiva solo all'avvio, l'handler chiama soltanto app.relaunch e app.quit.
   // 238: altre 3 per l'istanza di prova (AISESS_PROFILE, piano 75): require,
   // commento e chiamata; nome e validazione stanno in lib/dev-profile.js.
-  assert.ok(main.split('\n').length < 238, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
+  // 240: altre 2 per i kernel dei notebook (piano 79): un require e la
+  // registrazione; ponte, processi e spegnimento stanno in app/notebook-kernel.js.
+  assert.ok(main.split('\n').length < 240, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
 });
 
 /* I file che un PROGRAMMA ESTERNO deve aprire non bastano dentro app.asar:

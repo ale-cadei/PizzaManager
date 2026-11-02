@@ -31,3 +31,15 @@ alto. Serve un gesto solo.
   `render()`, che svuotano la lista.
 - `sidebar.js` riceve `onGroupToTop(groupEl)` e disegna il tasto solo se c'è;
   non sa nulla dello scorrimento. Il collegamento sta in `session-list.js`.
+
+## Aggiunta: apertura e chiusura animate
+
+- Aprendo un gruppo il corpo cresce da 0 alla sua altezza e la fetta ruota;
+  chiudendo si schiaccia a 0 e solo alla fine il gruppo si ridisegna chiuso.
+  ~180ms; istantaneo con `prefers-reduced-motion`.
+- `render()` ricrea la lista, quindi una transizione CSS non vedrebbe mai lo
+  stato di prima: `renderer/group-fold.js` usa le Web Animations sul corpo
+  (`createGroupFold({ reducedMotion, getStyle })` → `{ open, close }`).
+  Aprendo si anima il corpo NUOVO dopo il render; chiudendo il vecchio, prima.
+- Un click durante la chiusura non ne avvia un'altra; un render arrivato da
+  fuori a metà chiusura disegna il gruppo già chiuso, senza lampeggi.

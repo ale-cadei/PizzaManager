@@ -94,7 +94,8 @@
    *   changesOf?: (path: string) => ({files: number, added: number, removed: number}|null),
    *   onReorder?: (movedId: string, targetId: string, opts: {before: boolean}) => void,
    *   Order?: {moveAdjacent: Function},
-   *   onGroupToTop?: (group: Element) => void}} deps
+   *   onGroupToTop?: (group: Element) => void,
+   *   GroupFold?: {open: Function, close: (body: Element) => Promise<void>}}} deps
    * Senza `Order` le linguette dei progetti non si trascinano. Senza
    * `WorktreeSection` i worktree non hanno sotto-sezioni e le loro sessioni
    * restano fra quelle del progetto (docs/plans/36).
@@ -124,6 +125,8 @@
     // Righe toccate in ogni worktree (docs/plans/32): le legge il renderer
     const changesOf = fnOrNull(deps.changesOf);
     const Order = deps.Order && typeof deps.Order.moveAdjacent === 'function' ? deps.Order : null;
+    /* Apertura e chiusura animate (renderer/group-fold.js): senza, istantanee */
+    const Fold = deps.GroupFold && typeof deps.GroupFold.close === 'function' ? deps.GroupFold : null;
 
     /* Collassi in liste separate per modalità: collassare "Claude" e collassare
        "aisessionmanager" sono scelte diverse e nella stessa chiave
@@ -581,6 +584,40 @@
       return true;
     }
 
+    /* Corpo e linguetta di ogni gruppo disegnato, per animare l'apertura sul
+       corpo NUOVO dopo il render (docs/plans/80). */
+    let shownBodies = new Map();
+    // Gruppi che si stanno chiudendo: un secondo click aspetta la fine
+    let folding = new Set();
+
+    function setCollapsed(key, collapsed) {
+      const set = collapsedSet();
+      if (collapsed) set.add(key);
+      else set.delete(key);
+      saveCollapsed();
+    }
+
+    /** Apre o chiude un gruppo; con `GroupFold` il corpo si apre e si chiude animato. */
+    function toggleGroup(key, header, body) {
+      if (folding.has(key)) return;
+      if (collapsedSet().has(key)) {
+        setCollapsed(key, false);
+        render(...lastRender);
+        const shown = shownBodies.get(key);
+        if (Fold && shown) Fold.open(shown.body, shown.header.querySelector ? shown.header.querySelector('.chevron svg') : null);
+        return;
+      }
+      if (!Fold) { setCollapsed(key, true); render(...lastRender); return; }
+      // La fetta ruota con la sua transizione CSS mentre il corpo si chiude
+      header.setAttribute('aria-expanded', 'false');
+      folding = new Set(folding).add(key);
+      Fold.close(body).then(() => {
+        folding = new Set([...folding].filter((k) => k !== key));
+        setCollapsed(key, true);
+        render(...lastRender);
+      });
+    }
+
     /** Le sotto-sezioni dei worktree di un gruppo, con le loro card. */
     function appendWorktrees(body, g, activeId, painting) {
       for (const w of g.worktrees || []) {
@@ -614,6 +651,7 @@
       lastRender = [sessions, activeId, worktrees];
       shownWorktrees = worktrees && typeof worktrees === 'object' ? worktrees : {};
       painted = new Map();
+      shownBodies = new Map();
       list.innerHTML = '';
       if (count) count.textContent = sessions.length ? `(${sessions.length})` : '';
       if (!sessions.length) {
@@ -633,7 +671,9 @@
       for (const g of groups) {
         // Gruppo espandibile/collassabile sempre, anche con una sola sessione:
         // la posizione delle card resta stabile quando il gruppo cresce.
-        const collapsed = collapsedSet().has(g.key);
+        // Un gruppo a metà chiusura si ridisegna già chiuso: riaprirlo per un
+        // render arrivato da fuori lo farebbe lampeggiare
+        const collapsed = collapsedSet().has(g.key) || folding.has(g.key);
         // Le sessioni del gruppo, comprese quelle nei suoi worktree
         const allItems = [...g.items, ...(g.worktrees || []).flatMap((w) => w.items)];
         const hasActive = allItems.some((t) => t.id === activeId);
@@ -675,11 +715,7 @@
         header.onclick = () => {
           // Il rilascio del trascinamento della linguetta non è un click
           if (Date.now() - dragEndedAt <= DRAG_CLICK_GUARD_MS) return;
-          const set = collapsedSet();
-          if (set.has(g.key)) set.delete(g.key);
-          else set.add(g.key);
-          saveCollapsed();
-          render(sessions, activeId, worktrees);
+          toggleGroup(g.key, header, body);
         };
         attachGroupDrag(group, header, g.key);
         cap.appendChild(header);
@@ -706,6 +742,7 @@
         if (WorktreeSection) appendWorktrees(body, g, activeId, painting);
         group.appendChild(body);
         list.appendChild(group);
+        shownBodies.set(g.key, { header, body });
       }
     }
 

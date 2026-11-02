@@ -21,6 +21,11 @@ const sidebar = Sidebar.createSidebar({
   onIcon: (t) => openShellIconPicker(t),
   // ⤒ sulla testata: il gruppo sale fin sotto «SESSIONI APERTE» (docs/plans/80)
   onGroupToTop: groupScroller ? (group) => groupScroller.toTop(group) : null,
+  // Gruppi che si aprono e chiudono animati (docs/plans/80)
+  GroupFold: window.AisessGroupFold ? window.AisessGroupFold.createGroupFold({
+    reducedMotion: () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    getStyle: (el) => window.getComputedStyle(el),
+  }) : null,
   // ⤓ sulla card: se l'export non riesce, il perché esce dalla card
   onExport: (t, anchor) => { exportFromCard(t, anchor).catch(() => {}); },
   // Il «+» di un gruppo progetto: stesso dialog, directory già impostata sulla

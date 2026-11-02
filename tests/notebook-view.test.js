@@ -131,3 +131,25 @@ ok('notebook-view: la cella selezionata ha la sua classe, ognuna il suo indice',
   assert.deepStrictEqual(r.byClass('nb-cell').map((c) => c.dataset.index), ['0', '2', '4', '6']);
   assert.deepStrictEqual(r.byClass('nb-cell--selected').map((c) => c.dataset.index), ['2']);
 });
+
+/* ---------- esecuzione (docs/plans/79) ---------- */
+
+ok('notebook-view: le celle che girano o in coda hanno [*] al posto del numero', () => {
+  const nb = { language: 'python', cells: [
+    { type: 'code', source: 'a', count: 4, outputs: [], index: 0 },
+    { type: 'code', source: 'b', count: null, outputs: [], index: 1 },
+  ] };
+  const { byClass } = render(nb, { running: new Set([1]) });
+  assert.deepStrictEqual(byClass('nb-prompt').map((n) => n.textContent), ['[4]', '[*]']);
+});
+
+ok('notebook-view: promptOf e renderOutputs disegnano solo prompt e output di una cella', () => {
+  const { promptOf, renderOutputs } = require('../renderer/notebook-view');
+  assert.strictEqual(promptOf({ count: 2 }, false), '[2]');
+  assert.strictEqual(promptOf({ count: null }, false), '[ ]');
+  assert.strictEqual(promptOf({ count: 2 }, true), '[*]');
+  const rows = renderOutputs(doc, [{ kind: 'text', text: 'ciao', stream: 'stdout' }, { kind: 'error', name: 'E', value: 'v', traceback: '' }], {});
+  assert.strictEqual(rows.length, 2);
+  assert.ok(rows.every((r) => r.classes.has('nb-output')));
+  assert.strictEqual(textOf(rows[0]), 'ciao');
+});

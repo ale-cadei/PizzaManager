@@ -45,14 +45,22 @@ function editorNotebookProblem(tab, error) {
   return box;
 }
 
-/** @returns {{node: Element, nb: object|null}} nb null se il testo non è un notebook */
-function buildEditorNotebook(tab, rel) {
+/** Come si disegnano celle e output; `running`: le celle col prompt `[*]` (docs/plans/79). */
+function editorNotebookViewOptions(tab, rel) {
   const { host, ui } = tab.editor;
-  const nb = NotebookModel.parseNotebook(host.getText(rel));
-  if (!nb.ok) return { node: editorNotebookProblem(tab, nb.error), nb: null };
-  const root = NotebookView.renderNotebook(document, nb, {
+  return {
     colorize: (node, language) => host.colorize(node, language),
     htmlCss: editorNotebookCss(ui.notebook),
+    running: editorNotebookRunning(tab, rel),
+  };
+}
+
+/** @returns {{node: Element, nb: object|null}} nb null se il testo non è un notebook */
+function buildEditorNotebook(tab, rel) {
+  const nb = NotebookModel.parseNotebook(tab.editor.host.getText(rel));
+  if (!nb.ok) return { node: editorNotebookProblem(tab, nb.error), nb: null };
+  const root = NotebookView.renderNotebook(document, nb, {
+    ...editorNotebookViewOptions(tab, rel),
     selected: editorNotebookSelected(tab, rel, nb.cells),
   });
   return { node: decorateEditorNotebook(tab, rel, nb, root), nb };
@@ -113,9 +121,10 @@ function toggleEditorNotebook(tab) {
   else if (!toSource) ed.ui.notebook.focus();
 }
 
-/** Un file chiuso: la sua vista e la sua scelta se ne vanno con lui. */
+/** Un file chiuso: la sua vista, la sua scelta e il suo kernel se ne vanno con lui. */
 function dropEditorNotebook(tab, rel) {
   const state = editorNotebookState(tab);
+  stopEditorNotebookKernel(tab, rel);
   if (state.editing && state.editing.rel === rel) releaseEditorNotebookCell(state);
   state.source.delete(rel);
   state.views.delete(rel);

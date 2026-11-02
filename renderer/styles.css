@@ -1721,6 +1721,11 @@ body.editor-tree-hidden .editor-open-menu:not([hidden]) { display: inline-flex; 
 .nb-tool:hover, .nb-tool:focus-visible { background: var(--surface-3); color: var(--text); outline: none; }
 .nb-tool-label { white-space: nowrap; }
 .nb-type { height: 22px; padding: 0 4px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text-muted); font: inherit; font-size: 12px; }
+/* Esecuzione (docs/plans/79): stato del kernel nella barra, cella in corso */
+.nb-kernel { align-self: center; margin-left: auto; overflow: hidden; color: var(--text-dim); font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
+.nb-kernel[data-state="busy"] { color: var(--state-ok); }
+.nb-kernel[data-state="starting"] { color: var(--text-muted); }
+.nb-kernel[data-state="dead"], .nb-kernel[data-state="missing"], .nb-kernel[data-state="error"] { color: var(--state-error); white-space: normal; }
 .editor-notes-bar {
   flex: none; display: flex; align-items: center; gap: 8px; height: 28px; margin-left: auto; padding: 0 4px 0 10px;
   border-radius: var(--radius); background: var(--action-soft); color: var(--action-text); font: 500 12px var(--font-ui); white-space: nowrap;

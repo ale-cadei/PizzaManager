@@ -132,3 +132,51 @@ ok('notebook-edit: i tasti del modo comando, come in Jupyter', () => {
   assert.strictEqual(k('a', { ctrlKey: true }), null, 'Ctrl+A resta al sistema');
   assert.strictEqual(k('a', { altKey: true }), null);
 });
+
+/* ---------- esecuzione (docs/plans/79) ---------- */
+
+ok('notebook-edit: setOutputs scrive output e numero nella cella di codice, chiavi al loro posto', () => {
+  const raw = parsed();
+  const out = [{ output_type: 'stream', name: 'stdout', text: ['2\n'] }];
+  const next = Edit.setOutputs(raw, 1, out, 7);
+  const cell = next.doc.cells[1];
+  assert.strictEqual(cell.execution_count, 7);
+  assert.deepStrictEqual(cell.outputs, out);
+  assert.deepStrictEqual(Object.keys(cell), Object.keys(raw.doc.cells[1]));
+  assert.strictEqual(raw.doc.cells[1].execution_count, 3, "l'originale resta com'era");
+  assert.strictEqual(next.doc.cells[0], raw.doc.cells[0]);
+});
+
+ok('notebook-edit: setOutputs su markdown, indici fuori o celle non oggetto non cambia niente', () => {
+  const raw = parsed();
+  assert.strictEqual(Edit.setOutputs(raw, 0, [], 1), raw);
+  assert.strictEqual(Edit.setOutputs(raw, 9, [], 1), raw);
+  const odd = { ...raw, doc: { ...raw.doc, cells: [3, ...raw.doc.cells] } };
+  assert.strictEqual(Edit.setOutputs(odd, 0, [], 1), odd);
+});
+
+ok('notebook-edit: cellIndexById senza id (nbformat < 4.5) segue il sorgente, mai un altra cella', () => {
+  const code = (src) => ({ cell_type: 'code', metadata: {}, execution_count: null, outputs: [], source: src });
+  const nb = (cells) => ({ doc: { nbformat: 4, nbformat_minor: 4, metadata: {}, cells } });
+  const raw = nb([code(['a = 1\n', 'a']), code('b = 2'), code('c')]);
+  assert.strictEqual(Edit.cellIndexById(raw, null, 1, 'b = 2'), 1, 'ancora lì');
+  const inserted = nb([code('nuova'), ...raw.doc.cells]);
+  assert.strictEqual(Edit.cellIndexById(inserted, null, 1, 'b = 2'), 2, 'una cella sopra: la ritrova');
+  assert.strictEqual(Edit.cellIndexById(inserted, null, 0, 'a = 1\na'), 1, 'sorgente a righe');
+  const deleted = nb([raw.doc.cells[0], raw.doc.cells[2]]);
+  assert.strictEqual(Edit.cellIndexById(deleted, null, 1, 'b = 2'), -1, 'eliminata: non scrive su «c»');
+  const twins = nb([code('x'), code('nuova'), code('x')]);
+  assert.strictEqual(Edit.cellIndexById(twins, null, 1, 'x'), -1, 'due uguali e l indice è cambiato: nessuna');
+  assert.strictEqual(Edit.cellIndexById(twins, null, 2, 'x'), 2, 'due uguali ma l indice è suo');
+  const md = nb([{ cell_type: 'markdown', metadata: {}, source: 'b = 2' }, code('z')]);
+  assert.strictEqual(Edit.cellIndexById(md, null, 1, 'b = 2'), -1, 'solo celle di codice');
+});
+
+ok('notebook-edit: cellIndexById ritrova la cella dal suo id, anche spostata', () => {
+  const raw = parsed();
+  assert.strictEqual(Edit.cellIndexById(raw, 'bb', 0), 1);
+  const moved = Edit.moveCell(raw, 1, -1);
+  assert.strictEqual(Edit.cellIndexById(moved, 'bb', 1), 0);
+  assert.strictEqual(Edit.cellIndexById(Edit.deleteCell(raw, 1), 'bb', 1), -1, 'cella eliminata');
+  assert.strictEqual(Edit.cellIndexById(raw, null, 1), -1, 'senza id né sorgente non si sa quale');
+});

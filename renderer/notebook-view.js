@@ -19,8 +19,9 @@
 
   /**
    * @typedef {{colorize?: (node: object, language: string) => void, htmlCss?: string,
-   *   attachments?: Object<string, string>, selected?: number}} ViewOptions
-   * `selected`: l'indice (nel JSON) della cella selezionata (docs/plans/78)
+   *   attachments?: Object<string, string>, selected?: number, running?: Set<number>}} ViewOptions
+   * `selected`: l'indice (nel JSON) della cella selezionata (docs/plans/78);
+   * `running`: gli indici delle celle in corso o in coda (docs/plans/79)
    */
 
   function el(doc, tag, className, text) {
@@ -164,6 +165,12 @@
     return r;
   }
 
+  /** `[n]`, `[ ]` mai eseguita, `[*]` in corso o in coda (docs/plans/79). */
+  const promptOf = (cell, running) => (running ? '[*]' : `[${cell.count === null ? ' ' : cell.count}]`);
+
+  /** Le righe di output di una cella: la vista le ridisegna da sole mentre la cella gira. */
+  const renderOutputs = (doc, outputs, opts) => outputs.map((out) => row(doc, 'nb-row nb-output', '', outputContent(doc, out, opts)));
+
   function cellNode(doc, cell, language, opts) {
     const selected = Number.isInteger(opts.selected) && opts.selected === cell.index ? ' nb-cell--selected' : '';
     const box = el(doc, 'div', `nb-cell nb-cell--${cell.type}${selected}`);
@@ -171,8 +178,9 @@
     if (cell.type === 'markdown') {
       box.append(row(doc, 'nb-row', '', renderMarkdown(doc, cell.source, { ...opts, attachments: cell.attachments })));
     } else if (cell.type === 'code') {
-      box.append(row(doc, 'nb-row nb-input', `[${cell.count === null ? ' ' : cell.count}]`, codeBlock(doc, cell.source, language, opts)));
-      box.append(...cell.outputs.map((out) => row(doc, 'nb-row nb-output', '', outputContent(doc, out, opts))));
+      const running = Boolean(opts.running && opts.running.has(cell.index));
+      box.append(row(doc, 'nb-row nb-input', promptOf(cell, running), codeBlock(doc, cell.source, language, opts)));
+      box.append(...renderOutputs(doc, cell.outputs, opts));
     } else {
       box.append(row(doc, 'nb-row', '', el(doc, 'pre', 'nb-text', cell.source)));
     }
@@ -191,5 +199,5 @@
     return root;
   }
 
-  return { renderNotebook, renderMarkdown };
+  return { renderNotebook, renderMarkdown, renderOutputs, promptOf };
 });

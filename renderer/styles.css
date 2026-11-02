@@ -1705,6 +1705,22 @@ body.editor-tree-hidden .editor-open-menu:not([hidden]) { display: inline-flex; 
 .nb-table th, .nb-table td { padding: 4px 10px; border: 1px solid var(--border); }
 .nb-problem, .nb-empty { display: flex; align-items: center; gap: 10px; padding: 12px; color: var(--text-muted); }
 .nb-problem { color: var(--state-error); }
+/* Modifica dalla vista (docs/plans/78): cella selezionata, in modifica, barre */
+.editor-notebook:focus { outline: none; }
+.nb-editable > .nb-bar { position: sticky; top: -12px; z-index: 2; display: flex; gap: 4px; margin: -12px -16px 10px; padding: 6px 16px; border-bottom: 1px solid var(--border-subtle); background: var(--bg); }
+.nb-editable .nb-cell { position: relative; padding: 2px 0 2px 2px; border-left: 3px solid transparent; border-radius: 2px; }
+.nb-editable .nb-cell:hover { border-left-color: var(--border); }
+.nb-editable .nb-cell--selected { border-left-color: var(--action); background: color-mix(in srgb, var(--action) 5%, transparent); }
+.editor-notebook:not(:focus-within) .nb-cell--selected { border-left-color: var(--border-strong); background: none; }
+.nb-cell--editing, .editor-notebook:not(:focus-within) .nb-cell--editing { border-left-color: var(--state-ok); }
+.nb-cell-editor { flex: 1; min-width: 0; min-height: 22px; padding: 4px 0; border: 1px solid var(--action-ring); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+.nb-cell-tools { position: absolute; top: -10px; right: 6px; z-index: 1; display: none; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); box-shadow: var(--shadow-stack); }
+.nb-cell:hover > .nb-cell-tools, .nb-cell--selected > .nb-cell-tools { display: flex; }
+.nb-cell--editing > .nb-cell-tools { display: none; }
+.nb-tool { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 6px; border: 0; border-radius: var(--radius); background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; }
+.nb-tool:hover, .nb-tool:focus-visible { background: var(--surface-3); color: var(--text); outline: none; }
+.nb-tool-label { white-space: nowrap; }
+.nb-type { height: 22px; padding: 0 4px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text-muted); font: inherit; font-size: 12px; }
 .editor-notes-bar {
   flex: none; display: flex; align-items: center; gap: 8px; height: 28px; margin-left: auto; padding: 0 4px 0 10px;
   border-radius: var(--radius); background: var(--action-soft); color: var(--action-text); font: 500 12px var(--font-ui); white-space: nowrap;

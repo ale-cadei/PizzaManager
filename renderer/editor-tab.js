@@ -17,7 +17,11 @@ const EditorMonaco = window.AisessEditorMonaco;
 const EditorPanel = window.AisessEditorPanel;
 // Larghezza e aperto/chiuso dell'albero, uguali per tutte le schede editor
 // e ricordati al riavvio (docs/plans/62): applicati subito alla pagina
-const editorPanel = EditorPanel.createPanel({ doc: document, storage: localStorage });
+const editorPanel = EditorPanel.createPanel({
+  doc: document, storage: localStorage,
+  // Si apre e si chiude animato, come la sidebar (docs/plans/80)
+  motion: window.AisessMotion ? window.AisessMotion.createPageMotion(window) : null,
+});
 // Domande appese all'editor (sotto-schede, albero): un fumetto suo, che i
 // render della sidebar non spostano (closeConfirm segue le card)
 const editorConfirm = ConfirmBubble.createConfirmBubble();

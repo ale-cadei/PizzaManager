@@ -309,6 +309,7 @@
   function createChangesView({
     doc, host, shortcut, onToggle, onClose, onFile, onMerge = () => {}, onMode = () => {}, onReview = () => {},
     onCommit = () => {}, onOpenFile = null, tabTop = null, onTabMove = () => {}, onConflict = null,
+    motion = null,
   }) {
     const tab = button(doc, 'changes-tab', '', `Modifiche di questa sessione (${shortcut})`, () => {
       if (!tabDrag.takeClick()) onToggle();
@@ -455,6 +456,26 @@
      *   discard?: {text: string, confirmLabel: string|null, undoLabel: string|null, canAct: boolean}|null,
      *   openable?: boolean}} state
      */
+    /* Con `motion` (docs/plans/80) il pannello entra ed esce dal bordo destro.
+       Uscendo resta nella pagina fino a fine corsa; se nel frattempo si
+       riapre, l'uscita si annulla e non lo nasconde. */
+    let closing = null; // il gettone dell'uscita in corso
+    function showPanel(open) {
+      if (open) {
+        const entering = panel.hidden || closing !== null;
+        closing = null;
+        panel.hidden = false;
+        if (entering && motion) motion.slideIn(panel);
+        return;
+      }
+      if (panel.hidden || closing !== null) return;
+      if (!motion) { panel.hidden = true; return; }
+      const token = {};
+      closing = token;
+      motion.slideOut(panel, () => { if (closing === token) panel.hidden = true; })
+        .then(() => { if (closing === token) closing = null; });
+    }
+
     function render(state) {
       last = state;
       tab.hidden = state.open || !state.label.visible;
@@ -467,7 +488,7 @@
       host.classList.toggle('has-changes-tab', !tab.hidden);
       // Visibile ha un'altezza: solo ora si può tenere dentro l'area
       if (!tab.hidden) tabDrag.place();
-      panel.hidden = !state.open;
+      showPanel(state.open);
       if (!state.open) return;
       label.textContent = state.heading || 'Modifiche';
       title.textContent = state.title;

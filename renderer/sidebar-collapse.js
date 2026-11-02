@@ -23,9 +23,12 @@
   /**
    * @param {{sidebar: Element, toggle: Element, searchButton?: Element,
    *   searchInput?: Element, storage: Storage,
-   *   onChange?: (collapsed: boolean) => void}} opts
+   *   onChange?: (collapsed: boolean) => void,
+   *   motion?: {resizeWidth: (el: Element, apply: () => void) => Promise<boolean>}}} opts
+   * Con `motion` (renderer/motion.js) la larghezza cambia animata; `onChange`
+   * arriva subito e di nuovo a fine animazione, per rifittare il terminale.
    */
-  function createSidebarCollapse({ sidebar, toggle, searchButton, searchInput, storage, onChange }) {
+  function createSidebarCollapse({ sidebar, toggle, searchButton, searchInput, storage, onChange, motion = null }) {
     let collapsed = readSaved(storage);
 
     function paint() {
@@ -39,7 +42,13 @@
       if (value === collapsed) return;
       collapsed = value;
       try { storage.setItem(STORAGE_KEY, collapsed ? '1' : '0'); } catch {}
-      paint();
+      if (!motion) {
+        paint();
+        if (onChange) onChange(collapsed);
+        return;
+      }
+      const now = collapsed;
+      motion.resizeWidth(sidebar, paint).then(() => { if (onChange && collapsed === now) onChange(collapsed); });
       if (onChange) onChange(collapsed);
     }
 

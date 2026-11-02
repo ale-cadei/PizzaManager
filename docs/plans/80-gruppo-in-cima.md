@@ -43,3 +43,21 @@ alto. Serve un gesto solo.
   Aprendo si anima il corpo NUOVO dopo il render; chiudendo il vecchio, prima.
 - Un click durante la chiusura non ne avvia un'altra; un render arrivato da
   fuori a metà chiusura disegna il gruppo già chiuso, senza lampeggi.
+
+## Aggiunta: pannelli che si aprono e chiudono animati
+
+- Sidebar compressa (300↔72px), albero dei file dell'editor (Ctrl+B) e
+  pannello delle modifiche aperto dalla linguetta di git non cambiano più di
+  colpo: ~180ms, istantaneo con `prefers-reduced-motion`.
+- `renderer/motion.js` (UMD, `createMotion({ reducedMotion })`): misura il
+  prima e il dopo e anima con le Web Animations. Larghezza su `min-width` +
+  `max-width` insieme, che vincono anche sulla `width: … !important` della
+  sidebar compressa. Chi sparisce si anima prima e si nasconde a fine corsa;
+  chi compare si mostra e poi cresce. Un secondo click a metà corsa riparte
+  da dove si trova, e la chiusura interrotta non nasconde più nulla.
+- Un solo `motion` per la pagina (`createPageMotion(window)`): `motion.js` si
+  carica presto in `index.html` perché `editor-tab.js` viene prima di
+  `panels.js`.
+- La sidebar chiama `onChange` subito e a fine corsa: il terminale si rifitta
+  alla larghezza finale. Le preferenze dell'albero si salvano al click, non a
+  fine animazione.

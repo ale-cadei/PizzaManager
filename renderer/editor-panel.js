@@ -46,7 +46,9 @@
 
   /** Le preferenze correnti stanno qui, non rilette dallo storage: se lo
    *  storage lancia, il bottone apre e chiude lo stesso. */
-  function createPanel({ doc, storage }) {
+  /** Con `motion` (renderer/motion.js, docs/plans/80) l'albero si apre e si
+   *  chiude animato: si stringe a 0 prima di sparire, cresce dopo essere comparso. */
+  function createPanel({ doc, storage, motion = null }) {
     let prefs = readPanelPrefs(storage);
     const show = (patch) => {
       prefs = { ...prefs, ...patch };
@@ -83,10 +85,22 @@
       });
     }
 
+    function toggle() {
+      const hidden = !prefs.hidden;
+      const sides = motion && doc.querySelectorAll ? [...doc.querySelectorAll('.editor-side')] : [];
+      if (!sides.length) { keep({ hidden }); return; }
+      if (!hidden) { sides.forEach((side, i) => motion.showWidth(side, () => { if (!i) keep({ hidden }); })); return; }
+      // Le preferenze cambiano subito (Ctrl+B di nuovo riapre da dov'è),
+      // la classe che lo toglie dalla pagina arriva a fine corsa
+      prefs = { ...prefs, hidden };
+      savePanelPrefs(storage, prefs);
+      sides.forEach((side) => motion.hideWidth(side, () => applyPanelPrefs(doc, prefs)));
+    }
+
     applyPanelPrefs(doc, prefs);
     return {
       prefs: () => prefs,
-      toggle: () => keep({ hidden: !prefs.hidden }),
+      toggle: () => toggle(),
       attachResizer,
     };
   }

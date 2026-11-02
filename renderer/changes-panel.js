@@ -612,6 +612,8 @@ function initChangesPanel() {
     tabTop: readChangesTabTop(),
     onTabMove: saveChangesTabTop,
     onConflict: (action) => handleConflict(action),
+    // Entra ed esce dal bordo destro (docs/plans/80)
+    motion: window.AisessMotion ? window.AisessMotion.createPageMotion(window) : null,
   });
   initChangesResize();
   // Finestra rimpicciolita: la linguetta spostata in basso non deve uscire

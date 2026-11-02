@@ -5,6 +5,11 @@
    Il modulo non conosce le schede: le riceve a ogni render e restituisce le
    azioni come callback. Qui restano `tabs` e `activeId`, che sono suoi — e
    `tmuxAvailable`, che decide che cosa dire nella conferma di chiusura. */
+// Senza il modulo (pagine di prova) la testata non ha il ⤒
+const groupScroller = window.AisessGroupScroll ? window.AisessGroupScroll.createGroupScroller({
+  list: $('#session-list'),
+  reducedMotion: () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+}) : null;
 const sidebar = Sidebar.createSidebar({
   list: $('#session-list'), count: $('#count'),
   storage: window.localStorage, Icons, Slice: window.PizzaSlice,
@@ -14,6 +19,8 @@ const sidebar = Sidebar.createSidebar({
   onClose: (id, anchor) => { requestClose(id, anchor).catch(() => {}); },
   onRename: (t) => { renameTab(t).catch(() => {}); },
   onIcon: (t) => openShellIconPicker(t),
+  // ⤒ sulla testata: il gruppo sale fin sotto «SESSIONI APERTE» (docs/plans/80)
+  onGroupToTop: groupScroller ? (group) => groupScroller.toTop(group) : null,
   // ⤓ sulla card: se l'export non riesce, il perché esce dalla card
   onExport: (t, anchor) => { exportFromCard(t, anchor).catch(() => {}); },
   // Il «+» di un gruppo progetto: stesso dialog, directory già impostata sulla

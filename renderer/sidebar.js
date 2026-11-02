@@ -93,7 +93,8 @@
    *   onWorktreeMenu?: (worktree: object, projectRoot: string, anchor: Element) => void,
    *   changesOf?: (path: string) => ({files: number, added: number, removed: number}|null),
    *   onReorder?: (movedId: string, targetId: string, opts: {before: boolean}) => void,
-   *   Order?: {moveAdjacent: Function}}} deps
+   *   Order?: {moveAdjacent: Function},
+   *   onGroupToTop?: (group: Element) => void}} deps
    * Senza `Order` le linguette dei progetti non si trascinano. Senza
    * `WorktreeSection` i worktree non hanno sotto-sezioni e le loro sessioni
    * restano fra quelle del progetto (docs/plans/36).
@@ -111,6 +112,8 @@
        sessione e la card, su cui appoggiare un eventuale errore. */
     const onExport = typeof deps.onExport === 'function' ? deps.onExport : null;
     const onIcon = typeof deps.onIcon === 'function' ? deps.onIcon : null;
+    /* ⤒ sulla testata (docs/plans/80): la sidebar passa il gruppo, chi scorre è il renderer */
+    const onGroupToTop = typeof deps.onGroupToTop === 'function' ? deps.onGroupToTop : null;
     /* Worktree (docs/plans/36): la sidebar disegna, il renderer crea, unisce e butta */
     const WorktreeSection = deps.WorktreeSection && typeof deps.WorktreeSection.createSection === 'function' ? deps.WorktreeSection : null;
     const fnOrNull = (f) => (typeof f === 'function' ? f : null);
@@ -517,6 +520,19 @@
       return b;
     }
 
+    /** ⤒ sulla testata: porta il gruppo in cima alla lista, sotto «SESSIONI APERTE». */
+    function createToTopButton(g, group) {
+      const b = document.createElement('button');
+      b.className = 'group-top';
+      b.type = 'button';
+      b.textContent = '⤒';
+      b.title = `Porta ${g.title} in cima`;
+      b.setAttribute('aria-label', b.title);
+      // Come il «+»: il click non deve arrivare all'header e collassare il gruppo
+      b.onclick = (e) => { e.stopPropagation(); onGroupToTop(group); };
+      return b;
+    }
+
     function createResumeButton(g) {
       const resume = document.createElement('button');
       resume.className = 'group-resume';
@@ -672,6 +688,7 @@
         if (onNewInProject && g.kind === 'project' && g.key) cap.appendChild(createAddButton(g));
         if (onResumeInProject && g.kind === 'project' && g.key) cap.appendChild(createResumeButton(g));
         if (onNewWorktree && WorktreeSection && g.kind === 'project' && g.key) cap.appendChild(createWorktreeButton(g));
+        if (onGroupToTop) cap.appendChild(createToTopButton(g, group));
         group.appendChild(cap);
         const body = document.createElement('div');
         body.className = 'group-body';

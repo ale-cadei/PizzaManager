@@ -14,6 +14,15 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-2022]
     runs-on: ${{ matrix.os }}
+    # Windows non fa diventare rossa la CI, Linux si' (docs/plans/81).
+    # Su Mac e Linux si sviluppa ogni giorno, Windows lo prova una persona sola
+    # da casa: un job Windows rosso a ogni merge teneva `main` sempre rosso, e
+    # un rosso costante insegna a ignorarlo — anche quando a rompersi e' Linux.
+    # Il job gira e si legge come prima: e' l'anteprima di cio' che decidera'
+    # se la prossima release contiene Windows (release.yml rifa' gli stessi
+    # test sul commit del tag). Per sistemarlo basta pushare un branch e
+    # guardare questo job, anche da Mac.
+    continue-on-error: ${{ matrix.os == 'windows-2022' }}
     # Un test che lascia un processo appeso teneva il job vivo 6 ore (il
     # massimo di GitHub): la suite intera ci mette pochi minuti.
     timeout-minutes: 20

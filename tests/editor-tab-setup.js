@@ -92,7 +92,7 @@ function setup({ files = {}, main = {} } = {}) {
   const tab = {
     id: 'tab-ed', type: 'editor', cwd: '/w', name: 'w', wrap: stub(),
     editor: {
-      ui: { tree: stub(), treeHost: stub(), openList: stub(), openCount: stub(), title: stub(), openMenu: stub(), bar: stub(), message: stub(), host: stub(), notesBar: stub(), empty: stub(), status: stub(), stage: stub(), fileHead: stub(), filter: stub(), nbToggle: stub(), notebook: stub() },
+      ui: { tree: stub(), treeHost: stub(), openList: stub(), openCount: stub(), title: stub(), openMenu: stub(), bar: stub(), message: stub(), host: stub(), notesBar: stub(), empty: stub(), status: stub(), stage: stub(), fileHead: stub(), filter: stub(), nbToggle: stub(), notebook: stub(), mdToggle: stub(), markdown: stub() },
       files: state, tree: page.ctx.AisessEditorTree.emptyTree(),
       host, hostPending: null, saving: new Set(), pendingChanges: new Map(), gutterTimer: null, gutterSeq: new Map(), gutterSeqLast: 0,
       gutterReads: new Map(),

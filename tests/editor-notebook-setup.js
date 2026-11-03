@@ -25,6 +25,8 @@ function nbSetup(text, main) {
   ui.nbToggle = createElement('button');
   ui.host = createElement('div');
   ui.notebook = createElement('div');
+  ui.mdToggle = createElement('button');
+  ui.markdown = createElement('div');
   // Come in buildEditorLayout (editor-tab.js)
   ui.notebook.addEventListener('keydown', (e) => s.fn('onEditorNotebookKey')(s.tab, e));
   // L'editor della cella: ricorda testo e tasti, `type` è l'utente che scrive

@@ -1728,6 +1728,15 @@ body.editor-tree-hidden .editor-open-menu:not([hidden]) { display: inline-flex; 
 .nb-table th, .nb-table td { padding: 4px 10px; border: 1px solid var(--border); }
 .nb-problem, .nb-empty { display: flex; align-items: center; gap: 10px; padding: 12px; color: var(--text-muted); }
 .nb-problem { color: var(--state-error); }
+/* Anteprima del markdown (docs/plans/83): stessa vista dei notebook, colonna da lettura */
+.editor-markdown[hidden] { display: none; }
+.editor-markdown:focus { outline: none; }
+.md-preview { max-width: 860px; margin: 0 auto; padding: 8px 8px 0; font-size: 14px; line-height: 1.6; }
+.md-preview .nb-md { padding: 0; overflow-x: visible; }
+.md-preview .nb-md h1, .md-preview .nb-md h2 { padding-bottom: 0.25em; border-bottom: 1px solid var(--border-subtle); }
+.md-preview .nb-md .nb-code { padding: 8px 12px; border: 1px solid var(--border); }
+.md-preview .nb-md ul, .md-preview .nb-md ol { padding-left: 1.6em; }
+.md-preview .nb-table { display: block; max-width: 100%; overflow-x: auto; }
 /* Modifica dalla vista (docs/plans/78): cella selezionata, in modifica, barre */
 .editor-notebook:focus { outline: none; }
 .nb-editable > .nb-bar { position: sticky; top: -12px; z-index: 2; display: flex; gap: 4px; margin: -12px -16px 10px; padding: 6px 16px; border-bottom: 1px solid var(--border-subtle); background: var(--bg); }

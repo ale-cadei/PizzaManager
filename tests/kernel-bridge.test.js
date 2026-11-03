@@ -123,9 +123,10 @@ ok('createKernelBridge: un EPIPE sullo stdin non fa cadere il processo', () => {
 ok('findPython: python3 prima, poi python; null se nessuno', () => {
   const seen = [];
   const resolve = (map) => (name) => { seen.push(name); return { path: map[name] || null }; };
-  assert.strictEqual(findPython({ resolve: resolve({ python3: '/a/python3', python: '/a/python' }) }), '/a/python3');
-  assert.strictEqual(findPython({ resolve: resolve({ python: '/a/python' }) }), '/a/python');
-  assert.strictEqual(findPython({ resolve: resolve({}) }), null);
+  const platform = 'linux';
+  assert.strictEqual(findPython({ platform, resolve: resolve({ python3: '/a/python3', python: '/a/python' }) }), '/a/python3');
+  assert.strictEqual(findPython({ platform, resolve: resolve({ python: '/a/python' }) }), '/a/python');
+  assert.strictEqual(findPython({ platform, resolve: resolve({}) }), null);
 });
 
 ok('findPython: su Windows prima python (python3 è spesso il rimando allo Store)', () => {

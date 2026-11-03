@@ -455,14 +455,16 @@ ok('i file legali viaggiano nel pacchetto e fuori dall archivio', () => {
   assert.ok(pkg.build.asarUnpack.includes('app/psmux.conf'), 'psmux.conf la legge psmux, come tmux.conf tmux');
 });
 
-ok('la licenza dichiarata e quella dei termini scritti, non una standard', () => {
+ok('la licenza dichiarata in package.json e quella del file LICENSE: MIT (piano 87)', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
-  // MIT concederebbe a chiunque riceva il software di rivenderlo: con il
-  // codice privato era una contraddizione nelle intenzioni.
-  assert.strictEqual(pkg.license, 'UNLICENSED', 'npm usa UNLICENSED per «proprietario»');
+  // Era proprietaria finché il codice era privato; col repository pubblico
+  // contraddiceva il README che invita a clonarlo e modificarlo. I due posti
+  // devono dire la stessa cosa: npm e i pacchetti leggono package.json.
+  assert.strictEqual(pkg.license, 'MIT');
   const testo = fs.readFileSync(path.join(__dirname, '..', 'LICENSE'), 'utf8');
-  assert.match(testo, /Giacomo Grieco and Alessandro Cadei/, 'manca la nota di copyright');
-  assert.match(testo, /NO WARRANTY/, 'la clausola che protegge gli autori non c e');
+  assert.match(testo, /^MIT License/, 'il file non comincia col titolo della MIT');
+  assert.match(testo, /Copyright \(c\) 2026 Giacomo Grieco and Alessandro Cadei/, 'manca la nota di copyright');
+  assert.match(testo, /WITHOUT WARRANTY OF ANY KIND/, 'la clausola che protegge gli autori non c e');
   assert.match(testo, /THIRD-PARTY-NOTICES\.md/, 'il rimando alle note di terze parti non c e');
 });
 

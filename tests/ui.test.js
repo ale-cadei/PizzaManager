@@ -148,6 +148,30 @@ ok('hidden: un elemento che si nasconde non deve avere un display piu forte', ()
   }
 });
 
+ok('hidden: anche gli elementi creati dagli script non hanno un display piu forte', () => {
+  // Stesso guaio del test sopra, per le classi degli elementi che gli script
+  // creano (`const x = el(doc, 'div', 'classe')`) e poi nascondono
+  // (`x.hidden = …`). Era successo a .conflicts-foot: fuori da un merge i
+  // suoi due bottoni, vuoti e senza effetto, restavano sopra la casella del
+  // commit. Basta che una delle classi dell'elemento abbia la sua regola [hidden].
+  const dir = path.join(__dirname, '..', 'renderer');
+  const css = fs.readFileSync(path.join(dir, 'styles.css'), 'utf8')
+    + fs.readFileSync(path.join(dir, 'tokens.css'), 'utf8');
+  const scripts = fs.readdirSync(dir).filter((f) => f.endsWith('.js'));
+  const scoperti = scripts.flatMap((file) => {
+    const js = fs.readFileSync(path.join(dir, file), 'utf8');
+    return [...js.matchAll(/const (\w+) = (?:el|button)\(doc, '[^']*', '([^']+)'/g)]
+      .filter(([, nome]) => new RegExp(`\\b${nome}\\.hidden\\s*=`).test(js))
+      .map(([, , classi]) => classi.split(/\s+/))
+      .filter((classi) => !classi.some((c) => css.includes(`.${c}[hidden]`)))
+      .flatMap((classi) => classi.filter((c) =>
+        new RegExp(`(^|[,}\\s])\\.${c}\\s*\\{[^}]*display\\s*:\\s*(?!none)`, 'm').test(css)))
+      .map((c) => `${file}: .${c}`);
+  });
+  assert.deepStrictEqual(scoperti, [],
+    'queste classi hanno un display loro ma non la regola .classe[hidden]: resterebbero visibili anche nascoste');
+});
+
 ok('pulsanti: nessuno resta senza variante, o esce grigio', () => {
   // `.btn` da sola non ha ne' fondo ne' colore (tokens.css): serve sempre una
   // fra primary, outline, secondary e ghost. Era successo nel pannello delle

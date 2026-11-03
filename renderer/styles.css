@@ -1085,6 +1085,7 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 .conflicts-file.is-resolved .conflicts-path { opacity: 0.7; }
 .conflicts-action { flex: none; }
 .conflicts-foot { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border); }
+.conflicts-foot[hidden] { display: none; }
 .conflicts-outcome { flex: 1 1 auto; font-size: 12px; }
 .conflicts-outcome.is-error { color: var(--state-error); }
 .conflicts-abort { color: var(--state-error); }

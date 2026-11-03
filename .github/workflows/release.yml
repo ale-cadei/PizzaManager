@@ -99,8 +99,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # Niente test qui: girano gia' in ci.yml su ogni push e PR (anche su
-      # Windows), e il tag parte da un main verificato.
+      # Su Mac e Linux niente test qui: girano in ci.yml su ogni push e PR, e
+      # il tag parte da un main verificato. Su Windows si' (piu' sotto).
       # IL PORTACHIAVI LO PREPARIAMO NOI, e a electron-builder non si passa
       # CSC_LINK. Il perche': electron-builder 26.15.3 crea un portachiavi
       # temporaneo con una password CASUALE e poi, subito dopo aver importato
@@ -170,7 +170,34 @@ jobs:
       # e' verificato con lo SHA-256 scritto in scripts/fetch-psmux.js.
       - if: runner.os == 'Windows'
         run: npm run fetch:psmux
-      - run: npx electron-builder ${{ matrix.args }} --config.extraMetadata.buildFrom=release --publish always
+      # WINDOWS ENTRA SOLO SE I SUOI TEST PASSANO SU QUESTO COMMIT
+      # (docs/plans/81-windows-non-blocca.md). In ci.yml il job Windows non
+      # blocca niente, quindi `main` puo' arrivare al tag con Windows rosso:
+      # senza questo passo la release lo pubblicherebbe lo stesso.
+      #
+      # I test si rifanno qui invece di leggere l'esito di ci.yml: chi tagga
+      # subito dopo il merge troverebbe la CI ancora in corso.
+      #
+      # `continue-on-error` sul PASSO: test rossi non fanno rosso il job. «Un
+      # job rosso = non pubblicare» (docs/rilasci/README.md §4) resta vero per
+      # un guasto vero; Windows escluso non lo e'. Mac e Linux escono, Windows
+      # torna con la versione dopo, e chi lo usa resta sull'ultima buona senza
+      # errori (lib/update-policy.js, isNoUpdateError).
+      #
+      # Il limite di 20 minuti e' quello di ci.yml: un test appeso non deve
+      # tenere il runner per l'ora intera del job. Scaduto, conta come rosso.
+      - name: Test su Windows
+        id: test-win
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        timeout-minutes: 20
+        run: npm run test:unit
+      - name: Windows escluso se i test sono rossi
+        if: runner.os == 'Windows' && steps.test-win.outcome != 'success'
+        run: |
+          echo "::warning::Windows escluso da questa release: test rossi su questo commit. Mac e Linux escono; Windows arriva con la prossima versione (docs/rilasci/README.md §8)."
+      - if: runner.os != 'Windows' || steps.test-win.outcome == 'success'
+        run: npx electron-builder ${{ matrix.args }} --config.extraMetadata.buildFrom=release --publish always
         shell: bash
         env:
           # Il repo di destinazione e' in package.json (build.publish).

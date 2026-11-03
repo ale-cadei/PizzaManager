@@ -1,5 +1,5 @@
 'use strict';
-const { updateMode, bannerText, DOWNLOAD_URL, CHECK_EVERY_MS, FIRST_CHECK_DELAY_MS } = require('../lib/update-policy');
+const { updateMode, bannerText, isNoUpdateError, DOWNLOAD_URL, CHECK_EVERY_MS, FIRST_CHECK_DELAY_MS } = require('../lib/update-policy');
 
 /**
  * Aggiornamento automatico: l'app legge il manifesto della Release pubblica,
@@ -65,6 +65,15 @@ function registerUpdateHandlers(ipcMain, { electron, sendToRenderer, autoUpdater
 
   if (mode === 'off') return { mode };
 
+  // Una release senza Windows (test Windows rossi, piano 81) non ha
+  // latest.yml: per chi usa Windows e' «nessun aggiornamento», come
+  // `update-not-available`, quindi lo stato resta com'e' — anche un
+  // aggiornamento gia' pronto resta pronto. Gli altri errori si mostrano.
+  const reportError = (e) => {
+    if (isNoUpdateError({ error: e })) return;
+    publish({ state: 'error', error: String((e && e.message) || e) });
+  };
+
   let cached = null;
   function updater() {
     if (cached) return cached;
@@ -77,7 +86,7 @@ function registerUpdateHandlers(ipcMain, { electron, sendToRenderer, autoUpdater
     cached.on('update-downloaded', (info) => publish({ state: 'ready', version: (info && info.version) || last.version }));
     // Un errore non deve diventare un allarme: spesso e' solo la rete. Si
     // mostra una volta e si riprova al controllo dopo.
-    cached.on('error', (e) => publish({ state: 'error', error: String((e && e.message) || e) }));
+    cached.on('error', reportError);
     return cached;
   }
 
@@ -85,7 +94,7 @@ function registerUpdateHandlers(ipcMain, { electron, sendToRenderer, autoUpdater
     try {
       updater().checkForUpdates();
     } catch (e) {
-      publish({ state: 'error', error: String((e && e.message) || e) });
+      reportError(e);
     }
   };
 

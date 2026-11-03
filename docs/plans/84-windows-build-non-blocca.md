@@ -1,6 +1,33 @@
 # 84 — `feat/release-windows-build`: anche un build Windows rotto non blocca le release
 
-Taglia: ~1h. **Proposta, da discutere** prima di farla.
+Taglia: ~1h. **Scartato per ora** (2026-11-03): al suo posto, la procedura a
+mano in `docs/rilasci/README.md` §3, «Se il job Windows è rosso».
+
+## Decisione
+
+Non si automatizza. Si lascia rosso il guasto di build e si scrive cosa fare:
+rilanciare il solo job Windows; se resta rosso, togliere i file Windows dalla
+bozza e pubblicare senza. Perché:
+
+- **Non è mai successo.** Il build Windows è andato verde nella 1.7.0; finora
+  si erano rotti solo i test, e quelli li copre già il piano 81.
+- **Un guasto di build è spesso di passaggio** (rete su `fetch:psmux`,
+  caricamento interrotto): il rosso fa rilanciare, un avviso giallo farebbe
+  uscire la release senza Windows anche quando bastava un clic.
+- **Il giallo si ignora**: è il rischio che questa stessa proposta segnalava
+  (due o tre versioni senza Windows senza accorgersene).
+- **La pulizia automatica della bozza** sarebbe codice che gira solo quando
+  qualcosa è già andato storto, verificabile solo provocando un guasto su
+  GitHub.
+- **Non serve decidere in fretta**: la bozza non esce da sola, e né il rilancio
+  né la pulizia richiedono una macchina Windows.
+
+Il rilancio sulla bozza funziona: electron-builder riusa la bozza esistente e,
+se un file c'è già, lo cancella e lo ricarica (`overwriteArtifact` in
+`electron-publish/out/gitHubPublisher.js`, verificato sul sorgente).
+
+Da riprendere se il build Windows si rompe davvero più di una volta. Sotto, la
+proposta com'era.
 
 ## Perché
 

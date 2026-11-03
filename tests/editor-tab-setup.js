@@ -53,7 +53,7 @@ function fakeHost(texts) {
     removeZone(id) { this.zones.delete(id); },
     resizeZone() {},
     focus: () => {},
-    minimaps: [], // anteprima del codice accesa/spenta (docs/plans/81)
+    minimaps: [], // anteprima del codice accesa/spenta (docs/plans/82)
     setMinimap(on) { this.minimaps.push(on); },
     colorized: [], // le celle dei notebook (docs/plans/77)
     colorize(node, language) { this.colorized.push([node.textContent, language]); },

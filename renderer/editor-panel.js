@@ -1,5 +1,5 @@
 /* Albero della scheda editor ridimensionabile e nascondibile (docs/plans/62),
- * e anteprima del codice (minimappa) accesa o spenta (docs/plans/81).
+ * e anteprima del codice (minimappa) accesa o spenta (docs/plans/82).
  * Larghezza e aperto/chiuso valgono per tutte le schede editor e si
  * ricordano in localStorage: stanno sulla pagina (variabile CSS
  * --editor-tree-w e classe editor-tree-hidden sul body), non nelle schede.

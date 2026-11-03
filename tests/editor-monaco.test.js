@@ -267,7 +267,7 @@ ok('lineCount: le righe del model, 0 per un file non aperto', () => {
   assert.strictEqual(h.lineCount('nessuno.js'), 0);
 });
 
-// Ogni barretta ha il suo segno nella barra di scorrimento e nella minimappa (docs/plans/81)
+// Ogni barretta ha il suo segno nella barra di scorrimento e nella minimappa (docs/plans/82)
 const marks = (kind) => ({
   overviewRuler: { color: { id: `editorOverviewRuler.${kind}Foreground` }, position: 1 },
   minimap: { color: { id: `minimapGutter.${kind}Background` }, position: 2 },
@@ -294,7 +294,7 @@ ok('setGutter: barrette come decorazioni del margine, sostituite a ogni chiamata
   h.setGutter('nessuno.js', [{ kind: 'add', from: 1, to: 1 }]); // file non aperto: niente
 });
 
-/* ---------- minimappa (docs/plans/81) ---------- */
+/* ---------- minimappa (docs/plans/82) ---------- */
 
 ok('minimappa: spenta se non chiesta, accesa con minimap: true', () => {
   assert.deepStrictEqual(host().fake.editor.options.minimap, { enabled: false });

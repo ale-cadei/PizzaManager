@@ -21,7 +21,7 @@ const editorPanel = EditorPanel.createPanel({
   doc: document, storage: localStorage,
   // Si apre e si chiude animato, come la sidebar (docs/plans/80)
   motion: window.AisessMotion ? window.AisessMotion.createPageMotion(window) : null,
-  // L'anteprima del codice vale per tutte le schede editor (docs/plans/81)
+  // L'anteprima del codice vale per tutte le schede editor (docs/plans/82)
   onMinimap: (on) => {
     for (const t of tabs.values()) if (t.editor && t.editor.host) t.editor.host.setMinimap(on);
   },
@@ -150,7 +150,7 @@ function buildEditorLayout(tab) {
   const notesBar = el('div', 'editor-notes-bar', head);
   notesBar.hidden = true;
   buildEditorQuickButton(tab, head);
-  // Anteprima del codice a destra (minimappa, docs/plans/81): accesa la dice body.editor-minimap-on
+  // Anteprima del codice a destra (minimappa, docs/plans/82): accesa la dice body.editor-minimap-on
   const minimapToggle = el('button', 'editor-minimap-toggle', head);
   minimapToggle.appendChild(editorCodicon('map'));
   minimapToggle.title = 'Mostra/nascondi anteprima del codice';

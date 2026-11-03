@@ -40,7 +40,7 @@ Casi:
 ## Fuori
 
 - Cliccare una barretta per vedere il diff in linea o annullare il blocco.
-- ~~Barrette nella minimappa o nella barra di scorrimento.~~ Fatto nel piano 81.
+- ~~Barrette nella minimappa o nella barra di scorrimento.~~ Fatto nel piano 82.
 - Confronto con l'indice invece che con HEAD.
 
 ## Come

@@ -1,4 +1,4 @@
-# 81 — `feature/anteprima-codice-e-modifiche`: modifiche nella scrollbar e anteprima del codice
+# 82 — `feature/anteprima-codice-e-modifiche`: modifiche nella scrollbar e anteprima del codice
 
 Dipende da: 63 (barrette delle righe cambiate). Taglia: ~2h.
 

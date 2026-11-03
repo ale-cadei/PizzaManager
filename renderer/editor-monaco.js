@@ -36,7 +36,7 @@
   const LINE_NUMBER = '#5E4E47';
 
   /* Segni delle righe cambiate nella barra di scorrimento e nella minimappa
-     (docs/plans/81): colori del tema, presi dalle barrette del margine.
+     (docs/plans/82): colori del tema, presi dalle barrette del margine.
      kind della barretta → nome che Monaco usa nei suoi colori */
   const CHANGE_KINDS = { add: 'added', mod: 'modified', del: 'deleted' };
   const CHANGE_VARS = { added: ['--state-ok', '#7FC45A'], modified: ['--state-changed', '#5AA2FF'], deleted: ['--state-error', '#FF4D74'] };
@@ -138,7 +138,7 @@
    *   onCursor?: (rel: string, pos: {line: number, col: number}) => void,
    *   onDefinition?: (rel: string, word: string, at: {lineNumber: number, column: number}) => void,
    *   onCursorLine?: (rel: string, line: number) => void,
-   *   mac?: boolean, minimap?: boolean}} o `minimap`: anteprima del codice a destra (docs/plans/81);
+   *   mac?: boolean, minimap?: boolean}} o `minimap`: anteprima del codice a destra (docs/plans/82);
    *   `onDefinition`: Ctrl+click (⌘ con `mac`) su un nome (docs/plans/71);
    *   `onCursorLine`: il cursore è su una riga, o il suo testo è cambiato (docs/plans/73);
    *   `onCursor`: riga e colonna per la barra di stato (docs/plans/75)
@@ -309,7 +309,7 @@
     }
 
     /* Lo stesso blocco anche nella barra di scorrimento e nella minimappa
-       (docs/plans/81), per trovarlo in un file lungo. Il colore è un nome del
+       (docs/plans/82), per trovarlo in un file lungo. Il colore è un nome del
        tema (changeColors): segue i colori scelti senza ridisegnare. */
     function changeMarks(kind) {
       const name = CHANGE_KINDS[kind];
@@ -737,7 +737,7 @@
 
     return {
       open, activate, info, symbolAt, markSaved, replaceText, rename, close, dispose, setGutter, setConflicts, editText, reveal, hint, setLineInfo,
-      // Anteprima del codice a destra, accesa o spenta per tutte le schede (docs/plans/81)
+      // Anteprima del codice a destra, accesa o spenta per tutte le schede (docs/plans/82)
       setMinimap: (on) => editor.updateOptions({ minimap: { enabled: Boolean(on) } }),
       trackLines, linesOf, untrack, lineText, addZone, removeZone, resizeZone,
       current: () => current,

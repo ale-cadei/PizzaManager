@@ -77,7 +77,7 @@ ok('toggle: con uno storage che lancia apre e chiude lo stesso', () => {
   assert.strictEqual(isHidden(doc), false);
 });
 
-/* ---------- anteprima del codice (docs/plans/81) ---------- */
+/* ---------- anteprima del codice (docs/plans/82) ---------- */
 
 const hasMinimap = (doc) => doc.body.classList.contains('editor-minimap-on');
 

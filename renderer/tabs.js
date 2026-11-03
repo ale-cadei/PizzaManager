@@ -43,7 +43,7 @@ async function resolveProjectRoot(cwd) {
 /* reveal: false per le schede che tornano al riavvio dell'app. Non le ha
    scelte l'utente adesso: espanderne il gruppo cancellerebbe i collassi
    che aveva lasciato (setActive). */
-async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null, previousSession = null, startedAt = Date.now(), iconKey = 'shell', iconMode = 'auto', turnTree = null, turnAt = null, reveal = true } = {}) {
+async function createTab(type, { name, sessionName = null, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null, previousSession = null, startedAt = Date.now(), iconKey = 'shell', iconMode = 'auto', turnTree = null, turnAt = null, reveal = true } = {}) {
   // La sessione git non ha pty: è un pannello (renderer/git-tab.js)
   if (type === 'git') return createGitTab({ name, cwd, startedAt, reveal });
   // La sessione editor non ha pty: è un pannello (renderer/editor-tab.js)
@@ -163,7 +163,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   } catch {}
   const res = attachSession
     ? await window.aisess.attach({ id, session: attachSession, type, cols, rows })
-    : await window.aisess.spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId: picked.id, label, cols, rows, previousSession });
+    : await window.aisess.spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId: picked.id, label, sessionName, cols, rows, previousSession });
   if (!res.ok && res.gone) {
     // La sessione tmux non c'e' piu' (riavvio della macchina, terminata altrove):
     // caso normale, non un errore. Si offre la strada per ricrearla.

@@ -47,6 +47,27 @@ ok('claude: il resume passa --resume <id>', () => {
   else assert.strictEqual(r.missing, 'claude');
 });
 
+/* Piano 83: il nome scelto dall'utente arriva a Claude. Binario finto in un
+   percorso POSIX: il test non dipende da cosa e' installato. */
+const FAKE_CLAUDE = () => ({ path: '/usr/local/bin/claude', via: 'PATH' });
+
+ok('claude: il nome della sessione va negli args, non in baseArgs', () => {
+  const r = buildCommand('claude', 'uuid-123', null, { profiles: freshProfiles(), platform: 'linux', resolve: FAKE_CLAUDE, sessionName: 'refactor login' });
+  assert.deepStrictEqual(r.args, ['--resume', 'uuid-123', '--name=refactor login']);
+  assert.deepStrictEqual(r.baseArgs, ['--resume', 'uuid-123'], 'la cronologia resta senza nome');
+});
+
+ok('claude: senza nome della sessione gli args non cambiano', () => {
+  const r = buildCommand('claude', null, null, { profiles: freshProfiles(), platform: 'linux', resolve: FAKE_CLAUDE });
+  assert.deepStrictEqual(r.args, []);
+});
+
+ok('claude: il nome sta prima degli argomenti iniettati, che lo vedono', () => {
+  const inject = (args) => ({ args: ['--settings', '{}'], env: {} });
+  const r = buildCommand('claude', null, null, { profiles: freshProfiles(), platform: 'linux', resolve: FAKE_CLAUDE, inject, sessionName: 'x' });
+  assert.deepStrictEqual(r.args, ['--name=x', '--settings', '{}']);
+});
+
 ok('codex: il resume passa il sottocomando resume <id>', () => {
   const r = buildCommand('codex', '019f472a', null, { profiles: freshProfiles() });
   if (r.cmd) assert.deepStrictEqual(r.args, ['resume', '019f472a', '--no-alt-screen']);

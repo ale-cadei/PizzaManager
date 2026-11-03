@@ -84,7 +84,8 @@ async function init() {
     if (claudeAccountId) { try { localStorage.setItem('aisess.claudeAccount', claudeAccountId); } catch {} }
     $('#modal-new').hidden = true;
     $('#new-name').value = '';
-    await createTab(pendingNewType, { name, cwd, claudeAccountId });
+    // Il nome scritto qui è dell'utente: arriva anche alla CLI (piano 83)
+    await createTab(pendingNewType, { name, sessionName: name || null, cwd, claudeAccountId });
   });
 
   // resume modal

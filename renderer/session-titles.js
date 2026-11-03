@@ -21,6 +21,10 @@
 })(typeof window !== 'undefined' ? window : null, function () {
   const STORAGE_KEY = 'aisess.session-names.v1';
   const NAME_MAX = 60;
+  /* Quali nomi ha scelto l'utente (dialog, rinomina) e non il primo prompt:
+     solo questi arrivano alla CLI al resume (docs/plans/83). Chiave a parte,
+     così il formato dei nomi resta quello di prima. */
+  const CHOSEN_KEY = 'aisess.session-names.chosen.v1';
 
   function keyOf(type, id) {
     return `${type}:${id}`;
@@ -31,10 +35,10 @@
    * @param {{getItem:Function,setItem:Function}|null} storage assente = nessuna persistenza
    */
   function createTitleStore(storage) {
-    function readAll() {
+    function readMap(key) {
       if (!storage) return {};
       try {
-        const raw = storage.getItem(STORAGE_KEY);
+        const raw = storage.getItem(key);
         if (!raw) return {};
         const parsed = JSON.parse(raw);
         return parsed && typeof parsed === 'object' ? parsed : {};
@@ -43,10 +47,13 @@
       }
     }
 
-    function writeAll(next) {
+    function writeMap(key, next) {
       if (!storage) return;
-      try { storage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
+      try { storage.setItem(key, JSON.stringify(next)); } catch {}
     }
+
+    const readAll = () => readMap(STORAGE_KEY);
+    const writeAll = (next) => writeMap(STORAGE_KEY, next);
 
     function nameFor(type, id) {
       if (!id) return null;
@@ -54,30 +61,48 @@
       return typeof v === 'string' && v ? v : null;
     }
 
-    /** Nome vuoto = l'utente ha annullato la rinomina, quindi si torna all'automatico. */
-    function setName(type, id, name) {
+    /**
+     * Nome vuoto = l'utente ha annullato la rinomina, quindi si torna all'automatico.
+     * `chosen`: il nome l'ha scelto l'utente; senza, il segno si toglie.
+     */
+    function setName(type, id, name, { chosen = false } = {}) {
       if (!id) return;
+      const key = keyOf(type, id);
       const clean = String(name == null ? '' : name).replace(/\s+/g, ' ').trim().slice(0, NAME_MAX);
-      const all = readAll();
-      if (!clean) {
-        const { [keyOf(type, id)]: _removed, ...rest } = all;
-        writeAll(rest);
-        return;
-      }
-      writeAll({ ...all, [keyOf(type, id)]: clean });
+      const { [key]: _removed, ...rest } = readAll();
+      writeAll(clean ? { ...rest, [key]: clean } : rest);
+      const { [key]: _mark, ...marks } = readMap(CHOSEN_KEY);
+      writeMap(CHOSEN_KEY, clean && chosen ? { ...marks, [key]: true } : marks);
+    }
+
+    /** Il nome solo se l'ha scelto l'utente: è quello che va alla CLI. */
+    function chosenNameFor(type, id) {
+      if (!id || readMap(CHOSEN_KEY)[keyOf(type, id)] !== true) return null;
+      return nameFor(type, id);
     }
 
     function clearName(type, id) {
       setName(type, id, '');
     }
 
-    return { nameFor, setName, clearName, readAll };
+    return { nameFor, chosenNameFor, setName, clearName, readAll };
   }
 
   /** Nome da mostrare: rinomina manuale se c'è, altrimenti il titolo del CLI. */
   function displayName(store, type, id, fallback) {
     const custom = store && id ? store.nameFor(type, id) : null;
     return custom || fallback || '';
+  }
+
+  /**
+   * Nome da passare alla CLI all'avvio: quello scritto nel dialog «Nuova
+   * sessione», o per una conversazione ripresa quello che l'utente le aveva
+   * dato. Mai un nome generato o preso dal primo prompt.
+   * @returns {string|null}
+   */
+  function cliNameFor(store, { type, resumeId, sessionName } = {}) {
+    if (sessionName) return sessionName;
+    return store && resumeId ? store.chosenNameFor(type, resumeId) : null;
   }
 
   function sessionCwd(s) {
@@ -117,5 +142,5 @@
     return Boolean(tab.autoNamed) || !tab.resumeId;
   }
 
-  return { createTitleStore, displayName, pickAutoSession, needsAutoRefresh, STORAGE_KEY, NAME_MAX };
+  return { createTitleStore, displayName, cliNameFor, pickAutoSession, needsAutoRefresh, STORAGE_KEY, NAME_MAX };
 });

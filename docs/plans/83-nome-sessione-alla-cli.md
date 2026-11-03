@@ -51,15 +51,35 @@ conversazione da un'altra parte (terminale, altra macchina) non la ritrova.
   senza scrivere `/rename` nel terminale.
 - `claude '--name=-trattino'` → nome `-trattino`, nessun errore di opzione.
 
-## Aperto: rinomina dopo l'avvio
+## Rinomina dopo l'avvio: arriva al prossimo resume
 
 La CLI già aperta non sa della rinomina della scheda. Scrivere `/rename` nel
 terminale è stato scartato: bisogna indovinare quando l'interfaccia è pronta,
 si mescola con quello che l'utente sta scrivendo e il turno in più può
 accendere il segnale «ha finito» di attention.js (di Ale, non si tocca).
-Da decidere con l'utente: accettarlo così, o passare `--name` al resume. Il
-nome scelto è in `titleStore` insieme a quello preso dal primo prompt, quindi
-nel secondo caso serve distinguerli.
+Deciso con l'utente il 2026-11-03: il nome arriva a Claude al prossimo resume
+da PizzaManager, con `--resume <id> --name=<nome>`.
+
+- `renderer/session-titles.js`: `setName(type, id, name, { chosen })` segna i
+  nomi scelti dall'utente in una chiave a parte
+  (`aisess.session-names.chosen.v1`), così il formato dei nomi resta quello di
+  prima. `chosenNameFor` li restituisce; un nome non scelto (primo prompt)
+  toglie il segno. `cliNameFor(store, { type, resumeId, sessionName })`: il
+  nome del dialog, se no quello scelto per la conversazione ripresa.
+- `renderer/tabs.js`: `createTab` passa a `spawn` `cliNameFor(...)` e segna la
+  scheda con `nameChosen`. Vale per ogni strada che apre con un `resumeId`
+  (dialog Resume, cronologia, ripristino dopo un riavvio).
+- `renderer/tab-names.js`: la rinomina salva con `chosen: true`; il giro dei
+  titoli lega il nome della scheda alla conversazione con
+  `chosen: tab.nameChosen`. Il nome dal primo prompt resta fuori: Claude ha
+  già un titolo suo, migliore di 40 caratteri del prompt.
+- I nomi dati prima di questo branch non hanno il segno: non arrivano a Claude
+  finché non si rinomina di nuovo.
+
+Smoke ✅ 2026-11-03 (CDP, profilo di prova): conversazione ripresa, rinominata
+dal modal in «rinominata in pizza», tmux chiuso, ripresa di nuovo → tmux lancia
+`claude --resume <id> "--name=rinominata in pizza"`, Claude lo mostra nel
+riquadro e il file della conversazione ha il `custom-title`.
 
 ## Secondo passo: opencode
 
@@ -88,6 +108,8 @@ Se la prova va male, lo si scrive qui e opencode resta fuori.
 - `tests/session-name.test.js`: `nameArgs` per claude e gli altri tipi, nome
   vuoto o non stringa, caratteri di controllo, taglio a 60, `-n`/`--name`/
   `--name=` già nel profilo.
+- `tests/session-titles.test.js`: nomi scelti e no, segno che sopravvive al
+  riavvio e si toglie, formato dei nomi invariato, `cliNameFor`.
 - `tests/unit.test.js`: `buildCommand` con `sessionName` mette il flag in
   `args` ma non in `baseArgs`; senza nome gli args non cambiano.
 - `tests/windows.test.js`: il nome con spazi e `&` finisce intatto nella riga

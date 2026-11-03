@@ -93,4 +93,6 @@ Se la prova va male, lo si scrive qui e opencode resta fuori.
 - `tests/windows.test.js`: il nome con spazi e `&` finisce intatto nella riga
   di cmd.exe.
 - Smoke: `AISESS_PROFILE=nome83 npm start`, sessione Claude con un nome →
-  il nome nel riquadro del prompt.
+  il nome nel riquadro del prompt. ✅ 2026-11-03 (CDP sul dialog vero): nome
+  `smoke 83 & -nome` → tmux lancia `claude "--name=smoke 83 & -nome"` e Claude
+  lo mostra nel riquadro; senza nome la scheda è `claude · 1` e il flag non c'è.

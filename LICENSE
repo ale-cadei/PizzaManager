@@ -1,33 +1,29 @@
-PizzaManager — Terms of Use
+MIT License
 
 Copyright (c) 2026 Giacomo Grieco and Alessandro Cadei
-All rights reserved.
 
-PizzaManager is proprietary software. By downloading or using it, you accept
-the terms below.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-WHAT YOU MAY DO
-You may install and use PizzaManager on any number of computers, for personal
-or professional purposes, free of charge and without registration.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-WHAT YOU MAY NOT DO
-You may not redistribute, resell, rent, sublicense or otherwise make the
-software available to third parties. You may not modify, reverse engineer,
-decompile or disassemble it, or attempt to derive its source code. You may not
-remove or alter any copyright or attribution notice.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
-NO WARRANTY
-The software is provided "as is", without warranty of any kind, express or
-implied, including but not limited to the warranties of merchantability,
-fitness for a particular purpose and non-infringement.
+-------------------------------------------------------------------------------
 
-NO LIABILITY
-In no event shall the authors be liable for any claim, damages or other
-liability, whether direct or indirect, arising from or in connection with the
-software or the use of or inability to use it, including loss of data or loss
-of work.
-
-THIRD-PARTY COMPONENTS
 PizzaManager bundles third-party software, listed in THIRD-PARTY-NOTICES.md
 together with its respective licenses, which remain in force for those
-components.
+components. The product names and logos of the tools PizzaManager runs or
+talks to belong to their respective owners and are not covered by this
+license.

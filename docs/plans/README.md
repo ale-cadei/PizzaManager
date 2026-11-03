@@ -92,6 +92,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 84 | [`feat/release-windows-build`](84-windows-build-non-blocca.md) — anche un guasto del build Windows (`npm ci`, `fetch:psmux`, `electron-builder`) esclude Windows dalla release con un avviso, togliendo dalla bozza i file Windows caricati a metà, invece di fare rosso il job | 81 | ~1h | scartato per ora: procedura a mano in `docs/rilasci/README.md` §3 |
 | 85 | [`fix/worktree-agenti-nascosti`](85-worktree-agenti-nascosti.md) — i worktree dei sub-agenti di Claude Code (`.claude/worktrees/`) non compaiono fra i worktree del progetto | 36 | ~30min | fatto, test verdi; smoke da fare |
 | 86 | [`feat/rename-sessioni`](86-nome-sessione-alla-cli.md) — il nome dato a una sessione nel dialog «Nuova sessione» arriva alla CLI: Claude con `--name`, opencode dal plugin del piano 46 (`client.session.update`); una rinomina successiva arriva al prossimo resume; codex e agy fuori | 46 | ~3h | ✅ fatto, smoke ok (CDP, profilo di prova: Claude e opencode 1.19.5, nome dal dialog e rinomina → resume) |
+| 87 | [`docs/readme-licenza-mit`](87-readme-licenza-mit.md) — licenza MIT al posto di quella proprietaria; README italiano e inglese con la stessa struttura e le funzioni della 2.0.0, la rete descritta per intero, psmux e gli altri ringraziati; due componenti mancanti negli avvisi di terze parti | — | ~2h | fatto |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

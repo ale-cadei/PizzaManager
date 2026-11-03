@@ -25,7 +25,8 @@ function fakeMonaco() {
     },
     saveViewState: () => ({ of: editor.model && editor.model.uri.path }),
     restoreViewState(v) { editor.view = v; },
-    focus() {}, updateOptions() {},
+    focus() {}, updated: [],
+    updateOptions(o) { editor.updated.push(o); },
     position: null, revealed: [],
     setPosition(p) { editor.position = p; },
     revealLineInCenter(line) { editor.revealed.push(line); },
@@ -123,6 +124,8 @@ function fakeMonaco() {
       createModel,
       EndOfLineSequence: { LF: 0, CRLF: 1 },
       TrackedRangeStickiness: { NeverGrowsWhenTypingAtEdges: 1 },
+      OverviewRulerLane: { Left: 1, Center: 2, Right: 4, Full: 7 },
+      MinimapPosition: { Inline: 1, Gutter: 2 },
       MouseTargetType: { GUTTER_GLYPH_MARGIN: 2, GUTTER_LINE_NUMBERS: 3, GUTTER_LINE_DECORATIONS: 4, GUTTER_VIEW_ZONE: 5, CONTENT_TEXT: 6, CONTENT_EMPTY: 7, CONTENT_VIEW_ZONE: 8 },
     },
     Uri: { from: (o) => ({ ...o }) },
@@ -264,24 +267,45 @@ ok('lineCount: le righe del model, 0 per un file non aperto', () => {
   assert.strictEqual(h.lineCount('nessuno.js'), 0);
 });
 
+// Ogni barretta ha il suo segno nella barra di scorrimento e nella minimappa (docs/plans/81)
+const marks = (kind) => ({
+  overviewRuler: { color: { id: `editorOverviewRuler.${kind}Foreground` }, position: 1 },
+  minimap: { color: { id: `minimapGutter.${kind}Background` }, position: 2 },
+});
+
 ok('setGutter: barrette come decorazioni del margine, sostituite a ogni chiamata', () => {
   const { h, fake } = host();
   h.open('a.js', '1\n2\n3');
   const m = fake.models[0];
   h.setGutter('a.js', [{ kind: 'add', from: 1, to: 2 }, { kind: 'mod', from: 3, to: 3 }, { kind: 'del', after: 0 }, { kind: 'del', after: 2 }, { kind: 'del', after: 3 }]);
+  const line = (from, to) => ({ startLineNumber: from, startColumn: 1, endLineNumber: to, endColumn: 1 });
   assert.deepStrictEqual(m.decorations, [
-    { range: { startLineNumber: 1, startColumn: 1, endLineNumber: 2, endColumn: 1 }, options: { isWholeLine: true, linesDecorationsClassName: 'editor-gutter-add' } },
-    { range: { startLineNumber: 3, startColumn: 1, endLineNumber: 3, endColumn: 1 }, options: { isWholeLine: true, linesDecorationsClassName: 'editor-gutter-mod' } },
-    { range: { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1 }, options: { isWholeLine: true, linesDecorationsClassName: 'editor-gutter-del editor-gutter-del-top' } },
-    { range: { startLineNumber: 2, startColumn: 1, endLineNumber: 2, endColumn: 1 }, options: { isWholeLine: true, linesDecorationsClassName: 'editor-gutter-del' } },
+    { range: line(1, 2), options: { isWholeLine: true, linesDecorationsClassName: 'editor-gutter-add', ...marks('added') } },
+    { range: line(3, 3), options: { isWholeLine: true, linesDecorationsClassName: 'editor-gutter-mod', ...marks('modified') } },
+    { range: line(1, 1), options: { isWholeLine: true, linesDecorationsClassName: 'editor-gutter-del editor-gutter-del-top', ...marks('deleted') } },
+    { range: line(2, 2), options: { isWholeLine: true, linesDecorationsClassName: 'editor-gutter-del', ...marks('deleted') } },
     // dopo l'ultima riga: dentro la riga, come in cima
-    { range: { startLineNumber: 3, startColumn: 1, endLineNumber: 3, endColumn: 1 }, options: { isWholeLine: true, linesDecorationsClassName: 'editor-gutter-del editor-gutter-del-end' } },
+    { range: line(3, 3), options: { isWholeLine: true, linesDecorationsClassName: 'editor-gutter-del editor-gutter-del-end', ...marks('deleted') } },
   ]);
   h.setGutter('a.js', null);
   assert.deepStrictEqual(m.decorations, []);
   // la seconda chiamata toglie gli id dati dalla prima
   assert.deepStrictEqual(m.removed, [[], ['/a.js#1.0', '/a.js#1.1', '/a.js#1.2', '/a.js#1.3', '/a.js#1.4']]);
   h.setGutter('nessuno.js', [{ kind: 'add', from: 1, to: 1 }]); // file non aperto: niente
+});
+
+/* ---------- minimappa (docs/plans/81) ---------- */
+
+ok('minimappa: spenta se non chiesta, accesa con minimap: true', () => {
+  assert.deepStrictEqual(host().fake.editor.options.minimap, { enabled: false });
+  assert.deepStrictEqual(host({ minimap: true }).fake.editor.options.minimap, { enabled: true });
+});
+
+ok('setMinimap: accende e spegne la minimappa dell\'editor', () => {
+  const { h, fake } = host();
+  h.setMinimap(true);
+  h.setMinimap(false);
+  assert.deepStrictEqual(fake.editor.updated, [{ minimap: { enabled: true } }, { minimap: { enabled: false } }]);
 });
 
 /* ---------- conflitti (docs/plans/69): righe colorate ed editText ---------- */
@@ -583,6 +607,20 @@ ok('tema: fondo passato da fuori, riga corrente e numeri della palette forno', (
   assert.strictEqual(theme.colors['editor.lineHighlightBackground'], '#140B09');
   assert.ok(theme.rules.some((r) => r.token === 'keyword' && r.foreground === 'FF9B6F'));
   assert.ok(theme.rules.some((r) => r.token === 'comment' && r.fontStyle === 'italic'));
+});
+
+ok('tema: i segni delle modifiche nella barra e nella minimappa seguono i colori delle barrette', () => {
+  const themes = [];
+  const monaco = { editor: { defineTheme: (name, t) => themes.push(t), setTheme() {} } };
+  const vars = { '--state-ok': '#112233', '--state-changed': '#445566', '--state-error': '#778899' };
+  const win = { monaco, document: { documentElement: {} }, getComputedStyle: () => ({ getPropertyValue: (n) => vars[n] || '' }) };
+  require('../renderer/editor-monaco').applyTheme(win, { background: '#000000' });
+  const { colors } = themes[0];
+  for (const where of ['editorOverviewRuler.%sForeground', 'minimapGutter.%sBackground']) {
+    assert.strictEqual(colors[where.replace('%s', 'added')], '#112233');
+    assert.strictEqual(colors[where.replace('%s', 'modified')], '#445566');
+    assert.strictEqual(colors[where.replace('%s', 'deleted')], '#778899');
+  }
 });
 
 ok('tema: senza Monaco caricato applyTheme non fa niente', () => {

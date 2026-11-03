@@ -549,6 +549,18 @@ ok('pannello: il bottone apre e chiude l albero e se lo ricorda', () => {
   assert.strictEqual(run('editorPanel.prefs().hidden'), false);
 });
 
+ok('anteprima: il bottone in testata accende e spegne la minimappa di tutte le schede, e se lo ricorda', () => {
+  const { page, run, head, host } = layout();
+  const button = head.children.find((c) => c.classList && c.classList.contains('editor-minimap-toggle'));
+  assert.ok(button, 'c è il bottone dell anteprima');
+  assert.strictEqual(button.title, 'Mostra/nascondi anteprima del codice');
+  button.onclick();
+  assert.strictEqual(run('editorPanel.prefs().minimap'), true);
+  assert.strictEqual(page.ctx.localStorage.getItem('aisess.editorMinimap'), '1');
+  button.onclick();
+  assert.deepStrictEqual(host.minimaps, [true, false]);
+});
+
 ok('pannello: Ctrl+B apre e chiude solo con una scheda editor davanti', () => {
   const { page, fn, run } = setup();
   fn('initEditorTabs')();

@@ -95,6 +95,33 @@ ok('worktree: listWorktrees salta il principale, i bare e le cartelle sparite, e
   ]);
 });
 
+ok('worktree: listWorktrees nasconde i worktree dei sub-agenti di Claude Code (.claude/worktrees)', async () => {
+  const porcelain = [
+    'worktree /src/progetto', 'HEAD a', 'branch refs/heads/main', '',
+    'worktree /src/progetto.worktrees/feat-x', 'HEAD b', 'branch refs/heads/feat/x', '',
+    'worktree /src/progetto/.claude/worktrees/agent-a1', 'HEAD c', 'branch refs/heads/worktree-agent-a1', 'locked', '',
+    'worktree /altrove/manuale', 'HEAD d', 'branch refs/heads/prova', '',
+  ].join('\n');
+  const { run } = fakeGit((args) => {
+    if (has(args, 'worktree', 'list')) return porcelain;
+    throw gitError('');
+  });
+  const r = await listWorktrees({ platform: 'linux', root: '/src/progetto', run });
+  assert.strictEqual(r.ok, true, r.error);
+  assert.deepStrictEqual(r.worktrees.map((w) => w.path), ['/src/progetto.worktrees/feat-x', '/altrove/manuale']);
+});
+
+ok('worktree: listWorktrees nasconde .claude\\worktrees anche su Windows', async () => {
+  const porcelain = 'worktree C:/src/progetto\nHEAD a\nbranch refs/heads/main\n\n'
+    + 'worktree C:/src/progetto/.claude/worktrees/agent-a1\nHEAD c\nbranch refs/heads/x\n';
+  const { run } = fakeGit((args) => {
+    if (has(args, 'worktree', 'list')) return porcelain;
+    throw gitError('');
+  });
+  const r = await listWorktrees({ platform: 'win32', root: 'C:\\src\\progetto', run });
+  assert.deepStrictEqual(r, { ok: true, worktrees: [] });
+});
+
 ok('worktree: listWorktrees senza nessuna base salvata (git config esce con 1) va bene lo stesso', async () => {
   const { run } = fakeGit((args) => {
     if (has(args, 'worktree', 'list')) return PORCELAIN;

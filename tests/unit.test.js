@@ -68,6 +68,15 @@ ok('claude: il nome sta prima degli argomenti iniettati, che lo vedono', () => {
   assert.deepStrictEqual(r.args, ['--name=x', '--settings', '{}']);
 });
 
+ok('opencode: il nome e l id ripreso arrivano nell ambiente iniettato', () => {
+  const { NAME_ENV, ID_ENV } = require('../lib/session-name');
+  const resolve = () => ({ path: '/usr/local/bin/opencode', via: 'PATH' });
+  const inject = () => ({ args: [], env: { OPENCODE_CONFIG_CONTENT: '{}' } });
+  const r = buildCommand('opencode', 'ses_1', null, { profiles: freshProfiles(), platform: 'linux', resolve, inject, sessionName: 'mio' });
+  assert.deepStrictEqual(r.args, ['--session', 'ses_1']);
+  assert.deepStrictEqual(r.injectedEnv, { [NAME_ENV]: 'mio', [ID_ENV]: 'ses_1', OPENCODE_CONFIG_CONTENT: '{}' });
+});
+
 ok('codex: il resume passa il sottocomando resume <id>', () => {
   const r = buildCommand('codex', '019f472a', null, { profiles: freshProfiles() });
   if (r.cmd) assert.deepStrictEqual(r.args, ['resume', '019f472a', '--no-alt-screen']);

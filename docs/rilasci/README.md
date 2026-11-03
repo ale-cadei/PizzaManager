@@ -52,9 +52,37 @@ Poi si aspetta il workflow (~15 minuti) e si pubblica la bozza:
 
 ```sh
 gh run list --workflow=release.yml --limit 1          # deve essere verde
-gh release view v1.2.0
+gh release view v1.2.0                                # c'è il .exe? (§4)
 gh release edit v1.2.0 --draft=false --notes-file docs/rilasci/v1.2.0.md
 ```
+
+Il `npm run test:unit` del passo 1 gira sulla tua macchina. Quello di Windows
+lo rifà il workflow sul commit del tag, e decide da solo se Windows entra
+(§4): non c'è niente da scegliere a mano.
+
+### Se Windows non c'è
+
+Il workflow è verde, ma nel job Windows c'è l'avviso «*Windows escluso da
+questa release: test rossi*» e fra gli asset mancano il `.exe` e `latest.yml`.
+Si pubblica lo stesso: Mac e Linux non aspettano Windows. Nelle note, in cima
+o dove si parla dei pacchetti:
+
+> **Windows:** resta alla 1.7.0, arriva con la prossima versione.
+
+Chi usa Windows non vede niente: l'app non trova `latest.yml`, lo legge come
+«nessun aggiornamento» e resta sulla versione che ha. Quando una release
+successiva ha i test Windows verdi, salta direttamente a quella.
+
+Windows **non si aggiunge dopo** alla stessa release. La correzione sta in
+commit successivi al tag, e rifare il build dal tag ricostruirebbe il codice
+rotto; inoltre electron-builder non carica su una release già pubblicata. Si
+aspetta la versione dopo — se Windows è l'unico motivo, anche una patch.
+
+> ⚠️ **La prima volta non è gratis.** Il «nessun aggiornamento» c'è dalla
+> versione successiva alla 1.7.0. Chi ha ancora la 1.7.0 su Windows, davanti a
+> una release senza Windows, vede «Aggiornamento non riuscito: Cannot find
+> latest.yml…» finché non esce una release con Windows. Per questo la prima
+> release dopo la 1.7.0 conviene che *contenga* Windows: porta la correzione.
 
 Le **note** si scrivono a mano in `docs/rilasci/v<versione>.md` prima di
 pubblicare. Ora che la release nasce nel repo del codice,
@@ -73,20 +101,27 @@ tag v*  (oppure «Run workflow» a mano)
    │                  di crearne quattro in gara fra loro
    │
    └─ job "build"     tre runner in parallelo
-         macOS arm64 ─┐  portachiavi → electron-builder → firma app →
-         macOS x64   ─┤  notarizza app → costruisce dmg → firma dmg →
-                      │  notarizza dmg → francobollo → carica
-         Linux       ─┘  costruisce e carica
-                         │
-                         └─ su macOS: RISCARICA l'asset dalla Release
-                            e verifica che Gatekeeper lo accetti
+         macOS (arm64  portachiavi → electron-builder → firma app →
+          + x64)       notarizza app → costruisce dmg → firma dmg →
+                       notarizza dmg → francobollo → carica
+                       → RISCARICA l'asset dalla Release e verifica
+                         che Gatekeeper lo accetti
+         Linux         costruisce e carica
+         Windows       psmux → TEST → verdi: costruisce e carica
+                                    rossi: avviso, niente build, job verde
    │
    └─ una persona apre la bozza, incolla le note, pubblica
 ```
 
 Tre runner perché `node-pty` è un modulo nativo: si compila sul sistema di
-destinazione, non si cross-builda. **Windows è fuori** per un difetto suo
-(vedi §8).
+destinazione, non si cross-builda.
+
+**Windows entra solo se i suoi test passano su quel commit.** È l'unico
+sistema per cui il workflow rifà i test: in `ci.yml` il job Windows non blocca
+i merge (lo prova una persona sola, da casa — piano 81), quindi `main` può
+arrivare al tag con Windows rosso. I test si rifanno nella release invece di
+leggere l'esito della CI perché chi tagga subito dopo un merge troverebbe la
+CI ancora in corso.
 
 ### Il cancello manuale è la cosa importante
 
@@ -95,9 +130,13 @@ né l'aggiornamento automatico la vedono. Il momento in cui si preme *Publish*
 è il momento in cui la versione raggiunge le persone. È lì che si guarda che i
 file ci siano tutti e che il job non sia rosso.
 
+Un job rosso vuol dire un guasto vero: non si pubblica. Windows escluso per
+test rossi **non** è un job rosso — è verde con un avviso, e si pubblica (§3).
+
 ## 5. I file di una release
 
-Dodici file, ma da scaricare ce ne sono tre.
+Una quindicina di file (qualcuno in meno se Windows è escluso), ma da
+scaricare ce ne sono quattro.
 
 **Per le persone:**
 
@@ -106,11 +145,13 @@ Dodici file, ma da scaricare ce ne sono tre.
 | Mac Apple Silicon | `PizzaManager-mac-arm64.dmg` |
 | Mac Intel | `PizzaManager-mac-x64.dmg` |
 | Linux | `PizzaManager-linux-x86_64.AppImage` (o il `.deb`) |
+| Windows | `PizzaManager-win-x64-setup.exe` (o lo `.zip`) — se c'è (§3) |
 
 **Per l'aggiornamento automatico** (non si toccano, non si cancellano):
 
-- `latest-mac.yml`, `latest-linux.yml` — versione, nome del file e checksum.
-  È l'unica cosa che l'app scarica a ogni controllo;
+- `latest-mac.yml`, `latest-linux.yml`, `latest.yml` (Windows, senza
+  suffisso per ragioni storiche di electron-updater) — versione, nome del file
+  e checksum. È l'unica cosa che l'app scarica a ogni controllo;
 - i `.zip` — su macOS l'aggiornamento passa da qui, non dal `.dmg`;
 - i `.blockmap` — permettono di scaricare solo i pezzi cambiati invece di
   100 MB interi.
@@ -134,7 +175,11 @@ Tre casi in cui non si aggiorna da sé:
 
 - **in sviluppo** (`npm start`): non controlla nemmeno;
 - **installato da `.deb`**: lì lo fa `apt`. Il banner avvisa e apre la pagina;
-- **Windows**: non c'è ancora un pacchetto.
+- **Windows, quando l'ultima release non lo contiene**: manca `latest.yml`,
+  e l'app lo legge come «nessun aggiornamento» (`isNoUpdateError` in
+  `lib/update-policy.js`). Resta sulla sua versione senza dire niente, e
+  salta alla prossima release che ha Windows. Solo dopo la 1.7.0: la 1.7.0
+  mostra ancora l'errore (§3).
 
 > ⚠️ **Chi ha la 1.1.0 non si aggiornerà da solo alla 1.2.0.** La 1.1.0 non
 > contiene il codice dell'aggiornamento: quello arriva *con* la 1.2.0. Dalla
@@ -161,7 +206,10 @@ qui, e **va revocato** su GitHub → Settings → Developer settings.
 | `SecKeychainUnlock: passphrase not correct` | **non** è la password sbagliata. È un difetto di electron-builder, già aggirato: il portachiavi lo prepara il workflow → [piano 44](../plans/44-release-firmata.md) |
 | `RC2-40-CBC unsupported` provando il `.p12` | nemmeno questa è una password sbagliata: è OpenSSL 3 che rifiuta l'algoritmo del Portachiavi. Serve `openssl pkcs12 -legacy …` |
 | Job verde ma il `.dmg` scaricato dà «è danneggiato» | era il gancio sbagliato, già corretto: il file veniva caricato 50 ms prima di essere firmato. Per questo il workflow ora **riscarica l'asset e lo verifica** |
-| Il pacchetto Windows non si costruisce | `pwsh` spezza `-c.npmRebuild=false`. Correzione probabile: `shell: bash`. Da provare su una macchina Windows → [piano 40](../plans/40-windows-sessioni-persistenti.md) |
+| Avviso «*Windows escluso da questa release: test rossi*», niente `.exe` | i test Windows sono rossi sul commit del tag. Non è un guasto della release: si pubblica, e nelle note «Windows: resta alla 1.x.y, arriva con la prossima» (§3) |
+| Il job Windows di `ci.yml` è rosso, ma la CI è verde | voluto: il job Windows non blocca i merge (piano 81), però dice se la prossima release avrà Windows. **Si sistema anche da Mac**: si pusha un branch e si legge il job Windows della sua CI, finché è verde. A una macchina Windows vera servono solo gli smoke test dell'app e psmux |
+| Su Windows «Aggiornamento non riuscito: Cannot find latest.yml…» | l'app è la 1.7.0, che non conosce le release senza Windows (§3). Passa con la prossima release che contiene Windows. Su una versione successiva vorrebbe dire che `isNoUpdateError` non riconosce più il messaggio di electron-updater |
+| Il pacchetto Windows non si costruisce | è successo fino alla 1.7.0: `pwsh` spezzava `-c.npmRebuild=false`. Corretto con `--config.` e `shell: bash` sul passo del build → [piano 40](../plans/40-windows-sessioni-persistenti.md) |
 | **Un job non parte proprio**: zero passi eseguiti, muore in pochi secondi, e nelle sue annotazioni c'è «*payments have failed or your spending limit needs to be increased*» | **Sono finiti i minuti di Actions del mese.** Non è un difetto nostro e non c'è niente da aggiustare nel codice → §10 qui sotto |
 
 ### Verificare a mano un pacchetto macOS

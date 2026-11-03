@@ -43,7 +43,7 @@ async function resolveProjectRoot(cwd) {
 /* reveal: false per le schede che tornano al riavvio dell'app. Non le ha
    scelte l'utente adesso: espanderne il gruppo cancellerebbe i collassi
    che aveva lasciato (setActive). */
-async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null, previousSession = null, startedAt = Date.now(), iconKey = 'shell', iconMode = 'auto', turnTree = null, turnAt = null, reveal = true } = {}) {
+async function createTab(type, { name, sessionName = null, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null, previousSession = null, startedAt = Date.now(), iconKey = 'shell', iconMode = 'auto', turnTree = null, turnAt = null, reveal = true } = {}) {
   // La sessione git non ha pty: è un pannello (renderer/git-tab.js)
   if (type === 'git') return createGitTab({ name, cwd, startedAt, reveal });
   // La sessione editor non ha pty: è un pannello (renderer/editor-tab.js)
@@ -56,6 +56,8 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   if (!picked.ok) return; // scelta annullata: nessuna scheda creata
   const id = 'tab-' + Date.now() + '-' + Math.floor(Math.random() * 1e6);
   const label = name || `${type} · ${counter++}`;
+  // Il nome che arriva alla CLI: solo uno scelto dall'utente (piano 86)
+  const cliName = Titles.cliNameFor(titleStore, { type, resumeId, sessionName });
   if (type === 'claude') await ensureClaudeAccounts();
   const claudeAccountName = type === 'claude' ? claudeAccountLabel(claudeAccountId) : null;
 
@@ -71,7 +73,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   // Registra e rendi visibile PRIMA di aprire il terminale: xterm misura il
   // contenitore all'apertura, quindi il wrap deve essere già laid out a
   // dimensione piena (altrimenti la prima scheda nasce 20x10).
-  const tab = { id, type, name: label, cwd, projectRoot: cwd || null, resumeId, startedAt, autoNamed: !name,
+  const tab = { id, type, name: label, cwd, projectRoot: cwd || null, resumeId, startedAt, autoNamed: !name, nameChosen: Boolean(cliName),
     session: attachSession, reattached: Boolean(attachSession),
     // Nome tmux della sessione prima di un riavvio della macchina: la sola
     // identità stabile di una shell ricreata, per ritrovarne il posto.
@@ -163,7 +165,7 @@ async function createTab(type, { name, cwd, resumeId, claudeAccountId, commandPr
   } catch {}
   const res = attachSession
     ? await window.aisess.attach({ id, session: attachSession, type, cols, rows })
-    : await window.aisess.spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId: picked.id, label, cols, rows, previousSession });
+    : await window.aisess.spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId: picked.id, label, sessionName: cliName, cols, rows, previousSession });
   if (!res.ok && res.gone) {
     // La sessione tmux non c'e' piu' (riavvio della macchina, terminata altrove):
     // caso normale, non un errore. Si offre la strada per ricrearla.

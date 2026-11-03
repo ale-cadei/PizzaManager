@@ -83,7 +83,7 @@ async function refreshAutoTitles() {
       // alla conversazione appena se ne conosce l'id, così sopravvive al
       // resume. Il titolo del CLI perde.
       if (t.namedFromPrompt || !t.autoNamed) {
-        if (!titleStore.nameFor(t.type, t.resumeId)) titleStore.setName(t.type, t.resumeId, t.name);
+        if (!titleStore.nameFor(t.type, t.resumeId)) titleStore.setName(t.type, t.resumeId, t.name, { chosen: Boolean(t.nameChosen) });
         continue;
       }
       // Conversazione appena creata, senza ancora un prompt: il suo "titolo" è
@@ -155,12 +155,16 @@ function askSessionName(tab) {
   });
 }
 
-/** Rinomina manuale: il nome resta legato alla conversazione, non alla scheda. */
+/**
+ * Rinomina manuale: il nome resta legato alla conversazione, non alla scheda.
+ * La CLI già aperta non lo sa: lo riceve al prossimo resume (piano 86).
+ */
 async function renameTab(tab) {
   const current = await askSessionName(tab);
   if (current === null) return; // annullato
   const clean = String(current).replace(/\s+/g, ' ').trim();
-  if (tab.resumeId) titleStore.setName(tab.type, tab.resumeId, clean);
+  if (tab.resumeId) titleStore.setName(tab.type, tab.resumeId, clean, { chosen: true });
+  tab.nameChosen = Boolean(clean);
   if (clean) { tab.name = clean.slice(0, 40); tab.autoNamed = false; syncLabel(tab); }
   else { tab.autoNamed = true; }
   if (tab.type === 'git') saveGitSessions();

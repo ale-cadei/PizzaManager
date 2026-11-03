@@ -111,6 +111,19 @@ macOS; Linux da provare). Il segnale esatto (hook) resta qui, ci lavora Ale.
 - [x] fatto — branch `feat/hooks-esatti`, verifiche nel piano
 - [ ] provato
 
+### Il nome della sessione anche a Codex e Antigravity
+Il piano [86](86-nome-sessione-alla-cli.md) passa a Claude il nome dato nel
+dialog «Nuova sessione» (`--name`). Codex 0.166.0 e agy 1.2.4 non hanno un
+flag: il nome si cambia solo con `/rename` dentro l'interfaccia, e scriverlo
+nel terminale è stato scartato (tempi dell'interfaccia, segnale «ha finito»).
+Codex ha una API interna `thread/name/set`, troppo costosa da agganciare oggi.
+Da riprendere quando avranno un flag di avvio.
+
+- [ ] studio
+- [ ] piano
+- [ ] fatto
+- [ ] provato
+
 ---
 
 ## Navigazione e memoria

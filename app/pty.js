@@ -193,7 +193,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     });
   }
 
-  async function spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId, label, cols, rows, previousSession = null }) {
+  async function spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId, label, sessionName = null, cols, rows, previousSession = null }) {
     if (!pty) return { ok: false, error: 'node-pty non installato. Esegui: npm install' };
 
     // Se la cartella non c'è più (un worktree tolto) la sessione parte altrove:
@@ -202,7 +202,7 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     const workdir = where.dir;
     const session = viaTmux ? tmuxLib.sessionName(type) : null;
     const inject = (a, pEnv) => signalInjection({ id, session, type, args: a, profileEnv: pEnv });
-    const { cmd, args, baseArgs, wrapped, commandLine, profileEnv, injectedEnv, missing, searchedPath, error, profile } = buildCommand(type, resumeId, commandProfileId, { profiles, inject });
+    const { cmd, args, baseArgs, wrapped, commandLine, profileEnv, injectedEnv, missing, searchedPath, error, profile } = buildCommand(type, resumeId, commandProfileId, { profiles, inject, sessionName });
     if (!cmd) {
       if (error) return { ok: false, error };
       return {

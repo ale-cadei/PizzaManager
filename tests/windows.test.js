@@ -354,6 +354,28 @@ ok('win: un opencode.cmd vero risponde, niente spawn EINVAL', { skip: process.pl
 });
 
 
+/* Ogni metacarattere di cmd.exe fuori dalle virgolette va preceduto da ^ */
+function assertNoBareMetachars(commandLine) {
+  const inner = commandLine.slice('/d /s /c "'.length, -1);
+  let quoted = false;
+  for (let i = 0; i < inner.length; i++) {
+    const c = inner[i];
+    if (c === '^') { i++; continue; }
+    if (c === '"') { quoted = !quoted; continue; }
+    if (!quoted) assert.ok(!'|&<>()%!'.includes(c), `${c} nudo in posizione ${i}: ${commandLine}`);
+  }
+}
+
+/* Piano 86: il nome viene dall'utente e puo' avere spazi e metacaratteri di
+   cmd.exe. Deve arrivare come un solo argomento, dentro la riga composta. */
+ok('win: il nome della sessione con spazi e & finisce intatto nella riga di cmd.exe', () => {
+  const resolve = () => ({ path: 'C:\\Users\\jack\\AppData\\Roaming\\npm\\claude.cmd', via: 'PATH:npm' });
+  const r = buildCommand('claude', null, null, { profiles: winProfiles(), home: HOME, env: ENV, platform: 'win32', resolve, sessionName: 'login & co' });
+  assert.ok(r.commandLine.includes('--name=login'), r.commandLine);
+  assertNoBareMetachars(r.commandLine);
+  assert.deepStrictEqual(r.baseArgs, [], 'la cronologia resta senza nome');
+});
+
 /* Il JSON vero degli hook ha `|` nel matcher e virgolette ovunque: cmd.exe
    deve ricevere --settings come un solo argomento, intatto. */
 ok('win: il JSON vero di claudeSettings passa intatto nella riga di cmd.exe', () => {
@@ -362,15 +384,7 @@ ok('win: il JSON vero di claudeSettings passa intatto nella riga di cmd.exe', ()
   const resolve = () => ({ path: 'C:\\Users\\jack\\AppData\\Roaming\\npm\\claude.cmd', via: 'PATH:npm' });
   const inject = () => ({ args: ['--settings', json], env: {} });
   const r = buildCommand('claude', null, null, { profiles: winProfiles(), home: HOME, env: ENV, platform: 'win32', resolve, inject });
-  // Ogni metacarattere di cmd.exe fuori dalle virgolette va preceduto da ^
-  const inner = r.commandLine.slice('/d /s /c "'.length, -1);
-  let quoted = false;
-  for (let i = 0; i < inner.length; i++) {
-    const c = inner[i];
-    if (c === '^') { i++; continue; }
-    if (c === '"') { quoted = !quoted; continue; }
-    if (!quoted) assert.ok(!'|&<>()%!'.includes(c), `${c} nudo in posizione ${i}: ${r.commandLine}`);
-  }
+  assertNoBareMetachars(r.commandLine);
   assert.ok(r.commandLine.includes('permission_prompt'), r.commandLine);
 });
 

@@ -181,3 +181,46 @@ ok('prompt inviati: le risposte ai menu e le bozze abbandonate con Ctrl+C non co
   assert.strictEqual(cap.feed('\r'), null, 'la bozza abbandonata è passata per un prompt');
   assert.strictEqual(cap.feed('vero prompt\r'), 'vero prompt');
 });
+
+/* Piano 86: al resume Claude riceve --name solo col nome scelto dall'utente
+   (dialog «Nuova sessione», rinomina). Quello preso dal primo prompt sta
+   nello stesso store ma non è suo: Claude ha già un titolo migliore. */
+ok('nomi scelti: chosenNameFor restituisce solo i nomi segnati come scelti', () => {
+  const store = titles.createTitleStore(memStorage());
+  store.setName('claude', 'a', 'Dal prompt');
+  store.setName('claude', 'b', 'Scelto da me', { chosen: true });
+  assert.strictEqual(store.chosenNameFor('claude', 'a'), null);
+  assert.strictEqual(store.chosenNameFor('claude', 'b'), 'Scelto da me');
+  assert.strictEqual(store.nameFor('claude', 'a'), 'Dal prompt', 'il nome dal prompt resta il nome mostrato');
+  assert.strictEqual(store.chosenNameFor('codex', 'b'), null, 'i nomi non devono attraversare i tipi');
+  assert.strictEqual(store.chosenNameFor('claude', null), null);
+});
+
+ok('nomi scelti: il segno sopravvive al riavvio e si toglie con il nome', () => {
+  const storage = memStorage();
+  const store = titles.createTitleStore(storage);
+  store.setName('claude', 'b', 'Mio', { chosen: true });
+  assert.strictEqual(titles.createTitleStore(storage).chosenNameFor('claude', 'b'), 'Mio');
+  store.clearName('claude', 'b');
+  assert.strictEqual(store.chosenNameFor('claude', 'b'), null);
+  store.setName('claude', 'b', 'Di nuovo', { chosen: true });
+  store.setName('claude', 'b', 'Dal prompt');
+  assert.strictEqual(store.chosenNameFor('claude', 'b'), null, 'un nome non scelto toglie il segno');
+});
+
+ok('nomi scelti: il formato dei nomi resta quello di prima', () => {
+  const storage = memStorage();
+  titles.createTitleStore(storage).setName('claude', 'b', 'Mio', { chosen: true });
+  assert.deepStrictEqual(JSON.parse(storage.getItem(titles.STORAGE_KEY)), { 'claude:b': 'Mio' });
+});
+
+ok('nome per la CLI: quello del dialog, se no quello scelto per la conversazione ripresa', () => {
+  const store = titles.createTitleStore(memStorage());
+  store.setName('claude', 'r1', 'Scelto', { chosen: true });
+  store.setName('claude', 'r2', 'Dal prompt');
+  assert.strictEqual(titles.cliNameFor(store, { type: 'claude', sessionName: 'Nuovo' }), 'Nuovo');
+  assert.strictEqual(titles.cliNameFor(store, { type: 'claude', resumeId: 'r1' }), 'Scelto');
+  assert.strictEqual(titles.cliNameFor(store, { type: 'claude', resumeId: 'r2' }), null);
+  assert.strictEqual(titles.cliNameFor(store, { type: 'claude' }), null);
+  assert.strictEqual(titles.cliNameFor(null, { type: 'claude', resumeId: 'r1' }), null);
+});

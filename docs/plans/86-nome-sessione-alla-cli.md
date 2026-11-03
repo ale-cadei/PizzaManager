@@ -1,4 +1,4 @@
-# 83 — `feat/rename-sessioni`: il nome della sessione arriva alla CLI
+# 86 — `feat/rename-sessioni`: il nome della sessione arriva alla CLI
 
 Dipende da: 46 (iniezione degli hook). Taglia: ~3h.
 

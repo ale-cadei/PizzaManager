@@ -56,7 +56,7 @@ async function createTab(type, { name, sessionName = null, cwd, resumeId, claude
   if (!picked.ok) return; // scelta annullata: nessuna scheda creata
   const id = 'tab-' + Date.now() + '-' + Math.floor(Math.random() * 1e6);
   const label = name || `${type} · ${counter++}`;
-  // Il nome che arriva alla CLI: solo uno scelto dall'utente (piano 83)
+  // Il nome che arriva alla CLI: solo uno scelto dall'utente (piano 86)
   const cliName = Titles.cliNameFor(titleStore, { type, resumeId, sessionName });
   if (type === 'claude') await ensureClaudeAccounts();
   const claudeAccountName = type === 'claude' ? claudeAccountLabel(claudeAccountId) : null;

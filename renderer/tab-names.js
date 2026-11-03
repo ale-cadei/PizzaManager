@@ -157,7 +157,7 @@ function askSessionName(tab) {
 
 /**
  * Rinomina manuale: il nome resta legato alla conversazione, non alla scheda.
- * La CLI già aperta non lo sa: lo riceve al prossimo resume (piano 83).
+ * La CLI già aperta non lo sa: lo riceve al prossimo resume (piano 86).
  */
 async function renameTab(tab) {
   const current = await askSessionName(tab);

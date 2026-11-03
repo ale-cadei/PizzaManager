@@ -366,7 +366,7 @@ function assertNoBareMetachars(commandLine) {
   }
 }
 
-/* Piano 83: il nome viene dall'utente e puo' avere spazi e metacaratteri di
+/* Piano 86: il nome viene dall'utente e puo' avere spazi e metacaratteri di
    cmd.exe. Deve arrivare come un solo argomento, dentro la riga composta. */
 ok('win: il nome della sessione con spazi e & finisce intatto nella riga di cmd.exe', () => {
   const resolve = () => ({ path: 'C:\\Users\\jack\\AppData\\Roaming\\npm\\claude.cmd', via: 'PATH:npm' });

@@ -84,7 +84,7 @@ async function init() {
     if (claudeAccountId) { try { localStorage.setItem('aisess.claudeAccount', claudeAccountId); } catch {} }
     $('#modal-new').hidden = true;
     $('#new-name').value = '';
-    // Il nome scritto qui è dell'utente: arriva anche alla CLI (piano 83)
+    // Il nome scritto qui è dell'utente: arriva anche alla CLI (piano 86)
     await createTab(pendingNewType, { name, sessionName: name || null, cwd, claudeAccountId });
   });
 

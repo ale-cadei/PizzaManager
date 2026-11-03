@@ -22,7 +22,7 @@
   const STORAGE_KEY = 'aisess.session-names.v1';
   const NAME_MAX = 60;
   /* Quali nomi ha scelto l'utente (dialog, rinomina) e non il primo prompt:
-     solo questi arrivano alla CLI al resume (docs/plans/83). Chiave a parte,
+     solo questi arrivano alla CLI al resume (docs/plans/86). Chiave a parte,
      così il formato dei nomi resta quello di prima. */
   const CHOSEN_KEY = 'aisess.session-names.chosen.v1';
 

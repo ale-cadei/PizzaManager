@@ -112,7 +112,7 @@ macOS; Linux da provare). Il segnale esatto (hook) resta qui, ci lavora Ale.
 - [ ] provato
 
 ### Il nome della sessione anche a Codex e Antigravity
-Il piano [83](83-nome-sessione-alla-cli.md) passa a Claude il nome dato nel
+Il piano [86](86-nome-sessione-alla-cli.md) passa a Claude il nome dato nel
 dialog «Nuova sessione» (`--name`). Codex 0.166.0 e agy 1.2.4 non hanno un
 flag: il nome si cambia solo con `/rename` dentro l'interfaccia, e scriverlo
 nel terminale è stato scartato (tempi dell'interfaccia, segnale «ha finito»).

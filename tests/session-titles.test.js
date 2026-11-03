@@ -182,7 +182,7 @@ ok('prompt inviati: le risposte ai menu e le bozze abbandonate con Ctrl+C non co
   assert.strictEqual(cap.feed('vero prompt\r'), 'vero prompt');
 });
 
-/* Piano 83: al resume Claude riceve --name solo col nome scelto dall'utente
+/* Piano 86: al resume Claude riceve --name solo col nome scelto dall'utente
    (dialog «Nuova sessione», rinomina). Quello preso dal primo prompt sta
    nello stesso store ma non è suo: Claude ha già un titolo migliore. */
 ok('nomi scelti: chosenNameFor restituisce solo i nomi segnati come scelti', () => {

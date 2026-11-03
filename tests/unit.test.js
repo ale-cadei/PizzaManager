@@ -47,7 +47,7 @@ ok('claude: il resume passa --resume <id>', () => {
   else assert.strictEqual(r.missing, 'claude');
 });
 
-/* Piano 83: il nome scelto dall'utente arriva a Claude. Binario finto in un
+/* Piano 86: il nome scelto dall'utente arriva a Claude. Binario finto in un
    percorso POSIX: il test non dipende da cosa e' installato. */
 const FAKE_CLAUDE = () => ({ path: '/usr/local/bin/claude', via: 'PATH' });
 

@@ -84,6 +84,44 @@ aspetta la versione dopo — se Windows è l'unico motivo, anche una patch.
 > latest.yml…» finché non esce una release con Windows. Per questo la prima
 > release dopo la 1.7.0 conviene che *contenga* Windows: porta la correzione.
 
+### Se il job Windows è rosso
+
+Diverso dal caso sopra: il job Windows è **rosso**, non verde con l'avviso. È
+caduto uno dei passi senza rete di sicurezza: `npm ci` (compila `node-pty`),
+`fetch:psmux` (scarica psmux e ne controlla lo SHA-256) o `electron-builder`
+(costruisce e carica). Mac e Linux non si fermano e caricano lo stesso; sulla
+bozza i file Windows possono esserci a metà, per esempio il `.exe` senza
+`latest.yml`. La bozza non esce da sola, quindi niente è ancora arrivato a
+nessuno. Due mosse, in quest'ordine:
+
+1. **Rilanciare solo Windows.** Spesso è un intoppo di passaggio (rete,
+   caricamento interrotto):
+
+   ```sh
+   gh run rerun <id del run> --failed      # o «Re-run failed jobs» sulla pagina del run
+   ```
+
+   Riparte solo il job rosso, trova la bozza già fatta e la riusa; i file che
+   c'erano già li cancella e li ricarica (electron-builder,
+   `overwriteArtifact`). Non serve una macchina Windows.
+2. **Se resta rosso, Windows esce dalla bozza e si pubblica senza.** Si
+   tolgono tutti i file Windows, così non resta un `latest.yml` che punta a un
+   `.exe` mai arrivato:
+
+   ```sh
+   gh release view v1.2.0 --json assets -q '.assets[].name' \
+     | grep -E '^PizzaManager-win-|^latest\.yml$' \
+     | xargs -n1 gh release delete-asset v1.2.0 -y
+   ```
+
+   Poi si pubblica come in «Se Windows non c'è», con la riga «Windows: resta
+   alla 1.x.y» nelle note, e il guasto si guarda con calma: il log del job dice
+   quale dei tre passi è caduto (§8).
+
+Questo caso non è automatico di proposito ([piano 84](../plans/84-windows-build-non-blocca.md)):
+un guasto di build è raro e spesso si risolve con un rilancio, e come avviso
+giallo passerebbe inosservato.
+
 Le **note** si scrivono a mano in `docs/rilasci/v<versione>.md` prima di
 pubblicare. Ora che la release nasce nel repo del codice,
 `gh release --generate-notes` funzionerebbe — ma elenca i titoli dei commit,
@@ -130,8 +168,10 @@ né l'aggiornamento automatico la vedono. Il momento in cui si preme *Publish*
 è il momento in cui la versione raggiunge le persone. È lì che si guarda che i
 file ci siano tutti e che il job non sia rosso.
 
-Un job rosso vuol dire un guasto vero: non si pubblica. Windows escluso per
-test rossi **non** è un job rosso — è verde con un avviso, e si pubblica (§3).
+Un job rosso vuol dire un guasto vero: non si pubblica così com'è. Windows
+escluso per test rossi **non** è un job rosso — è verde con un avviso, e si
+pubblica (§3). Se il rosso è il solo job Windows, si rilancia, e se resta
+rosso si toglie Windows dalla bozza (§3, «Se il job Windows è rosso»).
 
 ## 5. I file di una release
 
@@ -209,6 +249,7 @@ qui, e **va revocato** su GitHub → Settings → Developer settings.
 | Avviso «*Windows escluso da questa release: test rossi*», niente `.exe` | i test Windows sono rossi sul commit del tag. Non è un guasto della release: si pubblica, e nelle note «Windows: resta alla 1.x.y, arriva con la prossima» (§3) |
 | La CI è verde, ma c'è l'avviso «*Test Windows rossi su questo commit…*» | voluto: i test Windows rossi non bloccano i merge e non fanno rosso il commit (piano 81), però dicono che un tag adesso uscirebbe senza Windows. I dettagli sono nel passo dei test del job Windows. **Si sistema anche da Mac**: si pusha un branch e si legge il job Windows della sua CI, finché è verde. A una macchina Windows vera servono solo gli smoke test dell'app e psmux |
 | Su Windows «Aggiornamento non riuscito: Cannot find latest.yml…» | l'app è la 1.7.0, che non conosce le release senza Windows (§3). Passa con la prossima release che contiene Windows. Su una versione successiva vorrebbe dire che `isNoUpdateError` non riconosce più il messaggio di electron-updater |
+| Job Windows **rosso** nella release (`npm ci`, `fetch:psmux` o `electron-builder`) | prima si rilancia solo quel job; se resta rosso, via i file Windows dalla bozza e si pubblica senza (§3, «Se il job Windows è rosso»). Il log dice quale passo è caduto |
 | Il pacchetto Windows non si costruisce | è successo fino alla 1.7.0: `pwsh` spezzava `-c.npmRebuild=false`. Corretto con `--config.` e `shell: bash` sul passo del build → [piano 40](../plans/40-windows-sessioni-persistenti.md) |
 | **Un job non parte proprio**: zero passi eseguiti, muore in pochi secondi, e nelle sue annotazioni c'è «*payments have failed or your spending limit needs to be increased*» | **Sono finiti i minuti di Actions del mese.** Non è un difetto nostro e non c'è niente da aggiustare nel codice → §10 qui sotto |
 

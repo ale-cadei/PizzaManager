@@ -36,10 +36,14 @@ Taglia: ~2h. Fatto il 2026-11-03, dopo l'uscita della 2.0.0.
 
 ## Annotato strada facendo, fuori da questo branch
 
-- `package.json` ha come autore `PizzaManager <support@example.com>`, un
-  segnaposto che finisce nei metadati dei pacchetti. Non si toglie e basta:
-  electron-builder vuole un'email dell'autore per costruire il `.deb`. Serve
-  un indirizzo vero da mettere al suo posto.
+- `support@example.com` in `package.json` (autore e
+  `build.linux.maintainer`) è un segnaposto dal primo commit. **Lasciato
+  così, di proposito** (2026-11-03): serve solo al campo «Maintainer» del
+  `.deb`, che Debian vuole nella forma `Nome <email>` ed electron-builder
+  rifiuta di costruire senza; l'app non lo usa altrove, e `example.com` è un
+  dominio riservato, quindi nessuna mail arriva a uno sconosciuto. Si cambia
+  solo se nasce un indirizzo del progetto; uno personale no, perché finirebbe
+  nei metadati di un pacchetto pubblico.
 - `docs/rilasci/v1.2.1.md` dice ancora «software proprietario»: sono le note
   di una versione passata, e restano com'erano.
 - Gli avvisi di terze parti si aggiornano a mano: un test che confronti la

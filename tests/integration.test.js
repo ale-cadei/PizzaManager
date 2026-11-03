@@ -1368,6 +1368,8 @@ ok('git: conflitti di merge, rebase e cherry-pick risolti dal pannello, con il g
     git('config', 'core.hooksPath', '.git/hooks');
     git('config', 'commit.gpgsign', 'false');
     git('config', 'merge.conflictStyle', 'merge');
+    // Git for Windows ha core.autocrlf=true di sistema: risolvendo, i file tornerebbero con \r\n.
+    git('config', 'core.autocrlf', 'false');
     commit('a.txt', 'uno\n', 'init');
     git('switch', '-q', '-c', 'feat/x');
     commit('a.txt', 'dal branch\n', 'x1');

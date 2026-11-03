@@ -23,6 +23,8 @@ function nbSetup(files) {
   ui.nbToggle = createElement('button');
   ui.host = createElement('div');
   ui.notebook = createElement('div');
+  ui.mdToggle = createElement('button');
+  ui.markdown = createElement('div');
   const sync = () => s.fn('syncEditorNotebook')(s.tab);
   const activate = (rel) => { s.tab.editor.files = s.page.ctx.AisessEditorFiles.activate(s.tab.editor.files, rel); sync(); };
   const cells = () => ui.notebook.querySelectorAll('.nb-code').map((n) => n.textContent);

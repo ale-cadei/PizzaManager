@@ -392,7 +392,7 @@ ok('pannello: la striscia sta fra albero ed editor; in testa bottone e titolo', 
   assert.deepStrictEqual(wrap.children.map((c) => c.className), ['editor-side', 'editor-resizer', 'editor-main']);
   assert.ok(toggle.classList.contains('editor-tree-toggle'));
   assert.strictEqual(toggle.title, 'Mostra/nascondi file (Ctrl+B)');
-  assert.strictEqual(head.children[1], ui.title);
+  assert.ok(head.children[1] === ui.title, 'il titolo è il secondo figlio della testata'); // nodi finti: mai nel diff di assert
 });
 
 ok('pannello: «Aperti» in cima, poi la testata «File» e l albero', () => {
@@ -671,11 +671,13 @@ ok('commenti: rinominando un file aperto, il commento segue il nuovo nome', asyn
 
 /* ---------- intorno al codice: conflitto, barra di stato, stato vuoto (docs/plans/75) ---------- */
 
-ok('layout: Monaco, notebook, conflitto e stato vuoto nello stesso riquadro; la barra di stato in fondo', () => {
+ok('layout: Monaco, notebook, markdown, conflitto e stato vuoto nello stesso riquadro; la barra di stato in fondo', () => {
   const { wrap, ui } = layout();
   const main = wrap.children[2];
   assert.deepStrictEqual(main.children.map((c) => c.className), ['editor-head', 'editor-message', 'editor-stage', 'editor-status']);
-  assert.deepStrictEqual(main.children[2].children, [ui.host, ui.notebook, ui.bar, ui.empty]);
+  // Classi, non nodi: un diff fra nodi finti (genitore ↔ figli) cresce senza fine e finisce la RAM
+  assert.deepStrictEqual(main.children[2].children.map((c) => c.className),
+    [ui.host, ui.notebook, ui.markdown, ui.bar, ui.empty].map((c) => c.className));
   assert.strictEqual(ui.status.tag, 'footer');
 });
 

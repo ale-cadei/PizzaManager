@@ -121,6 +121,7 @@ function renderEditorOpen(tab) {
   renderEditorStatus(tab);
   renderEditorEmpty(tab);
   syncEditorNotebook(tab); // notebook o Monaco per il file attivo (docs/plans/77)
+  syncEditorMarkdown(tab); // anteprima del markdown o Monaco (docs/plans/83), dopo il notebook
 }
 
 /** Con l'albero nascosto: il menu dei file aperti, appeso sotto il titolo. */

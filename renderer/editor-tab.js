@@ -146,6 +146,11 @@ function buildEditorLayout(tab) {
   nbToggle.hidden = true;
   nbToggle.onmousedown = (e) => e.preventDefault();
   nbToggle.onclick = () => toggleEditorNotebook(tab);
+  // Markdown reso ↔ sorgente per un .md (docs/plans/83), lo mostra editor-markdown-ui.js
+  const mdToggle = el('button', 'editor-nb-toggle editor-md-toggle', head);
+  mdToggle.hidden = true;
+  mdToggle.onmousedown = (e) => e.preventDefault();
+  mdToggle.onclick = () => toggleEditorMarkdown(tab);
   // «N commenti · Copia prompt · Svuota» (docs/plans/65), la disegna editor-notes-ui.js
   const notesBar = el('div', 'editor-notes-bar', head);
   notesBar.hidden = true;
@@ -168,12 +173,16 @@ function buildEditorLayout(tab) {
   // Col fuoco riceve i tasti del modo comando (docs/plans/78)
   notebook.tabIndex = 0;
   notebook.addEventListener('keydown', (e) => onEditorNotebookKey(tab, e));
+  // Anteprima del markdown, in sola lettura (docs/plans/83)
+  const markdown = el('div', 'editor-notebook editor-markdown', stage);
+  markdown.hidden = true;
+  markdown.tabIndex = 0;
   const bar = el('div', 'editor-bar', stage);
   bar.hidden = true;
   const empty = el('div', 'editor-empty', stage);
   const status = el('footer', 'editor-status', main);
   status.hidden = true;
-  return { treeHost, tree, fileHead, filter, openList, openCount, title, openMenu, notesBar, bar, message, stage, host, notebook, nbToggle, empty, status };
+  return { treeHost, tree, fileHead, filter, openList, openCount, title, openMenu, notesBar, bar, message, stage, host, notebook, nbToggle, markdown, mdToggle, empty, status };
 }
 
 function renderEditorTree(tab) {
@@ -465,6 +474,7 @@ function dropEditorFile(tab, rel) {
   }
   dropEditorNotes(tab, rel);
   dropEditorNotebook(tab, rel);
+  dropEditorMarkdown(tab, rel);
   if (ed.conflicts) ed.conflicts = Object.fromEntries(Object.entries(ed.conflicts).filter(([r]) => r !== rel));
   if (ed.host) {
     ed.host.close(rel);

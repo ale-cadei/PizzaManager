@@ -294,17 +294,15 @@
     }
 
     function gutterDecoration(r, lineCount) {
-      if (r.kind === 'del') {
-        const line = Math.max(r.after, 1);
-        const cls = delClass(r.after, lineCount);
-        return {
-          range: { startLineNumber: line, startColumn: 1, endLineNumber: line, endColumn: 1 },
-          options: { isWholeLine: true, linesDecorationsClassName: cls },
-        };
-      }
+      const del = r.kind === 'del';
+      const from = del ? Math.max(r.after, 1) : r.from;
+      const to = del ? from : r.to;
       return {
-        range: { startLineNumber: r.from, startColumn: 1, endLineNumber: r.to, endColumn: 1 },
-        options: { isWholeLine: true, linesDecorationsClassName: `editor-gutter-${r.kind}` },
+        range: { startLineNumber: from, startColumn: 1, endLineNumber: to, endColumn: 1 },
+        options: {
+          isWholeLine: true,
+          linesDecorationsClassName: del ? delClass(r.after, lineCount) : `editor-gutter-${r.kind}`,
+        },
       };
     }
 

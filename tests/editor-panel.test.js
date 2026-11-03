@@ -27,15 +27,16 @@ ok('clampWidth: fra 160 e la metà della scheda, con la scheda stretta vince il 
 });
 
 ok('readPanelPrefs: i default senza niente salvato o con valori rotti', () => {
-  const def = { width: 256, hidden: false };
+  const def = { width: 256, hidden: false, minimap: false };
   assert.deepStrictEqual(P.readPanelPrefs(createStorage()), def);
   assert.deepStrictEqual(P.readPanelPrefs(createStorage({ 'aisess.editorTreeW': 'abc', 'aisess.editorTreeHidden': 'forse' })), def);
   assert.deepStrictEqual(P.readPanelPrefs(createStorage({ 'aisess.editorTreeW': '90' })), def);
-  assert.deepStrictEqual(P.readPanelPrefs(createStorage({ 'aisess.editorTreeW': '320', 'aisess.editorTreeHidden': '1' })), { width: 320, hidden: true });
+  assert.deepStrictEqual(P.readPanelPrefs(createStorage({ 'aisess.editorTreeW': '320', 'aisess.editorTreeHidden': '1' })), { width: 320, hidden: true, minimap: false });
+  assert.strictEqual(P.readPanelPrefs(createStorage({ 'aisess.editorMinimap': '1' })).minimap, true);
 });
 
 ok('readPanelPrefs e savePanelPrefs: uno storage che lancia non ferma niente', () => {
-  assert.deepStrictEqual(P.readPanelPrefs(brokenStorage()), { width: 256, hidden: false });
+  assert.deepStrictEqual(P.readPanelPrefs(brokenStorage()), { width: 256, hidden: false, minimap: false });
   assert.doesNotThrow(() => P.savePanelPrefs(brokenStorage(), { width: 300, hidden: true }));
 });
 
@@ -51,7 +52,7 @@ ok('createPanel: applica subito alla pagina le preferenze salvate', () => {
   const panel = P.createPanel({ doc, storage: createStorage({ 'aisess.editorTreeW': '320', 'aisess.editorTreeHidden': '1' }) });
   assert.strictEqual(widthOf(doc), '320px');
   assert.strictEqual(isHidden(doc), true);
-  assert.deepStrictEqual(panel.prefs(), { width: 320, hidden: true });
+  assert.deepStrictEqual(panel.prefs(), { width: 320, hidden: true, minimap: false });
 });
 
 ok('toggle: nasconde e rimostra, e se lo ricorda', () => {
@@ -61,7 +62,7 @@ ok('toggle: nasconde e rimostra, e se lo ricorda', () => {
   assert.strictEqual(isHidden(doc), false);
   panel.toggle();
   assert.strictEqual(isHidden(doc), true);
-  assert.deepStrictEqual(P.readPanelPrefs(storage), { width: 256, hidden: true });
+  assert.deepStrictEqual(P.readPanelPrefs(storage), { width: 256, hidden: true, minimap: false });
   panel.toggle();
   assert.strictEqual(isHidden(doc), false);
   assert.strictEqual(storage.getItem('aisess.editorTreeHidden'), '0');
@@ -74,6 +75,45 @@ ok('toggle: con uno storage che lancia apre e chiude lo stesso', () => {
   assert.strictEqual(isHidden(doc), true);
   panel.toggle();
   assert.strictEqual(isHidden(doc), false);
+});
+
+/* ---------- anteprima del codice (docs/plans/81) ---------- */
+
+const hasMinimap = (doc) => doc.body.classList.contains('editor-minimap-on');
+
+ok('toggleMinimap: accende e spegne per tutte le schede, lo dice a onMinimap e se lo ricorda', () => {
+  const doc = fakeDoc();
+  const storage = createStorage();
+  const told = [];
+  const panel = P.createPanel({ doc, storage, onMinimap: (on) => told.push(on) });
+  assert.strictEqual(hasMinimap(doc), false);
+  panel.toggleMinimap();
+  assert.strictEqual(hasMinimap(doc), true);
+  assert.strictEqual(storage.getItem('aisess.editorMinimap'), '1');
+  assert.strictEqual(panel.prefs().minimap, true);
+  panel.toggleMinimap();
+  assert.strictEqual(hasMinimap(doc), false);
+  assert.strictEqual(storage.getItem('aisess.editorMinimap'), '0');
+  assert.deepStrictEqual(told, [true, false]);
+});
+
+ok('toggleMinimap: la preferenza salvata vale da subito; non tocca l\'albero', () => {
+  const doc = fakeDoc();
+  const storage = createStorage({ 'aisess.editorMinimap': '1', 'aisess.editorTreeHidden': '1' });
+  const panel = P.createPanel({ doc, storage });
+  assert.strictEqual(hasMinimap(doc), true);
+  panel.toggleMinimap(); // senza onMinimap non lancia
+  assert.strictEqual(isHidden(doc), true);
+  assert.strictEqual(storage.getItem('aisess.editorTreeHidden'), '1');
+});
+
+ok('toggleMinimap: con uno storage che lancia accende e spegne lo stesso', () => {
+  const doc = fakeDoc();
+  const panel = P.createPanel({ doc, storage: brokenStorage() });
+  panel.toggleMinimap();
+  assert.strictEqual(hasMinimap(doc), true);
+  panel.toggleMinimap();
+  assert.strictEqual(hasMinimap(doc), false);
 });
 
 /** Striscia agganciata a un albero largo 240 in una scheda larga 1000. */

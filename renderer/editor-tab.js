@@ -21,6 +21,10 @@ const editorPanel = EditorPanel.createPanel({
   doc: document, storage: localStorage,
   // Si apre e si chiude animato, come la sidebar (docs/plans/80)
   motion: window.AisessMotion ? window.AisessMotion.createPageMotion(window) : null,
+  // L'anteprima del codice vale per tutte le schede editor (docs/plans/81)
+  onMinimap: (on) => {
+    for (const t of tabs.values()) if (t.editor && t.editor.host) t.editor.host.setMinimap(on);
+  },
 });
 // Domande appese all'editor (sotto-schede, albero): un fumetto suo, che i
 // render della sidebar non spostano (closeConfirm segue le card)
@@ -146,6 +150,13 @@ function buildEditorLayout(tab) {
   const notesBar = el('div', 'editor-notes-bar', head);
   notesBar.hidden = true;
   buildEditorQuickButton(tab, head);
+  // Anteprima del codice a destra (minimappa, docs/plans/81): accesa la dice body.editor-minimap-on
+  const minimapToggle = el('button', 'editor-minimap-toggle', head);
+  minimapToggle.appendChild(editorCodicon('map'));
+  minimapToggle.title = 'Mostra/nascondi anteprima del codice';
+  minimapToggle.setAttribute('aria-label', 'Mostra/nascondi anteprima del codice');
+  minimapToggle.onmousedown = (e) => e.preventDefault(); // il fuoco resta a Monaco
+  minimapToggle.onclick = () => editorPanel.toggleMinimap();
   const message = el('div', 'editor-message', main);
   message.hidden = true;
   // Monaco ha il suo contenitore; il conflitto col disco e lo stato vuoto gli
@@ -359,6 +370,7 @@ function ensureEditorHost(tab) {
         onDefinition: (rel, word, at) => goToEditorDefinition(tab, rel, word, at),
         onCursorLine: (rel, line) => scheduleEditorBlame(tab, rel, line),
         mac: /mac/i.test(navigator.platform || ''),
+        minimap: editorPanel.prefs().minimap,
       });
       // Il fondo di #main, come i terminali: segue il colore scelto in View → Colori
       EditorMonaco.applyTheme(window, { background: termTheme().background });

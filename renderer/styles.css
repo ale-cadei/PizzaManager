@@ -1375,6 +1375,14 @@ body.editor-tree-hidden .editor-tree-toggle { background: transparent; color: va
 body.editor-tree-hidden .editor-tree-toggle:hover { background: var(--surface-3); color: var(--text); }
 body.editor-tree-hidden .editor-toggle-shown { display: none; }
 body.editor-tree-hidden .editor-toggle-hidden { display: inline-block; }
+/* Anteprima del codice (docs/plans/81): spenta in grigio, accesa come il bottone dell'albero aperto */
+.editor-minimap-toggle {
+  width: 30px; height: 30px; flex: none; display: grid; place-items: center; padding: 0; border: 0;
+  border-radius: var(--radius); background: transparent; color: var(--text-dim); font-size: 16px; cursor: pointer;
+}
+.editor-minimap-toggle .codicon { font-size: inherit; }
+body.editor-minimap-on .editor-minimap-toggle { background: var(--surface-2); color: var(--text-2); }
+.editor-minimap-toggle:hover, .editor-minimap-toggle:focus-visible { background: var(--surface-3); color: var(--text); outline: none; }
 .editor-title { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .editor-title-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .editor-title-icon { width: 18px; height: 18px; flex: none; }

@@ -1,4 +1,5 @@
-/* Albero della scheda editor ridimensionabile e nascondibile (docs/plans/62).
+/* Albero della scheda editor ridimensionabile e nascondibile (docs/plans/62),
+ * e anteprima del codice (minimappa) accesa o spenta (docs/plans/81).
  * Larghezza e aperto/chiuso valgono per tutte le schede editor e si
  * ricordano in localStorage: stanno sulla pagina (variabile CSS
  * --editor-tree-w e classe editor-tree-hidden sul body), non nelle schede.
@@ -12,6 +13,7 @@
 })(typeof window !== 'undefined' ? window : null, function () {
   const WIDTH_KEY = 'aisess.editorTreeW';
   const HIDDEN_KEY = 'aisess.editorTreeHidden';
+  const MINIMAP_KEY = 'aisess.editorMinimap';
   const DEFAULT_W = 256;
   const MIN_W = 160;
 
@@ -24,9 +26,10 @@
       return {
         width: Number.isFinite(w) && w >= MIN_W ? Math.round(w) : DEFAULT_W,
         hidden: storage.getItem(HIDDEN_KEY) === '1',
+        minimap: storage.getItem(MINIMAP_KEY) === '1',
       };
     } catch {
-      return { width: DEFAULT_W, hidden: false };
+      return { width: DEFAULT_W, hidden: false, minimap: false };
     }
   }
 
@@ -34,6 +37,7 @@
     try {
       storage.setItem(WIDTH_KEY, String(prefs.width));
       storage.setItem(HIDDEN_KEY, prefs.hidden ? '1' : '0');
+      storage.setItem(MINIMAP_KEY, prefs.minimap ? '1' : '0');
     } catch {
       // localStorage negato o pieno: la preferenza vale fino al riavvio
     }
@@ -42,13 +46,16 @@
   function applyPanelPrefs(doc, prefs) {
     doc.body.style.setProperty('--editor-tree-w', `${prefs.width}px`);
     doc.body.classList.toggle('editor-tree-hidden', prefs.hidden);
+    doc.body.classList.toggle('editor-minimap-on', Boolean(prefs.minimap));
   }
 
   /** Le preferenze correnti stanno qui, non rilette dallo storage: se lo
    *  storage lancia, il bottone apre e chiude lo stesso. */
   /** Con `motion` (renderer/motion.js, docs/plans/80) l'albero si apre e si
-   *  chiude animato: si stringe a 0 prima di sparire, cresce dopo essere comparso. */
-  function createPanel({ doc, storage, motion = null }) {
+   *  chiude animato: si stringe a 0 prima di sparire, cresce dopo essere comparso.
+   *  `onMinimap(on)`: la minimappa è stata accesa o spenta, le schede aperte
+   *  la seguono (le nuove leggono prefs().minimap). */
+  function createPanel({ doc, storage, motion = null, onMinimap = () => {} }) {
     let prefs = readPanelPrefs(storage);
     const show = (patch) => {
       prefs = { ...prefs, ...patch };
@@ -97,10 +104,16 @@
       sides.forEach((side) => motion.hideWidth(side, () => applyPanelPrefs(doc, prefs)));
     }
 
+    function toggleMinimap() {
+      keep({ minimap: !prefs.minimap });
+      onMinimap(prefs.minimap);
+    }
+
     applyPanelPrefs(doc, prefs);
     return {
       prefs: () => prefs,
       toggle: () => toggle(),
+      toggleMinimap: () => toggleMinimap(),
       attachResizer,
     };
   }
@@ -128,7 +141,7 @@
   const isNewFileKey = (e) => Boolean(e.ctrlKey && e.altKey && !e.shiftKey && !e.metaKey && e.code === 'KeyN');
 
   return {
-    WIDTH_KEY, HIDDEN_KEY, DEFAULT_W, MIN_W, clampWidth, readPanelPrefs, savePanelPrefs, applyPanelPrefs, createPanel,
+    WIDTH_KEY, HIDDEN_KEY, MINIMAP_KEY, DEFAULT_W, MIN_W, clampWidth, readPanelPrefs, savePanelPrefs, applyPanelPrefs, createPanel,
     isToggleKey, isQuickKey, isNewFileKey, openIndexKey, openKeyLabel,
   };
 });

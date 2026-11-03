@@ -35,6 +35,19 @@
   const LINE_HIGHLIGHT = '#140B09';
   const LINE_NUMBER = '#5E4E47';
 
+  /* Segni delle righe cambiate nella barra di scorrimento e nella minimappa
+     (docs/plans/81): colori del tema, presi dalle barrette del margine.
+     kind della barretta → nome che Monaco usa nei suoi colori */
+  const CHANGE_KINDS = { add: 'added', mod: 'modified', del: 'deleted' };
+  const CHANGE_VARS = { added: ['--state-ok', '#7FC45A'], modified: ['--state-changed', '#5AA2FF'], deleted: ['--state-error', '#FF4D74'] };
+
+  function changeColors(win) {
+    return Object.fromEntries(Object.entries(CHANGE_VARS).flatMap(([name, [v, fallback]]) => {
+      const color = cssColor(win, v, fallback);
+      return [[`editorOverviewRuler.${name}Foreground`, color], [`minimapGutter.${name}Background`, color]];
+    }));
+  }
+
   function cssColor(win, name, fallback) {
     const v = win.getComputedStyle(win.document.documentElement).getPropertyValue(name).trim();
     return /^#[0-9a-f]{6}$/i.test(v) ? v : fallback;
@@ -54,6 +67,7 @@
         'editorLineNumber.foreground': LINE_NUMBER,
         'editorLineNumber.activeForeground': cssColor(win, '--text-2', '#D9CDC6'),
         'editorWidget.background': cssColor(win, '--surface', '#0E0B0A'),
+        ...changeColors(win),
       },
     });
   }
@@ -124,13 +138,14 @@
    *   onCursor?: (rel: string, pos: {line: number, col: number}) => void,
    *   onDefinition?: (rel: string, word: string, at: {lineNumber: number, column: number}) => void,
    *   onCursorLine?: (rel: string, line: number) => void,
-   *   mac?: boolean}} o `onDefinition`: Ctrl+click (⌘ con `mac`) su un nome (docs/plans/71);
+   *   mac?: boolean, minimap?: boolean}} o `minimap`: anteprima del codice a destra (docs/plans/81);
+   *   `onDefinition`: Ctrl+click (⌘ con `mac`) su un nome (docs/plans/71);
    *   `onCursorLine`: il cursore è su una riga, o il suo testo è cambiato (docs/plans/73);
    *   `onCursor`: riga e colonna per la barra di stato (docs/plans/75)
    */
   function createEditorHost({
     monaco, container, fontSize, onChange, onSave, onSaveAll, onComment = () => {}, onDefinition = null,
-    onCursorLine = null, mac = false, onCursor = () => {},
+    onCursorLine = null, mac = false, onCursor = () => {}, minimap = false,
   }) {
     // Autorità diversa per host: due schede sulla stessa cartella hanno model distinti
     const authority = `h${++hosts}`;
@@ -138,7 +153,7 @@
     let current = null;
     const editor = monaco.editor.create(container, {
       model: null, theme: THEME, automaticLayout: true, fontSize, fontFamily: FONT,
-      minimap: { enabled: false }, scrollBeyondLastLine: false, renderWhitespace: 'selection',
+      minimap: { enabled: Boolean(minimap) }, scrollBeyondLastLine: false, renderWhitespace: 'selection',
       glyphMargin: true, // il margine del «+» (docs/plans/65)
       padding: { top: 10 }, lineDecorationsWidth: 18, // corsia delle barrette (docs/plans/75)
     });
@@ -293,6 +308,17 @@
       return 'editor-gutter-del';
     }
 
+    /* Lo stesso blocco anche nella barra di scorrimento e nella minimappa
+       (docs/plans/81), per trovarlo in un file lungo. Il colore è un nome del
+       tema (changeColors): segue i colori scelti senza ridisegnare. */
+    function changeMarks(kind) {
+      const name = CHANGE_KINDS[kind];
+      return {
+        overviewRuler: { color: { id: `editorOverviewRuler.${name}Foreground` }, position: monaco.editor.OverviewRulerLane.Left },
+        minimap: { color: { id: `minimapGutter.${name}Background` }, position: monaco.editor.MinimapPosition.Gutter },
+      };
+    }
+
     function gutterDecoration(r, lineCount) {
       const del = r.kind === 'del';
       const from = del ? Math.max(r.after, 1) : r.from;
@@ -302,6 +328,7 @@
         options: {
           isWholeLine: true,
           linesDecorationsClassName: del ? delClass(r.after, lineCount) : `editor-gutter-${r.kind}`,
+          ...changeMarks(r.kind),
         },
       };
     }
@@ -710,6 +737,8 @@
 
     return {
       open, activate, info, symbolAt, markSaved, replaceText, rename, close, dispose, setGutter, setConflicts, editText, reveal, hint, setLineInfo,
+      // Anteprima del codice a destra, accesa o spenta per tutte le schede (docs/plans/81)
+      setMinimap: (on) => editor.updateOptions({ minimap: { enabled: Boolean(on) } }),
       trackLines, linesOf, untrack, lineText, addZone, removeZone, resizeZone,
       current: () => current,
       getText: (rel) => (docs.has(rel) ? docs.get(rel).model.getValue() : null),

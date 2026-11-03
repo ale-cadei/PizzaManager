@@ -34,8 +34,14 @@ quella nuova.
 
 ## Cosa cambia
 
-1. **`ci.yml`** — `continue-on-error: ${{ matrix.os == 'windows-2022' }}` sul
-   job. Windows gira e si legge come prima, ma non fa rossa la CI. Linux sì.
+1. **`ci.yml`** — `continue-on-error: ${{ runner.os == 'Windows' }}` sul
+   **passo** dei test, non sul job, più un passo che stampa
+   `::warning::Test Windows rossi su questo commit…`. Windows gira e si legge
+   come prima, ma non fa rossa la CI. Linux sì.
+   - Prima versione col `continue-on-error` sul job: sulla PR #62 il workflow
+     chiudeva verde, ma il check `test (windows-2022)` restava `fail` e la PR
+     «Some checks were not successful». È il `main` rosso che si voleva
+     togliere, quindi si è spostato sul passo, come in `release.yml`.
 2. **`release.yml`** — nel job di build, solo su Windows, dopo
    `fetch:psmux`: passo `Test su Windows` (`id: test-win`, `continue-on-error:
    true` sul **passo**, `timeout-minutes: 20` come la CI). Il build
@@ -65,7 +71,7 @@ quella nuova.
    scriverlo nelle note: «Windows: resta alla 1.x.y, arriva con la prossima»),
    §4 (schema col runner Windows e la regola), §5 (i file Windows), §6
    (Windows senza release resta fermo in silenzio), §8 (sintomi: avviso nel
-   job, CI Windows rossa ma verde nel complesso, errore `latest.yml` sulla
+   job, CI verde con l'avviso sui test Windows, errore `latest.yml` sulla
    1.7.0; il Windows rosso si sistema anche da Mac).
 
 ## Trappola: la 1.7.0
@@ -83,11 +89,8 @@ correzione. Scritto anche in `docs/rilasci/README.md` §3.
   gli altri errori su Windows (rete, firma, nessuna release, `null`).
 - YAML dei due workflow parsato con `js-yaml`.
 - **Da qui non si verifica** — si vede solo sul vero GitHub:
-  - al primo push su `main`: il job Windows rosso non rende rossa la CI.
-    Con `continue-on-error` sul job il *workflow* conclude verde; il job
-    Windows potrebbe comunque comparire con la sua croce nell'elenco dei
-    check della PR. È voluto che si veda, ma va guardato che la spunta
-    complessiva del commit sia verde;
+  - sulla PR e al primo push su `main`: i due check verdi, e sul run
+    l'avviso giallo dei test Windows finché restano rossi;
   - al primo tag con Windows rosso: job Windows verde con l'avviso, nessun
     `.exe` né `latest.yml` sulla bozza, Mac e Linux caricati;
   - al primo tag con Windows verde: tutto come nella 1.7.0;

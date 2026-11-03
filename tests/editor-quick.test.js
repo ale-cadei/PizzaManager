@@ -48,7 +48,7 @@ ok('vista: gruppi, conteggio, frecce e Invio aprono; Esc chiude', () => {
   const restore = installDocument();
   try {
     const { v, host, picked, closed } = view(() => ({ files: FILES, open: ['README.md'], recent: [], git: { 'renderer/editor-tab.js': 'M' } }));
-    assert.strictEqual(host.children[0], v.element);
+    assert.ok(host.children[0] === v.element, 'la palette sta nel contenitore'); // nodi finti: mai nel diff di assert
     v.input.value = 'e';
     fire(v.input, 'input');
     const heads = v.element.querySelectorAll('.editor-quick-group').map((g) => g.textContent);

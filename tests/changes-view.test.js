@@ -229,7 +229,7 @@ ok('vista modifiche: un avviso si vede sopra l\'elenco', () => {
   const { host, view } = setup();
   view.render(baseState({ files: [file('a')], notice: 'Troppi file nuovi' }));
   assert.strictEqual(textOf(one(host, 'changes-notice')), 'Troppi file nuovi');
-  assert.strictEqual(one(host, 'changes-body').children[0], one(host, 'changes-notice'));
+  assert.ok(one(host, 'changes-body').children[0] === one(host, 'changes-notice'), 'l avviso è il primo figlio'); // nodi finti: mai nel diff di assert
 });
 
 /* ---------- «Da committare» (docs/plans/43) ---------- */

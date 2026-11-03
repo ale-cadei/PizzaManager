@@ -14,6 +14,18 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-2022]
     runs-on: ${{ matrix.os }}
+    # Windows non fa diventare rossa la CI, Linux si' (docs/plans/81).
+    # Su Mac e Linux si sviluppa ogni giorno, Windows lo prova una persona sola
+    # da casa: un job Windows rosso a ogni merge teneva `main` sempre rosso, e
+    # un rosso costante insegna a ignorarlo — anche quando a rompersi e' Linux.
+    # I test Windows girano e si leggono come prima: sono l'anteprima di cio'
+    # che decidera' se la prossima release contiene Windows (release.yml rifa'
+    # gli stessi test sul commit del tag). Per sistemarli basta pushare un
+    # branch e guardare questo job, anche da Mac.
+    # continue-on-error sta sul passo dei test e non sul job: sul job GitHub
+    # chiude verde il workflow ma lascia la croce rossa sul check, e il commit
+    # resta rosso lo stesso (visto sulla PR #62). Sul passo il job chiude
+    # verde e il rosso diventa un avviso giallo nel riepilogo del run.
     # Un test che lascia un processo appeso teneva il job vivo 6 ore (il
     # massimo di GitHub): la suite intera ci mette pochi minuti.
     timeout-minutes: 20
@@ -28,4 +40,9 @@ jobs:
       # del pacchetto (docs/plans/52): senza, si dichiarano saltati.
       - if: runner.os == 'Windows'
         run: npm run fetch:psmux
-      - run: npm run test:unit
+      - id: tests
+        continue-on-error: ${{ runner.os == 'Windows' }}
+        run: npm run test:unit
+      - if: runner.os == 'Windows' && steps.tests.outcome != 'success'
+        run: |
+          echo "::warning::Test Windows rossi su questo commit: con un tag adesso, la release uscirebbe senza Windows (docs/plans/81)."

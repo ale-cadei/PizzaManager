@@ -55,14 +55,14 @@ Se lavori con più agenti AI da terminale, finisci con dieci finestre aperte, ne
 |---|---|---|
 | **macOS** | [Apple Silicon (.dmg)](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-mac-arm64.dmg) · [Intel (.dmg)](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-mac-x64.dmg) | Trascina l'app in *Applicazioni* |
 | **Linux** | [AppImage](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-linux-x86_64.AppImage) · [.deb](https://github.com/ale-cadei/PizzaManager/releases/latest/download/PizzaManager-linux-amd64.deb) | `chmod +x` l'AppImage, o `sudo dpkg -i` il .deb |
-| **Windows** | pacchetto non disponibile: si costruisce [dal sorgente](#dal-sorgente) | sessioni persistenti con psmux, già incluso (vedi [Su Windows](#su-windows)) |
+| **Windows** | `PizzaManager-win-x64-setup.exe` dalle [Releases](https://github.com/ale-cadei/PizzaManager/releases): l'ultima che lo contiene | installer non firmato; sessioni persistenti con psmux, già incluso (vedi [Su Windows](#su-windows)) |
 
-Tutte le versioni: [Releases](https://github.com/ale-cadei/PizzaManager/releases). Le CLI (`claude`, `codex`, `opencode`) vanno installate a parte: l'app lancia quelle che trova nel PATH.
+Tutte le versioni: [Releases](https://github.com/ale-cadei/PizzaManager/releases). Windows esce solo quando i suoi test passano: se l'ultima release non ce l'ha, il pacchetto è nella precedente, e l'app già installata salta direttamente alla prossima che lo contiene. Le CLI (`claude`, `codex`, `opencode`) vanno installate a parte: l'app lancia quelle che trova nel PATH.
 
 Alla prima apertura:
 - **macOS**: niente da fare. Il `.dmg` è firmato con un Developer ID e notarizzato da Apple, quindi si apre come qualsiasi app scaricata.
 - **Linux**: niente da fare.
-- **Windows**: costruito dal sorgente non è firmato, quindi compare l'avviso SmartScreen — *Ulteriori informazioni → Esegui comunque*.
+- **Windows**: il pacchetto non è firmato, quindi compare l'avviso SmartScreen — *Ulteriori informazioni → Esegui comunque*.
 
 ### Dal sorgente
 

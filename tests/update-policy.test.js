@@ -1,7 +1,7 @@
 // lib/update-policy.js: chi può aggiornarsi da sé e chi no, e cosa dire.
 const assert = require('node:assert');
 const { test: ok } = require('node:test');
-const { updateMode, bannerText, DOWNLOAD_URL, CHECK_EVERY_MS } = require('../lib/update-policy');
+const { updateMode, bannerText, isNoUpdateError, DOWNLOAD_URL, CHECK_EVERY_MS } = require('../lib/update-policy');
 
 // Un pacchetto che viene da una release: e' il marcatore che il workflow
 // scrive al build (`extraMetadata.buildFrom`).
@@ -70,4 +70,40 @@ ok('senza versione il banner non si mostra', () => {
 ok('i valori fissi sono quelli decisi', () => {
   assert.match(DOWNLOAD_URL, /^https:\/\/github\.com\/ale-cadei\/PizzaManager/);
   assert.strictEqual(CHECK_EVERY_MS, 4 * 60 * 60 * 1000, 'ogni 4 ore');
+});
+
+// Una release può uscire senza Windows (piano 81): i test Windows erano rossi
+// su quel commit. Allora nella release più recente manca latest.yml, e
+// electron-updater lo dice con un errore. Per chi usa Windows non è un guasto:
+// è «nessun aggiornamento», resta sulla versione che ha.
+const senzaLatestYml = () => Object.assign(
+  new Error('Cannot find latest.yml in the latest release artifacts (https://github.com/ale-cadei/PizzaManager/releases/download/v1.8.0/latest.yml): HttpError: 404'),
+  { code: 'ERR_UPDATER_CHANNEL_FILE_NOT_FOUND' },
+);
+
+ok('su Windows una release senza latest.yml vuol dire nessun aggiornamento', () => {
+  assert.strictEqual(isNoUpdateError({ platform: 'win32', error: senzaLatestYml() }), true);
+  // Conta il messaggio: il codice è lo stesso per il manifesto di ogni sistema.
+  const soloMessaggio = new Error('Cannot find latest.yml in the latest release artifacts (…): 404');
+  assert.strictEqual(isNoUpdateError({ platform: 'win32', error: soloMessaggio }), true);
+});
+
+ok('su macOS e Linux un manifesto mancante resta un errore', () => {
+  // Mac e Linux escono a ogni release: se il loro manifesto manca la release
+  // è rotta, e va detto.
+  const macMancante = Object.assign(new Error('Cannot find latest-mac.yml in the latest release artifacts'), { code: 'ERR_UPDATER_CHANNEL_FILE_NOT_FOUND' });
+  assert.strictEqual(isNoUpdateError({ platform: 'darwin', error: macMancante }), false);
+  assert.strictEqual(isNoUpdateError({ platform: 'linux', error: macMancante }), false);
+  assert.strictEqual(isNoUpdateError({ platform: 'darwin', error: senzaLatestYml() }), false);
+});
+
+ok('su Windows gli altri errori si mostrano ancora', () => {
+  const rete = Object.assign(new Error('net::ERR_INTERNET_DISCONNECTED'), { code: 'ERR_INTERNET_DISCONNECTED' });
+  const nessunaRelease = Object.assign(new Error('No published versions on GitHub'), { code: 'ERR_UPDATER_NO_PUBLISHED_VERSIONS' });
+  const firma = Object.assign(new Error('New version 1.8.0 is not signed by the application owner'), { code: 'ERR_UPDATER_INVALID_SIGNATURE' });
+  for (const error of [rete, nessunaRelease, firma]) {
+    assert.strictEqual(isNoUpdateError({ platform: 'win32', error }), false, error.message);
+  }
+  assert.strictEqual(isNoUpdateError({ platform: 'win32', error: null }), false);
+  assert.strictEqual(isNoUpdateError({ platform: 'win32', error: 'stringa qualsiasi' }), false);
 });

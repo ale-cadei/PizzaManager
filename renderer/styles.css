@@ -903,6 +903,28 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 }
 .changes-close:hover { background: var(--surface-2); color: var(--text); }
 /* «Dall'ultimo commit | Ultimo giro»: il selettore della sidebar, sotto il titolo */
+/* Barra del branch (piano 89): dove si è, e il push */
+.changes-branchbar {
+  grid-column: 1 / -1; margin-top: 6px;
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px var(--gap-sm);
+}
+.changes-branchbar[hidden], .changes-branchbar [hidden] { display: none; }
+.changes-where {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0;
+  font: 400 11px/1.4 var(--font-mono); color: var(--text-faint);
+}
+.changes-branch {
+  font-weight: 600; color: var(--text); max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.changes-worktree { color: var(--accent); }
+.changes-push { padding: 3px 10px; font-size: 12px; white-space: nowrap; }
+.changes-push[disabled] { opacity: .45; cursor: not-allowed; }
+.changes-push-outcome {
+  grid-column: 1 / -1; margin: 0; max-height: 8em; overflow: auto;
+  font: 400 11px/1.45 var(--font-mono); color: var(--state-ok); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.changes-push-outcome.is-error { color: var(--state-error); }
 .changes-modes {
   grid-column: 1 / -1; justify-self: start; margin-top: 6px;
   display: flex; gap: 4px; padding: 3px;

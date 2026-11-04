@@ -9,6 +9,7 @@ const { readStaging, readStagingDiff } = require('../lib/git-staging');
 const { stagePaths, unstagePaths, stageAll, unstageAll, commitStaged } = require('../lib/git-commit');
 const { mergeBranch } = require('../lib/git-merge');
 const { pushBranch } = require('../lib/git-push');
+const { readHead } = require('../lib/git-head');
 const { discardFile, undoDiscard } = require('../lib/git-discard');
 const { readConflicts, resolveFile, continueOp, abortOp } = require('../lib/git-conflicts');
 
@@ -72,6 +73,8 @@ function registerGitHandlers(ipcMain, { userDataDir } = {}) {
   ipcMain.handle('git-merge', guard(({ cwd, name, kind, expect }) => mergeBranch({ cwd, name, kind, expect: typeof expect === 'string' ? expect : null })));
   // Push di un branch locale (docs/plans/55): upstream o `-u`, mai forzato
   ipcMain.handle('git-push', guard(({ cwd, name }) => pushBranch({ cwd, name })));
+  // Branch, upstream e worktree della barra del pannello (docs/plans/89): solo letture
+  ipcMain.handle('git-head', guard(({ cwd }) => readHead({ cwd })));
   // Scartare il non staged di un file, e annullare (docs/plans/56): percorso
   // e gettone li ricontrolla lib/git-discard.js
   ipcMain.handle('git-discard', guard(({ cwd, path }) => discardFile({ cwd, path })));

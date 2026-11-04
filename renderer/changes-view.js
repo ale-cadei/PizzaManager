@@ -26,13 +26,15 @@
  * Wrapper UMD come worktree-section.js: globale nella pagina e module.exports
  * sotto Node. */
 (function (root, factory) {
-  const api = factory(root && root.AisessChangesModel, root && root.AisessReviewNotes, root && root.AisessConflictsView);
+  const api = factory(root && root.AisessChangesModel, root && root.AisessReviewNotes, root && root.AisessConflictsView,
+    root && root.AisessChangesHead);
   if (root) root.AisessChangesView = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-})(typeof window !== 'undefined' ? window : null, function (Model, Review, ConflictsView) {
+})(typeof window !== 'undefined' ? window : null, function (Model, Review, ConflictsView, ChangesHead) {
   const M = Model || require('./changes-model');
   const R = Review || require('./review-notes');
   const CV = ConflictsView || require('./conflicts-view');
+  const CH = ChangesHead || require('./changes-head');
   const SIGN = { add: '+', del: '-', ctx: ' ', note: '\\' };
   /* Come lib/git-commit.js, MAX_MESSAGE: la casella non accetta di più */
   const MAX_COMMIT_MESSAGE = 10000;
@@ -301,7 +303,7 @@
    *   onCommit?: (action: {type: 'stage'|'unstage', paths: string[]}|{type: 'stage-all'|'unstage-all'|'commit'}
    *     |{type: 'message', text: string}|{type: 'discard-ask', path: string, untracked: boolean}
    *     |{type: 'discard'|'discard-cancel'|'discard-undo'}) => void,
-   *   onOpenFile?: (path: string) => void}} o
+   *   onOpenFile?: (path: string) => void, onPush?: () => void}} o
    *   `onReview` dei commenti (docs/plans/44): per `save`, false se il commento
    *   è stato rifiutato (la textarea resta aperta). `onCommit` di stage e
    *   commit (docs/plans/53): `message` a ogni carattere, il pannello lo tiene
@@ -309,7 +311,7 @@
   function createChangesView({
     doc, host, shortcut, onToggle, onClose, onFile, onMerge = () => {}, onMode = () => {}, onReview = () => {},
     onCommit = () => {}, onOpenFile = null, tabTop = null, onTabMove = () => {}, onConflict = null,
-    motion = null,
+    motion = null, onPush = () => {},
   }) {
     const tab = button(doc, 'changes-tab', '', `Modifiche di questa sessione (${shortcut})`, () => {
       if (!tabDrag.takeClick()) onToggle();
@@ -338,6 +340,9 @@
     head.appendChild(heading);
     head.appendChild(summary);
     head.appendChild(button(doc, 'changes-close', '×', `Chiudi (${shortcut} o Esc)`, () => onClose()));
+    // Branch, worktree e push (docs/plans/89)
+    const branchBar = CH.createHeadBar(doc, onPush);
+    head.appendChild(branchBar.el);
     // «Dall'ultimo commit | Ultimo giro | Da committare»: stesso selettore della sidebar
     const modes = el(doc, 'div', 'seg changes-modes');
     modes.setAttribute('role', 'group');
@@ -454,7 +459,8 @@
      *   commit?: {message: string, canWrite: boolean, reason: string|null, canCommit: boolean,
      *     commitReason: string|null, commitLabel: string, outcome: {ok: boolean, text: string}|null}|null,
      *   discard?: {text: string, confirmLabel: string|null, undoLabel: string|null, canAct: boolean}|null,
-     *   openable?: boolean}} state
+     *   openable?: boolean, head?: object|null}} state
+     *   `head`: la barra del branch (changes-head.js, headBar), null per nasconderla
      */
     /* Con `motion` (docs/plans/80) il pannello entra ed esce dal bordo destro.
        Uscendo resta nella pagina fino a fine corsa; se nel frattempo si
@@ -493,6 +499,7 @@
       label.textContent = state.heading || 'Modifiche';
       title.textContent = state.title;
       renderModes(state.modes || null);
+      branchBar.render(state.head || null);
       renderFoot(state.merge || null);
       renderReviewFoot(state.review || null);
       commitBox.render(state.commit || null);

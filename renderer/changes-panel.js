@@ -23,7 +23,11 @@
      scrittura alla volta, poi si rilegge. Spenti mentre la sessione (o
      un'altra nello stesso repository) lavora: quando una parte o si ferma
      (signals.js) il pannello aperto si ridisegna. Il messaggio a metà sta
-     sulla scheda (`tab.commitMessage`), come i commenti. */
+     sulla scheda (`tab.commitMessage`), come i commenti.
+   - Barra del branch (docs/plans/89): branch, worktree e distanza
+     dall'upstream della cartella, letti a pannello aperto a ogni giro, e il
+     push del branch corrente (lib/git-push.js, mai forzato). Non c'è durante
+     «Unisci»: lì si parla di un altro branch. */
 
 const CHANGES_POLL_MS = 3000;
 const CHANGES_WIDTH_KEY = 'aisess.changesWidth';
@@ -38,6 +42,7 @@ const CHANGES_MIN_TERMINAL = 160;
 const CHANGES_SHORTCUT = navigator.platform.startsWith('Mac') ? '⌘⇧M' : 'Ctrl+Shift+M';
 const ChangesModel = window.AisessChangesModel;
 const ReviewNotes = window.AisessReviewNotes;
+const ChangesHead = window.AisessChangesHead;
 
 let changesView = null;
 const changesCache = window.AisessChangesCache.createChangesCache({
@@ -102,6 +107,7 @@ let changesState = {
   open: false, target: null, result: null, signature: 'none', expanded: {}, seq: 0, merge: null, mode: readChangesMode(),
   reviewError: null, writing: false, commitOutcome: null, discard: null,
   conflicts: null, conflictsSignature: null, conflictOutcome: null,
+  head: null, headSignature: 'none', pushing: false, pushOutcome: null,
 };
 
 /* L'ultima richiesta di diff per file: una risposta più vecchia (file chiuso
@@ -181,7 +187,51 @@ function renderChanges() {
     // In modalità Unisci si guarda un altro worktree o un branch in arrivo: niente editor
     openable: !merge,
     conflicts,
+    head: merge ? null : ChangesHead.headBar(changesState.head,
+      { pushing: changesState.pushing, writing: changesState.writing, outcome: changesState.pushOutcome }),
   });
+}
+
+/* ---------- Branch, worktree e push (docs/plans/89) ---------- */
+let headSeq = 0;
+
+/** Rilegge la barra del branch; solo a pannello aperto e fuori da «Unisci» */
+async function refreshHead(target) {
+  if (!target || !changesState.open || changesState.merge) return;
+  const seq = ++headSeq;
+  let head;
+  try {
+    head = await window.aisess.gitHead(target.cwd);
+  } catch (e) {
+    head = { ok: false, error: String((e && e.message) || e) };
+  }
+  // Scheda cambiata o lettura più nuova partita nel frattempo
+  if (seq !== headSeq || !changesState.target || changesState.target.key !== target.key) return;
+  if (head && !head.ok && head.error) console.warn('[modifiche] branch', head.error);
+  const headSignature = ChangesHead.headSignature(head);
+  if (headSignature !== changesState.headSignature) setChangesState({ head, headSignature });
+}
+
+/* Push del branch corrente: uno alla volta, ricontrollando quello che la
+   vista ha già spento (fra disegno e clic la lettura può essere cambiata) */
+async function runPush() {
+  const tab = activeTab();
+  const target = changesState.target;
+  const { head } = changesState;
+  const bar = ChangesHead.headBar(head, { pushing: changesState.pushing, writing: changesState.writing });
+  if (!tab || !target || !bar || !bar.push.enabled) return;
+  setChangesState({ pushing: true, pushOutcome: null });
+  let res;
+  try {
+    res = await window.aisess.gitPush(head.root, head.branch);
+  } catch (e) {
+    res = { ok: false, error: String((e && e.message) || e) };
+  }
+  const same = Boolean(changesState.target && changesState.target.key === target.key);
+  setChangesState({ pushing: false, pushOutcome: same ? ChangesHead.pushOutcome(res) : null });
+  // Nella scheda git l'upstream nuovo deve comparire anche nella timeline
+  if (res && res.ok && tab.type === 'git') refreshGitTab(tab).catch((e) => console.warn('[modifiche] timeline', e));
+  await refreshHead(target);
 }
 
 /* ---------- Stage, unstage e commit (docs/plans/53) ---------- */
@@ -388,10 +438,11 @@ async function refreshChanges() {
   if (!sameTarget) {
     setChangesState({
       target, result: null, signature: 'none', expanded: {}, reviewError: null, commitOutcome: null, discard: null,
-      conflicts: null, conflictsSignature: null, conflictOutcome: null,
+      conflicts: null, conflictsSignature: null, conflictOutcome: null, head: null, headSignature: 'none', pushOutcome: null,
     });
   }
   if (!target) return;
+  refreshHead(target).catch((e) => console.warn('[modifiche] branch', e));
   const seq = changesState.seq + 1;
   changesState = { ...changesState, seq };
   // Un'operazione a metà (docs/plans/69): il pannello parla di quella
@@ -612,6 +663,7 @@ function initChangesPanel() {
     tabTop: readChangesTabTop(),
     onTabMove: saveChangesTabTop,
     onConflict: (action) => handleConflict(action),
+    onPush: () => { runPush().catch((e) => console.warn('[modifiche] push', e)); },
     // Entra ed esce dal bordo destro (docs/plans/80)
     motion: window.AisessMotion ? window.AisessMotion.createPageMotion(window) : null,
   });

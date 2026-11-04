@@ -322,11 +322,16 @@ img.agent-icon--node { border-radius: 2px; }
    colore della sessione. Ingrandita davvero (scale): barra, croce, marker
    e testo crescono insieme e restano alle stesse distanze in proporzione.
    La scala non occupa spazio nel flusso: --lift-grow è quanto la card cresce
-   sopra e sotto, e il margine glielo riserva o coprirebbe le righe accanto. */
+   sopra e sotto, e il margine glielo riserva o coprirebbe le righe accanto.
+   Di lato la crescita è proporzionale alla larghezza, il margine del pannello
+   no: la card si restringe prima dello zoom e, ingrandita, sporge solo di
+   --lift-bleed. Il min() vale per la sidebar collassata, dove quel calcolo la
+   allargherebbe invece di restringerla. */
 .session-item.active {
   background: var(--surface-lift);
   border-color: color-mix(in srgb, var(--type-color, var(--accent)) 45%, transparent);
-  margin: calc(4px + var(--lift-grow)) 0;
+  margin: calc(4px + var(--lift-grow)) auto;
+  width: min(100%, calc((100% + 2 * var(--lift-bleed)) / var(--lift-scale)));
   /* `scale` e non `transform`: il riordino (FLIP, sidebar.js) scrive un
      transform inline e lo zoom sparirebbe mentre le righe scorrono. */
   scale: var(--lift-scale);

@@ -36,6 +36,30 @@ ok('selezione: la card ingrandita non apre uno scroll orizzontale', () => {
   assert.ok(/#session-list \{[^}]*overflow-x:\s*hidden/.test(styles()), 'la lista scorre di lato sotto la card ingrandita');
 });
 
+/* `scale` allarga la card in proporzione alla sua larghezza, il margine del
+   pannello invece è fisso: con la sidebar larga la card usciva dalla scheda del
+   progetto. La card si restringe prima dello zoom, così dopo lo zoom sporge di
+   lato di una misura fissa, che deve stare dentro i margini attorno. */
+ok('selezione: la card ingrandita resta dentro il pannello a qualunque larghezza', () => {
+  const css = styles();
+  const active = css.match(/\n\.session-item\.active \{[^}]*\}/)[0];
+  assert.ok(/width:\s*min\(100%,\s*calc\(\(100% \+ 2 \* var\(--lift-bleed\)\) \/ var\(--lift-scale\)\)\)/.test(active),
+    'la larghezza della card attiva non compensa lo zoom: ' + active);
+  const tokens = fs.readFileSync(tokensFiles[0], 'utf8');
+  const bleed = Number((tokens.match(/--lift-bleed:\s*(\d+)px/) || [])[1]);
+  const pannello = Number(css.match(/\n\.group-body \{[^}]*\}/)[0].match(/padding:\s*(\d+)px/)[1]);
+  const worktree = Number(css.match(/\n\.worktree-body \{[^}]*\}/)[0].match(/padding-left:\s*(\d+)px/)[1]);
+  assert.ok(bleed < pannello, `la card sporge di ${bleed}px su un margine di ${pannello}px`);
+  assert.ok(bleed < worktree, `nei worktree la card copre il filetto: ${bleed}px su ${worktree}px`);
+});
+
+/* `scale` parte dal centro della card: più stretta e allineata a sinistra,
+   sporgerebbe da quel lato. */
+ok('selezione: la card ristretta resta centrata', () => {
+  assert.ok(/margin:\s*calc\(\d+px \+ var\(--lift-grow\)\) auto/.test(styles().match(/\n\.session-item\.active \{[^}]*\}/)[0]),
+    'la card attiva non è centrata');
+});
+
 /* La barra scala con la card (niente spostamenti a mano) e resta del colore
    della sessione: un colore fisso le farebbe perdere l'identità. */
 ok('selezione: la barra della riga sollevata è del colore della sessione e scala con la card', () => {

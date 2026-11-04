@@ -24,13 +24,15 @@
   --surface-cap:   var(--surface-3);  /* linguetta e fogli */
   --surface-row:   var(--surface-3);  /* riga in hover dentro il pannello */
   --surface-lift:  var(--surface-3);  /* riga selezionata, sollevata sul pannello */
-  /* ingrandimento della riga selezionata. Tetto 1.12: con la sidebar alla
-     larghezza massima (480px, panels.js) fa uscire la card di ~25px per lato,
-     quanto c'è fra il bordo della card e quello della lista. Oltre, taglia. */
+  /* ingrandimento della riga selezionata */
   --lift-scale:    1.08;
   /* quanto la card ingrandita cresce sopra e sotto: metà dell'8% di una riga
      di 48px. Il margine lo riserva, o coprirebbe le righe accanto. */
   --lift-grow:     2px;
+  /* quanto la card ingrandita sporge di lato, uguale a ogni larghezza della
+     sidebar. Deve stare sotto gli 8px di margine del pannello e i 6px che
+     separano le card di un worktree dal loro filetto. */
+  --lift-bleed:    4px;
   /* l'ombra sta sotto il fascicolo, non sulle singole righe */
   --shadow-stack:  0 14px 28px -16px rgba(0,0,0,0.95);
 

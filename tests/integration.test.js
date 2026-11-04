@@ -1347,6 +1347,64 @@ ok('git: push di un branch su un remoto bare, nuovo upstream, push dopo, rifiuto
   }
 });
 
+ok('git: barra del pannello, branch, upstream e worktree col git installato (piano 89)', async (t) => {
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const path = require('path');
+  const { resolveBinary } = require('../lib/binaries');
+  const { readHead } = require('../lib/git-head');
+  const bin = resolveBinary('git');
+  if (!bin.path) return t.skip('git non installato su questa macchina');
+  const dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ais-head-')));
+  const remote = path.join(dir, 'remoto.git');
+  const root = path.join(dir, 'w');
+  const wt = path.join(dir, 'feature-y');
+  const gitIn = (cwd) => (...args) => String(execFileSync(bin.path, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] })).trim();
+  const platform = process.platform;
+  try {
+    fs.mkdirSync(root);
+    gitIn(dir)('init', '-q', '--bare', remote);
+    const git = gitIn(root);
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.name', 'Prova');
+    git('config', 'user.email', 'p@x');
+    git('config', 'commit.gpgsign', 'false');
+    git('remote', 'add', 'origin', remote);
+
+    // Nessun commit ancora: il branch c'è, ma è «unborn»
+    const unborn = await readHead({ cwd: root, platform });
+    assert.strictEqual(unborn.branch, 'main');
+    assert.strictEqual(unborn.unborn, true);
+
+    fs.writeFileSync(path.join(root, 'a.txt'), 'a');
+    git('add', 'a.txt');
+    git('commit', '-q', '-m', 'init');
+    git('push', '-q', '-u', 'origin', 'main');
+    fs.writeFileSync(path.join(root, 'b.txt'), 'b');
+    git('add', 'b.txt');
+    git('commit', '-q', '-m', 'b');
+    const ahead = await readHead({ cwd: root, platform });
+    assert.strictEqual(ahead.upstream, 'origin/main');
+    assert.strictEqual(ahead.ahead, 1);
+    assert.strictEqual(ahead.worktree, null);
+
+    // Worktree collegato: si dice il nome della cartella, il branch è il suo
+    git('worktree', 'add', '-q', '-b', 'feat/y', wt);
+    const linked = await readHead({ cwd: wt, platform });
+    assert.strictEqual(linked.branch, 'feat/y');
+    assert.strictEqual(linked.worktree, 'feature-y');
+    assert.strictEqual(linked.upstream, null);
+
+    // HEAD staccato: niente branch, il commit corto
+    git('switch', '-q', '--detach', 'HEAD~1');
+    const detached = await readHead({ cwd: root, platform });
+    assert.strictEqual(detached.branch, null);
+    assert.match(detached.detached, /^[0-9a-f]{4,}$/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 ok('git: conflitti di merge, rebase e cherry-pick risolti dal pannello, con il git installato', async (t) => {
   const { execFileSync } = require('child_process');
   const os = require('os');

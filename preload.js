@@ -97,6 +97,7 @@ contextBridge.exposeInMainWorld('aisess', {
   gitOpContinue: (cwd, op) => ipcRenderer.invoke('git-op-continue', { cwd, op }),
   gitOpAbort: (cwd, op) => ipcRenderer.invoke('git-op-abort', { cwd, op }),
   gitPush: (cwd, name) => ipcRenderer.invoke('git-push', { cwd, name }),
+  gitHead: (cwd) => ipcRenderer.invoke('git-head', { cwd }),
   gitDiscard: (cwd, path) => ipcRenderer.invoke('git-discard', { cwd, path }),
   gitDiscardUndo: (cwd, token) => ipcRenderer.invoke('git-discard-undo', { cwd, token }),
   worktreeList: (root) => ipcRenderer.invoke('worktree-list', { root }),

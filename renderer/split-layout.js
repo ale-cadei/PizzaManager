@@ -93,6 +93,12 @@
     return state ? { ...state, first: state.second, second: state.first } : null;
   }
 
+  /** Da affiancate a impilate e viceversa: stesse metà, stessa proporzione. */
+  function toggleOrientation(state) {
+    if (!state) return null;
+    return { ...state, orientation: state.orientation === 'row' ? 'column' : 'row' };
+  }
+
   /** Stato dopo la chiusura di una sessione: se era una delle due, niente più divisione. */
   function without(state, id) {
     return has(state, id) ? null : state;
@@ -152,6 +158,6 @@
 
   return {
     MIN_RATIO, MAX_RATIO, clampRatio, dropZone, canPlace, place, select, swap,
-    without, partnerOf, visibleIds, ratioAt, toSaved, parseSaved, fromSaved,
+    toggleOrientation, without, partnerOf, visibleIds, ratioAt, toSaved, parseSaved, fromSaved,
   };
 });

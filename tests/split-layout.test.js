@@ -61,6 +61,15 @@ ok('split: lo scambio inverte le sessioni e lascia la linea dov è', () => {
   assert.strictEqual(Split.swap(null), null);
 });
 
+ok('split: cambiare orientamento affianca o impila e tiene sessioni e linea', () => {
+  const s = row('a', 'b', 0.3);
+  const col = { orientation: 'column', first: 'a', second: 'b', ratio: 0.3 };
+  assert.deepStrictEqual(Split.toggleOrientation(s), col);
+  assert.deepStrictEqual(Split.toggleOrientation(col), s);
+  assert.deepStrictEqual(s, row('a', 'b', 0.3));
+  assert.strictEqual(Split.toggleOrientation(null), null);
+});
+
 ok('split: chiudere una delle due toglie la divisione, una estranea no', () => {
   const s = row('a', 'b');
   assert.strictEqual(Split.without(s, 'a'), null);

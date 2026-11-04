@@ -77,6 +77,12 @@ function applySplitLayout() {
   if (divider) {
     divider.hidden = !s;
     divider.setAttribute('aria-orientation', s && s.orientation === 'column' ? 'horizontal' : 'vertical');
+    const orient = divider.querySelector('.split-orient');
+    if (orient) {
+      const label = s && s.orientation === 'column' ? 'Affianca le sessioni' : 'Impila le sessioni';
+      orient.title = label;
+      orient.setAttribute('aria-label', label);
+    }
   }
 }
 
@@ -160,6 +166,8 @@ function initSplitDivider(host, divider) {
     if (onButton(e) || !splitState) return;
     setSplit({ ...splitState, ratio: 0.5 });
   });
+  const orient = divider.querySelector('.split-orient');
+  if (orient) orient.addEventListener('click', () => setSplit(Split.toggleOrientation(splitState)));
   const swap = divider.querySelector('.split-swap');
   if (swap) swap.addEventListener('click', () => setSplit(Split.swap(splitState)));
   const close = divider.querySelector('.split-close');

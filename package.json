@@ -49,6 +49,7 @@
       "renderer/**/*",
       "assets/**/*",
       "!assets/generate-icon.py",
+      "!assets/generate-notification-icon.py",
       "!assets/antigravity.png",
       "!assets/claude-code.png",
       "package.json",

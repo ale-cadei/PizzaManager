@@ -235,4 +235,4 @@ registerEditorHandlers(ipcMain, { electron: { app, shell, BrowserWindow, dialog,
 registerKernelHandlers(ipcMain, { app }); // kernel dei notebook (docs/plans/79)
 
 // ---------- Notifiche di sistema e badge (docs/plans/38) ----------
-registerNotifyHandlers(ipcMain, { electron: { app, Notification, Menu }, getWindow: () => mainWindow, sendToRenderer });
+registerNotifyHandlers(ipcMain, { electron: { app, Notification, Menu }, getWindow: () => mainWindow, sendToRenderer, icon: path.join(__dirname, 'assets', 'notification-icon.png') });

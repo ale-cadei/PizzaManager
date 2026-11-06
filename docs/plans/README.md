@@ -95,7 +95,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 87 | [`docs/readme-licenza-mit`](87-readme-licenza-mit.md) — licenza MIT al posto di quella proprietaria; README italiano e inglese con la stessa struttura e le funzioni della 2.0.0, la rete descritta per intero, psmux e gli altri ringraziati; due componenti mancanti negli avvisi di terze parti | — | ~2h | fatto |
 | 88 | [`feat/switch-split`](88-cambia-orientamento-split.md) — terzo pulsante ↻ sulla linea dello schermo diviso: da affiancate a impilate e viceversa, stesse sessioni e proporzione | 76 | ~1h | ✅ fatto (test unitari; smoke nell'app non fatto) |
 | 89 | [`feature/side-git-improvements`](89-branch-e-push-nel-pannello.md) — il pannello delle modifiche dice branch e worktree della scheda, la distanza dall'upstream, e ha il pulsante Push / Pubblica (mai forzato) | 55 | ~2h | ✅ fatto, test verdi, smoke ok (profilo di prova; push vero non provato dall'app) |
-| 90 | [`feat/pizzamanagericoninnotifications`](90-icona-pizza-nelle-notifiche.md) — le notifiche hanno l'icona della pizza con Peppo; via gli hook di notifica esterni di Claude e opencode | 38 | ~30 min | ✅ fatto, test verdi, smoke notifica ok |
+| 91 | [`feat/pizzamanagericoninnotifications`](91-icona-pizza-nelle-notifiche.md) — le notifiche hanno l'icona della pizza con Peppo; via gli hook di notifica esterni di Claude e opencode | 38 | ~30 min | ✅ fatto, test verdi, smoke notifica ok |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

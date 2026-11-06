@@ -18,11 +18,12 @@ const MENU_ITEM_ID = 'notifications';
  *   getWindow: () => Electron.BrowserWindow | null,
  *   sendToRenderer: (channel: string, payload: unknown) => void,
  *   platform?: string,
+ *   icon?: string,
  *   schedule?: typeof setTimeout,
  *   cancel?: typeof clearTimeout,
  * }} opts
  */
-function registerNotifyHandlers(ipcMain, { electron, getWindow, sendToRenderer, platform = process.platform, schedule, cancel }) {
+function registerNotifyHandlers(ipcMain, { electron, getWindow, sendToRenderer, platform = process.platform, icon, schedule, cancel }) {
   const { app, Notification, Menu } = electron;
   const isMac = platform === 'darwin';
   let enabled = true;
@@ -58,7 +59,8 @@ function registerNotifyHandlers(ipcMain, { electron, getWindow, sendToRenderer, 
     const content = composeNotification(items);
     if (!content) return;
     try {
-      const n = new Notification({ title: content.title, body: content.body });
+      // Piano 90: pizza dell'app con Peppo nell'angolo (assets/notification-icon.png)
+      const n = new Notification({ title: content.title, body: content.body, ...(icon && { icon }) });
       n.on('click', () => { forget(n); bringBack(content.tabId); });
       n.on('close', () => forget(n));
       n.show();

@@ -48,7 +48,7 @@ function fakeWindow({ focused = false, minimized = false } = {}) {
   };
 }
 
-function setup({ platform = 'darwin', win = fakeWindow() } = {}) {
+function setup({ platform = 'darwin', win = fakeWindow(), icon } = {}) {
   const on = new Map();
   const handle = new Map();
   const ipcMain = { on: (c, fn) => on.set(c, fn), handle: (c, fn) => handle.set(c, fn) };
@@ -60,6 +60,7 @@ function setup({ platform = 'darwin', win = fakeWindow() } = {}) {
     getWindow: () => win,
     sendToRenderer: (channel, payload) => sent.push([channel, payload]),
     platform,
+    icon,
     // Raggruppamento a mano: flush() svuota la finestra subito
     schedule: (fn) => { pending.push(fn); return fn; },
     cancel: (fn) => { pending = pending.filter((x) => x !== fn); },
@@ -88,6 +89,24 @@ ok('notify ipc: con la finestra dietro parte la notifica con il testo giusto', (
   assert.strictEqual(shown.length, 1);
   assert.deepStrictEqual({ title: shown[0].opts.title, body: shown[0].opts.body },
     { title: 'Claude ha finito', body: 'refactor login · ~/progetto' });
+});
+
+ok('notify ipc: la notifica porta l icona di PizzaManager (pizza e Peppo)', () => {
+  const icon = path.join(__dirname, '..', 'assets', 'notification-icon.png');
+  const { finished, shown } = setup({ icon });
+  finished(ITEM);
+  assert.strictEqual(shown[0].opts.icon, icon);
+});
+
+ok('notify ipc: senza icona la notifica parte lo stesso, senza campo icon', () => {
+  const { finished, shown } = setup();
+  finished(ITEM);
+  assert.strictEqual('icon' in shown[0].opts, false);
+});
+
+ok('notify ipc: l icona delle notifiche esiste ed è un PNG', () => {
+  const buf = fs.readFileSync(path.join(__dirname, '..', 'assets', 'notification-icon.png'));
+  assert.deepStrictEqual([...buf.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 });
 
 ok('notify ipc: con la finestra davanti non parte niente', () => {

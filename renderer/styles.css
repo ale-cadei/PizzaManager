@@ -868,8 +868,10 @@ img.agent-icon--node { border-radius: 2px; }
 /* Con la linguetta al suo posto la barra di scorrimento del terminale
    comincia sotto; spostata altrove, la barra torna lunga e le passa sotto */
 #terminals.has-changes-tab:not(.changes-tab-moved) .term-scroll { top: calc(var(--changes-tab-top) + var(--changes-tab-max) + 8px); }
-/* Nella scheda git la linguetta coprirebbe «Aggiorna» (docs/plans/68) */
-#terminals.has-changes-tab .git-head { padding-right: 32px; }
+/* Nella scheda git la linguetta coprirebbe «Aggiorna» (docs/plans/68) e,
+   trascinata più giù, il bordo destro delle righe */
+#terminals.has-changes-tab .git-head,
+#terminals.has-changes-tab .git-row { padding-right: 32px; }
 /* Contatori: verde le aggiunte, rosso le rimozioni (linguetta e riepilogo) */
 .changes-n-files { color: var(--text-muted); }
 .changes-n-add { color: var(--state-ok); }
@@ -1872,7 +1874,9 @@ body.editor-tree-hidden .editor-open-menu:not([hidden]) { display: inline-flex; 
 @keyframes editor-pop { from { opacity: 0; transform: translateY(4px); } }
 @media (prefers-reduced-motion: reduce) { .editor-menu { animation: none; } }
 
-.git-view { flex: 1; min-width: 0; display: flex; flex-direction: column; font-family: var(--font-ui); position: relative; outline: none; }
+/* container: le soglie delle colonne guardano il pannello, non la finestra.
+   A schermo diviso la finestra resta larga e il pannello è la metà. */
+.git-view { container: git-view / inline-size; flex: 1; min-width: 0; display: flex; flex-direction: column; font-family: var(--font-ui); position: relative; outline: none; }
 .git-head {
   display: flex; align-items: center; gap: var(--gap); padding: 10px 16px;
   border-bottom: 1px solid var(--border); flex: 0 0 auto;
@@ -1904,12 +1908,17 @@ body.editor-tree-hidden .editor-open-menu:not([hidden]) { display: inline-flex; 
   align-items: center; gap: 10px; font-size: 13px; color: var(--text);
 }
 .git-msg { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.git-refs { display: flex; gap: 4px; flex: 0 0 auto; }
+/* I badge non escono mai dalla cella: si restringono e il messaggio ne tiene
+   almeno il 40% (.git-subject). Il margine di ritaglio lascia passare il
+   bagliore di .is-lit e non supera il gap verso il messaggio. */
+.git-refs { display: flex; gap: 4px; flex: 0 1 auto; min-width: 0; overflow: clip; overflow-clip-margin: 8px; }
 .git-refs:empty { display: none; }
 .git-ref {
   font-family: var(--font-mono); font-size: 11px; line-height: 1; padding: 3px 6px;
   border-radius: var(--radius); border: 1px solid var(--border-strong); color: var(--text-2); white-space: nowrap;
+  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
 }
+.git-ref--more { display: none; flex: none; }
 /* --ref-color: colore della linea del branch, messo dal renderer.
    Un branch su origin ha lo stesso colore; lo distingue il bordo tratteggiato. */
 .git-ref--branch, .git-ref--head, .git-ref--remote { --ref: var(--ref-color, var(--type-git)); border-color: color-mix(in srgb, var(--ref) 70%, transparent); color: var(--ref); }
@@ -1956,7 +1965,24 @@ body.editor-tree-hidden .editor-open-menu:not([hidden]) { display: inline-flex; 
 @media (prefers-reduced-motion: reduce) {
   .git-switched, .git-branch--changed { animation: none; }
 }
-.git-subject { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.git-subject { flex: 1 0 40%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Pannello stretto: si toglie prima l'autore, poi la data (restano nel tooltip
+   del messaggio). Sotto i 600px, cioè a schermo diviso, resta il primo badge
+   con un +N e l'intestazione lascia il contatore: lo tiene solo se dice che la
+   linea è isolata e come uscirne. */
+@container git-view (max-width: 720px) {
+  .git-row { grid-template-columns: minmax(0, 1fr) 128px 64px; }
+  .git-author { display: none; }
+}
+@container git-view (max-width: 600px) {
+  .git-row { grid-template-columns: minmax(0, 1fr) 64px; }
+  .git-date { display: none; }
+  .git-ref:not(:first-child):not(.git-ref--more) { display: none; }
+  .git-ref--more { display: block; }
+  .git-branch { min-width: 0; margin-right: auto; overflow: hidden; text-overflow: ellipsis; }
+  .git-view:not(.git-view--focus) .git-count { display: none; }
+  .git-view--focus .git-count { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+}
 .git-author { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .git-date { color: var(--text-dim); font-family: var(--font-mono); font-size: 12px; white-space: nowrap; }
 .git-hash {

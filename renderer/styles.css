@@ -1361,6 +1361,48 @@ body.changes-resizing { cursor: col-resize; user-select: none; }
 }
 .split-actions button:hover { background: var(--action-soft); }
 .split-actions button:focus-visible { outline: 2px solid var(--action); outline-offset: 1px; }
+/* Barra con il nome della sessione (piano 90): in cima a ogni metà, a tutta
+   larghezza. Icona e nome a sinistra, tipo in mono a destra; l'icona parte
+   dalla colonna della prima riga del terminale (stessi 16px di .term-wrap).
+   La metà in primo piano ha fondo rialzato, testo pieno e lo stesso filo di
+   .split-focus sotto; l'altra sta sul fondo pannello, con testo e icona smorzati. */
+#terminals { --split-flag-h: 28px; }
+#terminals.split-row .term-wrap.active,
+#terminals.split-column .term-wrap.active { padding-top: var(--split-flag-h); }
+/* Nei terminali un po' d'aria fra la barra e la prima riga */
+#terminals.split-row .term-wrap.active:not(.git-wrap):not(.editor-wrap),
+#terminals.split-column .term-wrap.active:not(.git-wrap):not(.editor-wrap) { padding-top: calc(var(--split-flag-h) + 8px); }
+#terminals.split-row .term-scroll,
+#terminals.split-column .term-scroll { top: calc(var(--split-flag-h) + 8px); }
+/* La linguetta «cosa ha cambiato» scende sotto la barra della metà destra */
+#terminals.split-row, #terminals.split-column { --changes-tab-top: calc(var(--split-flag-h) + 8px); }
+.split-flag {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 5;
+  height: var(--split-flag-h); box-sizing: border-box;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 16px;
+  background: var(--surface); color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  font: 500 12px/1 var(--font-ui);
+  user-select: none;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.split-flag .icon {
+  display: inline-flex; align-items: center; flex: 0 0 auto; font-size: 14px;
+  color: var(--type-color, currentColor); opacity: .65;
+}
+.split-flag-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.split-flag-type {
+  margin-left: auto; flex: 0 0 auto; padding-left: 8px;
+  font: 500 10px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-dim);
+}
+.split-flag.is-focus {
+  background: var(--surface-3); color: var(--text); font-weight: 600;
+  border-bottom-color: color-mix(in srgb, var(--action) 55%, transparent);
+}
+.split-flag.is-focus .icon { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .split-flag { transition: none; } }
 /* Velina mentre si trascina una card: la metà evidenziata è dove finirà */
 .split-drop { position: absolute; inset: 0; z-index: 20; }
 .split-drop[hidden] { display: none; }

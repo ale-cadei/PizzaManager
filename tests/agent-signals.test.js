@@ -54,14 +54,26 @@ test('remove e sweep: restano solo le sessioni vive', () => {
   assert.deepEqual(fs.readdirSync(path.dirname(store.pathFor('c'))), ['c']);
 });
 
+/* Su macOS fs.watch torna prima che FSEvents osservi davvero, e Node non dice
+   quando è pronto: una scrittura in quella finestra non arriva mai. Quindi si
+   riscrive finché il watch non dà segni di vita; da lì in poi basta una scrittura. */
 test('watch: una scrittura arriva come (chiave, stato)', async () => {
+  const STEP_MS = 20;
+  const MAX_STEPS = 250;
   const store = S.createAgentSignalStore({ dir: tmp() });
   const seen = [];
   const stop = store.watch((key, state) => seen.push([key, state]));
+  const pause = () => new Promise((r) => setTimeout(r, STEP_MS));
   try {
-    fs.writeFileSync(store.pathFor('ais-y-1'), 'running');
-    for (let i = 0; i < 50 && !seen.length; i += 1) await new Promise((r) => setTimeout(r, 20));
+    for (let i = 0; i < MAX_STEPS && !seen.length; i += 1) {
+      fs.writeFileSync(store.pathFor('ais-y-1'), 'running');
+      await pause();
+    }
     assert.deepEqual(seen.at(-1), ['ais-y-1', 'running']);
+
+    fs.writeFileSync(store.pathFor('ais-y-1'), 'waiting');
+    for (let i = 0; i < MAX_STEPS && seen.at(-1)[1] !== 'waiting'; i += 1) await pause();
+    assert.deepEqual(seen.at(-1), ['ais-y-1', 'waiting']);
   } finally { stop(); }
 });
 

@@ -73,6 +73,7 @@ function applySplitLayout() {
     t.wrap.style.order = at === 1 ? '2' : '';
     t.wrap.style.flex = at === 0 ? `0 0 calc(${s.ratio * 100}% - var(--split-gap) / 2)` : '';
   });
+  renderSplitFlags();
   const divider = $('#split-divider');
   if (divider) {
     divider.hidden = !s;
@@ -84,6 +85,55 @@ function applySplitLayout() {
       orient.setAttribute('aria-label', label);
     }
   }
+}
+
+/* ---------- Barra con il nome della sessione (piano 90) ----------
+   In cima a ogni metà: icona, nome e tipo (nel colore del tipo).
+   La crea il primo render, poi si aggiorna e basta. */
+function splitFlagOf(wrap) {
+  let flag = wrap.querySelector(':scope > .split-flag');
+  if (flag) return flag;
+  flag = document.createElement('div');
+  flag.className = 'split-flag';
+  const icon = document.createElement('span');
+  icon.className = 'icon';
+  const name = document.createElement('span');
+  name.className = 'split-flag-name';
+  const type = document.createElement('span');
+  type.className = 'split-flag-type';
+  flag.append(icon, name, type);
+  wrap.appendChild(flag);
+  return flag;
+}
+
+function fillSplitFlag(flag, tab, focused) {
+  const iconKey = tab.type === 'shell' ? ShellIcons.normalize(tab.iconKey) : tab.type;
+  const typeLabel = tab.type === 'shell' ? 'Shell' : Groups.TYPE_LABELS[tab.type] || tab.type;
+  const title = Split.flagTitle(tab.name, typeLabel);
+  const icon = flag.querySelector('.icon');
+  if (icon.dataset.key !== iconKey) {
+    icon.innerHTML = Icons.markup(iconKey); // markup statico, nessun dato utente
+    icon.dataset.key = iconKey;
+  }
+  flag.querySelector('.split-flag-name').textContent = title;
+  // Il tipo a destra solo se il nome non è già il tipo (sessione senza nome)
+  flag.querySelector('.split-flag-type').textContent = title === typeLabel ? '' : typeLabel;
+  flag.title = `${typeLabel} · ${title}`;
+  flag.classList.toggle('is-focus', focused);
+}
+
+/** Da applySplitLayout e renderSidebar (rinomina, titolo automatico). */
+function renderSplitFlags() {
+  const flags = Split.paneFlags(splitState, activeId);
+  const shown = new Set(flags.map((f) => f.id));
+  flags.forEach(({ id, focused }) => {
+    const tab = tabs.get(id);
+    if (tab) fillSplitFlag(splitFlagOf(tab.wrap), tab, focused);
+  });
+  tabs.forEach((t) => {
+    const flag = shown.has(t.id) ? null : t.wrap.querySelector(':scope > .split-flag');
+    if (flag) flag.remove();
+  });
 }
 
 /* Click o fuoco dentro l'altra metà la porta in primo piano. */

@@ -138,3 +138,24 @@ ok('split: dati salvati malformati non rompono niente', () => {
   const p = Split.parseSaved('{"orientation":"column","ratio":3,"first":["a"],"second":["b"]}');
   assert.strictEqual(p.ratio, Split.MAX_RATIO);
 });
+
+/* Linguetta con il nome della sessione in ogni metà (docs/plans/90-flag-schermo-diviso.md) */
+ok('split: senza divisione nessuna linguetta', () => {
+  assert.deepStrictEqual(Split.paneFlags(null, 'a'), []);
+});
+
+ok('split: una linguetta per metà, segnata quella in primo piano', () => {
+  assert.deepStrictEqual(Split.paneFlags(row('a', 'b'), 'b'), [
+    { id: 'a', focused: false },
+    { id: 'b', focused: true },
+  ]);
+  // In primo piano una scheda fuori dalla divisione: nessuna delle due è segnata
+  assert.deepStrictEqual(Split.paneFlags(row('a', 'b'), 'c').map((f) => f.focused), [false, false]);
+});
+
+ok('split: il testo della linguetta è il nome, o il tipo se il nome manca', () => {
+  assert.strictEqual(Split.flagTitle('  fix   del login ', 'Claude Code'), 'fix del login');
+  assert.strictEqual(Split.flagTitle('', 'Shell'), 'Shell');
+  assert.strictEqual(Split.flagTitle(null, 'Codex'), 'Codex');
+  assert.strictEqual(Split.flagTitle(undefined, undefined), '');
+});

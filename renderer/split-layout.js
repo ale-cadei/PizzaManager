@@ -109,6 +109,22 @@
     return activeId ? [activeId] : [];
   }
 
+  /**
+   * Linguette con il nome della sessione (docs/plans/90-flag-schermo-diviso.md):
+   * una per metà, solo in divisione.
+   * @returns {Array<{id: string, focused: boolean}>}
+   */
+  function paneFlags(state, activeId) {
+    if (!state) return [];
+    return [state.first, state.second].map((id) => ({ id, focused: id === activeId }));
+  }
+
+  /** Testo della linguetta: il nome della sessione, il tipo se il nome manca. */
+  function flagTitle(name, typeLabel) {
+    const clean = String(name || '').replace(/\s+/g, ' ').trim();
+    return clean || String(typeLabel || '');
+  }
+
   /** Proporzione dal punto del puntatore mentre si trascina la linea. */
   function ratioAt(rect, orientation, x, y) {
     const r = orientation === 'column' ? (y - rect.top) / rect.height : (x - rect.left) / rect.width;
@@ -158,6 +174,6 @@
 
   return {
     MIN_RATIO, MAX_RATIO, clampRatio, dropZone, canPlace, place, select, swap,
-    toggleOrientation, without, partnerOf, visibleIds, ratioAt, toSaved, parseSaved, fromSaved,
+    toggleOrientation, without, partnerOf, visibleIds, paneFlags, flagTitle, ratioAt, toSaved, parseSaved, fromSaved,
   };
 });

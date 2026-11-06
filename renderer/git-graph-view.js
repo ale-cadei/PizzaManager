@@ -69,6 +69,32 @@
     return (Array.isArray(refs) ? refs : []).slice().sort((a, b) => (rank[a.kind] ?? 3) - (rank[b.kind] ?? 3));
   }
 
+  /** Tooltip di un ref: il nome intero (il badge può troncarlo) e cosa dice il suo aspetto. */
+  function refTitle(ref) {
+    const notes = [
+      ref.head && (ref.kind === 'head' ? 'HEAD staccata' : 'Branch corrente (HEAD)'),
+      ref.worktree && 'Branch di un worktree',
+    ];
+    return [ref.name, ...notes.filter(Boolean)].join('\n');
+  }
+
+  /**
+   * Badge «+N»: nel pannello stretto si vede solo il primo ref, gli altri
+   * stanno nel suo tooltip (styles.css decide quando si vede).
+   * @returns {{text: string, title: string}|null}
+   */
+  function moreRefs(refs) {
+    if (refs.length < 2) return null;
+    const rest = refs.slice(1);
+    return { text: `+${rest.length}`, title: rest.map((ref) => ref.name).join('\n') };
+  }
+
+  /** Tooltip del messaggio: nel pannello stretto autore e data non hanno colonna. */
+  function commitTitle(c) {
+    const meta = [c.author, formatDate(c.date)].filter(Boolean).join(' · ');
+    return meta ? `${c.subject}\n${meta}` : c.subject;
+  }
+
   /**
    * Solo la linea `lane` (indice di colore): i suoi commit, uno sotto
    * l'altro su una corsia sola.
@@ -202,18 +228,28 @@
         chip.style.setProperty('--ref-color', colorOf(lane));
         chip.dataset.lane = String(lane);
       }
-      if (ref.head) chip.title = ref.kind === 'head' ? 'HEAD staccata' : 'Branch corrente (HEAD)';
-      if (ref.worktree) chip.title = (chip.title ? chip.title + '\n' : '') + 'Branch di un worktree';
+      chip.title = refTitle(ref);
       return chip;
+    }
+
+    function drawRefs(refs, lane) {
+      const box = el('span', 'git-refs');
+      box.append(...refs.map((ref) => drawRef(ref, lane)));
+      const more = moreRefs(refs);
+      if (more) {
+        const chip = el('span', 'git-ref git-ref--more', more.text);
+        chip.title = more.title;
+        box.append(chip);
+      }
+      return box;
     }
 
     function drawRow(r) {
       const c = r.commit;
       const li = el('li', 'git-row' + (c.refs.some((ref) => ref.head) ? ' git-row--head' : ''));
-      const refs = el('span', 'git-refs');
-      refs.append(...visibleRefs(c.refs).map((ref) => drawRef(ref, r.color)));
+      const refs = drawRefs(visibleRefs(c.refs), r.color);
       const subject = el('span', 'git-subject', c.subject);
-      subject.title = c.subject;
+      subject.title = commitTitle(c);
       const hash = el('button', 'git-hash', c.hash.slice(0, HASH_LEN));
       hash.type = 'button';
       hash.title = `${c.hash}\nClic per copiare`;
@@ -393,5 +429,5 @@
     return { update, setLoading, showStatus, setFocus, setMode, element: view };
   }
 
-  return { createGitView, edgePath, edgeAttrs, refText, WORKTREE_DASH, formatDate, visibleRefs, colorOf, headChange, graphWidth, focusRows, laneLabel, ROW_H, LANE_W, PALETTE };
+  return { createGitView, edgePath, edgeAttrs, refText, refTitle, moreRefs, commitTitle, WORKTREE_DASH, formatDate, visibleRefs, colorOf, headChange, graphWidth, focusRows, laneLabel, ROW_H, LANE_W, PALETTE };
 });

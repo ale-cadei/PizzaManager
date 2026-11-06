@@ -94,6 +94,8 @@ const renderSidebar = () => {
   // La barra in basso dice in che chat si è: cambia con la scheda attiva, un
   // rinomina, il titolo automatico — tutte strade che passano da qui.
   if (usageBar) usageBar.setCurrent(activeId ? tabs.get(activeId) : null);
+  // Stesse strade per la linguetta delle metà a schermo diviso (piano 90)
+  renderSplitFlags();
   // Il render ricrea le card: il fumetto di conferma resterebbe appeso a un
   // elemento che non è più nella pagina. Lo si rimette sulla card nuova della
   // stessa sessione (o lo si chiude, se quella sessione non c'è più).

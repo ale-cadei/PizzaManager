@@ -238,6 +238,28 @@ ok('git: i colori girano sulla tavolozza, i ref remoti vanno in coda', () => {
   assert.strictEqual(refs[0].name, 'origin/main', 'visibleRefs ha riordinato l elenco originale');
 });
 
+/* A metà larghezza badge e colonne si tagliano: i tooltip restituiscono il resto */
+ok('git: il tooltip di un ref ha il nome intero, anche senza altre note', () => {
+  assert.strictEqual(View.refTitle({ name: 'feat/lungo', kind: 'branch' }), 'feat/lungo');
+  assert.strictEqual(View.refTitle({ name: 'main', kind: 'branch', head: true }), 'main\nBranch corrente (HEAD)');
+  assert.strictEqual(View.refTitle({ name: 'abc', kind: 'head', head: true }), 'abc\nHEAD staccata');
+  assert.strictEqual(View.refTitle({ name: 'x', kind: 'branch', head: true, worktree: true }), 'x\nBranch corrente (HEAD)\nBranch di un worktree');
+});
+
+ok('git: il badge +N conta i ref dopo il primo e li elenca nel tooltip', () => {
+  const refs = [{ name: 'main', kind: 'branch' }, { name: 'v1', kind: 'tag' }, { name: 'origin/main', kind: 'remote' }];
+  assert.deepStrictEqual(View.moreRefs(refs), { text: '+2', title: 'v1\norigin/main' });
+  assert.strictEqual(View.moreRefs(refs.slice(0, 1)), null);
+  assert.strictEqual(View.moreRefs([]), null);
+});
+
+ok('git: il tooltip del messaggio porta autore e data, che a metà larghezza spariscono', () => {
+  const when = new Date(2026, 8, 5, 7, 3).toISOString();
+  assert.strictEqual(View.commitTitle({ subject: 'fix: x', author: 'Ale', date: when }), 'fix: x\nAle · 05/09/2026 07:03');
+  assert.strictEqual(View.commitTitle({ subject: 'fix: x', author: 'Ale', date: 'non una data' }), 'fix: x\nAle');
+  assert.strictEqual(View.commitTitle({ subject: 'fix: x', author: '', date: '' }), 'fix: x');
+});
+
 const R = (hash, color, refs = []) => ({ commit: { hash, parents: [], refs, subject: hash, author: 'a', date: '' }, col: color, color, edges: [{ from: color, to: 0, color }] });
 
 ok('git: isolare una linea tiene solo i suoi commit, su una corsia dritta', () => {

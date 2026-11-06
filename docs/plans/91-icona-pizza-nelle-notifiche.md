@@ -19,9 +19,9 @@ si distinguevano da quelle che Claude e opencode mandavano con i loro hook
 
 ## Come
 
-- `assets/generate-notification-icon.py`: compone `assets/icons/256x256.png`
-  e lo sprite `idle` di Peppo letto via node da
-  `renderer/pets-sprite-pizza.js` (niente griglia copiata). Escluso dal pacchetto.
+- `assets/generate-notification-icon.py`: disegna lo sprite `idle` di Peppo
+  letto via node da `renderer/pets-sprite-pizza.js` (niente griglia copiata).
+  Escluso dal pacchetto.
 - `app/notify.js`: opzione `icon`, passata alla `Notification` se c'è.
 - `main.js`: passa il percorso dell'icona.
 
@@ -30,3 +30,16 @@ si distinguevano da quelle che Claude e opencode mandavano con i loro hook
 - `tests/notify-ipc.test.js`: con `icon` la Notification la riceve, senza
   non c'è il campo; il PNG esiste.
 - Smoke: notifica Electron vera con l'icona su Linux.
+
+## Ritocco: solo Peppo (2026-11-06)
+
+Con il tema scuro di GNOME (le notifiche le disegna gnome-shell: sfondo e
+stile non si scelgono dall'app, seguono il tema) l'icona è cambiata:
+
+- Via la pizza: solo Peppo, grande quanto tutta l'icona (240×240, 12 px per
+  cella), senza il contorno chiaro che sul fondo scuro stonava.
+- Braccia e gambe nello sprite sono quasi nere (`#3A1F14`) e sul fondo scuro
+  sparivano: nell'icona prendono il marrone della crosta (`#A85A24`). Le
+  pupille restano scure, lo sprite dei pets non cambia.
+- gnome-shell tiene in cache l'icona per percorso: dopo l'aggiornamento la
+  vecchia resta finché non si rientra nella sessione.

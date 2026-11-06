@@ -59,7 +59,7 @@ function registerNotifyHandlers(ipcMain, { electron, getWindow, sendToRenderer, 
     const content = composeNotification(items);
     if (!content) return;
     try {
-      // Piano 91: pizza dell'app con Peppo nell'angolo (assets/notification-icon.png)
+      // Piano 91: Peppo, la fetta dei pets (assets/notification-icon.png)
       const n = new Notification({ title: content.title, body: content.body, ...(icon && { icon }) });
       n.on('click', () => { forget(n); bringBack(content.tabId); });
       n.on('close', () => forget(n));

@@ -1,8 +1,9 @@
 """Genera renderer/pets-sprite-*.js dai pacchetti di sprite dell'utente (docs/plans/33-animaletti.md).
 
 Serve PIL. I pacchetti si scompattano nelle cartelle di PACKS; le pose di ogni
-personaggio stanno in SPEC. Uso: python3 scripts/pets-pack.py"""
+personaggio stanno in SPEC. Uso: python3 scripts/pets-pack.py [personaggio …]"""
 import json
+import sys
 from PIL import Image
 
 import os
@@ -118,6 +119,9 @@ VARIANTS = {
 # (vanish solo la barchetta). Le pose si prendono per riga: una riga intera,
 # o una lista di colonne. appear è vanish al contrario.
 REEF_DIR = '/tmp/reef/pixel-reef-sprites/sprites'
+# Secondo zip Pixel Reef (elicottero e fenicottero), stesso formato senza
+# la riga vanish. Le voci lo indicano con 'dir'.
+REEF2_DIR = os.environ.get('PETS_REEF2_DIR', '/tmp/reef2/elicottero-fenicottero/sprites')
 REEF_CELL = 32
 REEF_ROWS = ['idle', 'walk', 'call', 'sleep', 'vanish']
 # Contorno scuro attorno a ogni sagoma, da togliere come negli altri pacchetti
@@ -133,6 +137,7 @@ REEF_SLEEP_Z = '#9FD3E6'
 # sparirebbero. La bocca, dentro al corpo, resta scura. 'scale': più
 # piccolo degli altri, in frazione della misura a pixel pieno. 'sink': righe
 # in fondo che scendono sotto la linea su cui cammina (pets-sprites.js sink).
+# 'dir': cartella del foglio, se non è REEF_DIR.
 REEF = [
     ('granchio', 'crab',
      {'walk': 'walk', 'sleep': 'sleep', 'call': 'call', 'idle': 'idle'},
@@ -144,12 +149,20 @@ REEF = [
      {'walk': 'walk', 'sleep': 'sleep', 'call': 'call', 'idle': 'idle',
       'vanish': 'vanish', 'appear': ('vanish', [3, 2, 1, 0])},
      0.5, 'La barchetta di carta: naviga sulla sua acqua, e uscendo affonda'),
+    ('fenicottero', 'flamingo',
+     {'walk': 'walk', 'sleep': 'sleep', 'call': 'call', 'idle': 'idle'},
+     0.8, "Il fenicottero: cammina su due zampe, sta su una, e chiama sbattendo le ali",
+     {'dir': REEF2_DIR, 'eyes': '#FFF6EA'}),
+    ('elicottero', 'helicopter',
+     {'walk': 'walk', 'sleep': 'sleep', 'call': 'call', 'idle': 'idle'},
+     1.2, "L'elicottero: si alza e vola, chiama saltellando in aria, dorme a terra col rotore fermo",
+     {'dir': REEF2_DIR, 'eyes': '#FFF6EA'}),
 ]
 
 
-def reef_frames(file, pal):
+def reef_frames(file, pal, folder=REEF_DIR):
     """I frame del foglio come griglie di caratteri, per nome (<stato>-<colonna>)."""
-    sheet = Image.open(f'{REEF_DIR}/{file}-sheet.png').convert('RGBA')
+    sheet = Image.open(f'{folder}/{file}-sheet.png').convert('RGBA')
     c = REEF_CELL
     return {f'{state}-{col + 1}': grid(sheet, (col * c, row * c, (col + 1) * c, (row + 1) * c), pal)
             for row, state in enumerate(REEF_ROWS[:sheet.height // c]) for col in range(sheet.width // c)}
@@ -189,7 +202,7 @@ def reef(kind, file, poses, speed, comment, fixes=None):
     """Un personaggio del pacchetto Pixel Reef: il sorgente del file."""
     fixes = fixes or {}
     pal = {}
-    frames = reef_frames(file, pal)
+    frames = reef_frames(file, pal, fixes.get('dir', REEF_DIR))
     z, dark = pal.get(REEF_SLEEP_Z), pal[REEF_OUTLINE]
     frames = {n: without_z(g, z) if z and n.startswith('sleep-') else g for n, g in frames.items()}
     eye = None
@@ -496,9 +509,15 @@ def write(kind, src):
 
 
 if __name__ == '__main__':
+    # Con dei nomi rigenera solo quelli (gli zip degli altri possono mancare)
+    only = set(sys.argv[1:])
+    wanted = lambda kind: not only or kind in only
     for entry in SPEC:
-        write(entry[0], classic(*entry))
+        if wanted(entry[0]):
+            write(entry[0], classic(*entry))
     for kind, *entry in SPRITELLI:
-        write(kind, spritelli(kind, *entry))
+        if wanted(kind):
+            write(kind, spritelli(kind, *entry))
     for kind, *entry in REEF:
-        write(kind, reef(kind, *entry))
+        if wanted(kind):
+            write(kind, reef(kind, *entry))

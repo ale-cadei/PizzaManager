@@ -96,6 +96,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 88 | [`feat/switch-split`](88-cambia-orientamento-split.md) — terzo pulsante ↻ sulla linea dello schermo diviso: da affiancate a impilate e viceversa, stesse sessioni e proporzione | 76 | ~1h | ✅ fatto (test unitari; smoke nell'app non fatto) |
 | 89 | [`feature/side-git-improvements`](89-branch-e-push-nel-pannello.md) — il pannello delle modifiche dice branch e worktree della scheda, la distanza dall'upstream, e ha il pulsante Push / Pubblica (mai forzato) | 55 | ~2h | ✅ fatto, test verdi, smoke ok (profilo di prova; push vero non provato dall'app) |
 | 91 | [`feat/pizzamanagericoninnotifications`](91-icona-pizza-nelle-notifiche.md) — le notifiche hanno l'icona della pizza con Peppo; via gli hook di notifica esterni di Claude e opencode | 38 | ~30 min | ✅ fatto, test verdi, smoke notifica ok |
+| 92 | [`feat/fenicottero`](92-fenicottero.md) — fenicottero ed elicottero fra gli animaletti, dal pacchetto Pixel Reef | 33 | ~1h | fatto, da provare nell'app |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

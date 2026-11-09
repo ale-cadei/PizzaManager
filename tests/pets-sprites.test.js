@@ -45,9 +45,9 @@ ok('sprites: i personaggi del pacchetto Spritelli sono voci del cast', () => {
   }
 });
 
-ok('sprites: granchio e barchetta (pacchetto Pixel Reef) sono voci del cast, fini quanto i pacchetti a 32 righe (il granchio un po di più)', () => {
+ok('sprites: granchio, barchetta, fenicottero ed elicottero (pacchetto Pixel Reef) sono voci del cast, fini quanto i pacchetti a 32 righe (il granchio un po di più)', () => {
   // Il granchio è rimpicciolito apposta (scale nel generatore)
-  const SCALE = { granchio: 0.85, barchetta: 1 };
+  const SCALE = { granchio: 0.85, barchetta: 1, fenicottero: 1, elicottero: 1 };
   for (const [id, scale] of Object.entries(SCALE)) {
     assert.deepStrictEqual(CAST[id], [id], `${id} non è nel cast`);
     assert.strictEqual(SPRITES[id].frames.walk.length, 4, `${id}: quattro tempi`);
@@ -61,7 +61,7 @@ ok('sprites: granchio e barchetta (pacchetto Pixel Reef) sono voci del cast, fin
 });
 
 ok('sprites: nei Pixel Reef le «z» del sonno non ci sono (le mette la vista)', () => {
-  for (const id of ['granchio', 'barchetta']) {
+  for (const id of ['granchio', 'barchetta', 'fenicottero', 'elicottero']) {
     const z = Object.keys(SPRITES[id].palette).find((ch) => SPRITES[id].palette[ch].toUpperCase() === '#9FD3E6');
     for (const grid of SPRITES[id].frames.sleep) assert.ok(!z || !grid.join('').includes(z), `${id}: «z» nel sonno`);
   }
@@ -142,7 +142,7 @@ ok('sprites: nessun personaggio ha il contorno scuro attorno alla sagoma (i pacc
     chiocciola: '#2B2233', robottino: '#2B2233',
     pesce: '#2B2233', tazzina: '#2B2233', pizza: '#3A1F14', fizzo: '#2B1418', zucca: '#3A1A0A',
     babbo: '#1F1420', morte: '#050307', fantasmino: '#222034',
-    granchio: '#241A33', barchetta: '#241A33',
+    granchio: '#241A33', barchetta: '#241A33', fenicottero: '#241A33', elicottero: '#241A33',
   };
   for (const [kind, hex] of Object.entries(OUTLINE)) {
     const { palette, frames } = SPRITES[kind];
@@ -301,7 +301,7 @@ ok('sprites: la medusa non ha colonne vuote ai lati', () => {
    rientrino per distrazione. */
 ok('sprites: il catalogo e quello dichiarato, nessuno entra di nascosto', () => {
   assert.deepStrictEqual(Object.keys(CAST).sort(), [
-    'babbo', 'barchetta', 'chiocciola', 'fantasmino', 'fizzo', 'gatto', 'granchio',
+    'babbo', 'barchetta', 'chiocciola', 'elicottero', 'fantasmino', 'fenicottero', 'fizzo', 'gatto', 'granchio',
     'medusa', 'morte', 'pesce', 'pizza', 'rana', 'robottino', 'rotolacampo',
     'tazzina', 'trenino', 'uccellino', 'zucca',
   ], 'il cast e cambiato: se e voluto, aggiorna questo elenco');
@@ -329,3 +329,4 @@ ok('sprites: le varianti ritoccano solo colori che la palette di base conosce; p
   assert.strictEqual(looks('gatto'), 1);
   assert.strictEqual(paletteOf('gatto', 1), SPRITES.gatto.palette);
 });
+

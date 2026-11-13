@@ -98,3 +98,14 @@ ok('gitStatusLetters: fuori da un repository nessuna lettera, senza errore', asy
   const r = await gitStatusLetters({ root, run: async () => { throw Object.assign(new Error('x'), { stderr: 'fatal: not a git repository (or any parent)' }); } });
   assert.deepStrictEqual(r, { ok: true, status: {} });
 });
+
+ok('listAllFiles/gitStatusLetters: radice e cartella date da fuori (editor remoto, piano 94)', async () => {
+  const cwds = [];
+  const noGit = async (args, o) => { cwds.push(o.cwd); throw Object.assign(new Error('no'), { missing: true }); };
+  const walkFiles = async (root, max) => ({ files: [`${root}:${max}`], truncated: false });
+  const r = await listAllFiles({ root: 'ignorata', realRoot: '/srv/app', run: noGit, walkFiles, max: 7 });
+  assert.deepStrictEqual(r, { ok: true, files: ['/srv/app:7'], truncated: false });
+  const s = await gitStatusLetters({ root: 'ignorata', realRoot: '/srv/app', run: noGit });
+  assert.deepStrictEqual(s, { ok: true, status: {} });
+  assert.deepStrictEqual(cwds, ['/srv/app', '/srv/app'], 'nessun realpath sul disco di qui');
+});

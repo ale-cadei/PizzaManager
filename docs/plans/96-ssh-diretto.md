@@ -78,6 +78,25 @@ Qui: una voce «Altro server…» con un campo `utente@host:porta`.
 - Smoke: sessione su `utente@host` mai visto (conferma della chiave nel
   terminale), poi il server fra i recenti; editor sullo stesso server.
 
+## Dopo
+
+- **«Configura accesso con chiave»** accanto a «Salva» (chiesto il
+  2026-11-13, da fare in un branch suo). Oggi la password la chiede ssh a
+  ogni sessione e l'editor remoto senza chiave non parte (`BatchMode=yes`).
+  Il bottone apre una scheda terminale che:
+  - crea `~/.ssh/id_ed25519` con `ssh-keygen -t ed25519` se manca
+    (passphrase chiesta da ssh-keygen lì, l'app non la vede);
+  - copia la chiave pubblica sul server: `ssh-copy-id` su Linux e macOS; su
+    Windows non c'è, quindi `ssh … "mkdir -p ~/.ssh && cat >>
+    ~/.ssh/authorized_keys"` con la `.pub` sullo stdin. La password la
+    chiede ssh una volta, nel terminale.
+  Regole: l'app non legge né salva password o passphrase; argomenti senza
+  shell (`sshDestArgs`, destinazione dopo `--`); niente `sshpass`. Da
+  valutare: proporre `AddKeysToAgent yes` (e `UseKeychain yes` su macOS)
+  per la passphrase, e su Windows avvisare se il servizio `ssh-agent` è
+  fermo. Test: argomenti per piattaforma, chiave già presente non
+  rigenerata, destinazione con `-` in testa rifiutata.
+
 ## Stato
 
 Fatto, test verdi. Nel select la voce è «Altro server SSH…»; la scelta si

@@ -217,54 +217,25 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     // Le variabili del profilo vengono per ultime: sono la scelta esplicita
     // dell'utente (es. CLAUDE_CONFIG_DIR) e devono vincere sui default.
     const env = { ...augmentedEnv([cmd], identity.vars, withoutSignal(process.env), localeOpts()), ...(profileEnv || {}), ...injectedEnv };
-
-    try {
-      let p;
-      if (viaTmux) {
-        // Al processo dentro tmux arrivano esplicitamente le variabili che
-        // contano; il resto lo eredita dal server (vedi lib/tmux.js, spawnArgs).
-        // pathOf: su Windows la chiave e' `Path`, e `env.PATH` darebbe undefined.
-        const sessionEnv = { PATH: pathOf(env), COLORTERM: env.COLORTERM, ...localeVars(env), ...identity.vars, ...(profileEnv || {}), ...injectedEnv };
-        // Ripristino dopo un riavvio: la sessione stampa il testo di prima e
-        // poi DIVENTA la shell (exec). Il testo finisce cosi' nella history di
-        // tmux, che e' quella con cui scorre la rotella.
-        const replay = restoreFor({ type, previousSession, cmd, args });
-        const created = await tmux.control.create({
-          name: session,
-          cmd: replay ? replay.cmd : cmd,
-          args: replay ? replay.args : args,
-          cwd: workdir,
-          env: replay ? { ...sessionEnv, ...replay.env } : sessionEnv,
-          cols,
-          rows,
-          meta: {
-            type,
-            cwd: workdir,
-            label: label || null,
-            profile_id: (profile && profile.id) || null,
-            profile_label: (profile && profile.label) || null,
-            resume_id: resumeId || null,
-            account_id: claudeAccountId || null,
-            account_name: identity.name,
-          },
-        });
-        if (!created.ok) return { ok: false, error: 'tmux: ' + created.error };
-        // Il pty e' sempre e solo un client: uguale per sessioni nuove e riattaccate.
-        p = openPty(tmux.bin, tmuxLib.attachArgs({ confPath: tmux.confPath, socket: tmux.socket, name: session }), { cols, rows, cwd: workdir, env, passthrough: Boolean(tmux.attachBin) });
-      } else {
-        // Su Windows un .cmd passa da cmd.exe con la riga gia' composta
-        // (lib/win-command.js): node-pty la usa cosi' com'e' invece di
-        // ricomporla dall'argv con regole che cmd.exe non capirebbe.
-        p = openPty(cmd, commandLine || args, { cols, rows, cwd: workdir, env });
-      }
-      track(id, p, session, type);
-      // Consumato: il file di prima ha fatto il suo mestiere e puo' contenere
-      // segreti. Da qui in avanti si salva sotto il nome della sessione nuova.
-      if (previousSession && scrollbackStore) scrollbackStore().remove(previousSession);
-      // Anche il suo segnale: quella sessione non c'è più, nessuno lo leggerebbe
-      if (previousSession && previousSession !== session) dropSignal(previousSession);
-      if (session) syncSnapshot();
-      history().append({
+    // Al processo dentro tmux arrivano esplicitamente le variabili che
+    // contano; il resto lo eredita dal server (vedi lib/tmux.js, spawnArgs).
+    // pathOf: su Windows la chiave e' `Path`, e `env.PATH` darebbe undefined.
+    const sessionEnv = { PATH: pathOf(env), COLORTERM: env.COLORTERM, ...localeVars(env), ...identity.vars, ...(profileEnv || {}), ...injectedEnv };
+    const r = await launch({
+      id, type, session, cmd, args, commandLine, cols, rows, previousSession,
+      procCwd: workdir, env, sessionEnv,
+      replay: viaTmux ? restoreFor({ type, previousSession, cmd, args }) : null,
+      meta: {
+        type,
+        cwd: workdir,
+        label: label || null,
+        profile_id: (profile && profile.id) || null,
+        profile_label: (profile && profile.label) || null,
+        resume_id: resumeId || null,
+        account_id: claudeAccountId || null,
+        account_name: identity.name,
+      },
+      historyEntry: {
         type,
         cwd: workdir,
         resumeId: resumeId || null,
@@ -275,10 +246,55 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
         tmuxSession: session,
         // Il comando dell'utente, senza gli hook iniettati né il guscio di cmd.exe
         cmd: [...Object.entries(profileEnv || {}).map(([k, v]) => `${k}=${v}`), wrapped || cmd, ...baseArgs].join(' '),
-      });
-      // La directory risolta torna alla scheda: e' quella su cui il titolo
-      // automatico cerca la conversazione, non quella digitata dall'utente.
-      return { ok: true, cwd: workdir, session, moved: where.moved, requested: where.requested };
+      },
+    });
+    if (!r.ok) return r;
+    // La directory risolta torna alla scheda: e' quella su cui il titolo
+    // automatico cerca la conversazione, non quella digitata dall'utente.
+    return { ok: true, cwd: workdir, session, moved: where.moved, requested: where.requested };
+  }
+
+  /**
+   * Avvia il processo gia' composto: dentro tmux (il pty e' un client) o
+   * figlio diretto dell'app. Comune a sessioni locali e remote.
+   * `procCwd` e' la directory del processo locale: per una sessione remota
+   * la home, perche' quella vera sta in `meta.cwd` ed e' sul server.
+   */
+  async function launch({ id, type, session, cmd, args, commandLine, cols, rows, previousSession, procCwd, env, sessionEnv, replay, meta, historyEntry }) {
+    try {
+      let p;
+      if (viaTmux) {
+        // Ripristino dopo un riavvio: la sessione stampa il testo di prima e
+        // poi DIVENTA la shell (exec). Il testo finisce cosi' nella history di
+        // tmux, che e' quella con cui scorre la rotella.
+        const created = await tmux.control.create({
+          name: session,
+          cmd: replay ? replay.cmd : cmd,
+          args: replay ? replay.args : args,
+          cwd: procCwd,
+          env: replay ? { ...sessionEnv, ...replay.env } : sessionEnv,
+          cols,
+          rows,
+          meta,
+        });
+        if (!created.ok) return { ok: false, error: 'tmux: ' + created.error };
+        // Il pty e' sempre e solo un client: uguale per sessioni nuove e riattaccate.
+        p = openPty(tmux.bin, tmuxLib.attachArgs({ confPath: tmux.confPath, socket: tmux.socket, name: session }), { cols, rows, cwd: procCwd, env, passthrough: Boolean(tmux.attachBin) });
+      } else {
+        // Su Windows un .cmd passa da cmd.exe con la riga gia' composta
+        // (lib/win-command.js): node-pty la usa cosi' com'e' invece di
+        // ricomporla dall'argv con regole che cmd.exe non capirebbe.
+        p = openPty(cmd, commandLine || args, { cols, rows, cwd: procCwd, env });
+      }
+      track(id, p, session, type);
+      // Consumato: il file di prima ha fatto il suo mestiere e puo' contenere
+      // segreti. Da qui in avanti si salva sotto il nome della sessione nuova.
+      if (previousSession && scrollbackStore) scrollbackStore().remove(previousSession);
+      // Anche il suo segnale: quella sessione non c'è più, nessuno lo leggerebbe
+      if (previousSession && previousSession !== session) dropSignal(previousSession);
+      if (session) syncSnapshot();
+      history().append(historyEntry);
+      return { ok: true };
     } catch (e) {
       return { ok: false, error: String(e.message || e) };
     }

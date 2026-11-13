@@ -39,7 +39,11 @@ def has_control(s):
 
 
 def mtime(st):
-    return st.st_mtime_ns / 1e6
+    # Lo stesso numero di mtimeMs di Node (msFromTimeSpec: sec * 1e3 + nsec / 1e6):
+    # ns / 1e6 arrotonda diverso in un caso su tre circa, e il confronto fra
+    # mtime della scheda remota e di quella locale non torna
+    sec, nsec = divmod(st.st_mtime_ns, 10 ** 9)
+    return sec * 1e3 + nsec / 1e6
 
 
 def valid_name(name):

@@ -437,13 +437,16 @@
       // Per tipo il worktree non ha una sotto-sezione: il branch lo dice la card
       const worktree = groupMode === 'type' ? Groups.worktreeOf && Groups.worktreeOf(t, shownWorktrees) : null;
       const extras = [t.claudeAccountName, multiCommand ? t.commandProfileLabel : null, worktree ? `⑂ ${worktree.branch || 'staccato'}` : null].filter(Boolean);
-      const fullSub = [t.cwd || '', ...extras].filter(Boolean).join(' · ');
+      // Sessione su un server: l'host davanti al percorso (piano 93)
+      const host = Groups.envLabel ? Groups.envLabel(t.env) : '';
+      const where = (p) => (host && p ? `${host}:${p}` : p);
+      const fullSub = [where(t.cwd || ''), ...extras].filter(Boolean).join(' · ');
       // In modalità progetto l'header del gruppo è già il path: ripeterlo sotto è
       // rumore. Al suo posto il tipo della sessione (che lì non è più nell'header)
       // e la sottocartella, se la sessione non sta nella radice del progetto.
       const displayParts = groupMode === 'project'
         ? [Groups.TYPE_LABELS[t.type] || t.type, Groups.relativeSubpath(t.cwd, baseDir || t.projectRoot), ...extras]
-        : [Groups.shortPath(t.cwd), ...extras];
+        : [where(Groups.shortPath(t.cwd)), ...extras];
       const displaySub = displayParts.filter(Boolean).join(' · ');
       // Il marker resta nel DOM anche se invisibile: così tutte le card sono allineate
       b.innerHTML = `<span class="sel-mark" aria-hidden="true">◆</span>
@@ -507,7 +510,7 @@
       add.title = `Nuova sessione in ${g.title}`;
       add.setAttribute('aria-label', add.title);
       // Come la ✕ delle card: il click non deve arrivare all'header e collassare il gruppo
-      add.onclick = (e) => { e.stopPropagation(); onNewInProject(g.key); };
+      add.onclick = (e) => { e.stopPropagation(); onNewInProject(g.root || g.key, g.env || 'local'); };
       return add;
     }
 
@@ -722,8 +725,10 @@
         // «+» solo dove c'è una radice in cui creare: il gruppo «Senza
         // directory» (chiave vuota) non ce l'ha, e per tipo la directory non è nota.
         if (onNewInProject && g.kind === 'project' && g.key) cap.appendChild(createAddButton(g));
-        if (onResumeInProject && g.kind === 'project' && g.key) cap.appendChild(createResumeButton(g));
-        if (onNewWorktree && WorktreeSection && g.kind === 'project' && g.key) cap.appendChild(createWorktreeButton(g));
+        // Resume e worktree leggono il disco di questa macchina: non per un server
+        const localGroup = !g.env || g.env === 'local';
+        if (onResumeInProject && g.kind === 'project' && g.key && localGroup) cap.appendChild(createResumeButton(g));
+        if (onNewWorktree && WorktreeSection && g.kind === 'project' && g.key && localGroup) cap.appendChild(createWorktreeButton(g));
         if (onGroupToTop) cap.appendChild(createToTopButton(g, group));
         group.appendChild(cap);
         const body = document.createElement('div');

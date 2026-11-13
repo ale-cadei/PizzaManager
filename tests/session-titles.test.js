@@ -92,6 +92,8 @@ ok('nomi: il giro automatico guarda ogni scheda senza id, anche se rinominata', 
   assert.strictEqual(titles.needsAutoRefresh({ type: 'claude', autoNamed: false, resumeId: null }), true, 'rinominata senza id');
   assert.strictEqual(titles.needsAutoRefresh({ type: 'claude', autoNamed: true, resumeId: 'abc' }), true, 'automatica con id: il titolo puo\' cambiare');
   assert.strictEqual(titles.needsAutoRefresh({ type: 'claude', autoNamed: false, resumeId: 'abc' }), false, 'rinominata con id: niente da fare');
+  assert.strictEqual(titles.needsAutoRefresh({ type: 'claude', autoNamed: true, resumeId: null, env: 'ssh:nas' }), false, 'remota: la conversazione sta sul server');
+  assert.strictEqual(titles.needsAutoRefresh({ type: 'claude', autoNamed: true, resumeId: null, env: 'local' }), true);
   assert.strictEqual(titles.needsAutoRefresh({ type: 'shell', autoNamed: true, resumeId: null }), false, 'le shell non hanno conversazioni');
   assert.strictEqual(titles.needsAutoRefresh(null), false);
 });

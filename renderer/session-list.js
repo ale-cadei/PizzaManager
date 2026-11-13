@@ -30,7 +30,7 @@ const sidebar = Sidebar.createSidebar({
   onExport: (t, anchor) => { exportFromCard(t, anchor).catch(() => {}); },
   // Il «+» di un gruppo progetto: stesso dialog, directory già impostata sulla
   // radice; il tipo lo si sceglie lì come sempre.
-  onNewInProject: (root) => { openNewModal(undefined, { cwd: root }).catch(() => {}); },
+  onNewInProject: (root, env) => { openNewModal(undefined, { cwd: root, env }).catch(() => {}); },
   onResumeInProject: (root) => { openResumeModal({ projectRoot: root }).catch(() => {}); },
   // Worktree (docs/plans/36): sotto-sezioni nel gruppo, «+», ⟲ (piano 58) e ⋯ sulla riga
   WorktreeSection: window.AisessWorktreeSection,

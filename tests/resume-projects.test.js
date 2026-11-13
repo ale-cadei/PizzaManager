@@ -101,5 +101,7 @@ test('la linguetta del Resume di un worktree è il tipo della sua sessione più 
   ];
   assert.equal(recentTypeIn(history, wt, tabs), 'claude', 'la prima voce è la più recente; le shell non hanno linguetta');
   assert.equal(recentTypeIn(history, '/altrove', tabs), null);
+  const remota = [{ type: 'codex', cwd: wt, env: 'ssh:nas' }, ...history];
+  assert.equal(recentTypeIn(remota, wt, tabs), 'claude', 'la stessa cartella su un server non conta');
   assert.equal(recentTypeIn(null, wt, tabs), null);
 });

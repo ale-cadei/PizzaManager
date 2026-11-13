@@ -2137,6 +2137,10 @@ body.editor-tree-hidden .editor-open-menu:not([hidden]) { display: inline-flex; 
   border-color: var(--action); background: var(--action-soft);
   box-shadow: 0 0 0 3px var(--action-ring);
 }
+/* Git ed Editor su un server (piano 93): non si aprono */
+.type-card:disabled { opacity: 0.4; cursor: not-allowed; }
+.type-card:disabled:hover { border-color: var(--border-strong); }
+#new-env-row[hidden] { display: none; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
 /* Colori (menu View): pallino col colore vivo, nome, ripristino se ritoccato, selettore */

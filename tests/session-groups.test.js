@@ -202,3 +202,41 @@ ok('il tipo editor ha posto e nome nei gruppi (piano 60)', () => {
   assert.strictEqual(TYPE_ORDER.indexOf('editor'), TYPE_ORDER.indexOf('git') + 1);
   assert.strictEqual(TYPE_LABELS.editor, 'Editor');
 });
+
+const Groups = require('../renderer/session-groups');
+
+/* ---------- ambienti remoti (piano 93) ---------- */
+
+ok('groupSessions per progetto: stessa radice su due macchine = due gruppi, host nel nome', () => {
+  const sessions = [
+    { id: 'a', type: 'shell', cwd: '/srv/app', projectRoot: '/srv/app' },
+    { id: 'b', type: 'claude', cwd: '/srv/app', projectRoot: '/srv/app', env: 'ssh:nas' },
+    { id: 'c', type: 'shell', cwd: '~/app', projectRoot: '~/app', env: 'wsl:Debian' },
+  ];
+  const groups = Groups.groupSessions(sessions, { mode: 'project' });
+  const byKey = Object.fromEntries(groups.map((g) => [g.key, g]));
+  assert.deepStrictEqual(Object.keys(byKey).sort(), ['/srv/app', 'ssh:nas|/srv/app', 'wsl:Debian|~/app']);
+  assert.strictEqual(byKey['ssh:nas|/srv/app'].label, 'nas · srv/app');
+  assert.strictEqual(byKey['ssh:nas|/srv/app'].root, '/srv/app');
+  assert.strictEqual(byKey['ssh:nas|/srv/app'].env, 'ssh:nas');
+  assert.strictEqual(byKey['wsl:Debian|~/app'].label, 'WSL · Debian · ~/app');
+  assert.strictEqual(byKey['/srv/app'].env, 'local');
+  assert.deepStrictEqual(byKey['ssh:nas|/srv/app'].items.map((s) => s.id), ['b']);
+});
+
+ok('gruppo remoto: niente worktree, anche se la radice coincide con una locale che ne ha', () => {
+  const worktrees = { '/srv/app': [{ path: '/srv/app-wt', branch: 'x' }] };
+  const s = { id: 'b', type: 'shell', cwd: '/srv/app-wt', projectRoot: '/srv/app', env: 'ssh:nas' };
+  const [g] = Groups.groupSessions([s], { mode: 'project', worktrees });
+  assert.deepStrictEqual(g.worktrees, []);
+  assert.strictEqual(Groups.worktreeOf(s, worktrees), null);
+});
+
+ok('envOf / envLabel: senza env o con valori strani = locale', () => {
+  assert.strictEqual(Groups.envOf({}), 'local');
+  assert.strictEqual(Groups.envOf({ env: 'ftp:x' }), 'local');
+  assert.strictEqual(Groups.envOf({ env: 'ssh:nas' }), 'ssh:nas');
+  assert.strictEqual(Groups.isRemoteSession({ env: 'local' }), false);
+  assert.strictEqual(Groups.envLabel('local'), '');
+  assert.strictEqual(Groups.envLabel('wsl:Ubuntu'), 'WSL · Ubuntu');
+});

@@ -98,7 +98,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 91 | [`feat/pizzamanagericoninnotifications`](91-icona-pizza-nelle-notifiche.md) — le notifiche hanno l'icona della pizza con Peppo; via gli hook di notifica esterni di Claude e opencode | 38 | ~30 min | ✅ fatto, test verdi, smoke notifica ok |
 | 92 | [`feat/fenicottero`](92-fenicottero.md) — fenicottero ed elicottero fra gli animaletti, dal pacchetto Pixel Reef | 33 | ~1h | fatto, da provare nell'app |
 | 93 | [`feat/sessioni-ssh`, `feat/sessioni-wsl`](93-sessioni-remote.md) — nel modal «Nuova sessione» si sceglie dove: questo computer, un host di `~/.ssh/config` o una distro WSL | 06, 12 | ~1,5 g | `feat/sessioni-ssh` fatto, test verdi; smoke con un host da fare. WSL da fare |
-| 95 | [`feat/editor-copia-taglia`](95-editor-copia-taglia.md) — Ctrl+C / Ctrl+X sulle voci dell'albero dell'editor e Ctrl+V in un'altra cartella: copia o sposta, appunti del sistema, i file aperti seguono | 61 | ~3h | in corso |
+| 95 | [`feat/editor-copia-taglia`](95-editor-copia-taglia.md) — Ctrl+C / Ctrl+X sulle voci dell'albero dell'editor e Ctrl+V in un'altra cartella: copia o sposta, appunti del sistema, i file aperti seguono | 61 | ~3h | fatto, test verdi; smoke nell'app da fare |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

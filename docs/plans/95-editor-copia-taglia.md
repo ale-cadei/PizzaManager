@@ -57,3 +57,11 @@ della sessione.
 - Con `feat/editor-remoto` (piano 94): sulle schede su un server il
   copia/incolla da questo computer è spento; copia e sposta **dentro** il
   server vanno fatti con due operazioni nuove dell'helper.
+
+## Stato
+
+Fatto, test verdi (`tests/editor-cut-paste.test.js` in più di quelli
+elencati). Smoke nell'app da fare: in particolare se Nautilus incolla
+quello che scrive l'app (Electron `writeBuffer` col formato GNOME). Su
+Windows Esplora risorse non lo legge: `FileNameW` da solo non gli basta
+(vuole `CF_HDROP`), vale solo dentro l'app.

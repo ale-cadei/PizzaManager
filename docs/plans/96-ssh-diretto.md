@@ -46,16 +46,19 @@ Qui: una voce «Altro server…» con un campo `utente@host:porta`.
 
 ## Test
 
-- `tests/remote-env.test.js`: forme valide, `-` in testa, porta fuori
-  range, `:22` tolto, `sshDestArgs`, `wrapRemote` con porta.
-- `tests/remote-helper.test.js`: `sshArgs` con porta.
-- `tests/recent-dirs.test.js`: `recentSshTargets`.
-- IPC: `check-ssh-target`, `recent` in `list-remote-envs`.
-- Renderer: «Altro server…» mostra il campo, testo sbagliato → errore nel
-  modal, testo giusto → `createTab` con l'ambiente.
+- `tests/ssh-target.test.js`: forme valide, `-` in testa, porta fuori
+  range, `:22` tolto, `sshDestArgs`, `wrapRemote` e `sshArgs` con porta,
+  `recentSshTargets`, IPC `check-ssh-target` e `recent`.
+- `tests/new-session-env.test.js`: gruppi del «Dove» (il server richiesto
+  entra nei recenti), `resolveNewEnv` (testo giusto → chiave, sbagliato o
+  main giù → errore nel modal).
+- `tests/editor-remote-tab.test.js`: un evento di `ssh:nas:2222:/x` non
+  va alla scheda di `ssh:nas`.
 - Smoke: sessione su `utente@host` mai visto (conferma della chiave nel
   terminale), poi il server fra i recenti; editor sullo stesso server.
 
 ## Stato
 
-Da fare.
+Fatto, test verdi. Nel select la voce è «Altro server SSH…»; la scelta si
+ricorda alla conferma col server scritto, che al giro dopo è fra i recenti.
+Smoke nell'app da fare.

@@ -213,8 +213,11 @@
       <button class="type-card" data-type="antigravity"><span class="type-glyph" data-icon="antigravity"></span><b>Antigravity</b><span>agy CLI</span></button>
     </div>
     <label>Nome (opzionale)<input class="input" id="new-name" placeholder="es. backend, fix-auth…" /></label>
-    <label id="new-env-row" hidden>Dove
+    <label id="new-env-row">Dove
       <select class="input" id="new-env"><option value="local">Questo computer</option></select>
+    </label>
+    <label id="new-ssh-target-row" hidden>Server SSH
+      <input class="input" id="new-ssh-target" placeholder="utente@host oppure utente@host:2222" autocomplete="off" spellcheck="false" />
     </label>
     <label>Directory di lavoro
       <div class="row">

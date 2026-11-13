@@ -68,10 +68,14 @@ async function init() {
   });
   $('#new-cwd').addEventListener('input', () => { markSelectedRecentDir(); showNewError(''); });
   $('#new-env').addEventListener('change', () => { onNewEnvChange().catch((e) => console.warn('cambio ambiente', e)); });
+  $('#new-ssh-target').addEventListener('input', () => showNewError(''));
+  $('#new-ssh-target').addEventListener('change', () => renderRecentDirs());
   $('#new-confirm').addEventListener('click', async () => {
     const name = $('#new-name').value.trim();
     const cwd = $('#new-cwd').value.trim() || undefined;
-    const env = currentNewEnv();
+    const where = await resolveNewEnv(newEnvChoice(), $('#new-ssh-target').value);
+    if (where.error) { showNewError(where.error); return; }
+    const { env } = where;
     // Una sessione git ha senso solo dentro un repository: il modal resta aperto
     if (pendingNewType === 'git') {
       const problem = await gitRepoProblem(cwd);
@@ -84,6 +88,7 @@ async function init() {
     showNewError('');
     const claudeAccountId = pendingNewType === 'claude' && env === 'local' ? ($('#new-claude-account') || {}).value || null : null;
     if (claudeAccountId) { try { localStorage.setItem('aisess.claudeAccount', claudeAccountId); } catch {} }
+    rememberEnv(env);
     $('#modal-new').hidden = true;
     $('#new-name').value = '';
     // Il nome scritto qui è dell'utente: arriva anche alla CLI (piano 86)

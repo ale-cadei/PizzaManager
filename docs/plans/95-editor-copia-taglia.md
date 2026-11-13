@@ -54,9 +54,12 @@ della sessione.
 
 ## Dopo
 
-- Con `feat/editor-remoto` (piano 94): sulle schede su un server il
-  copia/incolla da questo computer è spento; copia e sposta **dentro** il
-  server vanno fatti con due operazioni nuove dell'helper.
+- Con `feat/editor-remoto` (piano 94), fatto al merge: sulle schede su un
+  server «Copia» e «Taglia» non ci sono nel menu, Ctrl+C/Ctrl+X avvisano e
+  `editor-clipboard-put` passa da `localOnly`. Copia e sposta **dentro** il
+  server restano da fare: due operazioni nuove dell'helper (`copy`, `move`
+  con gli stessi controlli di `lib/editor-copy.js`) e un appunto interno
+  all'app al posto di quello del sistema, che ha solo percorsi di qui.
 
 ## Stato
 

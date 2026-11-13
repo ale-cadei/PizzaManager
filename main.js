@@ -35,6 +35,7 @@ const { registerKernelHandlers } = require('./app/notebook-kernel');
 const { registerNotifyHandlers } = require('./app/notify');
 const { registerUpdateHandlers } = require('./app/updater');
 const { registerFeedbackHandlers } = require('./app/feedback');
+const { registerRemoteEnvHandlers } = require('./app/remote-envs');
 
 // La cartella dei dati NON segue il nome dell'app. Electron la deriva da
 // productName: un rebrand ("PizzaManager") la sposterebbe in una cartella nuova
@@ -145,10 +146,10 @@ ipcMain.handle('dialog-cwd', async () => {
 // ---------- Cronologia e directory recenti ----------
 ipcMain.handle('get-history', async () => history().load());
 
-ipcMain.handle('get-recent-dirs', async (event, { limit } = {}) => {
+ipcMain.handle('get-recent-dirs', async (event, { limit, env } = {}) => {
   const isDir = (p) => { try { return fs.statSync(p).isDirectory(); } catch { return false; } };
   try {
-    return computeRecentDirs(history().load(), { limit, exists: isDir });
+    return computeRecentDirs(history().load(), { limit, env, exists: isDir });
   } catch (e) {
     console.error('get-recent-dirs fallito:', e);
     return [];
@@ -227,6 +228,7 @@ ipcMain.handle('usage-snapshot', async (event, { active, tab } = {}) => {
 
 // ---------- Appunti (per term-clipboard.js nel renderer) ----------
 registerClipboardHandlers(ipcMain);
+registerRemoteEnvHandlers(ipcMain); // ssh e WSL nella nuova sessione (piano 93)
 registerUpdateHandlers(ipcMain, { electron: { app, shell }, sendToRenderer });
 registerFeedbackHandlers(ipcMain, { electron: { app, shell }, viaTmux: () => ptys.viaTmux });
 registerGitHandlers(ipcMain, { userDataDir: () => app.getPath('userData') });

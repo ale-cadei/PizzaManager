@@ -1,7 +1,8 @@
 'use strict';
 const os = require('os');
-const { buildCommand, installHint } = require('../lib/commands');
-const { augmentedEnv, pathOf } = require('../lib/binaries');
+const { buildCommand, composeCommand, installHint } = require('../lib/commands');
+const { parseEnvKey, isRemote, envKey, validateRemoteDir, remoteSecretProblem, wrapRemote } = require('../lib/remote-env');
+const { augmentedEnv, pathOf, resolveBinary } = require('../lib/binaries');
 const { describeWorkdir } = require('../lib/workdir');
 const tmuxLib = require('../lib/tmux');
 const { shouldCapture } = require('../lib/scrollback');
@@ -23,6 +24,13 @@ const DEFAULT_ROWS = 24;
    shell ferme non fanno nulla. Al massimo si perde mezzo minuto di output in
    uno spegnimento brusco (docs/plans/26-scrollback-shell.md). */
 const CAPTURE_EVERY_MS = 30000;
+/* Su un server si aprono solo terminali: Git ed Editor leggono i file con
+   `fs` locale (docs/plans/93-sessioni-remote.md). */
+const REMOTE_TYPES = new Set(['shell', 'claude', 'codex', 'opencode', 'antigravity']);
+const REMOTE_CLIENT_HINT = {
+  ssh: 'Installa il client OpenSSH (ssh) e verifica che sia nel PATH.',
+  wsl: 'WSL non è installato: da PowerShell come amministratore, wsl --install.',
+};
 
 /**
  * Ciclo di vita dei processi in pty.
@@ -40,7 +48,7 @@ const CAPTURE_EVERY_MS = 30000;
    a scegliere LANG per i processi quando l'app, avviata dal Finder, non ce
    l'ha (lib/locale.js). `signalStore` (lib/agent-signals.js) accende il
    segnale esatto degli agenti (docs/plans/46); senza, resta l'euristica. */
-function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = null, liveStore = null, systemLocale = null, scrollbackStore = null, signalStore = null }) {
+function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = null, liveStore = null, systemLocale = null, scrollbackStore = null, signalStore = null, resolveClient = resolveBinary }) {
   const localeOpts = () => {
     const v = typeof systemLocale === 'function' ? systemLocale() : systemLocale;
     return v ? { systemLocale: v } : {};
@@ -193,8 +201,85 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     });
   }
 
-  async function spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId, label, sessionName = null, cols, rows, previousSession = null }) {
+  async function spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId, label, sessionName = null, cols, rows, previousSession = null, env: place = 'local' }) {
     if (!pty) return { ok: false, error: 'node-pty non installato. Esegui: npm install' };
+    const where = parseEnvKey(place);
+    if (!where) return { ok: false, error: `Ambiente non valido: ${place}` };
+    if (isRemote(where)) return spawnRemote({ id, type, cwd, resumeId, claudeAccountId, commandProfileId, label, sessionName, cols, rows, remote: where });
+    return spawnLocal({ id, type, cwd, resumeId, claudeAccountId, commandProfileId, label, sessionName, cols, rows, previousSession });
+  }
+
+  /**
+   * Sessione su un server SSH o in una distro WSL: il processo locale e' il
+   * client (ssh, wsl.exe), che sul server entra nella directory e lancia il
+   * comando del profilo (lib/remote-env.js). Le directory si scrivono, non
+   * si controllano: se manca, lo dice il server e si parte dalla home.
+   */
+  async function spawnRemote({ id, type, cwd, resumeId, claudeAccountId, commandProfileId, label, sessionName, cols, rows, remote }) {
+    if (!REMOTE_TYPES.has(type)) return { ok: false, error: 'Su un ambiente remoto si aprono solo terminali e agenti, non Git o Editor.' };
+    const dir = validateRemoteDir(cwd);
+    if (!dir.ok) return { ok: false, error: dir.error };
+    // La chiave andrebbe nella riga di comando del server, leggibile da tutti con `ps`
+    if (claudeAccountId && claudeAccountId !== 'oauth') {
+      return { ok: false, error: 'Su un ambiente remoto gli account a chiave API non si usano: scegli "OAuth" e fai il login di claude sul server.' };
+    }
+    const shell = type === 'shell';
+    const session = viaTmux ? tmuxLib.sessionName(type) : null;
+    let composed = { bin: null, args: [], baseArgs: [], profileEnv: {}, injectedEnv: {}, profile: null };
+    if (!shell) {
+      // Solo il segnale di Codex attraversa ssh (OSC 9 nel terminale); gli
+      // altri scriverebbero un file sul disco del server, che nessuno legge.
+      const inject = type === 'codex' ? (a, pEnv) => signalInjection({ id, session, type, args: a, profileEnv: pEnv }) : null;
+      // Nessuna espansione locale di ~ e $VAR: valgono quelle del server
+      const c = composeCommand(type, resumeId, commandProfileId, { profiles, home: null, env: {}, platform: 'linux', inject, sessionName });
+      if (!c.ok) return { ok: false, error: c.error };
+      composed = c;
+    }
+    const vars = { ...(composed.profileEnv || {}), ...(composed.injectedEnv || {}) };
+    const secret = remoteSecretProblem(vars);
+    if (secret) return { ok: false, error: secret };
+
+    const clientName = remote.kind === 'ssh' ? 'ssh' : 'wsl.exe';
+    const client = resolveClient(clientName);
+    if (!client.path) return { ok: false, error: `'${clientName}' non trovato nel PATH.\n` + REMOTE_CLIENT_HINT[remote.kind] };
+    const wrapped = wrapRemote({ env: remote, cwd: dir.dir, bin: composed.bin, args: composed.args, vars, shell, sshBin: client.path, wslBin: client.path });
+
+    const env = augmentedEnv([wrapped.cmd], {}, withoutSignal(process.env), localeOpts());
+    const sessionEnv = { PATH: pathOf(env), COLORTERM: env.COLORTERM, ...localeVars(env) };
+    const key = envKey(remote);
+    const profile = composed.profile;
+    const r = await launch({
+      id, type, session, cmd: wrapped.cmd, args: wrapped.args, cols, rows, previousSession: null,
+      procCwd: os.homedir(), env, sessionEnv, replay: null,
+      meta: {
+        type,
+        cwd: dir.dir,
+        env: key,
+        label: label || null,
+        profile_id: (profile && profile.id) || null,
+        profile_label: (profile && profile.label) || null,
+        resume_id: resumeId || null,
+        account_id: claudeAccountId || null,
+        account_name: null,
+      },
+      historyEntry: {
+        type,
+        cwd: dir.dir,
+        env: key,
+        resumeId: resumeId || null,
+        claudeAccountId: claudeAccountId || null,
+        claudeAccountName: null,
+        commandProfileId: (profile && profile.id) || null,
+        commandProfileLabel: (profile && profile.label) || null,
+        tmuxSession: session,
+        cmd: shell ? `${key} shell` : [key, ...Object.entries(composed.profileEnv || {}).map(([k, v]) => `${k}=${v}`), composed.bin, ...composed.baseArgs].join(' '),
+      },
+    });
+    if (!r.ok) return r;
+    return { ok: true, cwd: dir.dir, env: key, session, moved: null, requested: dir.dir };
+  }
+
+  async function spawnLocal({ id, type, cwd, resumeId, claudeAccountId, commandProfileId, label, sessionName, cols, rows, previousSession }) {
 
     // Se la cartella non c'è più (un worktree tolto) la sessione parte altrove:
     // `moved` torna alla scheda, che lo dice
@@ -217,54 +302,25 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     // Le variabili del profilo vengono per ultime: sono la scelta esplicita
     // dell'utente (es. CLAUDE_CONFIG_DIR) e devono vincere sui default.
     const env = { ...augmentedEnv([cmd], identity.vars, withoutSignal(process.env), localeOpts()), ...(profileEnv || {}), ...injectedEnv };
-
-    try {
-      let p;
-      if (viaTmux) {
-        // Al processo dentro tmux arrivano esplicitamente le variabili che
-        // contano; il resto lo eredita dal server (vedi lib/tmux.js, spawnArgs).
-        // pathOf: su Windows la chiave e' `Path`, e `env.PATH` darebbe undefined.
-        const sessionEnv = { PATH: pathOf(env), COLORTERM: env.COLORTERM, ...localeVars(env), ...identity.vars, ...(profileEnv || {}), ...injectedEnv };
-        // Ripristino dopo un riavvio: la sessione stampa il testo di prima e
-        // poi DIVENTA la shell (exec). Il testo finisce cosi' nella history di
-        // tmux, che e' quella con cui scorre la rotella.
-        const replay = restoreFor({ type, previousSession, cmd, args });
-        const created = await tmux.control.create({
-          name: session,
-          cmd: replay ? replay.cmd : cmd,
-          args: replay ? replay.args : args,
-          cwd: workdir,
-          env: replay ? { ...sessionEnv, ...replay.env } : sessionEnv,
-          cols,
-          rows,
-          meta: {
-            type,
-            cwd: workdir,
-            label: label || null,
-            profile_id: (profile && profile.id) || null,
-            profile_label: (profile && profile.label) || null,
-            resume_id: resumeId || null,
-            account_id: claudeAccountId || null,
-            account_name: identity.name,
-          },
-        });
-        if (!created.ok) return { ok: false, error: 'tmux: ' + created.error };
-        // Il pty e' sempre e solo un client: uguale per sessioni nuove e riattaccate.
-        p = openPty(tmux.bin, tmuxLib.attachArgs({ confPath: tmux.confPath, socket: tmux.socket, name: session }), { cols, rows, cwd: workdir, env, passthrough: Boolean(tmux.attachBin) });
-      } else {
-        // Su Windows un .cmd passa da cmd.exe con la riga gia' composta
-        // (lib/win-command.js): node-pty la usa cosi' com'e' invece di
-        // ricomporla dall'argv con regole che cmd.exe non capirebbe.
-        p = openPty(cmd, commandLine || args, { cols, rows, cwd: workdir, env });
-      }
-      track(id, p, session, type);
-      // Consumato: il file di prima ha fatto il suo mestiere e puo' contenere
-      // segreti. Da qui in avanti si salva sotto il nome della sessione nuova.
-      if (previousSession && scrollbackStore) scrollbackStore().remove(previousSession);
-      // Anche il suo segnale: quella sessione non c'è più, nessuno lo leggerebbe
-      if (previousSession && previousSession !== session) dropSignal(previousSession);
-      if (session) syncSnapshot();
-      history().append({
+    // Al processo dentro tmux arrivano esplicitamente le variabili che
+    // contano; il resto lo eredita dal server (vedi lib/tmux.js, spawnArgs).
+    // pathOf: su Windows la chiave e' `Path`, e `env.PATH` darebbe undefined.
+    const sessionEnv = { PATH: pathOf(env), COLORTERM: env.COLORTERM, ...localeVars(env), ...identity.vars, ...(profileEnv || {}), ...injectedEnv };
+    const r = await launch({
+      id, type, session, cmd, args, commandLine, cols, rows, previousSession,
+      procCwd: workdir, env, sessionEnv,
+      replay: viaTmux ? restoreFor({ type, previousSession, cmd, args }) : null,
+      meta: {
+        type,
+        cwd: workdir,
+        label: label || null,
+        profile_id: (profile && profile.id) || null,
+        profile_label: (profile && profile.label) || null,
+        resume_id: resumeId || null,
+        account_id: claudeAccountId || null,
+        account_name: identity.name,
+      },
+      historyEntry: {
         type,
         cwd: workdir,
         resumeId: resumeId || null,
@@ -275,10 +331,55 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
         tmuxSession: session,
         // Il comando dell'utente, senza gli hook iniettati né il guscio di cmd.exe
         cmd: [...Object.entries(profileEnv || {}).map(([k, v]) => `${k}=${v}`), wrapped || cmd, ...baseArgs].join(' '),
-      });
-      // La directory risolta torna alla scheda: e' quella su cui il titolo
-      // automatico cerca la conversazione, non quella digitata dall'utente.
-      return { ok: true, cwd: workdir, session, moved: where.moved, requested: where.requested };
+      },
+    });
+    if (!r.ok) return r;
+    // La directory risolta torna alla scheda: e' quella su cui il titolo
+    // automatico cerca la conversazione, non quella digitata dall'utente.
+    return { ok: true, cwd: workdir, session, moved: where.moved, requested: where.requested };
+  }
+
+  /**
+   * Avvia il processo gia' composto: dentro tmux (il pty e' un client) o
+   * figlio diretto dell'app. Comune a sessioni locali e remote.
+   * `procCwd` e' la directory del processo locale: per una sessione remota
+   * la home, perche' quella vera sta in `meta.cwd` ed e' sul server.
+   */
+  async function launch({ id, type, session, cmd, args, commandLine, cols, rows, previousSession, procCwd, env, sessionEnv, replay, meta, historyEntry }) {
+    try {
+      let p;
+      if (viaTmux) {
+        // Ripristino dopo un riavvio: la sessione stampa il testo di prima e
+        // poi DIVENTA la shell (exec). Il testo finisce cosi' nella history di
+        // tmux, che e' quella con cui scorre la rotella.
+        const created = await tmux.control.create({
+          name: session,
+          cmd: replay ? replay.cmd : cmd,
+          args: replay ? replay.args : args,
+          cwd: procCwd,
+          env: replay ? { ...sessionEnv, ...replay.env } : sessionEnv,
+          cols,
+          rows,
+          meta,
+        });
+        if (!created.ok) return { ok: false, error: 'tmux: ' + created.error };
+        // Il pty e' sempre e solo un client: uguale per sessioni nuove e riattaccate.
+        p = openPty(tmux.bin, tmuxLib.attachArgs({ confPath: tmux.confPath, socket: tmux.socket, name: session }), { cols, rows, cwd: procCwd, env, passthrough: Boolean(tmux.attachBin) });
+      } else {
+        // Su Windows un .cmd passa da cmd.exe con la riga gia' composta
+        // (lib/win-command.js): node-pty la usa cosi' com'e' invece di
+        // ricomporla dall'argv con regole che cmd.exe non capirebbe.
+        p = openPty(cmd, commandLine || args, { cols, rows, cwd: procCwd, env });
+      }
+      track(id, p, session, type);
+      // Consumato: il file di prima ha fatto il suo mestiere e puo' contenere
+      // segreti. Da qui in avanti si salva sotto il nome della sessione nuova.
+      if (previousSession && scrollbackStore) scrollbackStore().remove(previousSession);
+      // Anche il suo segnale: quella sessione non c'è più, nessuno lo leggerebbe
+      if (previousSession && previousSession !== session) dropSignal(previousSession);
+      if (session) syncSnapshot();
+      history().append(historyEntry);
+      return { ok: true };
     } catch (e) {
       return { ok: false, error: String(e.message || e) };
     }

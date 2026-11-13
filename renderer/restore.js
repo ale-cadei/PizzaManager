@@ -26,6 +26,7 @@ async function reattachLiveSessions() {
       iconMode: s.iconMode || 'auto',
       turnTree: s.turnTree || null,
       turnAt: s.turnAt || null,
+      env: s.env || 'local',
       // L'istante di avvio e' quello della sessione tmux, non del riattacco:
       // senza id, la conversazione va cercata da quando e' nata davvero.
       startedAt: s.createdAt || Date.now(),
@@ -96,7 +97,7 @@ function sessionRestoreItem(s) {
   return {
     type, name: s.label || type, cwd: s.cwd, how,
     iconKey: plan.iconKey,
-    restore: () => createTab(plan.type, { name: plan.name, cwd: plan.cwd, resumeId: plan.resumeId, claudeAccountId: plan.claudeAccountId, commandProfileId: plan.commandProfileId, previousSession: plan.previousSession, iconKey: plan.iconKey, iconMode: plan.iconMode, reveal: false }),
+    restore: () => createTab(plan.type, { name: plan.name, cwd: plan.cwd, resumeId: plan.resumeId, claudeAccountId: plan.claudeAccountId, commandProfileId: plan.commandProfileId, previousSession: plan.previousSession, iconKey: plan.iconKey, iconMode: plan.iconMode, env: plan.env, reveal: false }),
   };
 }
 
@@ -151,7 +152,7 @@ function restoreRow({ type, name, cwd, how, iconKey }) {
 /** Stessa logica di lib/live-sessions.js#restorePlan, lato renderer (che non puo' importarla). */
 function restorePlanFor(s) {
   const type = s.type || 'shell';
-  const base = { type, cwd: s.cwd || undefined, commandProfileId: s.profileId || null, claudeAccountId: s.accountId || null, name: s.label || null, previousSession: s.name || null };
+  const base = { type, cwd: s.cwd || undefined, commandProfileId: s.profileId || null, claudeAccountId: s.accountId || null, name: s.label || null, previousSession: s.name || null, env: s.env || 'local' };
   if (type === 'shell') { base.iconKey = s.iconKey || 'shell'; base.iconMode = s.iconMode || 'auto'; }
   if (type !== 'shell' && s.resumeId) return { ...base, resumeId: s.resumeId, mode: 'resume' };
   return { ...base, resumeId: null, mode: 'fresh' };

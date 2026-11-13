@@ -131,7 +131,7 @@ let usageTimer = null;
 
 function activeUsageSession() {
   const t = activeId ? tabs.get(activeId) : null;
-  if (!t || !t.resumeId || t.type === 'shell') return null;
+  if (!t || !t.resumeId || t.type === 'shell' || Groups.isRemoteSession(t)) return null;
   return { source: t.type, sessionId: t.resumeId };
 }
 
@@ -139,7 +139,8 @@ function activeUsageSession() {
    la ricava il main dal profilo (docs/plans/35-quota-per-profilo.md). */
 function activeUsageTab() {
   const t = activeId ? tabs.get(activeId) : null;
-  if (!t) return null;
+  // L'account di una sessione remota è quello del server, non uno di qui
+  if (!t || Groups.isRemoteSession(t)) return null;
   return { type: t.type, commandProfileId: t.commandProfileId || null, claudeAccountId: t.claudeAccountId || null };
 }
 

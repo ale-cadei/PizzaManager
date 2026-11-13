@@ -139,6 +139,8 @@
    */
   function needsAutoRefresh(tab) {
     if (!tab || tab.type === 'shell' || tab.type === 'git' || tab.type === 'editor') return false;
+    // Le conversazioni di una sessione remota stanno sul server: qui non si trovano
+    if (typeof tab.env === 'string' && tab.env !== 'local') return false;
     return Boolean(tab.autoNamed) || !tab.resumeId;
   }
 

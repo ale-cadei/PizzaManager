@@ -43,7 +43,7 @@ async function resolveProjectRoot(cwd) {
 /* reveal: false per le schede che tornano al riavvio dell'app. Non le ha
    scelte l'utente adesso: espanderne il gruppo cancellerebbe i collassi
    che aveva lasciato (setActive). */
-async function createTab(type, { name, sessionName = null, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null, previousSession = null, startedAt = Date.now(), iconKey = 'shell', iconMode = 'auto', turnTree = null, turnAt = null, reveal = true } = {}) {
+async function createTab(type, { name, sessionName = null, cwd, resumeId, claudeAccountId, commandProfileId, attachSession = null, commandProfileLabel = null, previousSession = null, startedAt = Date.now(), iconKey = 'shell', iconMode = 'auto', turnTree = null, turnAt = null, reveal = true, env = 'local' } = {}) {
   // La sessione git non ha pty: è un pannello (renderer/git-tab.js)
   if (type === 'git') return createGitTab({ name, cwd, startedAt, reveal });
   // La sessione editor non ha pty: è un pannello (renderer/editor-tab.js)
@@ -73,7 +73,9 @@ async function createTab(type, { name, sessionName = null, cwd, resumeId, claude
   // Registra e rendi visibile PRIMA di aprire il terminale: xterm misura il
   // contenitore all'apertura, quindi il wrap deve essere già laid out a
   // dimensione piena (altrimenti la prima scheda nasce 20x10).
-  const tab = { id, type, name: label, cwd, projectRoot: cwd || null, resumeId, startedAt, autoNamed: !name, nameChosen: Boolean(cliName),
+  // Sessione su un server SSH o WSL (piano 93): niente che legga il disco locale
+  const remote = Groups.isRemoteSession({ env });
+  const tab = { id, type, name: label, cwd, projectRoot: cwd || null, resumeId, env: remote ? env : 'local', startedAt, autoNamed: !name, nameChosen: Boolean(cliName),
     session: attachSession, reattached: Boolean(attachSession),
     // Nome tmux della sessione prima di un riavvio della macchina: la sola
     // identità stabile di una shell ricreata, per ritrovarne il posto.
@@ -165,7 +167,7 @@ async function createTab(type, { name, sessionName = null, cwd, resumeId, claude
   } catch {}
   const res = attachSession
     ? await window.aisess.attach({ id, session: attachSession, type, cols, rows })
-    : await window.aisess.spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId: picked.id, label, sessionName: cliName, cols, rows, previousSession });
+    : await window.aisess.spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId: picked.id, label, sessionName: cliName, cols, rows, previousSession, env: tab.env });
   if (!res.ok && res.gone) {
     // La sessione tmux non c'e' piu' (riavvio della macchina, terminata altrove):
     // caso normale, non un errore. Si offre la strada per ricrearla.
@@ -176,7 +178,7 @@ async function createTab(type, { name, sessionName = null, cwd, resumeId, claude
   } else if (!res.ok) {
     const msg = String(res.error || 'errore sconosciuto').replace(/\n/g, '\r\n');
     term.write(`\x1b[31mErrore avvio [${type}]: ${msg}\x1b[0m\r\n`);
-    term.write(`\x1b[90mSuggerimento: apri un Terminale e verifica con: which ${type === 'shell' ? 'bash' : type} && ${type === 'shell' ? 'echo ok' : type + ' --version'}\x1b[0m\r\n`);
+    if (!remote) term.write(`\x1b[90mSuggerimento: apri un Terminale e verifica con: which ${type === 'shell' ? 'bash' : type} && ${type === 'shell' ? 'echo ok' : type + ' --version'}\x1b[0m\r\n`);
     tab.alive = false;
   } else {
     if (res.session) tab.session = res.session;
@@ -188,10 +190,12 @@ async function createTab(type, { name, sessionName = null, cwd, resumeId, claude
     // nella home): senza la directory vera il titolo automatico non troverebbe
     // mai la conversazione, che viene riconosciuta proprio dalla directory.
     if (res.cwd) tab.cwd = res.cwd;
+    if (remote) tab.projectRoot = tab.cwd || null;
     if (res.moved) notifyMovedSession(id, res);
     // La radice si risolve sulla directory davvero usata dal pty, non su quella
     // digitata: con cwd vuota o inesistente il main sposta la sessione altrove.
-    resolveProjectRoot(tab.cwd).then((root) => {
+    // Sul server la radice non si cerca: il progetto è la directory scelta
+    if (!remote) resolveProjectRoot(tab.cwd).then((root) => {
       if (!tabs.has(id) || root === tab.projectRoot) return;
       tab.projectRoot = root;
       renderSidebar();

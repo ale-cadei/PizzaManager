@@ -67,9 +67,11 @@ async function init() {
     }
   });
   $('#new-cwd').addEventListener('input', () => { markSelectedRecentDir(); showNewError(''); });
+  $('#new-env').addEventListener('change', () => { onNewEnvChange().catch((e) => console.warn('cambio ambiente', e)); });
   $('#new-confirm').addEventListener('click', async () => {
     const name = $('#new-name').value.trim();
     const cwd = $('#new-cwd').value.trim() || undefined;
+    const env = currentNewEnv();
     // Una sessione git ha senso solo dentro un repository: il modal resta aperto
     if (pendingNewType === 'git') {
       const problem = await gitRepoProblem(cwd);
@@ -80,12 +82,12 @@ async function init() {
       if (problem) { showNewError(problem); return; }
     }
     showNewError('');
-    const claudeAccountId = pendingNewType === 'claude' ? ($('#new-claude-account') || {}).value || null : null;
+    const claudeAccountId = pendingNewType === 'claude' && env === 'local' ? ($('#new-claude-account') || {}).value || null : null;
     if (claudeAccountId) { try { localStorage.setItem('aisess.claudeAccount', claudeAccountId); } catch {} }
     $('#modal-new').hidden = true;
     $('#new-name').value = '';
     // Il nome scritto qui è dell'utente: arriva anche alla CLI (piano 86)
-    await createTab(pendingNewType, { name, sessionName: name || null, cwd, claudeAccountId });
+    await createTab(pendingNewType, { name, sessionName: name || null, cwd, claudeAccountId, env });
   });
 
   // resume modal

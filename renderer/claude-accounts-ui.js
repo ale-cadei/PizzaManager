@@ -50,6 +50,8 @@ async function updateClaudeAccountRow() {
   const row = $('#claude-account-row');
   if (!row) return;
   if (pendingNewType !== 'claude') { row.hidden = true; return; }
+  // Su un server vale il login di claude lì: le chiavi API restano qui (piano 93)
+  if (typeof currentNewEnv === 'function' && currentNewEnv() !== 'local') { row.hidden = true; return; }
   await ensureClaudeAccounts();
   const multi = claudeAccountOptions().length > 1;
   row.hidden = !multi;

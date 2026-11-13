@@ -28,7 +28,8 @@
    *  una linguetta. `history` è la cronologia dell'app, dalla voce più nuova. */
   function recentTypeIn(history, dir, types) {
     const hit = (Array.isArray(history) ? history : [])
-      .find((entry) => entry && types.includes(entry.type) && isInside(dir, entry.cwd));
+      // Solo sessioni di questa macchina: /srv/app su un server è un'altra cartella
+      .find((entry) => entry && (!entry.env || entry.env === 'local') && types.includes(entry.type) && isInside(dir, entry.cwd));
     return hit ? hit.type : null;
   }
 

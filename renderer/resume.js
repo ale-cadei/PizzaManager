@@ -268,7 +268,7 @@ const RESUME_VIEWS = {
   history: (s) => ({
     icon: Icons.has(s.type) ? s.type : null,
     title: s.cmd || s.type,
-    sub: [s.cwd, s.lastOpened],
+    sub: [Groups.envLabel(s.env) ? `${Groups.envLabel(s.env)}:${s.cwd}` : s.cwd, s.lastOpened],
     action: 'Riapri',
     actionClass: 'btn--secondary',
     open: () => {
@@ -278,6 +278,7 @@ const RESUME_VIEWS = {
         resumeId: s.resumeId,
         claudeAccountId: t === 'claude' ? (s.claudeAccountId || null) : null,
         commandProfileId: s.commandProfileId || undefined,
+        env: s.env || 'local',
       });
     },
   }),

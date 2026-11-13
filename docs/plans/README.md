@@ -97,6 +97,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 89 | [`feature/side-git-improvements`](89-branch-e-push-nel-pannello.md) — il pannello delle modifiche dice branch e worktree della scheda, la distanza dall'upstream, e ha il pulsante Push / Pubblica (mai forzato) | 55 | ~2h | ✅ fatto, test verdi, smoke ok (profilo di prova; push vero non provato dall'app) |
 | 91 | [`feat/pizzamanagericoninnotifications`](91-icona-pizza-nelle-notifiche.md) — le notifiche hanno l'icona della pizza con Peppo; via gli hook di notifica esterni di Claude e opencode | 38 | ~30 min | ✅ fatto, test verdi, smoke notifica ok |
 | 92 | [`feat/fenicottero`](92-fenicottero.md) — fenicottero ed elicottero fra gli animaletti, dal pacchetto Pixel Reef | 33 | ~1h | fatto, da provare nell'app |
+| 93 | [`feat/sessioni-ssh`, `feat/sessioni-wsl`](93-sessioni-remote.md) — nel modal «Nuova sessione» si sceglie dove: questo computer, un host di `~/.ssh/config` o una distro WSL | 06, 12 | ~1,5 g | `feat/sessioni-ssh` fatto, test verdi; smoke con un host da fare. WSL da fare |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

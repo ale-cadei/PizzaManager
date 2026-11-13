@@ -61,23 +61,64 @@
   function groupByProject(sessions, projectOrder, worktrees) {
     const byKey = new Map();
     for (const s of sessions) {
-      const key = s && typeof s.projectRoot === 'string' && s.projectRoot ? s.projectRoot : NO_PROJECT_KEY;
-      if (!byKey.has(key)) byKey.set(key, []);
-      byKey.get(key).push(s);
+      const key = projectKeyOf(s);
+      if (!byKey.has(key)) byKey.set(key, { env: envOf(s), root: s.projectRoot, items: [] });
+      byKey.get(key).items.push(s);
     }
-    const roots = [...byKey.keys()].filter((k) => k !== NO_PROJECT_KEY);
-    const labels = projectLabels(roots);
+    const keys = [...byKey.keys()].filter((k) => k !== NO_PROJECT_KEY);
+    const labels = projectLabels([...new Set(keys.map((k) => byKey.get(k).root))]);
     const rank = new Map((Array.isArray(projectOrder) ? projectOrder : []).map((k, i) => [k, i]));
     const byRank = (a, b) => (rank.has(a.key) ? rank.get(a.key) : Infinity) - (rank.has(b.key) ? rank.get(b.key) : Infinity);
     // A parità di etichetta si ordina sulla chiave: così l'ordine è totale e
     // due render successivi non invertono mai due gruppi.
-    const out = roots
-      .map((key) => ({ key, kind: 'project', label: labels.get(key), title: key, ...splitByWorktree(byKey.get(key), worktreesOf(worktrees, key)) }))
+    const out = keys
+      .map((key) => projectGroup(key, byKey.get(key), labels, worktrees))
       .sort((a, b) => byRank(a, b) || a.label.localeCompare(b.label) || a.key.localeCompare(b.key));
     if (byKey.has(NO_PROJECT_KEY)) {
-      out.push({ key: NO_PROJECT_KEY, kind: 'project', label: NO_PROJECT_LABEL, title: NO_PROJECT_LABEL, items: byKey.get(NO_PROJECT_KEY), worktrees: [] });
+      out.push({ key: NO_PROJECT_KEY, kind: 'project', label: NO_PROJECT_LABEL, title: NO_PROJECT_LABEL, env: LOCAL_ENV, root: null, items: byKey.get(NO_PROJECT_KEY).items, worktrees: [] });
     }
     return out;
+  }
+
+  /* Un gruppo remoto porta il nome dell'host davanti e non ha worktree: git
+     sul server non si legge (docs/plans/93-sessioni-remote.md). */
+  function projectGroup(key, { env, root, items }, labels, worktrees) {
+    if (env === LOCAL_ENV) {
+      return { key, kind: 'project', label: labels.get(root), title: root, env, root, ...splitByWorktree(items, worktreesOf(worktrees, key)) };
+    }
+    const host = envLabel(env);
+    return { key, kind: 'project', label: `${host} · ${labels.get(root)}`, title: `${host}:${root}`, env, root, items, worktrees: [] };
+  }
+
+  /* Ambiente di una sessione: `local`, `ssh:nas`, `wsl:Debian`. Le sessioni
+     di prima del piano 93 non ce l'hanno: sono locali. */
+  const LOCAL_ENV = 'local';
+  const REMOTE_ENV_RE = /^(ssh|wsl):(.+)$/;
+
+  function envOf(session) {
+    const env = session && session.env;
+    return typeof env === 'string' && REMOTE_ENV_RE.test(env) ? env : LOCAL_ENV;
+  }
+
+  function isRemoteSession(session) {
+    return envOf(session) !== LOCAL_ENV;
+  }
+
+  /** Nome breve dell'ambiente per linguette e card; vuoto in locale. */
+  function envLabel(env) {
+    const m = REMOTE_ENV_RE.exec(String(env || ''));
+    if (!m) return '';
+    return m[1] === 'ssh' ? m[2] : `WSL · ${m[2]}`;
+  }
+
+  /* La chiave di un progetto remoto porta l'ambiente davanti: /srv/app su
+     due server sono due progetti. Una radice locale è assoluta, quindi non
+     può mai cominciare con `ssh:` o `wsl:`. */
+  function projectKeyOf(session) {
+    const root = session && typeof session.projectRoot === 'string' && session.projectRoot ? session.projectRoot : null;
+    if (!root) return NO_PROJECT_KEY;
+    const env = envOf(session);
+    return env === LOCAL_ENV ? root : `${env}|${root}`;
   }
 
   /* L'elenco dei worktree di una radice; quello che non ha un percorso si scarta */
@@ -106,7 +147,7 @@
    * @param {Record<string, Array<{path: string, branch?: string|null, base?: string|null}>>} worktrees
    */
   function worktreeOf(session, worktrees) {
-    if (!session || typeof session.projectRoot !== 'string') return null;
+    if (!session || typeof session.projectRoot !== 'string' || isRemoteSession(session)) return null;
     return worktreesOf(worktrees, session.projectRoot).find((w) => isInside(session.cwd, w.path)) || null;
   }
 
@@ -158,5 +199,5 @@
     return lastSegments(cwd, 2);
   }
 
-  return { groupSessions, worktreeOf, relativeSubpath, shortPath, TYPE_ORDER, TYPE_LABELS, NO_PROJECT_LABEL };
+  return { groupSessions, worktreeOf, relativeSubpath, shortPath, envOf, isRemoteSession, envLabel, projectKeyOf, TYPE_ORDER, TYPE_LABELS, NO_PROJECT_LABEL };
 });

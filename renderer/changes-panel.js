@@ -406,6 +406,8 @@ function activeChangesTarget() {
   if (merge && merge.kind === 'branch') return ChangesModel.incomingTarget(merge.branch);
   if (merge) return ChangesModel.targetFor({ type: 'worktree', cwd: merge.worktree.path }, merge.worktree);
   const t = activeTab();
+  // git sul server non si legge (piano 93): per una scheda remota niente pannello
+  if (t && Groups.isRemoteSession(t)) return null;
   const worktree = t ? Groups.worktreeOf(t, worktreeCache.snapshot()) : null;
   // Ultimo giro e Da committare si guardano solo a pannello aperto: il primo
   // costa una fotografia di adesso, e la linguetta parla sempre dall'ultimo commit

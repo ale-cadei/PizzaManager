@@ -88,6 +88,17 @@ test('helper: list, create, mkdir, rename, read, write con conflitto', async (t)
   assert.strictEqual(st.mtimes['../fuori'], null);
 });
 
+test('helper: mtime uguale a mtimeMs di Node, al bit', async (t) => {
+  const s = setup(t);
+  if (!s) return;
+  // ns / 1e6 sbaglia l'ultimo bit circa un file su tre: con 200 file lo si vede sempre
+  const rels = Array.from({ length: 200 }, (_, i) => `f${i}.txt`);
+  for (const rel of rels) fs.writeFileSync(path.join(s.root, rel), 'x');
+  const { mtimes } = await s.req('stat_many', { rels });
+  const wrong = rels.filter((rel) => mtimes[rel] !== fs.statSync(path.join(s.root, rel)).mtimeMs);
+  assert.deepStrictEqual(wrong, []);
+});
+
 test('helper: scrittura mantiene il mode e rifiuta i file in sola lettura', async (t) => {
   const s = setup(t);
   if (!s) return;

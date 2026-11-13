@@ -109,7 +109,7 @@
 
   function createTreeView({
     root, document: doc, onOpenFile, onToggleDir, onContextMenu,
-    onCopyInto = () => {}, onDeselect = () => {}, onRename = () => {}, onTrash = () => {}, onTypeToFilter = () => {}, iconUrl = null,
+    onCopyInto = () => {}, onClipboard = () => {}, onDeselect = () => {}, onRename = () => {}, onTrash = () => {}, onTypeToFilter = () => {}, iconUrl = null,
   }) {
     const list = doc.createElement('div');
     list.className = 'editor-tree';
@@ -160,12 +160,22 @@
     list.addEventListener('click', (e) => { if (e.target === list) onDeselect(); });
     const selectedRow = () => shown.rows.find((r) => r.rel === shown.selected) || null;
     list.addEventListener('keydown', (e) => {
-      const paste = (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 'v' || e.key === 'V');
-      if (paste) {
+      const chord = (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key ? e.key.toLowerCase() : '';
+      if (chord === 'v') {
         e.preventDefault();
         e.stopPropagation(); // non è l'incolla del terminale
         const row = selectedRow();
         onCopyInto(row ? dirOf(row) : '', { kind: 'paste' });
+        return;
+      }
+      // Ctrl+C / Ctrl+X: la riga selezionata negli appunti (docs/plans/95)
+      const clip = chord === 'c' ? 'copy' : chord === 'x' ? 'cut' : null;
+      if (clip) {
+        const row = selectedRow();
+        if (!row) return;
+        e.preventDefault();
+        e.stopPropagation();
+        onClipboard(row, clip);
         return;
       }
       // Una lettera scritta con l'albero a fuoco apre il filtro (docs/plans/75)

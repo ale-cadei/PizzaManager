@@ -114,6 +114,7 @@ function buildEditorLayout(tab) {
     onToggleDir: (rel) => (tab.editor.filter.active ? openEditorDirFromFilter(tab, rel) : toggleEditorDir(tab, rel)),
     onContextMenu: (row, e) => editorTreeMenu(tab, row, e),
     onCopyInto: (dir, source) => copyIntoEditor(tab, dir, source),
+    onClipboard: (row, mode) => putEditorClipboard(tab, row, mode),
     onDeselect: () => clearEditorSelection(tab),
     onRename: (row) => renameEditorEntry(tab, row),
     onTrash: (row) => trashEditorEntry(tab, row),
@@ -267,6 +268,8 @@ function editorTreeMenu(tab, row, e) {
   ];
   const rowItems = row ? [
     { sep: true },
+    { label: 'Copia', icon: 'files', key: 'Ctrl C', run: () => putEditorClipboard(tab, row, 'copy') },
+    { label: 'Taglia', icon: 'move', key: 'Ctrl X', run: () => putEditorClipboard(tab, row, 'cut') },
     { label: 'Rinomina', icon: 'edit', key: 'F2', run: () => renameEditorEntry(tab, row) },
     { label: 'Copia percorso', icon: 'copy', run: () => copyEditorPath(tab, row.rel) },
     { sep: true },

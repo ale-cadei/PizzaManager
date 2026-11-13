@@ -43,10 +43,11 @@ ok('eventi del watch: una scheda remota prende solo quelli del suo server', () =
 ok('scheda remota: niente copie dal disco locale né branch da git-branches', async () => {
   const { tab, fn, calls } = remoteSetup();
   await fn('copyIntoEditor')(tab, '', { kind: 'paste' });
+  await fn('putEditorClipboard')(tab, { rel: 'a.js', name: 'a.js', kind: 'file' }, 'cut');
   await fn('loadEditorBranch')(tab);
   await settle();
   const names = calls.map((c) => c[0]);
-  assert.ok(!names.some((n) => /^editorCopy|^gitBranches$|^clipboardFiles|^pickFiles/.test(n)), names.join(','));
+  assert.ok(!names.some((n) => /^editorCopy|^editorClipboard|^gitBranches$|^clipboardFiles|^pickFiles/.test(n)), names.join(','));
 });
 
 ok('modal: su SSH Editor sì e Git no, su WSL nessuno dei due, in locale tutti', () => {

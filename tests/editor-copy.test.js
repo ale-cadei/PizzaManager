@@ -239,3 +239,91 @@ ok('runCopy: rifà i controlli del piano', async (t) => {
   assert.deepStrictEqual(await copy.runCopy({ sources: [], destRel: '' }, {}), { ok: false, error: 'Niente da copiare.' });
   assert.deepStrictEqual(await copy.runCopy(undefined, undefined), { ok: false, error: 'La destinazione non è una cartella.' });
 });
+
+/* Taglia e incolla (docs/plans/95): `move` sposta invece di copiare e dice
+   cosa è andato dove, relativo alla radice, per i file aperti nella scheda. */
+const moveOpts = { move: true };
+
+ok('move: sposta file e cartelle con rename, gli originali spariscono, moved dice da dove a dove', async (t) => {
+  const { root, out, copy, write } = setup(t);
+  write(path.join(root, 'src', 'a.txt'), 'a');
+  write(path.join(root, 'src', 'd', 'x.txt'), 'x');
+  fs.mkdirSync(path.join(root, 'dest'));
+  const fuori = write(path.join(out, 'f.txt'), 'f');
+  const sources = [path.join(root, 'src', 'a.txt'), path.join(root, 'src', 'd'), fuori];
+  const plan = await copy.planCopy(sources, 'dest', moveOpts);
+  assert.strictEqual(plan.ok, true, plan.error);
+  assert.deepStrictEqual(plan.conflicts, []);
+  const r = await copy.runCopy({ sources, destRel: 'dest', move: true }, {});
+  assert.deepStrictEqual(r, {
+    ok: true, copied: 3, skipped: 0, failed: [],
+    moved: [
+      { fromRel: 'src/a.txt', toRel: 'dest/a.txt' },
+      { fromRel: 'src/d', toRel: 'dest/d' },
+      { fromRel: null, toRel: 'dest/f.txt' }, // da fuori dalla sessione
+    ],
+  });
+  assert.deepStrictEqual(fs.readdirSync(path.join(root, 'src')), []);
+  assert.strictEqual(fs.readFileSync(path.join(root, 'dest', 'd', 'x.txt'), 'utf8'), 'x');
+  assert.ok(!fs.existsSync(fuori));
+});
+
+ok('move: nella cartella da cui viene non fa niente; il piano lo segna «same»', async (t) => {
+  const { root, copy, write, trashed } = setup(t);
+  const a = write(path.join(root, 'a.txt'), 'mio');
+  const plan = await copy.planCopy([a], '', moveOpts);
+  assert.deepStrictEqual(plan.conflicts, [{ name: 'a.txt', kind: 'file', existingKind: 'file', same: true }]);
+  const r = await copy.runCopy({ sources: [a], destRel: '', move: true }, { 'a.txt': 'replace' });
+  assert.deepStrictEqual(r, { ok: true, copied: 0, skipped: 1, failed: [], moved: [] });
+  assert.deepStrictEqual(trashed, []);
+  assert.deepStrictEqual(fs.readdirSync(root), ['a.txt']);
+});
+
+ok('copia nella stessa cartella: «same» nel piano, la copia prende «nome (2)»', async (t) => {
+  const { root, copy, write } = setup(t);
+  const a = write(path.join(root, 'a.txt'), 'mio');
+  assert.deepStrictEqual((await copy.planCopy([a], '')).conflicts, [{ name: 'a.txt', kind: 'file', existingKind: 'file', same: true }]);
+  assert.deepStrictEqual(await copy.runCopy({ sources: [a], destRel: '' }, {}), { ok: true, copied: 1, skipped: 0, failed: [] });
+  assert.strictEqual(fs.readFileSync(path.join(root, 'a (2).txt'), 'utf8'), 'mio');
+});
+
+ok('move con conflitti: sostituisci cestina il vecchio, tieni entrambi rinomina, salta lascia il sorgente', async (t) => {
+  const { root, copy, write, trashed } = setup(t);
+  for (const n of ['a', 'b', 'c']) {
+    write(path.join(root, 'dest', `${n}.txt`), `vecchio ${n}`);
+    write(path.join(root, 'src', `${n}.txt`), `nuovo ${n}`);
+  }
+  const sources = ['a', 'b', 'c'].map((n) => path.join(root, 'src', `${n}.txt`));
+  const r = await copy.runCopy({ sources, destRel: 'dest', move: true }, { 'a.txt': 'replace', 'b.txt': 'keep-both', 'c.txt': 'skip' });
+  assert.strictEqual(r.copied, 2);
+  assert.strictEqual(r.skipped, 1);
+  assert.deepStrictEqual(r.moved.map((m) => m.toRel), ['dest/a.txt', 'dest/b (2).txt']);
+  assert.deepStrictEqual(trashed, [path.join(root, 'dest', 'a.txt')]);
+  assert.strictEqual(fs.readFileSync(path.join(root, 'dest', 'a.txt'), 'utf8'), 'nuovo a');
+  assert.strictEqual(fs.readFileSync(path.join(root, 'dest', 'b (2).txt'), 'utf8'), 'nuovo b');
+  assert.deepStrictEqual(fs.readdirSync(path.join(root, 'src')), ['c.txt']);
+});
+
+ok('move: una cartella non si sposta dentro se stessa; i limiti della copia non contano', async (t) => {
+  const { root, copy, write } = setup(t, { maxFiles: 2 });
+  for (const n of ['1', '2', '3']) write(path.join(root, 'd', 'sub', n));
+  const d = path.join(root, 'd');
+  assert.deepStrictEqual(await copy.planCopy([d], 'd/sub', moveOpts), { ok: false, error: '«d» non si sposta dentro se stessa.' });
+  fs.mkdirSync(path.join(root, 'dest'));
+  const r = await copy.runCopy({ sources: [d], destRel: 'dest', move: true }, {});
+  assert.strictEqual(r.copied, 1, JSON.stringify(r));
+  assert.deepStrictEqual(fs.readdirSync(path.join(root, 'dest', 'd', 'sub')).sort(), ['1', '2', '3']);
+});
+
+ok('move fra dischi diversi (EXDEV): copia e poi cancella l originale', async (t) => {
+  const { root, out, copy, write } = setup(t);
+  const a = write(path.join(out, 'd', 'a.txt'), 'a');
+  const rename = fs.promises.rename;
+  fs.promises.rename = async () => { const e = new Error('cross-device'); e.code = 'EXDEV'; throw e; };
+  t.after(() => { fs.promises.rename = rename; });
+  const r = await copy.runCopy({ sources: [path.dirname(a)], destRel: '', move: true }, {});
+  fs.promises.rename = rename;
+  assert.deepStrictEqual(r.failed, []);
+  assert.strictEqual(fs.readFileSync(path.join(root, 'd', 'a.txt'), 'utf8'), 'a');
+  assert.ok(!fs.existsSync(path.join(out, 'd')));
+});

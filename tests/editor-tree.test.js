@@ -278,6 +278,26 @@ ok('vista: Ctrl+V con l albero a fuoco incolla nella cartella della selezione', 
   } finally { restore(); }
 });
 
+ok('vista: Ctrl+C / Ctrl+X mettono negli appunti la riga selezionata (docs/plans/95)', () => {
+  const restore = installDocument();
+  try {
+    const root = createElement('div');
+    const put = [];
+    const view = T.createTreeView({ root, document, onOpenFile() {}, onToggleDir() {}, onContextMenu() {},
+      onClipboard: (row, mode) => put.push([row.rel, mode]) });
+    view.render(T.visibleRows(T.toggle(sample(), 'src')), 'src/x.js');
+    const e = fire(view.element, 'keydown', { key: 'c', ctrlKey: true });
+    assert.strictEqual(e.defaultPrevented, true);
+    fire(view.element, 'keydown', { key: 'X', metaKey: true });
+    fire(view.element, 'keydown', { key: 'c', ctrlKey: true, shiftKey: true }); // Ctrl+Maiusc+C: non è nostro
+    assert.deepStrictEqual(put, [['src/x.js', 'copy'], ['src/x.js', 'cut']]);
+    view.render(T.visibleRows(T.toggle(sample(), 'src')), null);
+    const none = fire(view.element, 'keydown', { key: 'c', ctrlKey: true });
+    assert.strictEqual(none.defaultPrevented, false, 'senza selezione il tasto resta a chi lo vuole');
+    assert.strictEqual(put.length, 2);
+  } finally { restore(); }
+});
+
 ok('vista: click nel vuoto toglie la selezione, cosi Ctrl+V torna a incollare nella radice', () => {
   const restore = installDocument();
   try {

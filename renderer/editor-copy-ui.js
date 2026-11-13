@@ -1,7 +1,8 @@
 /* Copiare file da fuori nell'albero della scheda editor (docs/plans/61).
    Piano e copia li fa il main (lib/editor-copy.js); qui da dove vengono i
    percorsi (drop, finestra di scelta, appunti), le domande sui conflitti
-   e l'esito nella barra dei messaggi. Script dell'app, caricato dopo
+   e l'esito nella barra dei messaggi. Ctrl+C / Ctrl+X e l'incolla di un
+   taglia, che sposta, sono del piano 95. Script dell'app, caricato dopo
    editor-tab.js: ne usa le funzioni (callEditor, showEditorMessage,
    editorConfirm, loadEditorDir…) dallo scope globale. */
 
@@ -21,15 +22,34 @@ function copyConflictChoices(remaining) {
   return [...COPY_CHOICES, ...COPY_CHOICES.map((c) => ({ ...c, value: `${c.value}-all`, label: COPY_ALL_LABELS[c.value] }))];
 }
 
-/** «Copiati 2 elementi, 1 saltato, 1 non copiato: x.txt (Non esiste più).» */
-function copyOutcomeText({ copied = 0, skipped = 0, failed = [] }) {
-  const parts = [`Copiat${copyEnding(copied)} ${copyCount(copied, 'elemento', 'elementi')}`];
+/** «Copiati 2 elementi, 1 saltato, 1 non copiato: x.txt (Non esiste più).»; con `move` «Spostati». */
+function copyOutcomeText({ copied = 0, skipped = 0, failed = [] }, move = false) {
+  const verb = move ? 'spostat' : 'copiat';
+  const parts = [`${verb[0].toUpperCase()}${verb.slice(1)}${copyEnding(copied)} ${copyCount(copied, 'elemento', 'elementi')}`];
   if (skipped) parts.push(`${skipped} saltat${copyEnding(skipped)}`);
   if (failed.length) {
     const names = failed.map((f) => `${f.name} (${String(f.error).replace(/\.$/, '')})`).join(', ');
-    parts.push(`${failed.length} non copiat${copyEnding(failed.length)}: ${names}`);
+    parts.push(`${failed.length} non ${verb}${copyEnding(failed.length)}: ${names}`);
   }
   return `${parts.join(', ')}.`;
+}
+
+/** Ctrl+C / Ctrl+X su una riga: negli appunti del sistema, li scrive il main. */
+async function putEditorClipboard(tab, row, mode) {
+  if (isRemoteEditor(tab)) { showEditorNotice(tab, EDITOR_LOCAL_ONLY); return; }
+  const cut = mode === 'cut';
+  const r = await callEditor(() => window.aisess.editorClipboardPut(tab.cwd, row.rel, mode));
+  if (!tabs.has(tab.id)) return;
+  if (!r.ok) { showEditorMessage(tab, `Non si ${cut ? 'taglia' : 'copia'} ${row.rel}: ${r.error}`); return; }
+  showEditorNotice(tab, `${cut ? 'Tagliato' : 'Copiato'} «${row.name}»: Ctrl+V in un'altra cartella per ${cut ? 'spostarlo' : 'incollarlo'}.`);
+}
+
+/** Dopo uno spostamento: i file aperti seguono, le cartelle da cui sono usciti si rileggono. */
+async function followEditorMoves(tab, moved) {
+  const from = moved.filter((m) => m.fromRel && m.toRel);
+  for (const m of from) await followEditorMove(tab, m.fromRel, m.toRel);
+  for (const dir of new Set(from.map((m) => EditorFiles.parentRel(m.fromRel)))) await loadEditorDir(tab, dir);
+  if (from.length) { renderEditorOpen(tab); saveEditorSessions(); }
 }
 
 /** @returns {Promise<Object<string, string>|null>} nome → decisione; null se annullato */
@@ -99,19 +119,25 @@ async function copyIntoEditor(tab, dir, source) {
       if (COPY_EMPTY[source.kind]) showEditorNotice(tab, COPY_EMPTY[source.kind]);
       return; // finestra di scelta annullata: niente da dire
     }
-    const plan = await callEditor(() => window.aisess.editorCopyPlan(tab.cwd, dir, got.paths));
+    // Un taglia (docs/plans/95) sposta; `move` va al main solo allora
+    const move = source.kind === 'paste' && got.cut === true;
+    const extra = move ? [true] : [];
+    const fail = move ? 'Non si sposta' : 'Non si copia';
+    const plan = await callEditor(() => window.aisess.editorCopyPlan(tab.cwd, dir, got.paths, ...extra));
     if (!tabs.has(tab.id)) return;
-    if (!plan.ok) { showEditorMessage(tab, `Non si copia: ${plan.error}`); return; }
-    const decisions = await askCopyConflicts(tab, plan.conflicts);
+    if (!plan.ok) { showEditorMessage(tab, `${fail}: ${plan.error}`); return; }
+    // Incollare dove già sta: la copia prende «nome (2)», lo spostamento non fa niente; non si chiede
+    const decisions = await askCopyConflicts(tab, plan.conflicts.filter((c) => !c.same));
     if (!decisions || !tabs.has(tab.id)) return;
     // Come l'esito: gli elementi in cima che si copiano, non plan.count (ricorsivo, per i limiti)
     const toCopy = plan.items.filter((i) => decisions[i.name] !== 'skip').length;
-    showEditorNotice(tab, `Copio ${copyCount(toCopy, 'elemento', 'elementi')}…`);
-    const r = await callEditor(() => window.aisess.editorCopyRun(tab.cwd, dir, got.paths, decisions));
+    showEditorNotice(tab, `${move ? 'Sposto' : 'Copio'} ${copyCount(toCopy, 'elemento', 'elementi')}…`);
+    const r = await callEditor(() => window.aisess.editorCopyRun(tab.cwd, dir, got.paths, decisions, ...extra));
     if (!tabs.has(tab.id)) return;
-    if (!r.ok) showEditorMessage(tab, `Non si copia: ${r.error}`);
-    else if (r.failed.length) showEditorMessage(tab, copyOutcomeText(r));
-    else showEditorNotice(tab, copyOutcomeText(r));
+    if (!r.ok) showEditorMessage(tab, `${fail}: ${r.error}`);
+    else if (r.failed.length) showEditorMessage(tab, copyOutcomeText(r, move));
+    else showEditorNotice(tab, copyOutcomeText(r, move));
+    if (r.ok && r.moved) await followEditorMoves(tab, r.moved);
     await revealEditorDir(tab, dir);
   } finally {
     ed.copying = false;

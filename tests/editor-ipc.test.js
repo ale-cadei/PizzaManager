@@ -157,8 +157,79 @@ ok('ipc editor: «Incolla» legge i file dagli appunti nel main', async (t) => {
     return format === 'x-special/gnome-copied-files' ? Buffer.from('copy\nfile:///tmp/a%20b.txt') : Buffer.alloc(0);
   };
   const { call } = setup(t, { platform: 'linux', electron: { clipboard: { readBuffer } } });
-  assert.deepStrictEqual(await call('editor-clipboard-files'), { ok: true, paths: ['/tmp/a b.txt'] });
+  assert.deepStrictEqual(await call('editor-clipboard-files'), { ok: true, paths: ['/tmp/a b.txt'], cut: false });
   assert.deepStrictEqual(asked, ['x-special/gnome-copied-files']);
+});
+
+/* Appunti finti con lo stato: quello che scrive writeBuffer lo rilegge readBuffer. */
+function fakeClipboard() {
+  const board = { data: new Map(), cleared: 0 };
+  return Object.assign(board, {
+    writeBuffer: (format, buf) => { board.data = new Map([[format, Buffer.from(buf)]]); },
+    readBuffer: (format) => board.data.get(format) || Buffer.alloc(0),
+    clear: () => { board.data = new Map(); board.cleared += 1; },
+  });
+}
+
+ok('ipc editor: Ctrl+C / Ctrl+X scrivono gli appunti come Nautilus, Incolla rilegge il taglia', async (t) => {
+  if (process.platform === 'win32') return t.skip('formato GNOME: su Windows gli appunti sono FileNameW');
+  const clipboard = fakeClipboard();
+  const { call, root } = setup(t, { platform: 'linux', electron: { clipboard } });
+  fs.mkdirSync(path.join(root, 'src'));
+  fs.writeFileSync(path.join(root, 'src', 'a b.txt'), 'a');
+  assert.deepStrictEqual(await call('editor-clipboard-put', { root, rel: 'src/a b.txt', mode: 'cut' }), { ok: true });
+  const abs = path.join(root, 'src', 'a b.txt');
+  assert.strictEqual(clipboard.readBuffer('x-special/gnome-copied-files').toString('utf8'), `cut\n${require('url').pathToFileURL(abs).href}`);
+  assert.deepStrictEqual(await call('editor-clipboard-files'), { ok: true, paths: [abs], cut: true });
+  await call('editor-clipboard-put', { root, rel: 'src/a b.txt', mode: 'copy' });
+  assert.deepStrictEqual(await call('editor-clipboard-files'), { ok: true, paths: [abs], cut: false });
+});
+
+ok('ipc editor: Ctrl+C rifiuta la radice, percorsi fuori, file che non ci sono e modi sconosciuti', async (t) => {
+  const clipboard = fakeClipboard();
+  const { call, root } = setup(t, { platform: process.platform, electron: { clipboard } });
+  fs.writeFileSync(path.join(root, 'a.txt'), 'a');
+  for (const payload of [{ rel: '' }, { rel: '../x' }, { rel: 'manca.txt' }, { rel: 'a.txt', mode: 'move' }]) {
+    const r = await call('editor-clipboard-put', { root, mode: 'copy', ...payload });
+    assert.strictEqual(r.ok, false, JSON.stringify(payload));
+  }
+  assert.strictEqual(clipboard.data.size, 0, 'appunti non toccati');
+});
+
+ok('ipc editor: senza «cut» negli appunti vale l ultimo Ctrl+X dell app, se sono gli stessi file', async (t) => {
+  const clipboard = fakeClipboard();
+  const { call, root } = setup(t, { platform: process.platform, electron: { clipboard } });
+  for (const n of ['a.txt', 'b.txt']) fs.writeFileSync(path.join(root, n), n);
+  const [a, b] = ['a.txt', 'b.txt'].map((n) => path.join(root, n));
+  // Gli appunti come li lascia un altro programma: uri-list, o FileNameW su Windows (nessuno dei due dice «cut»)
+  const foreign = (abs) => (process.platform === 'win32'
+    ? clipboard.writeBuffer('FileNameW', Buffer.from(`${abs}\0`, 'utf16le'))
+    : clipboard.writeBuffer('text/uri-list', Buffer.from(require('url').pathToFileURL(abs).href)));
+  await call('editor-clipboard-put', { root, rel: 'a.txt', mode: 'cut' });
+  foreign(a);
+  assert.deepStrictEqual(await call('editor-clipboard-files'), { ok: true, paths: [a], cut: true });
+  foreign(b);
+  assert.deepStrictEqual(await call('editor-clipboard-files'), { ok: true, paths: [b], cut: false });
+});
+
+ok('ipc editor: incollare un taglia sposta, dice cosa e svuota gli appunti', async (t) => {
+  const clipboard = fakeClipboard();
+  const { call, root } = setup(t, { platform: process.platform, electron: { clipboard } });
+  fs.mkdirSync(path.join(root, 'src'));
+  fs.mkdirSync(path.join(root, 'dest'));
+  const a = path.join(root, 'src', 'a.txt');
+  fs.writeFileSync(a, 'a');
+  await call('editor-clipboard-put', { root, rel: path.join('src', 'a.txt'), mode: 'cut' });
+  const plan = await call('editor-copy-plan', { root, rel: 'dest', sources: [a], move: true });
+  assert.strictEqual(plan.ok, true, plan.error);
+  const r = await call('editor-copy-run', { root, rel: 'dest', sources: [a], decisions: {}, move: true });
+  assert.deepStrictEqual(r.moved, [{ fromRel: 'src/a.txt', toRel: 'dest/a.txt' }]);
+  assert.ok(!fs.existsSync(a));
+  assert.strictEqual(clipboard.cleared, 1);
+  // Una copia non svuota niente
+  await call('editor-clipboard-put', { root, rel: path.join('dest', 'a.txt'), mode: 'copy' });
+  await call('editor-copy-run', { root, rel: 'src', sources: [path.join(root, 'dest', 'a.txt')], decisions: {} });
+  assert.strictEqual(clipboard.cleared, 1);
 });
 
 ok('ipc editor: il testo di HEAD rifiuta percorsi fuori dalla cartella', async (t) => {
@@ -239,8 +310,8 @@ ok('ipc editor: cartella su un server, stesse risposte, niente reveal né copia 
   assert.deepStrictEqual([w.ok, w.path, w.armed], [true, `ssh:nas:${path.join(s.root, 'a.txt')}`, true]);
   assert.deepStrictEqual(await s.call('editor-unwatch', { root, rel: 'a.txt' }), { ok: true });
 
-  for (const channel of ['editor-reveal', 'editor-copy-plan', 'editor-copy-run']) {
-    const refused = await s.call(channel, { root, rel: '', sources: ['/etc/hosts'] });
+  for (const channel of ['editor-reveal', 'editor-copy-plan', 'editor-copy-run', 'editor-clipboard-put']) {
+    const refused = await s.call(channel, { root, rel: 'a.txt', sources: ['/etc/hosts'], mode: 'copy' });
     assert.deepStrictEqual(refused, { ok: false, error: 'Non disponibile per una cartella su un server.' }, channel);
   }
   assert.deepStrictEqual(await s.call('editor-trash', { root, rel: 'a.txt' }).then((x) => x.ok), true);

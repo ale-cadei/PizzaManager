@@ -114,6 +114,7 @@ function buildEditorLayout(tab) {
     onToggleDir: (rel) => (tab.editor.filter.active ? openEditorDirFromFilter(tab, rel) : toggleEditorDir(tab, rel)),
     onContextMenu: (row, e) => editorTreeMenu(tab, row, e),
     onCopyInto: (dir, source) => copyIntoEditor(tab, dir, source),
+    onClipboard: (row, mode) => putEditorClipboard(tab, row, mode),
     onDeselect: () => clearEditorSelection(tab),
     onRename: (row) => renameEditorEntry(tab, row),
     onTrash: (row) => trashEditorEntry(tab, row),
@@ -270,6 +271,11 @@ function editorTreeMenu(tab, row, e) {
   ];
   const rowItems = row ? [
     { sep: true },
+    // Appunti del sistema: solo per una cartella di questo computer
+    ...(isRemoteEditor(tab) ? [] : [
+      { label: 'Copia', icon: 'files', key: 'Ctrl C', run: () => putEditorClipboard(tab, row, 'copy') },
+      { label: 'Taglia', icon: 'move', key: 'Ctrl X', run: () => putEditorClipboard(tab, row, 'cut') },
+    ]),
     { label: 'Rinomina', icon: 'edit', key: 'F2', run: () => renameEditorEntry(tab, row) },
     { label: 'Copia percorso', icon: 'copy', run: () => copyEditorPath(tab, row.rel) },
     { sep: true },
@@ -315,6 +321,25 @@ async function newEditorEntry(tab, dir, kind) {
   if (kind === 'file') await openEditorFile(tab, rel);
 }
 
+/* `from` ora sta in `to` (rinominato o spostato): i file aperti lì sotto
+   seguono (stato, model di Monaco, note, watch), e anche l'albero. */
+async function followEditorMove(tab, from, to) {
+  const ed = tab.editor;
+  const moved = EditorFiles.affectedBy(ed.files, from);
+  for (const rel of moved) unwatchEditorFile(tab, rel);
+  ed.files = EditorFiles.renamePath(ed.files, from, to);
+  for (const rel of moved) {
+    const dest = EditorFiles.movedPath(rel, from, to);
+    if (ed.host) ed.host.rename(rel, dest);
+    renameEditorNotes(tab, rel, dest);
+    ed.gutterSeq.delete(rel);
+    ed.files = EditorFiles.update(ed.files, dest, { gutterBase: null, changes: null });
+    loadEditorGutterBase(tab, dest);
+    await watchEditorFile(tab, dest);
+  }
+  ed.tree = EditorTree.renamePath(ed.tree, from, to);
+}
+
 async function renameEditorEntry(tab, row) {
   const ed = tab.editor;
   const name = await EditorTree.promptName({
@@ -323,20 +348,7 @@ async function renameEditorEntry(tab, row) {
   if (!name || name === row.name) return;
   const r = await callEditor(() => window.aisess.editorRename(editorRoot(tab), row.rel, name));
   if (!r.ok) { showEditorMessage(tab, `Non si rinomina ${row.rel}: ${r.error}`); return; }
-  // I file aperti lì sotto seguono: stato, model di Monaco, watch
-  const moved = EditorFiles.affectedBy(ed.files, row.rel);
-  for (const rel of moved) unwatchEditorFile(tab, rel);
-  ed.files = EditorFiles.renamePath(ed.files, row.rel, r.rel);
-  for (const rel of moved) {
-    const to = EditorFiles.movedPath(rel, row.rel, r.rel);
-    if (ed.host) ed.host.rename(rel, to);
-    renameEditorNotes(tab, rel, to);
-    ed.gutterSeq.delete(rel);
-    ed.files = EditorFiles.update(ed.files, to, { gutterBase: null, changes: null });
-    loadEditorGutterBase(tab, to);
-    await watchEditorFile(tab, to);
-  }
-  ed.tree = EditorTree.renamePath(ed.tree, row.rel, r.rel);
+  await followEditorMove(tab, row.rel, r.rel);
   await loadEditorDir(tab, EditorFiles.parentRel(row.rel));
   renderEditorOpen(tab);
   saveEditorSessions();

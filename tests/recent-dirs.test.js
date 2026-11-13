@@ -46,3 +46,21 @@ ok('recenti: exists che lancia non fa cadere il calcolo', () => {
   });
   assert.deepStrictEqual(r.map(d => d.path), ['/ok']);
 });
+
+ok('recenti: solo l\'ambiente chiesto; senza env la voce è locale', () => {
+  const history = [
+    { cwd: '/locale' },
+    { cwd: '~/app', env: 'ssh:nas' },
+    { cwd: '/srv/x', env: 'ssh:nas' },
+    { cwd: '/altro', env: 'ssh:web' },
+    { cwd: '/esplicito', env: 'local' },
+  ];
+  assert.deepStrictEqual(computeRecentDirs(history, { exists: () => true }).map(d => d.path), ['/locale', '/esplicito']);
+  assert.deepStrictEqual(computeRecentDirs(history, { env: 'ssh:nas' }).map(d => d.path), ['~/app', '/srv/x']);
+});
+
+ok('recenti remote: ~ ammesso, exists ignorato, relativi scartati', () => {
+  const history = [{ cwd: '~/a/', env: 'wsl:Debian' }, { cwd: 'rel', env: 'wsl:Debian' }, { cwd: '', env: 'wsl:Debian' }];
+  const r = computeRecentDirs(history, { env: 'wsl:Debian', exists: () => false });
+  assert.deepStrictEqual(r.map(d => d.path), ['~/a']);
+});

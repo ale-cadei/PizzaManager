@@ -60,3 +60,25 @@ test('remote-hosts: cache di 30 s, fresh la salta', async () => {
   assert.deepStrictEqual((await hosts.list()).ssh, ['a']);
   assert.deepStrictEqual((await hosts.list({ fresh: true })).ssh, ['b']);
 });
+
+test('list-remote-envs: passa fresh solo se true; un errore dà liste vuote', async () => {
+  const { registerRemoteEnvHandlers } = require('../app/remote-envs');
+  const handlers = {};
+  const ipcMain = { handle: (ch, fn) => { handlers[ch] = fn; } };
+  const calls = [];
+  registerRemoteEnvHandlers(ipcMain, { hosts: { list: async (o) => { calls.push(o); return { ssh: ['nas'], wsl: [] }; } } });
+  assert.deepStrictEqual(await handlers['list-remote-envs']({}, { fresh: 'si' }), { ssh: ['nas'], wsl: [] });
+  await handlers['list-remote-envs']({}, { fresh: true });
+  await handlers['list-remote-envs']({});
+  assert.deepStrictEqual(calls, [{ fresh: false }, { fresh: true }, { fresh: false }]);
+
+  const failing = {};
+  const orig = console.error;
+  console.error = () => {};
+  try {
+    registerRemoteEnvHandlers({ handle: (ch, fn) => { failing[ch] = fn; } }, { hosts: { list: async () => { throw new Error('x'); } } });
+    assert.deepStrictEqual(await failing['list-remote-envs']({}), { ssh: [], wsl: [] });
+  } finally {
+    console.error = orig;
+  }
+});

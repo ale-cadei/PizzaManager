@@ -435,7 +435,9 @@ ok('main.js e solo cablaggio: nessuna funzione di logica definita al suo interno
   // commento e chiamata; nome e validazione stanno in lib/dev-profile.js.
   // 240: altre 2 per i kernel dei notebook (piano 79): un require e la
   // registrazione; ponte, processi e spegnimento stanno in app/notebook-kernel.js.
-  assert.ok(main.split('\n').length < 240, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
+  // 242: altre 2 per le sessioni remote (piano 93): un require e la
+  // registrazione; host e distro stanno in lib/remote-hosts.js e app/remote-envs.js.
+  assert.ok(main.split('\n').length < 242, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
 });
 
 /* I file che un PROGRAMMA ESTERNO deve aprire non bastano dentro app.asar:

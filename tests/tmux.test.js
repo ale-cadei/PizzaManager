@@ -89,6 +89,15 @@ ok('metaArgs: icona e modalità della shell si salvano in tmux', () => {
   assert.deepStrictEqual(t.parseSessionList(line).map((s) => [s.iconKey, s.iconMode]), [['docker', 'manual']]);
 });
 
+ok('ambiente remoto: si salva in tmux e torna dalla lista; senza = locale', () => {
+  const list = t.metaArgs({ confPath: conf, name: 'ais-shell-1', meta: { env: 'ssh:nas' } });
+  assert.ok(list.some((a) => a.includes('@ais_env') && a.includes('ssh:nas')));
+  const S = t.FIELD_SEP;
+  const row = (env) => ['ais-shell-1', '1000', '0', ...t.META_KEYS.map((k) => ({ type: 'shell', env })[k] || '')].join(S);
+  assert.strictEqual(t.parseSessionList(row('ssh:nas'))[0].env, 'ssh:nas');
+  assert.strictEqual(t.parseSessionList(row(''))[0].env, 'local', 'sessioni di prima del piano 93');
+});
+
 ok('parseSessionList: legge il formato, ignora sessioni altrui e righe rotte, ordina per recenza', () => {
   const S = t.FIELD_SEP;
   const riga = (name, created, attached, meta) => [name, created, attached, ...t.META_KEYS.map((k) => meta[k] || '')].join(S);
@@ -103,7 +112,7 @@ ok('parseSessionList: legge il formato, ignora sessioni altrui e righe rotte, or
   assert.deepStrictEqual(out[0], {
     name: 'ais-claude-b', createdAt: 2000000, attached: true, type: 'claude', cwd: '/b con spazi', label: 'Titolo: due punti',
     profileId: 'claude:default', profileLabel: null, resumeId: 'uuid-1', accountId: null, accountName: null,
-    iconKey: null, iconMode: null, turnTree: null, turnAt: null, psmuxVersion: null,
+    iconKey: null, iconMode: null, turnTree: null, turnAt: null, psmuxVersion: null, env: 'local',
   });
   assert.deepStrictEqual(t.parseSessionList(''), []);
   assert.deepStrictEqual(t.parseSessionList(null), []);

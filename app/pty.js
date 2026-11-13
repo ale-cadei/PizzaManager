@@ -1,7 +1,8 @@
 'use strict';
 const os = require('os');
-const { buildCommand, installHint } = require('../lib/commands');
-const { augmentedEnv, pathOf } = require('../lib/binaries');
+const { buildCommand, composeCommand, installHint } = require('../lib/commands');
+const { parseEnvKey, isRemote, envKey, validateRemoteDir, remoteSecretProblem, wrapRemote } = require('../lib/remote-env');
+const { augmentedEnv, pathOf, resolveBinary } = require('../lib/binaries');
 const { describeWorkdir } = require('../lib/workdir');
 const tmuxLib = require('../lib/tmux');
 const { shouldCapture } = require('../lib/scrollback');
@@ -23,6 +24,13 @@ const DEFAULT_ROWS = 24;
    shell ferme non fanno nulla. Al massimo si perde mezzo minuto di output in
    uno spegnimento brusco (docs/plans/26-scrollback-shell.md). */
 const CAPTURE_EVERY_MS = 30000;
+/* Su un server si aprono solo terminali: Git ed Editor leggono i file con
+   `fs` locale (docs/plans/93-sessioni-remote.md). */
+const REMOTE_TYPES = new Set(['shell', 'claude', 'codex', 'opencode', 'antigravity']);
+const REMOTE_CLIENT_HINT = {
+  ssh: 'Installa il client OpenSSH (ssh) e verifica che sia nel PATH.',
+  wsl: 'WSL non è installato: da PowerShell come amministratore, wsl --install.',
+};
 
 /**
  * Ciclo di vita dei processi in pty.
@@ -40,7 +48,7 @@ const CAPTURE_EVERY_MS = 30000;
    a scegliere LANG per i processi quando l'app, avviata dal Finder, non ce
    l'ha (lib/locale.js). `signalStore` (lib/agent-signals.js) accende il
    segnale esatto degli agenti (docs/plans/46); senza, resta l'euristica. */
-function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = null, liveStore = null, systemLocale = null, scrollbackStore = null, signalStore = null }) {
+function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = null, liveStore = null, systemLocale = null, scrollbackStore = null, signalStore = null, resolveClient = resolveBinary }) {
   const localeOpts = () => {
     const v = typeof systemLocale === 'function' ? systemLocale() : systemLocale;
     return v ? { systemLocale: v } : {};
@@ -193,8 +201,85 @@ function createPtyManager({ accounts, history, profiles, sendToRenderer, tmux = 
     });
   }
 
-  async function spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId, label, sessionName = null, cols, rows, previousSession = null }) {
+  async function spawn({ id, type, cwd, resumeId, claudeAccountId, commandProfileId, label, sessionName = null, cols, rows, previousSession = null, env: place = 'local' }) {
     if (!pty) return { ok: false, error: 'node-pty non installato. Esegui: npm install' };
+    const where = parseEnvKey(place);
+    if (!where) return { ok: false, error: `Ambiente non valido: ${place}` };
+    if (isRemote(where)) return spawnRemote({ id, type, cwd, resumeId, claudeAccountId, commandProfileId, label, sessionName, cols, rows, remote: where });
+    return spawnLocal({ id, type, cwd, resumeId, claudeAccountId, commandProfileId, label, sessionName, cols, rows, previousSession });
+  }
+
+  /**
+   * Sessione su un server SSH o in una distro WSL: il processo locale e' il
+   * client (ssh, wsl.exe), che sul server entra nella directory e lancia il
+   * comando del profilo (lib/remote-env.js). Le directory si scrivono, non
+   * si controllano: se manca, lo dice il server e si parte dalla home.
+   */
+  async function spawnRemote({ id, type, cwd, resumeId, claudeAccountId, commandProfileId, label, sessionName, cols, rows, remote }) {
+    if (!REMOTE_TYPES.has(type)) return { ok: false, error: 'Su un ambiente remoto si aprono solo terminali e agenti, non Git o Editor.' };
+    const dir = validateRemoteDir(cwd);
+    if (!dir.ok) return { ok: false, error: dir.error };
+    // La chiave andrebbe nella riga di comando del server, leggibile da tutti con `ps`
+    if (claudeAccountId && claudeAccountId !== 'oauth') {
+      return { ok: false, error: 'Su un ambiente remoto gli account a chiave API non si usano: scegli "OAuth" e fai il login di claude sul server.' };
+    }
+    const shell = type === 'shell';
+    const session = viaTmux ? tmuxLib.sessionName(type) : null;
+    let composed = { bin: null, args: [], baseArgs: [], profileEnv: {}, injectedEnv: {}, profile: null };
+    if (!shell) {
+      // Solo il segnale di Codex attraversa ssh (OSC 9 nel terminale); gli
+      // altri scriverebbero un file sul disco del server, che nessuno legge.
+      const inject = type === 'codex' ? (a, pEnv) => signalInjection({ id, session, type, args: a, profileEnv: pEnv }) : null;
+      // Nessuna espansione locale di ~ e $VAR: valgono quelle del server
+      const c = composeCommand(type, resumeId, commandProfileId, { profiles, home: null, env: {}, platform: 'linux', inject, sessionName });
+      if (!c.ok) return { ok: false, error: c.error };
+      composed = c;
+    }
+    const vars = { ...(composed.profileEnv || {}), ...(composed.injectedEnv || {}) };
+    const secret = remoteSecretProblem(vars);
+    if (secret) return { ok: false, error: secret };
+
+    const clientName = remote.kind === 'ssh' ? 'ssh' : 'wsl.exe';
+    const client = resolveClient(clientName);
+    if (!client.path) return { ok: false, error: `'${clientName}' non trovato nel PATH.\n` + REMOTE_CLIENT_HINT[remote.kind] };
+    const wrapped = wrapRemote({ env: remote, cwd: dir.dir, bin: composed.bin, args: composed.args, vars, shell, sshBin: client.path, wslBin: client.path });
+
+    const env = augmentedEnv([wrapped.cmd], {}, withoutSignal(process.env), localeOpts());
+    const sessionEnv = { PATH: pathOf(env), COLORTERM: env.COLORTERM, ...localeVars(env) };
+    const key = envKey(remote);
+    const profile = composed.profile;
+    const r = await launch({
+      id, type, session, cmd: wrapped.cmd, args: wrapped.args, cols, rows, previousSession: null,
+      procCwd: os.homedir(), env, sessionEnv, replay: null,
+      meta: {
+        type,
+        cwd: dir.dir,
+        env: key,
+        label: label || null,
+        profile_id: (profile && profile.id) || null,
+        profile_label: (profile && profile.label) || null,
+        resume_id: resumeId || null,
+        account_id: claudeAccountId || null,
+        account_name: null,
+      },
+      historyEntry: {
+        type,
+        cwd: dir.dir,
+        env: key,
+        resumeId: resumeId || null,
+        claudeAccountId: claudeAccountId || null,
+        claudeAccountName: null,
+        commandProfileId: (profile && profile.id) || null,
+        commandProfileLabel: (profile && profile.label) || null,
+        tmuxSession: session,
+        cmd: shell ? `${key} shell` : [key, ...Object.entries(composed.profileEnv || {}).map(([k, v]) => `${k}=${v}`), composed.bin, ...composed.baseArgs].join(' '),
+      },
+    });
+    if (!r.ok) return r;
+    return { ok: true, cwd: dir.dir, env: key, session, moved: null, requested: dir.dir };
+  }
+
+  async function spawnLocal({ id, type, cwd, resumeId, claudeAccountId, commandProfileId, label, sessionName, cols, rows, previousSession }) {
 
     // Se la cartella non c'è più (un worktree tolto) la sessione parte altrove:
     // `moved` torna alla scheda, che lo dice

@@ -36,6 +36,8 @@ ok('eventi del watch: una scheda remota prende solo quelli del suo server', () =
   assert.strictEqual(pathFor(tab, 'ssh:nas:/home/u/prj/a.js'), '/home/u/prj/a.js');
   assert.strictEqual(pathFor(tab, 'ssh:pi:/home/u/prj/a.js'), null);
   assert.strictEqual(pathFor(tab, '/home/u/prj/a.js'), null);
+  // Stesso nome, altra porta (docs/plans/96): `ssh:nas:2222:/…` non è di `ssh:nas`
+  assert.strictEqual(pathFor(tab, 'ssh:nas:2222:/home/u/prj/a.js'), null);
   const local = setup().tab;
   assert.strictEqual(pathFor(local, '/w/a.js'), '/w/a.js');
 });

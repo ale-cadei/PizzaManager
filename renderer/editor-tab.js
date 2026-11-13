@@ -810,8 +810,10 @@ async function askEditorExit() {
    macchina. Per un server la chiave è `ssh:host:/assoluto` (app/editor.js). */
 function editorChangePath(tab, path) {
   if (!isRemoteEditor(tab)) return path;
+  // Dopo l'ambiente un percorso assoluto: `ssh:nas:2222:/x` non è di `ssh:nas`
   const prefix = `${tab.env}:`;
-  return path.startsWith(prefix) ? path.slice(prefix.length) : null;
+  const rest = path.startsWith(prefix) ? path.slice(prefix.length) : null;
+  return rest && rest.startsWith('/') ? rest : null;
 }
 
 /** Da init(): gli eventi del watch e la guardia sull'uscita. */

@@ -40,6 +40,8 @@ async function gitRepoProblem(cwd) {
 /* ---------- Dove: questo computer, un server SSH, una distro WSL (piano 93) ---------- */
 const NEW_ENV_KEY = 'aisess.newEnv';
 const LOCAL_ENV = 'local';
+// «Altro server…»: il server si scrive nel campo sotto (docs/plans/96)
+const SSH_NEW_ENV = '__ssh-new';
 // Ultima directory locale: tornando a «Questo computer» si ritrova
 let lastLocalCwd = null;
 let shownEnv = LOCAL_ENV;
@@ -52,9 +54,56 @@ function rememberEnv(env) {
   try { localStorage.setItem(NEW_ENV_KEY, env); } catch {}
 }
 
-function currentNewEnv() {
+/** La voce scelta nel select, «Altro server…» compreso. */
+function newEnvChoice() {
   const el = $('#new-env');
   return (el && el.value) || LOCAL_ENV;
+}
+
+/** L'ambiente per le directory recenti e la riga account: con «Altro server…» quello scritto, non ancora controllato. */
+function currentNewEnv() {
+  const choice = newEnvChoice();
+  if (choice !== SSH_NEW_ENV) return choice;
+  return `ssh:${(($('#new-ssh-target') || {}).value || '').trim()}`;
+}
+
+/**
+ * L'ambiente della sessione da creare. Il testo di «Altro server…» lo
+ * controlla il main (stesso validatore di pty e editor).
+ * @returns {Promise<{env: string} | {error: string}>}
+ */
+async function resolveNewEnv(choice, text) {
+  if (choice !== SSH_NEW_ENV) return { env: choice };
+  try {
+    const r = await window.aisess.checkSshTarget(text);
+    return r && r.ok ? { env: r.env } : { error: (r && r.error) || 'Server non valido.' };
+  } catch (e) {
+    console.warn('check-ssh-target fallito', e);
+    return { error: `Impossibile controllare il server: ${String((e && e.message) || e)}` };
+  }
+}
+
+/** «Salva»: il server in ~/.ssh/config, da lì un alias come gli altri. */
+async function saveNewSshHost(text, alias) {
+  try {
+    const r = await window.aisess.saveSshHost(text, alias);
+    return r && r.ok ? { env: r.env } : { error: (r && r.error) || 'Server non salvato.' };
+  } catch (e) {
+    console.warn('save-ssh-host fallito', e);
+    return { error: `Server non salvato: ${String((e && e.message) || e)}` };
+  }
+}
+
+/** Click su «Salva»: il select passa al nome salvato, la directory scritta resta. */
+async function onSaveSshHost() {
+  const r = await saveNewSshHost($('#new-ssh-target').value, $('#new-ssh-alias').value);
+  if (r.error) { showNewError(r.error); return; }
+  showNewError('');
+  $('#new-ssh-alias').value = '';
+  await fillEnvSelect(r.env);
+  rememberEnv(r.env);
+  applyEnvToModal({ cwd: $('#new-cwd').value });
+  renderRecentDirs();
 }
 
 function envOption(value, text) {
@@ -64,34 +113,48 @@ function envOption(value, text) {
   return o;
 }
 
-function envGroup(label, values, toKey) {
+function envGroup({ label, items }) {
   const g = document.createElement('optgroup');
   g.label = label;
-  g.append(...values.map((v) => envOption(toKey(v), v)));
+  g.append(...items.map((i) => envOption(i.value, i.text)));
   return g;
 }
 
-/** Riempie «Dove» con gli host di ~/.ssh/config e le distro WSL; senza, la riga non c'è. */
+/**
+ * I gruppi del «Dove»: host di ~/.ssh/config, server scritti a mano usati di
+ * recente (docs/plans/96), distro WSL. `wanted` scritto a mano ma non fra i
+ * recenti (il «+» di un gruppo vecchio) entra in testa ai recenti.
+ * @returns {{label: string, items: {value: string, text: string}[]}[]}
+ */
+function envSelectGroups(envs, wanted) {
+  const list = (k) => (envs && Array.isArray(envs[k]) ? envs[k] : []);
+  const ssh = list('ssh');
+  const typed = typeof wanted === 'string' && wanted.startsWith('ssh:') ? wanted.slice(4) : '';
+  const recent = typed && !ssh.includes(typed) && !list('recent').includes(typed)
+    ? [typed, ...list('recent')] : list('recent');
+  const group = (label, values, kind) => ({ label, items: values.map((v) => ({ value: `${kind}:${v}`, text: v })) });
+  return [group('SSH', ssh, 'ssh'), group('Usati di recente', recent, 'ssh'), group('WSL', list('wsl'), 'wsl')]
+    .filter((g) => g.items.length);
+}
+
+/** Riempie «Dove»: questo computer, gli host, i recenti, WSL e in fondo «Altro server…». */
 async function fillEnvSelect(wanted) {
   const select = $('#new-env');
-  const row = $('#new-env-row');
-  if (!select || !row) return;
+  if (!select) return;
   let envs = null;
   try {
     envs = await window.aisess.listRemoteEnvs();
   } catch (e) {
     console.warn('list-remote-envs fallito', e);
   }
-  const ssh = envs && Array.isArray(envs.ssh) ? envs.ssh : [];
-  const wsl = envs && Array.isArray(envs.wsl) ? envs.wsl : [];
-  const groups = [];
-  if (ssh.length) groups.push(envGroup('SSH', ssh, (h) => `ssh:${h}`));
-  if (wsl.length) groups.push(envGroup('WSL', wsl, (d) => `wsl:${d}`));
-  select.replaceChildren(envOption(LOCAL_ENV, 'Questo computer'), ...groups);
+  select.replaceChildren(
+    envOption(LOCAL_ENV, 'Questo computer'),
+    ...envSelectGroups(envs, wanted).map(envGroup),
+    envOption(SSH_NEW_ENV, 'Altro server SSH…'),
+  );
   // Un host sparito da ~/.ssh/config non c'è fra le opzioni: si torna a questo computer
   const values = [...select.options].map((o) => o.value);
   select.value = values.includes(wanted) ? wanted : LOCAL_ENV;
-  row.hidden = groups.length === 0;
 }
 
 /**
@@ -101,14 +164,18 @@ async function fillEnvSelect(wanted) {
  * @param {{cwd?: string}} [opts] directory imposta dal chiamante (il «+» di un gruppo)
  */
 function applyEnvToModal({ cwd } = {}) {
-  const env = currentNewEnv();
-  const remote = env !== LOCAL_ENV;
+  // La voce del select, non il testo di «Altro server…»: scrivere non azzera la directory
+  const choice = newEnvChoice();
+  const sshNew = choice === SSH_NEW_ENV;
+  const env = sshNew ? 'ssh:' : choice;
+  const remote = choice !== LOCAL_ENV;
   const input = $('#new-cwd');
-  if (env !== shownEnv) {
+  if (choice !== shownEnv) {
     if (shownEnv === LOCAL_ENV) lastLocalCwd = input.value;
     if (!cwd) input.value = remote ? '~' : (lastLocalCwd || input.value);
-    shownEnv = env;
+    shownEnv = choice;
   }
+  $('#new-ssh-target-row').hidden = !sshNew;
   if (cwd) input.value = cwd;
   input.placeholder = remote ? '~/progetto oppure /percorso/assoluto' : '/home/utente/progetto';
   $('#btn-browse').hidden = remote;
@@ -126,8 +193,10 @@ function panelAvailable(type, env) {
 
 /** Cambio di «Dove» dal select. */
 async function onNewEnvChange() {
-  rememberEnv(currentNewEnv());
+  // «Altro server…» si ricorda alla conferma, col server scritto
+  if (newEnvChoice() !== SSH_NEW_ENV) rememberEnv(newEnvChoice());
   applyEnvToModal();
+  if (newEnvChoice() === SSH_NEW_ENV) $('#new-ssh-target').focus();
   showNewError('');
   await updateClaudeAccountRow();
   renderRecentDirs();

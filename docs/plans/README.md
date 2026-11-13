@@ -100,6 +100,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 93 | [`feat/sessioni-ssh`, `feat/sessioni-wsl`](93-sessioni-remote.md) — nel modal «Nuova sessione» si sceglie dove: questo computer, un host di `~/.ssh/config` o una distro WSL | 06, 12 | ~1,5 g | `feat/sessioni-ssh` fatto, test verdi; smoke con un host da fare. WSL da fare |
 | 94 | [`feat/editor-remoto`](94-editor-remoto.md) — l'editor apre una cartella su un server SSH: un helper Python lanciato via ssh fa file e git lì | 60, 93 | ~2 g | fatto, test verdi; smoke con un host da fare |
 | 95 | [`feat/editor-copia-taglia`](95-editor-copia-taglia.md) — Ctrl+C / Ctrl+X sulle voci dell'albero dell'editor e Ctrl+V in un'altra cartella: copia o sposta, appunti del sistema, i file aperti seguono | 61 | ~3h | fatto, test verdi; smoke nell'app da fare |
+| 96 | [`feat/ssh-diretto`](96-ssh-diretto.md) — nel «Dove» della nuova sessione «Altro server…»: `utente@host:porta` scritto a mano, poi fra i recenti | 93 | ~3h | fatto, smoke da fare |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

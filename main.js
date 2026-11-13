@@ -228,7 +228,7 @@ ipcMain.handle('usage-snapshot', async (event, { active, tab } = {}) => {
 
 // ---------- Appunti (per term-clipboard.js nel renderer) ----------
 registerClipboardHandlers(ipcMain);
-registerRemoteEnvHandlers(ipcMain); // ssh e WSL nella nuova sessione (piano 93)
+registerRemoteEnvHandlers(ipcMain, { history: { load: () => history().load() } }); // ssh e WSL nella nuova sessione (piani 93, 96)
 registerUpdateHandlers(ipcMain, { electron: { app, shell }, sendToRenderer });
 registerFeedbackHandlers(ipcMain, { electron: { app, shell }, viaTmux: () => ptys.viaTmux });
 registerGitHandlers(ipcMain, { userDataDir: () => app.getPath('userData') });

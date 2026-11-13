@@ -83,6 +83,29 @@ async function resolveNewEnv(choice, text) {
   }
 }
 
+/** «Salva»: il server in ~/.ssh/config, da lì un alias come gli altri. */
+async function saveNewSshHost(text, alias) {
+  try {
+    const r = await window.aisess.saveSshHost(text, alias);
+    return r && r.ok ? { env: r.env } : { error: (r && r.error) || 'Server non salvato.' };
+  } catch (e) {
+    console.warn('save-ssh-host fallito', e);
+    return { error: `Server non salvato: ${String((e && e.message) || e)}` };
+  }
+}
+
+/** Click su «Salva»: il select passa al nome salvato, la directory scritta resta. */
+async function onSaveSshHost() {
+  const r = await saveNewSshHost($('#new-ssh-target').value, $('#new-ssh-alias').value);
+  if (r.error) { showNewError(r.error); return; }
+  showNewError('');
+  $('#new-ssh-alias').value = '';
+  await fillEnvSelect(r.env);
+  rememberEnv(r.env);
+  applyEnvToModal({ cwd: $('#new-cwd').value });
+  renderRecentDirs();
+}
+
 function envOption(value, text) {
   const o = document.createElement('option');
   o.value = value;

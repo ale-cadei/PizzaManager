@@ -20,6 +20,21 @@ Qui: una voce «Altro server…» con un campo `utente@host:porta`.
 - **L'editor remoto** (piano 94) funziona uguale, ma con `BatchMode=yes`:
   serve una chiave o ssh-agent, come per gli alias; il messaggio c'è già.
 - IPv6 fra parentesi quadre: fuori. Per quello c'è `~/.ssh/config`.
+- **«Salva» in `~/.ssh/config`** (chiesto dopo, stesso giorno): accanto al
+  campo un nome facoltativo (di default l'host) e «Salva». L'app aggiunge
+  un blocco `Host nome` / `HostName` / `User` / `Port`, e da lì il server è
+  un alias come gli altri. Vale su Linux, macOS e Windows (OpenSSH di
+  Windows legge `%USERPROFILE%\.ssh\config`). Regole:
+  - solo aggiunte, mai modifiche alle righe che ci sono; il blocco va
+    **prima** del primo `Host` con wildcard o `Match` (in ssh_config vince
+    il primo valore: dopo un `Host *` con `User` il nostro `User` non
+    conterebbe), altrimenti in fondo;
+  - nome già presente (anche in un `Include`) → errore, niente scrittura;
+  - file nuovo con `0600` e cartella `~/.ssh` `0700`; un file che c'è tiene
+    i suoi permessi e i suoi a capo (`\r\n` se li usa); se è un link
+    simbolico (dotfiles) si scrive il file vero, non si sostituisce il link;
+  - scrittura in un file temporaneo accanto e `rename`: a metà non resta
+    un config troncato.
 
 ## Sicurezza
 
@@ -40,6 +55,8 @@ Qui: una voce «Altro server…» con un campo `utente@host:porta`.
 - `lib/recent-dirs.js`: `recentSshTargets(history, {exclude, limit})`.
 - `app/remote-envs.js`: `list-remote-envs` dà anche `recent`;
   `check-ssh-target` (testo → chiave o messaggio).
+- `lib/ssh-config-save.js`: `addSshHost(text, {alias, target})` (puro) e
+  `createSshConfigSaver({home})`; `app/remote-envs.js`: `save-ssh-host`.
 - Renderer: «Altro server…» nel select, campo `#new-ssh-target` che appare
   solo allora, gruppo «Usati di recente». La riga «Dove» c'è sempre (prima
   spariva senza host in config).
@@ -52,6 +69,10 @@ Qui: una voce «Altro server…» con un campo `utente@host:porta`.
 - `tests/new-session-env.test.js`: gruppi del «Dove» (il server richiesto
   entra nei recenti), `resolveNewEnv` (testo giusto → chiave, sbagliato o
   main giù → errore nel modal).
+- `tests/ssh-config-save.test.js`: blocco in fondo o prima di `Host *` /
+  `Match`, `\r\n` conservati, nome non valido o già presente, file nuovo
+  `0600`, link simbolico seguito, permessi di un file esistente tenuti; IPC
+  `save-ssh-host` (nome di default, doppione negli Include, errore del disco).
 - `tests/editor-remote-tab.test.js`: un evento di `ssh:nas:2222:/x` non
   va alla scheda di `ssh:nas`.
 - Smoke: sessione su `utente@host` mai visto (conferma della chiave nel
@@ -61,4 +82,5 @@ Qui: una voce «Altro server…» con un campo `utente@host:porta`.
 
 Fatto, test verdi. Nel select la voce è «Altro server SSH…»; la scelta si
 ricorda alla conferma col server scritto, che al giro dopo è fra i recenti.
-Smoke nell'app da fare.
+«Salva» fatto. Smoke nell'app da fare, anche su macOS e Windows per il
+«Salva» (su Windows: che ssh accetti i permessi del config creato).

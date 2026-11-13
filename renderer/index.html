@@ -217,7 +217,11 @@
       <select class="input" id="new-env"><option value="local">Questo computer</option></select>
     </label>
     <label id="new-ssh-target-row" hidden>Server SSH
-      <input class="input" id="new-ssh-target" placeholder="utente@host oppure utente@host:2222" autocomplete="off" spellcheck="false" />
+      <div class="row">
+        <input class="input" id="new-ssh-target" placeholder="utente@host oppure utente@host:2222" autocomplete="off" spellcheck="false" />
+        <input class="input" id="new-ssh-alias" placeholder="nome (facoltativo)" autocomplete="off" spellcheck="false" title="Il nome in ~/.ssh/config; vuoto = l'host" />
+        <button class="btn btn--secondary" id="btn-ssh-save" title="Aggiunge il server a ~/.ssh/config: poi è fra gli host SSH">Salva</button>
+      </div>
     </label>
     <label>Directory di lavoro
       <div class="row">

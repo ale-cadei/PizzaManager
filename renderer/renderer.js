@@ -70,6 +70,8 @@ async function init() {
   $('#new-env').addEventListener('change', () => { onNewEnvChange().catch((e) => console.warn('cambio ambiente', e)); });
   $('#new-ssh-target').addEventListener('input', () => showNewError(''));
   $('#new-ssh-target').addEventListener('change', () => renderRecentDirs());
+  $('#new-ssh-alias').addEventListener('input', () => showNewError(''));
+  $('#btn-ssh-save').addEventListener('click', () => { onSaveSshHost().catch((e) => console.warn('salva server', e)); });
   $('#new-confirm').addEventListener('click', async () => {
     const name = $('#new-name').value.trim();
     const cwd = $('#new-cwd').value.trim() || undefined;

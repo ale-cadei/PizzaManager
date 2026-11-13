@@ -2141,6 +2141,7 @@ body.editor-tree-hidden .editor-open-menu:not([hidden]) { display: inline-flex; 
 .type-card:disabled { opacity: 0.4; cursor: not-allowed; }
 .type-card:disabled:hover { border-color: var(--border-strong); }
 #new-env-row[hidden], #new-ssh-target-row[hidden] { display: none; }
+#new-ssh-alias { flex: 0 0 160px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
 /* Colori (menu View): pallino col colore vivo, nome, ripristino se ritoccato, selettore */

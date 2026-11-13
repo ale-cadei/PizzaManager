@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('aisess', {
   getRecentDirs: (limit, env) => ipcRenderer.invoke('get-recent-dirs', { limit, env }),
   listRemoteEnvs: (fresh) => ipcRenderer.invoke('list-remote-envs', { fresh }),
   checkSshTarget: (text) => ipcRenderer.invoke('check-ssh-target', { text }),
+  saveSshHost: (text, alias) => ipcRenderer.invoke('save-ssh-host', { text, alias }),
   resolveProject: (cwd) => ipcRenderer.invoke('resolve-project', { cwd }),
   gitGraph: (cwd, limit) => ipcRenderer.invoke('git-graph', { cwd, limit }),
   gitBranches: (cwd) => ipcRenderer.invoke('git-branches', { cwd }),

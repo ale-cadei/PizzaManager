@@ -59,3 +59,15 @@ test('resolveNewEnv: main che non risponde → errore nel modal, niente sessione
     console.warn = orig;
   }
 });
+
+test('saveNewSshHost: il main salva e dà la chiave, o il perché no', async () => {
+  const calls = [];
+  const p = loadPage({ aisess: { saveSshHost: async (text, alias) => {
+    calls.push([text, alias]);
+    return alias === 'dup' ? { ok: false, error: '«dup» c\'è già in ~/.ssh/config.' } : { ok: true, env: `ssh:${alias}` };
+  } } });
+  const save = vm.runInContext('saveNewSshHost', p.ctx);
+  assert.deepStrictEqual(plain(await save('ale@srv', 'srv')), { env: 'ssh:srv' });
+  assert.match((await save('ale@srv', 'dup')).error, /già/);
+  assert.deepStrictEqual(calls, [['ale@srv', 'srv'], ['ale@srv', 'dup']]);
+});

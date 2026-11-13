@@ -1,11 +1,12 @@
 'use strict';
+const fs = require('fs');
 const { createEditorFs } = require('../lib/editor-fs');
 const { createEditorWatch } = require('../lib/editor-watch');
 const { createEditorSessionsStore } = require('../lib/editor-sessions');
 const { savedBeforeBoot } = require('../lib/git-sessions');
 const { installEditorCloseGuard } = require('./editor-close');
 const { createEditorCopy, pickProperties } = require('../lib/editor-copy');
-const { filesFromClipboard } = require('../lib/clipboard-files');
+const { clipboardSelection, clipboardPayload } = require('../lib/clipboard-files');
 const { createEditorGit } = require('../lib/editor-git');
 const { listAllFiles, gitStatusLetters } = require('../lib/editor-index');
 const { createEditorDefinition } = require('../lib/editor-definition');
@@ -36,6 +37,16 @@ function registerEditorHandlers(ipcMain, {
   const sessions = () => (store = store || createEditorSessionsStore({ dir: userDataDir() }));
   const files = (root) => createEditorFs({ root });
   const copier = (root) => createEditorCopy({ editorFs: files(root), trash, platform });
+  // L'ultimo Ctrl+C / Ctrl+X dell'app: dice «taglia» quando il formato degli appunti non lo dice
+  let lastPut = null;
+  const readClipboard = () => clipboardSelection((format) => electron.clipboard.readBuffer(format), platform);
+  const samePaths = (a, b) => a.length === b.length && a.every((p, i) => p === b[i]);
+  /** Dopo uno spostamento gli appunti puntano a file che non ci sono più. */
+  function forgetCut(sources) {
+    const list = Array.isArray(sources) ? sources : [];
+    if (samePaths(readClipboard().paths, list)) electron.clipboard.clear();
+    if (lastPut && samePaths(lastPut.paths, list)) lastPut = null;
+  }
   const guard = (fn) => async (event, payload = {}) => {
     try {
       return await fn(payload || {}, event);
@@ -120,9 +131,15 @@ function registerEditorHandlers(ipcMain, {
     return { ok: true };
   }));
   // Copiare da fuori (docs/plans/61): il piano trova i conflitti, il
-  // renderer chiede, la copia rifà i controlli e copia
-  ipcMain.handle('editor-copy-plan', guard(({ root, rel, sources }) => copier(root).planCopy(sources, rel)));
-  ipcMain.handle('editor-copy-run', guard(({ root, rel, sources, decisions }) => copier(root).runCopy({ sources, destRel: rel }, decisions)));
+  // renderer chiede, la copia rifà i controlli e copia. Con `move` è un
+  // taglia e incolla (docs/plans/95): spostati i file, gli appunti non li
+  // trovano più e si svuotano.
+  ipcMain.handle('editor-copy-plan', guard(({ root, rel, sources, move }) => copier(root).planCopy(sources, rel, { move: move === true })));
+  ipcMain.handle('editor-copy-run', guard(async ({ root, rel, sources, decisions, move }) => {
+    const r = await copier(root).runCopy({ sources, destRel: rel, move: move === true }, decisions);
+    if (r.ok && r.moved && r.moved.length) forgetCut(sources);
+    return r;
+  }));
   // Percorsi scelti nella finestra del sistema o copiati nel file manager:
   // tornano al renderer, che li manda al piano come quelli del drop
   ipcMain.handle('editor-pick-files', guard(async (_payload, event) => {
@@ -131,10 +148,22 @@ function registerEditorHandlers(ipcMain, {
     const r = await (win ? electron.dialog.showOpenDialog(win, opts) : electron.dialog.showOpenDialog(opts));
     return { ok: true, paths: r.canceled ? [] : r.filePaths };
   }));
-  ipcMain.handle('editor-clipboard-files', guard(() => ({
-    ok: true,
-    paths: filesFromClipboard((format) => electron.clipboard.readBuffer(format), platform),
-  })));
+  ipcMain.handle('editor-clipboard-files', guard(() => {
+    const { paths, cut } = readClipboard();
+    // uri-list e FileNameW non dicono se è un taglia: vale l'ultimo Ctrl+X qui, se sono quei file
+    return { ok: true, paths, cut: cut === null ? Boolean(lastPut && lastPut.mode === 'cut' && samePaths(lastPut.paths, paths)) : cut };
+  }));
+  // Ctrl+C / Ctrl+X nell'albero (docs/plans/95): gli appunti del sistema,
+  // così si incolla anche in un'altra scheda o nel file manager
+  ipcMain.handle('editor-clipboard-put', guard(async ({ root, rel, mode }) => {
+    if (typeof rel !== 'string' || !rel || (mode !== 'copy' && mode !== 'cut')) return { ok: false, error: 'Scegli un file o una cartella.' };
+    const abs = files(root).resolveInside(rel); // lancia se esce dalla cartella
+    if (!(await fs.promises.lstat(abs).catch(() => null))) return { ok: false, error: 'Non esiste più.' };
+    const { format, buffer } = clipboardPayload([abs], mode, platform);
+    electron.clipboard.writeBuffer(format, buffer);
+    lastPut = { paths: [abs], mode };
+    return { ok: true };
+  }));
   // Schede editor da riaprire (lib/editor-sessions.js); dopo un riavvio
   // della macchina `ask`: si propongono, non si riaprono da sole.
   ipcMain.handle('editor-sessions', guard(() => {

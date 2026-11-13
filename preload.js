@@ -77,10 +77,11 @@ contextBridge.exposeInMainWorld('aisess', {
   kernelShutdown: (id) => ipcRenderer.invoke('kernel-shutdown', { id }),
   onKernelEvent: (cb) => ipcRenderer.on('kernel-event', (_e, v) => cb(v)),
   // Copiare da fuori (docs/plans/61): `sources` sono percorsi assoluti
-  editorCopyPlan: (root, rel, sources) => ipcRenderer.invoke('editor-copy-plan', { root, rel, sources }),
-  editorCopyRun: (root, rel, sources, decisions) => ipcRenderer.invoke('editor-copy-run', { root, rel, sources, decisions }),
+  editorCopyPlan: (root, rel, sources, move) => ipcRenderer.invoke('editor-copy-plan', { root, rel, sources, move }),
+  editorCopyRun: (root, rel, sources, decisions, move) => ipcRenderer.invoke('editor-copy-run', { root, rel, sources, decisions, move }),
   editorPickFiles: () => ipcRenderer.invoke('editor-pick-files'),
   editorClipboardFiles: () => ipcRenderer.invoke('editor-clipboard-files'),
+  editorClipboardPut: (root, rel, mode) => ipcRenderer.invoke('editor-clipboard-put', { root, rel, mode }),
   // Il percorso di un File trascinato: in Electron 33 File.path non c'è più
   editorPathForFile: (file) => webUtils.getPathForFile(file),
   gitChanges: (cwd, base, since, incoming) => ipcRenderer.invoke('git-changes', { cwd, base, since, incoming }),

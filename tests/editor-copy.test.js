@@ -261,7 +261,7 @@ ok('move: sposta file e cartelle con rename, gli originali spariscono, moved dic
       { fromRel: 'src/a.txt', toRel: 'dest/a.txt' },
       { fromRel: 'src/d', toRel: 'dest/d' },
       { fromRel: null, toRel: 'dest/f.txt' }, // da fuori dalla sessione
-    ].map((m) => ({ fromRel: m.fromRel && path.normalize(m.fromRel), toRel: path.normalize(m.toRel) })),
+    ],
   });
   assert.deepStrictEqual(fs.readdirSync(path.join(root, 'src')), []);
   assert.strictEqual(fs.readFileSync(path.join(root, 'dest', 'd', 'x.txt'), 'utf8'), 'x');
@@ -297,7 +297,7 @@ ok('move con conflitti: sostituisci cestina il vecchio, tieni entrambi rinomina,
   const r = await copy.runCopy({ sources, destRel: 'dest', move: true }, { 'a.txt': 'replace', 'b.txt': 'keep-both', 'c.txt': 'skip' });
   assert.strictEqual(r.copied, 2);
   assert.strictEqual(r.skipped, 1);
-  assert.deepStrictEqual(r.moved.map((m) => m.toRel), [path.join('dest', 'a.txt'), path.join('dest', 'b (2).txt')]);
+  assert.deepStrictEqual(r.moved.map((m) => m.toRel), ['dest/a.txt', 'dest/b (2).txt']);
   assert.deepStrictEqual(trashed, [path.join(root, 'dest', 'a.txt')]);
   assert.strictEqual(fs.readFileSync(path.join(root, 'dest', 'a.txt'), 'utf8'), 'nuovo a');
   assert.strictEqual(fs.readFileSync(path.join(root, 'dest', 'b (2).txt'), 'utf8'), 'nuovo b');

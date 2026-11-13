@@ -223,7 +223,7 @@ ok('ipc editor: incollare un taglia sposta, dice cosa e svuota gli appunti', asy
   const plan = await call('editor-copy-plan', { root, rel: 'dest', sources: [a], move: true });
   assert.strictEqual(plan.ok, true, plan.error);
   const r = await call('editor-copy-run', { root, rel: 'dest', sources: [a], decisions: {}, move: true });
-  assert.deepStrictEqual(r.moved, [{ fromRel: path.join('src', 'a.txt'), toRel: path.join('dest', 'a.txt') }]);
+  assert.deepStrictEqual(r.moved, [{ fromRel: 'src/a.txt', toRel: 'dest/a.txt' }]);
   assert.ok(!fs.existsSync(a));
   assert.strictEqual(clipboard.cleared, 1);
   // Una copia non svuota niente

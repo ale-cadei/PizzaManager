@@ -74,14 +74,18 @@ decisi qui. `run` remoto per `lib/editor-git.js`, `editor-index.js`,
 
 ## Test
 
-- `tests/remote-helper.test.js`: l'helper col python locale su una tmpdir:
-  ogni operazione, `EOUTSIDE` con `..` e symlink, scrittura in conflitto,
-  `git` fuori lista rifiutato, cestino. `t.skip` senza python3.
-- `tests/remote-channel.test.js`: finto ssh; richieste concorrenti, processo
-  che muore, errori d'avvio tradotti.
-- `tests/editor-remote-fs.test.js`: stesse attese di `editor-fs` dove ha
-  senso (stessa forma dei risultati).
-- `tests/editor.test.js`: `root` remoto non valido rifiutato.
+- `tests/remote-helper.test.js`: l'helper col python locale su una tmpdir
+  (ogni operazione, `EOUTSIDE` con `..` e symlink, scrittura in conflitto,
+  `git` fuori lista, cestino) e il canale con un finto ssh (richieste
+  concorrenti, processo che muore, errori d'avvio). `t.skip` senza python3.
+- `tests/editor-remote-fs.test.js`: stesse risposte di `editor-fs`, e
+  editor-git/index/definition col `run` remoto.
+- `tests/editor-remote-watch.test.js`: polling, un giro per server.
+- `tests/editor-ipc.test.js`: andata e ritorno remoto, `root` remoto non
+  valido rifiutato senza aprire connessioni, canali solo locali rifiutati.
+- `tests/editor-remote-tab.test.js`: `{ env, dir }` nelle richieste, eventi
+  del watch per server, niente copia/branch locali, card del modal.
+- `tests/editor-sessions.test.js`: `env` salvato, WSL e chiavi non valide scartate.
 - Smoke: `AISESS_PROFILE=ssh npm start`, editor su un host, salvare un file
   e vederlo dal terminale remoto; modificarlo dal terminale e vedere
   l'avviso nell'editor.
@@ -95,3 +99,9 @@ decisi qui. `run` remoto per `lib/editor-git.js`, `editor-index.js`,
 - **Latenza**: un giro per operazione; l'albero carica una cartella per
   volta come oggi, Ctrl+P fa un solo `ls-files`.
 - **Windows**: `ssh.exe` di OpenSSH c'è; nessun ControlMaster. Da provare.
+
+## Stato
+
+Fatto su `feat/editor-remoto`, test verdi (`npm run test:unit`). Da fare:
+smoke con un host vero (`AISESS_PROFILE=ssh npm start`). Il branch in barra
+di stato sul server non c'è (git-branches è locale): da aggiungere se serve.

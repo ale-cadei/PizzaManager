@@ -96,7 +96,7 @@ ok('ipc editor: le ricariche della pagina non accumulano listener sul webContent
 
 ok('ipc editor: sessioni salvate e rilette, ask dopo un riavvio', async (t) => {
   const { call } = setup(t);
-  const list = [{ name: null, cwd: '/p', files: ['a.js'], active: 'a.js', startedAt: 1, recent: [{ rel: 'b.js', at: 2 }] }];
+  const list = [{ name: null, cwd: '/p', env: 'local', files: ['a.js'], active: 'a.js', startedAt: 1, recent: [{ rel: 'b.js', at: 2 }] }];
   assert.deepStrictEqual(await call('editor-sessions-save', { sessions: list }), { ok: true, sessions: list });
   const r = await call('editor-sessions', undefined);
   assert.strictEqual(r.ok, true);
@@ -276,4 +276,56 @@ ok('ipc editor: «Mostra nel Finder» riceve solo percorsi confinati (piano 75)'
   assert.strictEqual((await call('editor-reveal', { root, rel: '../x' })).ok, false);
   assert.strictEqual((await call('editor-reveal', { root: '/non/esiste', rel: 'a' })).ok, false);
   assert.deepStrictEqual(revealed, [path.join(root, 'a.txt'), root]);
+});
+
+/* Editor su un server SSH (docs/plans/94): `root` = { env, dir }. Il canale
+   vero, con `sh -c` al posto di ssh e il python locale come «server». */
+function remoteSetup(t) {
+  const { execFileSync, spawn } = require('child_process');
+  const { createRemoteChannels, createRemoteChannel } = require('../lib/remote-channel');
+  try { execFileSync('python3', ['-c', '0'], { stdio: 'ignore' }); } catch { return null; }
+  if (process.platform === 'win32') return null;
+  const fakeSpawn = (cmd, args, opts) => spawn('sh', ['-c', args[args.length - 1]], opts);
+  const channels = createRemoteChannels({
+    resolveClient: () => ({ path: 'ssh' }),
+    create: (o) => createRemoteChannel({ ...o, spawn: fakeSpawn }),
+  });
+  t.after(() => channels.closeAll());
+  return setup(t, { channels });
+}
+
+ok('ipc editor: cartella su un server, stesse risposte, niente reveal né copia da qui', async (t) => {
+  const s = remoteSetup(t);
+  if (!s) { t.skip('serve python3'); return; }
+  const root = { env: 'ssh:nas', dir: s.root };
+  assert.deepStrictEqual(await s.call('editor-create', { root, rel: 'a.txt' }), { ok: true });
+  const r = await s.call('editor-read', { root, rel: 'a.txt' });
+  assert.deepStrictEqual([r.ok, r.text, r.path], [true, '', path.join(s.root, 'a.txt')]);
+  assert.strictEqual((await s.call('editor-write', { root, rel: 'a.txt', text: 'ciao', expectedMtime: r.mtime })).ok, true);
+  assert.strictEqual(fs.readFileSync(path.join(s.root, 'a.txt'), 'utf8'), 'ciao');
+  assert.deepStrictEqual((await s.call('editor-list', { root, rel: '' })).entries.map((e) => e.name), ['a.txt']);
+  assert.deepStrictEqual(await s.call('editor-list-all', { root }), { ok: true, files: ['a.txt'], truncated: false });
+
+  const w = await s.call('editor-watch', { root, rel: 'a.txt' });
+  assert.deepStrictEqual([w.ok, w.path, w.armed], [true, `ssh:nas:${path.join(s.root, 'a.txt')}`, true]);
+  assert.deepStrictEqual(await s.call('editor-unwatch', { root, rel: 'a.txt' }), { ok: true });
+
+  for (const channel of ['editor-reveal', 'editor-copy-plan', 'editor-copy-run', 'editor-clipboard-put']) {
+    const refused = await s.call(channel, { root, rel: 'a.txt', sources: ['/etc/hosts'], mode: 'copy' });
+    assert.deepStrictEqual(refused, { ok: false, error: 'Non disponibile per una cartella su un server.' }, channel);
+  }
+  assert.deepStrictEqual(await s.call('editor-trash', { root, rel: 'a.txt' }).then((x) => x.ok), true);
+  assert.deepStrictEqual(s.trashed, [], 'il cestino è quello del server, non shell.trashItem di qui');
+});
+
+ok('ipc editor: radici remote non valide rifiutate prima di aprire connessioni', async (t) => {
+  let opened = 0;
+  const channels = { get: () => { opened += 1; throw new Error('non doveva connettersi'); }, closeAll() {} };
+  const s = setup(t, { channels });
+  for (const root of [{ env: 'wsl:Ubuntu', dir: '/' }, { env: 'ssh:-oProxyCommand=x', dir: '/' },
+    { env: 'ssh:nas', dir: 'relativa' }, { env: 'ssh:nas', dir: '/a\nb' }, { env: 42, dir: '/' }, { dir: '/' }]) {
+    const r = await s.call('editor-list', { root, rel: '' });
+    assert.strictEqual(r.ok, false, JSON.stringify(root));
+  }
+  assert.strictEqual(opened, 0);
 });

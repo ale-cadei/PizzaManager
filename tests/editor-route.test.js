@@ -67,3 +67,8 @@ ok('apri nell editor: radice o percorso non validi danno null', () => {
     assert.strictEqual(editorTarget({ ...bad, tabs: [ed('a', ROOT)], platform: 'linux' }), null, JSON.stringify(bad));
   }
 });
+
+ok('una scheda editor su un server non apre un file di questo computer (docs/plans/94)', () => {
+  const tabs = [{ id: 'r', type: 'editor', cwd: ROOT, env: 'ssh:nas' }];
+  assert.deepStrictEqual(target(tabs), { cwd: ROOT, rel: 'lib/x.js' });
+});

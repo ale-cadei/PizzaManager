@@ -72,6 +72,7 @@ function onEditorCursor(tab, rel, pos) {
 
 /** Il branch della cartella, per la barra di stato: null fuori da git o con HEAD staccata. */
 async function loadEditorBranch(tab) {
+  if (isRemoteEditor(tab)) return; // git-branches gira in locale: sul server niente branch in barra
   const r = await callEditor(() => window.aisess.gitBranches(tab.cwd));
   if (!tabs.has(tab.id)) return;
   const current = r.ok && Array.isArray(r.local) ? r.local.find((b) => b.current) : null;

@@ -22,7 +22,8 @@ function splitKeysOf(id) {
   const t = tabs.get(id);
   if (!t) return [];
   const keys = Order.tabKeys(t);
-  return PANEL_TYPES.includes(t.type) && t.cwd ? [...keys, `${t.type}:${t.cwd}`] : keys;
+  if (!PANEL_TYPES.includes(t.type) || !t.cwd) return keys;
+  return [...keys, Groups.isRemoteSession(t) ? `${t.type}:${t.env}:${t.cwd}` : `${t.type}:${t.cwd}`];
 }
 
 function saveSplit() {

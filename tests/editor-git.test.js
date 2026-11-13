@@ -266,3 +266,12 @@ ok('parseBlame: porcelain di una riga; riga non committata; uscita vuota', () =>
     { hash: 'ff', uncommitted: false, author: ' Spazi  ', mail: '', time: null, summary: '' });
   assert.strictEqual(parseBlame(''), null);
 });
+
+ok('createEditorGit: resolve asincrona (editor remoto, piano 94)', async () => {
+  const resolve = async (rel) => { if (rel === 'fuori') throw Object.assign(new Error('x'), { code: 'EOUTSIDE' }); return `/srv/app/${rel}`; };
+  const calls = [];
+  const g = createEditorGit({ root: '/srv/app', resolve, run: async (a, o) => { calls.push(o.cwd); return Buffer.from('ciao'); } });
+  assert.deepStrictEqual(await g.headText('src/a.txt'), { ok: true, text: 'ciao' });
+  assert.deepStrictEqual(calls, ['/srv/app/src']);
+  assert.strictEqual((await g.headText('fuori')).reason, 'outside');
+});

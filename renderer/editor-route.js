@@ -42,7 +42,8 @@
     if (!rootParts || !relParts || !relParts.length) return null;
     const full = [...rootParts, ...relParts];
     const same = samePiece(platform === 'win32');
-    const list = (Array.isArray(tabs) ? tabs : []).filter((t) => t && t.type === 'editor');
+    // Una scheda su un server (docs/plans/94) non apre un file di questo computer
+    const list = (Array.isArray(tabs) ? tabs : []).filter((t) => t && t.type === 'editor' && (!t.env || t.env === 'local'));
     // La scheda attiva prima delle altre: un ordine nuovo, la lista ricevuta resta com'è
     const isActive = (t) => activeId != null && t.id === activeId;
     const ordered = [...list.filter(isActive), ...list.filter((t) => !isActive(t))];

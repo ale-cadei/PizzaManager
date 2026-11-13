@@ -36,6 +36,7 @@ function copyOutcomeText({ copied = 0, skipped = 0, failed = [] }, move = false)
 
 /** Ctrl+C / Ctrl+X su una riga: negli appunti del sistema, li scrive il main. */
 async function putEditorClipboard(tab, row, mode) {
+  if (isRemoteEditor(tab)) { showEditorNotice(tab, EDITOR_LOCAL_ONLY); return; }
   const cut = mode === 'cut';
   const r = await callEditor(() => window.aisess.editorClipboardPut(tab.cwd, row.rel, mode));
   if (!tabs.has(tab.id)) return;
@@ -104,6 +105,7 @@ async function revealEditorDir(tab, dir) {
 
 async function copyIntoEditor(tab, dir, source) {
   const ed = tab.editor;
+  if (isRemoteEditor(tab)) { showEditorNotice(tab, EDITOR_LOCAL_ONLY); return; }
   if (ed.copying) {
     showEditorNotice(tab, 'Una copia è già in corso.');
     return;

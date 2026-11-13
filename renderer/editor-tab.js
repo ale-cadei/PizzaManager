@@ -222,7 +222,7 @@ function setEditorFile(tab, rel, patch) {
 /* ---------- albero ---------- */
 
 async function loadEditorDir(tab, dir) {
-  const r = await callEditor(() => window.aisess.editorList(tab.cwd, dir));
+  const r = await callEditor(() => window.aisess.editorList(editorRoot(tab), dir));
   if (!tabs.has(tab.id)) return;
   if (!r.ok) {
     showEditorMessage(tab, `Impossibile leggere ${dir || 'la cartella'}: ${r.error}`);
@@ -260,10 +260,13 @@ function editorTreeMenu(tab, row, e) {
   const items = [
     { label: 'Nuovo file', icon: 'new-file', run: () => newEditorEntry(tab, dir, 'file') },
     { label: 'Nuova cartella', icon: 'new-folder', run: () => newEditorEntry(tab, dir, 'dir') },
-    { sep: true },
-    { label: 'Copia qui file…', icon: 'cloud-download', run: () => copyIntoEditor(tab, dir, { kind: 'pick' }) },
-    { label: 'Incolla', icon: 'clippy', key: 'Ctrl V', run: () => copyIntoEditor(tab, dir, { kind: 'paste' }) },
-    { label: EDITOR_REVEAL_LABEL, icon: 'folder-opened', run: () => revealEditorInFileManager(tab, row ? row.rel : '') },
+    // Copie dal disco locale e file manager: solo per una cartella di questo computer
+    ...(isRemoteEditor(tab) ? [] : [
+      { sep: true },
+      { label: 'Copia qui file…', icon: 'cloud-download', run: () => copyIntoEditor(tab, dir, { kind: 'pick' }) },
+      { label: 'Incolla', icon: 'clippy', key: 'Ctrl V', run: () => copyIntoEditor(tab, dir, { kind: 'paste' }) },
+      { label: EDITOR_REVEAL_LABEL, icon: 'folder-opened', run: () => revealEditorInFileManager(tab, row ? row.rel : '') },
+    ]),
   ];
   const rowItems = row ? [
     { sep: true },
@@ -305,8 +308,8 @@ async function newEditorEntry(tab, dir, kind) {
   if (!name) return;
   const rel = EditorFiles.joinRel(dir, name);
   const r = await callEditor(() => (kind === 'dir'
-    ? window.aisess.editorMkdir(tab.cwd, rel)
-    : window.aisess.editorCreate(tab.cwd, rel)));
+    ? window.aisess.editorMkdir(editorRoot(tab), rel)
+    : window.aisess.editorCreate(editorRoot(tab), rel)));
   if (!r.ok) { showEditorMessage(tab, `Non si crea ${rel}: ${r.error}`); return; }
   await loadEditorDir(tab, dir);
   if (kind === 'file') await openEditorFile(tab, rel);
@@ -318,7 +321,7 @@ async function renameEditorEntry(tab, row) {
     document, host: ed.ui.tree.element, after: ed.ui.tree.rowOf(row.rel), depth: row.depth, initial: row.name,
   });
   if (!name || name === row.name) return;
-  const r = await callEditor(() => window.aisess.editorRename(tab.cwd, row.rel, name));
+  const r = await callEditor(() => window.aisess.editorRename(editorRoot(tab), row.rel, name));
   if (!r.ok) { showEditorMessage(tab, `Non si rinomina ${row.rel}: ${r.error}`); return; }
   // I file aperti lì sotto seguono: stato, model di Monaco, watch
   const moved = EditorFiles.affectedBy(ed.files, row.rel);
@@ -348,7 +351,7 @@ async function trashEditorEntry(tab, row) {
     confirmLabel: 'Elimina',
   });
   if (!yes) return;
-  const r = await callEditor(() => window.aisess.editorTrash(tab.cwd, row.rel));
+  const r = await callEditor(() => window.aisess.editorTrash(editorRoot(tab), row.rel));
   if (!r.ok) { showEditorMessage(tab, `Non si elimina ${row.rel}: ${r.error}`); return; }
   // Un file aperto e pulito si chiude; uno con modifiche resta, «eliminato»
   for (const rel of EditorFiles.affectedBy(ed.files, row.rel)) {
@@ -404,14 +407,14 @@ function onEditorTextChange(tab, rel, dirty, edited = true) {
    si chiudeva si toglie). */
 async function watchEditorFile(tab, rel) {
   if (!tabs.has(tab.id)) return;
-  const r = await callEditor(() => window.aisess.editorWatch(tab.cwd, rel));
+  const r = await callEditor(() => window.aisess.editorWatch(editorRoot(tab), rel));
   if (!r.ok) { console.warn('editor-watch fallito:', r.error); return; }
   if (!tabs.has(tab.id)) { unwatchEditorFile(tab, rel); return; }
   if (tab.editor.files.files[rel]) tab.editor.files = EditorFiles.update(tab.editor.files, rel, { path: r.path });
 }
 
 function unwatchEditorFile(tab, rel) {
-  callEditor(() => window.aisess.editorUnwatch(tab.cwd, rel))
+  callEditor(() => window.aisess.editorUnwatch(editorRoot(tab), rel))
     .then((r) => { if (!r.ok) console.warn('editor-unwatch fallito:', r.error); });
 }
 
@@ -425,7 +428,7 @@ async function openEditorFile(tab, rel, { quiet = false } = {}) {
   ed.tree = EditorTree.select(ed.tree, rel);
   renderEditorTree(tab);
   if (ed.files.files[rel]) { activateEditorFile(tab, rel, { save: !quiet }); return true; }
-  const r = await callEditor(() => window.aisess.editorRead(tab.cwd, rel));
+  const r = await callEditor(() => window.aisess.editorRead(editorRoot(tab), rel));
   if (!r.ok) {
     if (!quiet) showEditorMessage(tab, `Non si apre ${rel}: ${readReason(r)}`);
     return false;
@@ -525,7 +528,7 @@ async function saveEditorFile(tab, rel) {
   let done = false;
   try {
     const text = ed.host.getText(rel);
-    const r = await callEditor(() => window.aisess.editorWrite(tab.cwd, rel, text, f.mtime, f.bom));
+    const r = await callEditor(() => window.aisess.editorWrite(editorRoot(tab), rel, text, f.mtime, f.bom));
     if (!ed.files.files[rel]) return false; // chiuso nel frattempo
     if (r.ok) {
       ed.files = EditorFiles.update(ed.files, rel, { mtime: r.mtime, deleted: false, conflict: null, diskMtime: null, error: null });
@@ -588,7 +591,7 @@ function handleEditorFileChange(tab, rel, change) {
 
 async function reloadEditorFile(tab, rel) {
   const ed = tab.editor;
-  const r = await callEditor(() => window.aisess.editorRead(tab.cwd, rel));
+  const r = await callEditor(() => window.aisess.editorRead(editorRoot(tab), rel));
   const f = ed.files.files[rel];
   if (!f || !ed.host) return;
   if (!r.ok) {
@@ -624,7 +627,7 @@ async function refreshEditorTab(tab) {
   for (const rel of [...ed.files.order]) {
     const f = ed.files.files[rel];
     if (!f) continue;
-    const r = await callEditor(() => window.aisess.editorStat(tab.cwd, rel));
+    const r = await callEditor(() => window.aisess.editorStat(editorRoot(tab), rel));
     if (r.ok) handleEditorFileChange(tab, rel, { path: f.path, exists: r.exists, mtime: r.mtime });
     else console.warn('editor-stat fallito:', r.error);
   }
@@ -665,14 +668,26 @@ function disposeEditorTab(tab) {
   try { if (ed.host) ed.host.dispose(); } catch (e) { console.warn('chiusura di Monaco fallita', e); }
 }
 
-async function createEditorTab({ name, cwd, startedAt = Date.now(), files = [], active = null, recent = [], restoring = false, reveal = true } = {}) {
+/* Cartella della scheda come la vuole il main (docs/plans/94): una stringa
+   per questo computer, `{ env, dir }` per una cartella su un server SSH. */
+function isRemoteEditor(tab) {
+  return Boolean(tab && tab.env && tab.env !== 'local');
+}
+
+function editorRoot(tab) {
+  return isRemoteEditor(tab) ? { env: tab.env, dir: tab.cwd } : tab.cwd;
+}
+
+const EDITOR_LOCAL_ONLY = 'Non disponibile per una cartella su un server.';
+
+async function createEditorTab({ name, cwd, env = 'local', startedAt = Date.now(), files = [], active = null, recent = [], restoring = false, reveal = true } = {}) {
   const id = 'tab-' + Date.now() + '-' + Math.floor(Math.random() * 1e6);
   const wrap = document.createElement('div');
   wrap.className = 'term-wrap editor-wrap type-editor';
   wrap.id = 'wrap-' + id;
   $('#terminals').appendChild(wrap);
   const folder = String(cwd || '').split(/[\\/]/).filter(Boolean).pop();
-  const tab = { id, type: 'editor', name: name || folder || `editor · ${counter++}`, cwd, projectRoot: cwd || null, startedAt, autoNamed: !name,
+  const tab = { id, type: 'editor', name: name || folder || `editor · ${counter++}`, cwd, env: env || 'local', projectRoot: cwd || null, startedAt, autoNamed: !name,
     session: null, reattached: false, alive: true, needsAttention: false, running: false, term: null, fit: null, ro: null, wrap, editor: null };
   tab.editor = {
     ui: buildEditorLayout(tab), files: EditorFiles.empty(), tree: EditorTree.emptyTree(),
@@ -688,7 +703,8 @@ async function createEditorTab({ name, cwd, startedAt = Date.now(), files = [], 
   // Durante il ripristino la lista su disco è già quella giusta: riscriverla
   // a ogni scheda la accorcerebbe, se l'app si chiudesse a metà
   if (!restoring) saveEditorSessions();
-  resolveProjectRoot(cwd).then((root) => {
+  // Sul server la radice del progetto resta la cartella: resolve-project legge il disco locale
+  if (!isRemoteEditor(tab)) resolveProjectRoot(cwd).then((root) => {
     if (!tabs.has(id) || root === tab.projectRoot) return;
     tab.projectRoot = root;
     renderSidebar();
@@ -708,24 +724,24 @@ async function createEditorTab({ name, cwd, startedAt = Date.now(), files = [], 
    e a ogni rinomina. Un nome preso dalla cartella non si salva (null). */
 function saveEditorSessions() {
   const sessions = [...tabs.values()].filter((t) => t.type === 'editor')
-    .map((t) => ({ cwd: t.cwd, name: t.autoNamed ? null : t.name, startedAt: t.startedAt, ...EditorFiles.toSaved(t.editor.files), recent: t.editor.recent }));
+    .map((t) => ({ cwd: t.cwd, env: t.env || 'local', name: t.autoNamed ? null : t.name, startedAt: t.startedAt, ...EditorFiles.toSaved(t.editor.files), recent: t.editor.recent }));
   return window.aisess.saveEditorSessions(sessions)
     .then((r) => { if (r && !r.ok) console.warn('editor-sessions-save fallito:', r.error); })
     .catch((e) => console.warn('editor-sessions-save non raggiungibile', e));
 }
 
 /** Perché una cartella non si può aprire nell'editor; null se si può. */
-async function editorFolderProblem(cwd) {
+async function editorFolderProblem(cwd, env = 'local') {
   if (!cwd) return 'Scegli la cartella da aprire.';
-  const r = await callEditor(() => window.aisess.editorList(cwd, ''));
+  const r = await callEditor(() => window.aisess.editorList(editorRoot({ cwd, env }), ''));
   return r.ok ? null : `Impossibile aprire la cartella: ${r.error}`;
 }
 
 /* Una cartella sparita nel frattempo: la scheda non torna */
 async function restoreEditorTab(s) {
-  const problem = await editorFolderProblem(s.cwd);
+  const problem = await editorFolderProblem(s.cwd, s.env);
   if (problem) { console.warn('scheda editor non ripristinata:', s.cwd, problem); return false; }
-  await createEditorTab({ name: s.name, cwd: s.cwd, startedAt: s.startedAt || Date.now(), files: s.files, active: s.active, recent: s.recent || [], restoring: true, reveal: false });
+  await createEditorTab({ name: s.name, cwd: s.cwd, env: s.env, startedAt: s.startedAt || Date.now(), files: s.files, active: s.active, recent: s.recent || [], restoring: true, reveal: false });
   return true;
 }
 
@@ -778,6 +794,14 @@ async function askEditorExit() {
   }
 }
 
+/* Il percorso di un evento del watch per questa scheda; null se è di un'altra
+   macchina. Per un server la chiave è `ssh:host:/assoluto` (app/editor.js). */
+function editorChangePath(tab, path) {
+  if (!isRemoteEditor(tab)) return path;
+  const prefix = `${tab.env}:`;
+  return path.startsWith(prefix) ? path.slice(prefix.length) : null;
+}
+
 /** Da init(): gli eventi del watch e la guardia sull'uscita. */
 function initEditorTabs() {
   initEditorNotebookRun();
@@ -785,8 +809,9 @@ function initEditorTabs() {
     if (!change || typeof change.path !== 'string') return;
     for (const t of tabs.values()) {
       if (!t.editor) continue;
-      const rel = EditorFiles.findByPath(t.editor.files, change.path);
-      if (rel) handleEditorFileChange(t, rel, change);
+      const path = editorChangePath(t, change.path);
+      const rel = path && EditorFiles.findByPath(t.editor.files, path);
+      if (rel) handleEditorFileChange(t, rel, { ...change, path });
     }
   });
   window.addEventListener('beforeunload', (e) => {

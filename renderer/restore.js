@@ -112,9 +112,12 @@ function gitRestoreItem(s) {
 function editorRestoreItem(s) {
   const folder = String(s.cwd || '').split(/[\\/]/).filter(Boolean).pop();
   const count = s.files.length;
+  // Cartella su un server (docs/plans/94): l'host nella riga, come nella sidebar
+  const host = Groups.envLabel(s.env);
+  const files = count === 1 ? '1 file' : `${count} file`;
   return {
     type: 'editor', name: s.name || folder || 'editor', cwd: s.cwd,
-    how: count === 1 ? 'editor, 1 file' : `editor, ${count} file`,
+    how: host ? `editor su ${host}, ${files}` : `editor, ${files}`,
     restore: () => restoreEditorTab(s),
   };
 }

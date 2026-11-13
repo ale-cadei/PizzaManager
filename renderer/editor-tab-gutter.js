@@ -75,7 +75,7 @@ async function readEditorGutterBase(tab, rel) {
   const ed = tab.editor;
   const seq = ++ed.gutterSeqLast;
   ed.gutterSeq.set(rel, seq);
-  const r = await callEditor(() => window.aisess.editorHeadText(tab.cwd, rel));
+  const r = await callEditor(() => window.aisess.editorHeadText(editorRoot(tab), rel));
   const f = ed.files.files[rel];
   if (!f || !tabs.has(tab.id) || ed.gutterSeq.get(rel) !== seq) return;
   if (!r.ok && r.error) warnEditorHead(tab.cwd, r);

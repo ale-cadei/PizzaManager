@@ -26,7 +26,7 @@ async function goToEditorDefinition(tab, rel, word, at) {
   // Un click più recente vince: la risposta di uno vecchio si scarta
   const seq = (ed.definitionSeq || 0) + 1;
   ed.definitionSeq = seq;
-  const r = await callEditor(() => window.aisess.editorDefinition(tab.cwd, word, rel, at.lineNumber));
+  const r = await callEditor(() => window.aisess.editorDefinition(editorRoot(tab), word, rel, at.lineNumber));
   if (!tabs.has(tab.id) || ed.definitionSeq !== seq) return;
   if (!r.ok) {
     if (r.reason !== 'invalid') console.warn('editor-definition fallito:', r.reason, r.error);

@@ -231,3 +231,10 @@ ok('definizione: git grep vero fuori da un repository', async (t) => {
   assert.strictEqual(r.ok, true);
   assert.strictEqual(r.results[0].rel, 'src/util.js');
 });
+
+ok('createEditorDefinition: realRoot dato non tocca il disco (editor remoto, piano 94)', async () => {
+  let cwd = null;
+  const d = createEditorDefinition({ root: '/non/esiste/qui', realRoot: '/srv/app', run: async (a, o) => { cwd = o.cwd; return ''; } });
+  assert.deepStrictEqual(await d.find({ word: 'foo' }), { ok: true, results: [] });
+  assert.strictEqual(cwd, '/srv/app');
+});

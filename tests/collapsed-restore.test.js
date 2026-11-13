@@ -93,7 +93,7 @@ test('ripristino: le schede git riaperte da sole non riaprono i gruppi', async (
 test('ripristino: editorRestoreItem propone la scheda editor con conteggio file e la riapre via restoreEditorTab', async () => {
   const calls = [];
   const ctx = {
-    console, window: {},
+    console, window: {}, Groups: require('../renderer/session-groups'),
     restoreEditorTab: async (s) => { calls.push(s); return true; },
   };
   load('restore.js', ctx);
@@ -106,6 +106,8 @@ test('ripristino: editorRestoreItem propone la scheda editor con conteggio file 
   const multi = ctx.editorRestoreItem({ name: 'mia scheda', cwd: '/p/proj', files: ['a.js', 'b.js'] });
   assert.strictEqual(multi.name, 'mia scheda');
   assert.strictEqual(multi.how, 'editor, 2 file');
+  // Su un server l'host nella riga (docs/plans/94)
+  assert.strictEqual(ctx.editorRestoreItem({ cwd: '~/prj', env: 'ssh:nas', files: [] }).how, 'editor su nas, 0 file');
 
   const ok = await multi.restore();
   assert.strictEqual(ok, true);

@@ -14,7 +14,7 @@ function tmp(t) {
 ok('store: andata e ritorno, con savedAt', (t) => {
   const dir = tmp(t);
   const store = createEditorSessionsStore({ dir, now: () => 1234 });
-  const list = [{ name: null, cwd: '/home/u/prj', files: ['src/a.js', 'README.md'], active: 'README.md', startedAt: 10, recent: [{ rel: 'old.js', at: 9 }] }];
+  const list = [{ name: null, cwd: '/home/u/prj', env: 'local', files: ['src/a.js', 'README.md'], active: 'README.md', startedAt: 10, recent: [{ rel: 'old.js', at: 9 }] }];
   assert.deepStrictEqual(store.write(list), list);
   assert.deepStrictEqual(store.readState(), { sessions: list, savedAt: 1234 });
   assert.strictEqual(store.file, path.join(dir, EDITOR_SESSIONS_FILE));
@@ -37,8 +37,8 @@ ok('sanitize: cwd relative o sporche e file che escono si scartano', () => {
     null,
   ]);
   assert.deepStrictEqual(out, [
-    { name: null, cwd: '/home/u/prj', files: ['a.js', 'b.js'], active: 'a.js', startedAt: null, recent: [] },
-    { name: 'Mio', cwd: 'C:\\prj', files: [], active: null, startedAt: null, recent: [] },
+    { name: null, cwd: '/home/u/prj', env: 'local', files: ['a.js', 'b.js'], active: 'a.js', startedAt: null, recent: [] },
+    { name: 'Mio', cwd: 'C:\\prj', env: 'local', files: [], active: null, startedAt: null, recent: [] },
   ]);
 });
 
@@ -58,4 +58,25 @@ ok('sanitize: i recenti restano se sono percorsi relativi validi con una data, a
   ] }]);
   assert.deepStrictEqual(s.recent, [{ rel: 'a.js', at: 5 }, { rel: 'd.js', at: 2 }, { rel: 'e.js', at: 1 }, { rel: 'f.js', at: 1 }, { rel: 'g.js', at: 1 }]);
   assert.deepStrictEqual(sanitizeEditorSessions([{ cwd: '/w', recent: 'no' }])[0].recent, []);
+});
+
+ok('sanitize: scheda su un server SSH tiene env e accetta ~ (docs/plans/94)', () => {
+  const [s, t] = sanitizeEditorSessions([
+    { cwd: '~/prj', env: 'ssh:nas', files: ['a.js'] },
+    { cwd: '/srv/x/', env: 'ssh:pi' },
+  ]);
+  assert.strictEqual(s.env, 'ssh:nas');
+  assert.strictEqual(s.cwd, '~/prj');
+  assert.deepStrictEqual([t.env, t.cwd], ['ssh:pi', '/srv/x']);
+});
+
+ok('sanitize: ambiente assente = locale, ambiente non valido o WSL = scheda scartata', () => {
+  const list = sanitizeEditorSessions([
+    { cwd: '/home/u/prj' },
+    { cwd: '~/prj' },
+    { cwd: '/srv', env: 'ssh:-oProxyCommand=x' },
+    { cwd: '/srv', env: 'wsl:Debian' },
+    { cwd: 'relativo', env: 'ssh:nas' },
+  ]);
+  assert.deepStrictEqual(list.map((s) => [s.env, s.cwd]), [['local', '/home/u/prj']]);
 });

@@ -96,7 +96,7 @@ async function fillEnvSelect(wanted) {
 
 /**
  * Adatta il modal all'ambiente scelto: sul server niente Sfoglia, niente
- * Git/Editor, account Claude solo OAuth, directory scritta a mano (`~` di
+ * Git (Editor solo su SSH), account Claude solo OAuth, directory scritta a mano (`~` di
  * partenza). Tornando a questo computer si ritrova l'ultima directory locale.
  * @param {{cwd?: string}} [opts] directory imposta dal chiamante (il «+» di un gruppo)
  */
@@ -112,9 +112,16 @@ function applyEnvToModal({ cwd } = {}) {
   if (cwd) input.value = cwd;
   input.placeholder = remote ? '~/progetto oppure /percorso/assoluto' : '/home/utente/progetto';
   $('#btn-browse').hidden = remote;
-  $$('.type-card').forEach((c) => { c.disabled = remote && PANEL_TYPES.includes(c.dataset.type); });
-  if (remote && PANEL_TYPES.includes(pendingNewType)) pendingNewType = 'shell';
+  $$('.type-card').forEach((c) => { c.disabled = !panelAvailable(c.dataset.type, env); });
+  if (!panelAvailable(pendingNewType, env)) pendingNewType = 'shell';
   $$('.type-card').forEach((x) => x.classList.toggle('selected', x.dataset.type === pendingNewType));
+}
+
+/* Git e Editor sono pannelli dell'app, non processi: l'editor sa aprire una
+   cartella su un server SSH (docs/plans/94), git solo una di questo computer. */
+function panelAvailable(type, env) {
+  if (!PANEL_TYPES.includes(type) || env === LOCAL_ENV) return true;
+  return type === 'editor' && env.startsWith('ssh:');
 }
 
 /** Cambio di «Dove» dal select. */

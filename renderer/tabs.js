@@ -47,7 +47,7 @@ async function createTab(type, { name, sessionName = null, cwd, resumeId, claude
   // La sessione git non ha pty: è un pannello (renderer/git-tab.js)
   if (type === 'git') return createGitTab({ name, cwd, startedAt, reveal });
   // La sessione editor non ha pty: è un pannello (renderer/editor-tab.js)
-  if (type === 'editor') return createEditorTab({ name, cwd, startedAt, reveal });
+  if (type === 'editor') return createEditorTab({ name, cwd, env, startedAt, reveal });
   // attachSession: riaggancio di una sessione tmux gia' viva. Il comando e' gia'
   // stato risolto quando e' nata, quindi niente scelta del profilo.
   const picked = attachSession

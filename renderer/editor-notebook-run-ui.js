@@ -126,6 +126,8 @@ function ensureEditorNotebookKernel(tab, rel) {
 
 async function startEditorNotebookKernel(tab, rel, k) {
   const raw = editorNotebookRaw(tab, rel);
+  // Il kernel partirebbe su questo computer, in una cartella che qui non c'è
+  if (isRemoteEditor(tab)) return failEditorNotebookStart(tab, rel, k, { error: EDITOR_LOCAL_ONLY });
   setEditorNotebookKernel(tab, rel, k, { status: 'starting', message: '' });
   const r = await callEditorKernel(() => window.aisess.kernelStart(editorNotebookDir(tab, rel), NotebookRun.kernelNameOf(raw && raw.doc)));
   if (editorNotebookKernels(tab).get(rel) !== k) {

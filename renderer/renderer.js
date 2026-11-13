@@ -78,7 +78,7 @@ async function init() {
       if (problem) { showNewError(problem); return; }
     }
     if (pendingNewType === 'editor') {
-      const problem = await editorFolderProblem(cwd);
+      const problem = await editorFolderProblem(cwd, env);
       if (problem) { showNewError(problem); return; }
     }
     showNewError('');

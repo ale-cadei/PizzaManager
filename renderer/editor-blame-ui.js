@@ -30,7 +30,7 @@ async function showEditorBlame(tab, rel, line) {
   if (version === null || typeof text !== 'string') return;
   const seq = (ed.blameSeq || 0) + 1;
   ed.blameSeq = seq;
-  const r = await callEditor(() => window.aisess.editorBlameLine(tab.cwd, rel, line, text));
+  const r = await callEditor(() => window.aisess.editorBlameLine(editorRoot(tab), rel, line, text));
   if (!tabs.has(tab.id) || ed.blameSeq !== seq || ed.host !== host) return;
   if (ed.files.active !== rel || host.version(rel) !== version) return;
   if (!r.ok) {

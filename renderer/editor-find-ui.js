@@ -11,7 +11,7 @@ const EDITOR_SYMBOL_DELAY = 150;
 
 /** M/U/A/D per file, da git; fuori da un repository nessuna. */
 async function loadEditorGitStatus(tab) {
-  const r = await callEditor(() => window.aisess.editorGitStatus(tab.cwd));
+  const r = await callEditor(() => window.aisess.editorGitStatus(editorRoot(tab)));
   if (!tabs.has(tab.id)) return;
   if (!r.ok) { console.warn('editor-git-status fallito:', r.error); return; }
   tab.editor.git = r.status || {};
@@ -30,7 +30,7 @@ function forgetEditorFileList(tab) {
 function loadEditorFileList(tab) {
   const ed = tab.editor;
   if (ed.allFiles || ed.allFilesPending) return ed.allFilesPending;
-  ed.allFilesPending = callEditor(() => window.aisess.editorListAll(tab.cwd)).then((r) => {
+  ed.allFilesPending = callEditor(() => window.aisess.editorListAll(editorRoot(tab))).then((r) => {
     ed.allFilesPending = null;
     if (!tabs.has(tab.id)) return;
     if (!r.ok) { showEditorMessage(tab, `Non si legge l'elenco dei file: ${r.error}`); return; }

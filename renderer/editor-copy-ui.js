@@ -85,6 +85,7 @@ async function revealEditorDir(tab, dir) {
 
 async function copyIntoEditor(tab, dir, source) {
   const ed = tab.editor;
+  if (isRemoteEditor(tab)) { showEditorNotice(tab, EDITOR_LOCAL_ONLY); return; }
   if (ed.copying) {
     showEditorNotice(tab, 'Una copia è già in corso.');
     return;

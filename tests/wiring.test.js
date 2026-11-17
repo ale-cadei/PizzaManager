@@ -193,6 +193,21 @@ ok('antigravity: main + preload + UI collegati', () => {
   assert.ok(/antigravity:\s*\(s\)\s*=>\s*\(\{/.test(js), 'manca la vista resume di antigravity');
 });
 
+// ---------- Resume Copilot ----------
+ok('copilot: main + preload + UI collegati', () => {
+  const main = read('main.js');
+  assert.ok(main.includes("'list-copilot-sessions'"), 'manca handler list-copilot-sessions');
+  assert.ok(main.includes("require('./lib/copilot-sessions')"), 'main.js non usa il modulo copilot-sessions');
+  assert.ok(read('preload.js').includes('listCopilot'), 'manca listCopilot nel preload');
+  const html = read('renderer', 'index.html');
+  for (const attr of ['data-type="copilot"', 'data-tab="copilot"', 'data-config-tab="copilot"', 'id="dep-copilot"']) {
+    assert.ok(html.includes(attr), `manca ${attr} in index.html`);
+  }
+  const js = readRendererApp();
+  assert.ok(js.includes('listCopilot'), 'il renderer non carica le sessioni copilot');
+  assert.ok(/copilot:\s*\(s\)\s*=>\s*\(\{/.test(js), 'manca la vista resume di copilot');
+});
+
 // ---------- Nomi delle schede ----------
 /* Il pty puo' spostare la sessione (cwd assente, con ~ o inesistente finisce
    nella home): se la scheda tiene il valore digitato, il titolo automatico non

@@ -4,8 +4,8 @@ const assert = require('node:assert');
 const { test: ok } = require('node:test');
 const TC = require('../renderer/type-colors');
 
-const TYPES = ['shell', 'opencode', 'claude', 'codex', 'antigravity'];
-const DEFAULTS = { shell: '#F2C14E', opencode: '#4ADE80', claude: '#FF9147', codex: '#5AA2FF', antigravity: '#FF6B6B' };
+const TYPES = ['shell', 'opencode', 'claude', 'codex', 'antigravity', 'copilot'];
+const DEFAULTS = { shell: '#F2C14E', opencode: '#4ADE80', claude: '#FF9147', codex: '#5AA2FF', antigravity: '#FF6B6B', copilot: '#F472B6' };
 
 /** Lo stile di :root con sotto il foglio: la variabile inline vince, tolta torna tokens.css. */
 function rootStyle() {

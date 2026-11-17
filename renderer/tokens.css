@@ -71,12 +71,14 @@
   --type-claude:   #FF9147;  /* arancione */
   --type-codex:    #5AA2FF;  /* blu */
   --type-antigravity: #FF6B6B;  /* rosso */
+  --type-copilot:  #F472B6;  /* rosa: lontano dal rosso di antigravity e dal lilla dell'editor */
 
   /* colori dei marchi ufficiali, usati solo dalle icone degli agenti */
   --brand-claude:   #D97757;  /* arancio Anthropic */
   --brand-opencode: #F6F1EC;  /* marchio monocromatico, su fondo scuro = chiaro */
   --brand-codex:    #F6F1EC;  /* marchio OpenAI, monocromatico */
   --brand-antigravity: #4F8DF5;  /* marchio Google Antigravity, blu dell'arco */
+  --brand-copilot:  #F6F1EC;  /* marchio GitHub Copilot, monocromatico */
 
   /* testo */
   --text:          #F6F1EC;

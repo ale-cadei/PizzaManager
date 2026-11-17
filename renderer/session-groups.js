@@ -12,10 +12,10 @@
   if (root) root.AisessGroups = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : null, function () {
-  const TYPE_ORDER = ['shell', 'git', 'editor', 'opencode', 'claude', 'codex', 'antigravity'];
+  const TYPE_ORDER = ['shell', 'git', 'editor', 'opencode', 'claude', 'codex', 'antigravity', 'copilot'];
   const TYPE_LABELS = {
     shell: 'Terminale', git: 'Git', editor: 'Editor', opencode: 'OpenCode', claude: 'Claude',
-    codex: 'Codex', antigravity: 'Antigravity',
+    codex: 'Codex', antigravity: 'Antigravity', copilot: 'Copilot',
   };
   const NO_PROJECT_KEY = '';
   const NO_PROJECT_LABEL = 'Senza directory';

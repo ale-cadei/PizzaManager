@@ -69,7 +69,7 @@ ok('sweep: senza cartella non lancia (primo avvio)', () => {
 ok('si cattura solo la shell, e non mentre un pager tiene l alternate screen', () => {
   assert.strictEqual(shouldCapture({ type: 'shell', alternate: false }), true);
   assert.strictEqual(shouldCapture({ type: 'shell', alternate: true }), false, 'sarebbe il fotogramma di un less, non una cronologia');
-  for (const t of ['claude', 'codex', 'opencode', 'antigravity']) {
+  for (const t of ['claude', 'codex', 'opencode', 'antigravity', 'copilot']) {
     assert.strictEqual(shouldCapture({ type: t, alternate: false }), false, `${t} riprende con --resume, e una TUI`);
   }
   assert.strictEqual(shouldCapture({ type: undefined, alternate: false }), false);

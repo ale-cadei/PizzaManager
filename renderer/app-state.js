@@ -47,7 +47,7 @@ const ShellIcons = window.AisessShellIcons;
    localStorage, non nello stato in memoria delle schede. */
 const titleStore = Titles.createTitleStore(window.localStorage);
 // Tipi con un binario esterno da risolvere (lo shell è sempre disponibile)
-const AI_TYPES = ['opencode', 'claude', 'codex', 'antigravity'];
+const AI_TYPES = ['opencode', 'claude', 'codex', 'antigravity', 'copilot'];
 // Tipi senza pty: niente kill alla chiusura, niente domanda «processo in corso»
 const PANEL_TYPES = ['git', 'editor'];
 

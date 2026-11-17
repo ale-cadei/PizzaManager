@@ -13,6 +13,7 @@ function listSessionsFor(type, targets = []) {
   if (type === 'claude') return window.aisess.listClaude(100);
   if (type === 'codex') return window.aisess.listCodex(100);
   if (type === 'antigravity') return window.aisess.listAntigravity(100);
+  if (type === 'copilot') return window.aisess.listCopilot(100);
   return null; // lo shell non ha conversazioni
 }
 

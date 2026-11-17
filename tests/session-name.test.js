@@ -19,7 +19,7 @@ ok('un nome che comincia con - resta il valore di --name, non un\'opzione', () =
 });
 
 ok('gli altri tipi non hanno un flag per il nome', () => {
-  for (const type of ['opencode', 'codex', 'antigravity', 'shell', 'git', 'editor']) {
+  for (const type of ['opencode', 'codex', 'antigravity', 'copilot', 'shell', 'git', 'editor']) {
     assert.deepStrictEqual(nameArgs(type, 'prova'), [], type);
   }
 });

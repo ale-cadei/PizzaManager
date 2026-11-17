@@ -59,3 +59,12 @@ terze parti (`kenn-io/agentsview`, `yigitkonur/cli-continues`).
 - `npm run test:unit` verde.
 - Smoke con la CLI installata: nuova sessione Copilot, chiudi, Resume la
   ritrova col titolo e la riapre sulla conversazione.
+
+Fatto il 2026-11-17 con Copilot CLI 1.0.112 (Electron sotto xvfb, profilo
+`AISESS_PROFILE=copilot`): binario trovato, card e pallino ok, sessione
+avviata (Copilot chiede la fiducia nella cartella), linguetta Copilot del
+Resume con i titoli veri, resume sulla conversazione giusta. Emerso:
+`session-state/.session-operation-locks/` è una cartella di lock, non una
+sessione: i nomi col punto si saltano. Copilot riscrive `name` col
+riassunto che genera (`user_named: false`), quindi il titolo nel Resume può
+cambiare dopo una ripresa.

@@ -52,7 +52,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 41 | [`fix/temi-personalizzati`](41-temi-personalizzati.md) — i ritocchi restano al loro tema | 39 | ~¼ g | fatto |
 | 42 | [`fix/opencode-resume-id`](42-opencode-resume-id.md) — le schede opencode tornano dopo un riavvio | 8 | ~2h | fatto, provato nell'app |
 | 43 | [`feat/modifiche-staged`](43-modifiche-staged.md) — «Da committare»: staged e non staged nel pannello | 32 | ~½ g | fatto, provato nell'app (smoke sotto xvfb) |
-| 44 | [`chore/release-firmata`](44-release-firmata.md) — 1.1.0 firmata, notarizzata, su repo pubblico | 13 | ~½ g | da provare con la CLI |
+| 44 | [`chore/release-firmata`](44-release-firmata.md) — 1.1.0 firmata, notarizzata, su repo pubblico | 13 | ~½ g | fatto, da mergiare |
 | 44 | [`feat/review-attiva`](44-review-commenti.md) — commenti sul diff, inviati all'agente | 32, 43 | ~1 g | fatto, provato nell'app (smoke sotto xvfb, agente finto) |
 | 48 | [`feat/segnalazioni`](48-segnalazioni.md) — bacheca di richieste e problemi nell'app | 18, 44 | ~1 g | ✅ mergiato (PR #51), nella 1.5.0 |
 | 46 | [`feat/hooks-esatti`](46-hook-esatti.md) — lavora / ha finito / chiede un permesso, dagli hook di Claude, opencode e Codex | 38 | ~1½ g | fatto, smoke da fare |
@@ -101,7 +101,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 94 | [`feat/editor-remoto`](94-editor-remoto.md) — l'editor apre una cartella su un server SSH: un helper Python lanciato via ssh fa file e git lì | 60, 93 | ~2 g | fatto, test verdi; smoke con un host da fare |
 | 95 | [`feat/editor-copia-taglia`](95-editor-copia-taglia.md) — Ctrl+C / Ctrl+X sulle voci dell'albero dell'editor e Ctrl+V in un'altra cartella: copia o sposta, appunti del sistema, i file aperti seguono | 61 | ~3h | fatto, test verdi; smoke nell'app da fare |
 | 96 | [`feat/ssh-diretto`](96-ssh-diretto.md) — nel «Dove» della nuova sessione «Altro server…»: `utente@host:porta` scritto a mano, poi fra i recenti | 93 | ~3h | fatto, smoke da fare |
-| 97 | [`feat/copilot-support`](97-copilot.md) — sessione GitHub Copilot CLI: nuova sessione, Resume, profili, colore | — | ~½ g | da provare con la CLI |
+| 97 | [`feat/copilot-support`](97-copilot.md) — sessione GitHub Copilot CLI: nuova sessione, Resume, profili, colore | — | ~½ g | fatto, da mergiare |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

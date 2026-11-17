@@ -13,16 +13,19 @@ const binaries = {
   codex: missing,
   opencode: missing,
   antigravity: missing,
+  copilot: missing,
 };
 
 ok('setup: per ogni agente dice se c e e, se manca, come installarlo', () => {
   const r = setupReport({ binaries, tmuxAvailable: true, platform: 'darwin' });
   const byType = Object.fromEntries(r.agents.map((a) => [a.type, a]));
-  assert.deepStrictEqual(r.agents.map((a) => a.type), ['claude', 'codex', 'opencode', 'antigravity']);
+  assert.deepStrictEqual(r.agents.map((a) => a.type), ['claude', 'codex', 'copilot', 'opencode', 'antigravity']);
   assert.strictEqual(byType.claude.found, true);
   assert.strictEqual(byType.claude.path, '/opt/homebrew/bin/claude');
   assert.strictEqual(byType.claude.label, 'Claude Code');
   assert.strictEqual(byType.codex.install.command, 'npm i -g @openai/codex');
+  assert.strictEqual(byType.copilot.install.command, 'npm i -g @github/copilot');
+  assert.strictEqual(byType.copilot.label, 'GitHub Copilot');
   // Antigravity non ha un comando da copiare: solo dove andare
   assert.strictEqual(byType.antigravity.install.command, null);
   assert.ok(byType.antigravity.install.url.startsWith('https://'));
@@ -50,7 +53,7 @@ ok('setup: tmux installato ad app aperta e in attesa di riavvio, non ancora a po
   assert.strictEqual(mac.tmux.pending, true);
   assert.strictEqual(mac.tmux.path, '/opt/homebrew/bin/tmux');
   assert.ok(/riavvi/i.test(mac.tmux.note), mac.tmux.note);
-  const tutti = Object.fromEntries(['claude', 'codex', 'opencode', 'antigravity'].map((t) => [t, found('/x/' + t)]));
+  const tutti = Object.fromEntries(['claude', 'codex', 'copilot', 'opencode', 'antigravity'].map((t) => [t, found('/x/' + t)]));
   assert.strictEqual(setupReport({ binaries: tutti, tmuxAvailable: false, tmuxInstalled: true, platform: 'darwin' }).complete, false);
   assert.strictEqual(setupReport({ binaries, tmuxAvailable: true, platform: 'darwin' }).tmux.pending, false);
 });
@@ -105,7 +108,7 @@ ok('legenda: su Windows e psmux, con la versione; se non parte niente brew, ma l
 });
 
 ok('setup: tutto installato e un resoconto completo; input mancanti non lanciano', () => {
-  const tutti = Object.fromEntries(['claude', 'codex', 'opencode', 'antigravity'].map((t) => [t, found('/x/' + t)]));
+  const tutti = Object.fromEntries(['claude', 'codex', 'copilot', 'opencode', 'antigravity'].map((t) => [t, found('/x/' + t)]));
   assert.strictEqual(setupReport({ binaries: tutti, tmuxAvailable: true, platform: 'linux' }).complete, true);
   const vuoto = setupReport({});
   assert.strictEqual(vuoto.ready, false);

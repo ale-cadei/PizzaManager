@@ -18,6 +18,7 @@ const { listClaudeSessions } = require('./lib/claude-sessions');
 const { listOpencodeSessionsIn, opencodeHistoryDirs } = require('./lib/opencode-sessions');
 const { listCodexSessions } = require('./lib/codex-sessions');
 const { listAntigravitySessions } = require('./lib/antigravity-sessions');
+const { listCopilotSessions } = require('./lib/copilot-sessions');
 const { createSearchWorker } = require('./lib/search-worker');
 const { collectUsage } = require('./lib/usage');
 const { computeRecentDirs } = require('./lib/recent-dirs');
@@ -209,6 +210,9 @@ ipcMain.handle('list-claude-sessions', async (event, { limit } = {}) => {
 });
 ipcMain.handle('list-antigravity-sessions', async (event, { limit } = {}) => {
   try { return listAntigravitySessions(limit); } catch (e) { return { ...fail('', e), sessions: [] }; }
+});
+ipcMain.handle('list-copilot-sessions', async (event, { limit } = {}) => {
+  try { return listCopilotSessions(limit); } catch (e) { return { ...fail('', e), sessions: [] }; }
 });
 ipcMain.handle('list-extensions', async (event, { cwd } = {}) => listExtensions({ cwd: typeof cwd === 'string' ? cwd : null }));
 ipcMain.handle('search-conversations', async (event, { query, scope, allSnippets } = {}) => conversationSearch().search(query, scope, allSnippets));

@@ -103,7 +103,7 @@ ok('welcome: su Windows con psmux si dice che chiudere l app non chiude le sessi
 ok('welcome: con tutto installato la sezione strumenti sparisce', () => {
   const { restore, root, w } = mount();
   try {
-    const all = Object.fromEntries(['claude', 'codex', 'opencode', 'antigravity'].map((t) => [t, found('/b/' + t)]));
+    const all = Object.fromEntries(['claude', 'codex', 'copilot', 'opencode', 'antigravity'].map((t) => [t, found('/b/' + t)]));
     w.update(setupReport({ binaries: all, tmuxAvailable: true, platform: 'linux' }));
     assert.strictEqual(byClass(root, 'setup-row').length, 0);
   } finally { restore(); }
@@ -132,7 +132,7 @@ ok('welcome: i nomi arrivano come testo, mai come HTML', () => {
 ok('welcome: le cose da sapere ci sono sempre, anche a installazione completa', () => {
   const { restore, root, w } = mount();
   try {
-    const all = Object.fromEntries(['claude', 'codex', 'opencode', 'antigravity'].map((t) => [t, found('/b/' + t)]));
+    const all = Object.fromEntries(['claude', 'codex', 'copilot', 'opencode', 'antigravity'].map((t) => [t, found('/b/' + t)]));
     w.update(setupReport({ binaries: all, tmuxAvailable: true, platform: 'darwin' }));
     const tips = byClass(root, 'tip').map(text).join('\n');
     assert.ok(/doppio click/i.test(tips), 'manca la rinomina');

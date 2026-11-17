@@ -91,7 +91,7 @@
 
   function statusText(state) {
     switch (state.phase) {
-      case 'short': return `Scrivi almeno ${MIN_QUERY} caratteri: si cerca nei messaggi e nei nomi dei progetti di Claude Code e Codex. OpenCode e Antigravity si cercano nelle loro linguette.`;
+      case 'short': return `Scrivi almeno ${MIN_QUERY} caratteri: si cerca nei messaggi e nei nomi dei progetti di Claude Code e Codex. OpenCode, Antigravity e Copilot si cercano nelle loro linguette.`;
       case 'loading': return 'Cerco…';
       case 'empty': return `Nessun messaggio o progetto corrisponde a «${state.query}».`;
       case 'error': return `⚠ Ricerca non riuscita: ${state.error}`;

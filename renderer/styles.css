@@ -213,6 +213,7 @@ img.agent-icon { object-fit: contain; }
 .agent-icon--opencode { color: var(--brand-opencode); }
 .agent-icon--codex    { color: var(--brand-codex); }
 .agent-icon--antigravity { color: var(--brand-antigravity); }
+.agent-icon--copilot { color: var(--brand-copilot); }
 .agent-icon--shell    { color: var(--type-shell); }
 .agent-icon--git      { color: var(--type-git); }
 .agent-icon--editor   { color: var(--type-editor); }
@@ -269,6 +270,7 @@ img.agent-icon--node { border-radius: 2px; }
 .type-claude   { --type-color: var(--type-claude); }
 .type-codex    { --type-color: var(--type-codex); }
 .type-antigravity { --type-color: var(--type-antigravity); }
+.type-copilot { --type-color: var(--type-copilot); }
 
 /* barra laterale del colore del tipo: smorzata di base, piena se selezionata.
    Rientrata di 6px: appoggiata al bordo sembrerebbe un segno del pannello, qui
@@ -556,6 +558,7 @@ img.agent-icon--node { border-radius: 2px; }
 .dot.claude { background: var(--type-claude); }
 .dot.codex { background: var(--type-codex); }
 .dot.antigravity { background: var(--type-antigravity); }
+.dot.copilot { background: var(--type-copilot); }
 .dot.tmux { background: var(--text-muted); }
 .dot.action { background: var(--action); }
 /* Piede: legenda dei tipi + stato dei binari. Sono due blocchi nel markup ma

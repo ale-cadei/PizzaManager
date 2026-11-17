@@ -26,7 +26,7 @@ const DEFAULT_ROWS = 24;
 const CAPTURE_EVERY_MS = 30000;
 /* Su un server si aprono solo terminali: Git ed Editor leggono i file con
    `fs` locale (docs/plans/93-sessioni-remote.md). */
-const REMOTE_TYPES = new Set(['shell', 'claude', 'codex', 'opencode', 'antigravity']);
+const REMOTE_TYPES = new Set(['shell', 'claude', 'codex', 'opencode', 'antigravity', 'copilot']);
 const REMOTE_CLIENT_HINT = {
   ssh: 'Installa il client OpenSSH (ssh) e verifica che sia nel PATH.',
   wsl: 'WSL non è installato: da PowerShell come amministratore, wsl --install.',

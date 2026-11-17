@@ -40,7 +40,7 @@ function selectResumeTab(name) {
 /* La linguetta del ⟲ di un worktree: il tipo dell'ultima sessione aperta lì.
    La cronologia si rilegge ogni volta (la cache del Resume può essere vecchia
    di una sessione); se non si legge, resta la linguetta di prima. */
-const RESUME_SOURCE_TABS = ['opencode', 'claude', 'codex', 'antigravity'];
+const RESUME_SOURCE_TABS = ['opencode', 'claude', 'codex', 'antigravity', 'copilot'];
 
 async function recentResumeTabIn(dir) {
   try {
@@ -66,6 +66,9 @@ async function ensureResumeData(tab) {
   } else if (tab === 'antigravity') {
     const r = await window.aisess.listAntigravity(limit);
     resumeCache.antigravity = { ...r, requestedLimit: limit };
+  } else if (tab === 'copilot') {
+    const r = await window.aisess.listCopilot(limit);
+    resumeCache.copilot = { ...r, requestedLimit: limit };
   } else {
     const h = await window.aisess.getHistory();
     resumeCache.history = { ok: true, sessions: h };
@@ -264,6 +267,14 @@ const RESUME_VIEWS = {
     action: 'Resume',
     actionClass: 'btn--primary',
     open: () => createTab('antigravity', { name: Titles.displayName(titleStore, 'antigravity', s.id, s.title || 'antigravity').slice(0, 28), cwd: s.cwd, resumeId: s.id }),
+  }),
+  copilot: (s) => ({
+    icon: 'copilot',
+    title: Titles.displayName(titleStore, 'copilot', s.id, s.title || s.id),
+    sub: [titleStore.nameFor('copilot', s.id) ? s.title : null, s.cwd, s.id.slice(0, 8), fmtDate(s.mtime)],
+    action: 'Resume',
+    actionClass: 'btn--primary',
+    open: () => createTab('copilot', { name: Titles.displayName(titleStore, 'copilot', s.id, s.title || 'copilot').slice(0, 28), cwd: s.cwd, resumeId: s.id }),
   }),
   history: (s) => ({
     icon: Icons.has(s.type) ? s.type : null,

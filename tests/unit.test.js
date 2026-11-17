@@ -155,10 +155,10 @@ ok('ogni tipo AI ha un suggerimento di installazione dedicato, piu la nota sugli
   assert.ok(installHint('tool-inesistente').includes('sia installato e nel PATH'));
 });
 
-ok('i tipi di sessione supportati sono shell piu i quattro tool AI', () => {
-  assert.deepStrictEqual([...SESSION_TYPES].sort(), ['antigravity', 'claude', 'codex', 'opencode', 'shell']);
+ok('i tipi di sessione supportati sono shell piu i cinque tool AI', () => {
+  assert.deepStrictEqual([...SESSION_TYPES].sort(), ['antigravity', 'claude', 'codex', 'copilot', 'opencode', 'shell']);
   // I suggerimenti sono per binario, non per tipo: la CLI di Antigravity e' `agy`
-  assert.deepStrictEqual(Object.keys(INSTALL_HINTS).sort(), ['agy', 'claude', 'codex', 'opencode']);
+  assert.deepStrictEqual(Object.keys(INSTALL_HINTS).sort(), ['agy', 'claude', 'codex', 'copilot', 'opencode']);
 });
 
 /* `antigravity` e' l'IDE (fork di VS Code, apre una finestra grafica): nel pty
@@ -173,13 +173,25 @@ ok('il tipo antigravity usa il binario agy, non l eseguibile dell IDE', () => {
   assert.deepStrictEqual(r.args, ['--conversation', 'abc123']);
 });
 
+/* Copilot: binario `copilot`, resume con `--resume=<id>` in un argomento solo
+ * (la forma della reference ufficiale). docs/plans/97-copilot.md */
+ok('il tipo copilot lancia copilot e riprende con --resume=<id>', () => {
+  assert.strictEqual(AI_BINARIES.copilot, 'copilot');
+  const prof = defaultProfiles({ shell: '/bin/bash', platform: 'linux' }).copilot[0];
+  assert.strictEqual(prof.label, 'GitHub Copilot');
+  const r = resolveProfileCommand(prof, { resumeId: 'abc-123', home: '/home/tizio' });
+  assert.ok(r.ok, r.error || '');
+  assert.strictEqual(r.bin, 'copilot');
+  assert.deepStrictEqual(r.args, ['--resume=abc-123']);
+});
+
 ok('i file e i moduli caricati dall app esistono tutti', () => {
   const attesi = [
     'main.js', 'preload.js', 'package.json',
     'app/menu.js', 'app/window.js',
     'app/pty.js',
     'lib/accounts.js', 'lib/antigravity-sessions.js', 'lib/binaries.js', 'lib/claude-sessions.js',
-    'lib/codex-sessions.js', 'lib/commands.js', 'lib/history.js', 'lib/login-path.js',
+    'lib/codex-sessions.js', 'lib/copilot-sessions.js', 'lib/commands.js', 'lib/history.js', 'lib/login-path.js',
     'lib/opencode-sessions.js', 'lib/shell.js', 'lib/workdir.js',
     'renderer/index.html', 'renderer/renderer.js', 'renderer/app-state.js', 'renderer/pizza-logo.js', 'renderer/pizza-slice.js',
     'renderer/prompt-capture.js',
@@ -437,7 +449,9 @@ ok('main.js e solo cablaggio: nessuna funzione di logica definita al suo interno
   // registrazione; ponte, processi e spegnimento stanno in app/notebook-kernel.js.
   // 242: altre 2 per le sessioni remote (piano 93): un require e la
   // registrazione; host e distro stanno in lib/remote-hosts.js e app/remote-envs.js.
-  assert.ok(main.split('\n').length < 242, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
+  // 246: altre 4 per il Resume di Copilot (piano 97): un require e l'handler;
+  // la lettura delle sessioni sta in lib/copilot-sessions.js.
+  assert.ok(main.split('\n').length < 246, `main.js e a ${main.split('\n').length} righe: sta ricrescendo`);
 });
 
 /* I file che un PROGRAMMA ESTERNO deve aprire non bastano dentro app.asar:

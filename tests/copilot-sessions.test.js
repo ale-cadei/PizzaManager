@@ -128,3 +128,15 @@ ok('copilot resume: COPILOT_HOME sostituisce ~/.copilot', () => {
   assert.strictEqual(copilotHome({ COPILOT_HOME: '/x/y' }, '/home/u'), '/x/y');
   assert.strictEqual(copilotHome({}, '/home/u'), path.join('/home/u', '.copilot'));
 });
+
+/* Copilot 1.0.112 tiene i lock in session-state/.session-operation-locks/:
+   una cartella che non è una sessione (trovata nello smoke test). */
+ok('copilot resume: le cartelle nascoste di session-state non sono sessioni', () => {
+  withCopilotHome((home) => {
+    writeSession(home, 'ggg', { yaml: 'id: ggg\nname: vera\n' });
+    fs.mkdirSync(path.join(home, 'session-state', '.session-operation-locks'));
+    fs.writeFileSync(path.join(home, 'session-state', '.session-operation-locks', 'ggg.lock'), '');
+    fs.writeFileSync(path.join(home, 'session-state', '.nascosto.jsonl'), '');
+    assert.deepStrictEqual(listCopilotSessions(10, { home }).sessions.map((s) => s.id), ['ggg']);
+  });
+});

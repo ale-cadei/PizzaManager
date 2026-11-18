@@ -83,6 +83,44 @@ ok('augmentedEnv non duplica le voci del PATH', () => {
   assert.strictEqual(voci.length, new Set(voci).size, 'PATH con duplicati: ' + env.PATH);
 });
 
+/* Copilot CLI e' uno script `#!/usr/bin/env node` dentro ~/.nvm/.../bin: se
+   nel PATH della sessione /usr/bin viene prima, parte col node di sistema
+   (vecchio) e muore subito. La cartella del binario va in testa quando
+   l'interprete che chiede sta li' accanto. */
+function binDirFake({ shebang, withInterpreter }) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ais-shebang-'));
+  const bin = path.join(dir, 'mio-agente');
+  fs.writeFileSync(bin, shebang ? `${shebang}\nconsole.log(1)\n` : '\x7fELF finto', { mode: 0o755 });
+  if (withInterpreter) fs.writeFileSync(path.join(dir, 'node'), '', { mode: 0o755 });
+  return { dir, bin };
+}
+const opzioniShebang = { platform: process.platform, searchPath: '', resolve: () => ({ path: null }) };
+const suWindows = process.platform === 'win32';
+
+ok('augmentedEnv mette in testa la cartella di uno script `env node` che ha node accanto', { skip: suWindows }, () => {
+  const { dir, bin } = binDirFake({ shebang: '#!/usr/bin/env node', withInterpreter: true });
+  const env = augmentedEnv([bin], {}, { PATH: '/usr/bin:/bin' }, opzioniShebang);
+  assert.strictEqual(env.PATH.split(':')[0], dir, 'PATH: ' + env.PATH);
+});
+
+ok('augmentedEnv riconosce anche `env -S node --opzioni`', { skip: suWindows }, () => {
+  const { dir, bin } = binDirFake({ shebang: '#!/usr/bin/env -S node --no-warnings', withInterpreter: true });
+  const env = augmentedEnv([bin], {}, { PATH: '/usr/bin:/bin' }, opzioniShebang);
+  assert.strictEqual(env.PATH.split(':')[0], dir, 'PATH: ' + env.PATH);
+});
+
+ok('augmentedEnv lascia in coda uno script `env node` senza node accanto', { skip: suWindows }, () => {
+  const { dir, bin } = binDirFake({ shebang: '#!/usr/bin/env node', withInterpreter: false });
+  const voci = augmentedEnv([bin], {}, { PATH: '/usr/bin:/bin' }, opzioniShebang).PATH.split(':');
+  assert.deepStrictEqual(voci, ['/usr/bin', '/bin', dir]);
+});
+
+ok('augmentedEnv lascia in coda un binario nativo', { skip: suWindows }, () => {
+  const { dir, bin } = binDirFake({ shebang: null, withInterpreter: true });
+  const voci = augmentedEnv([bin], {}, { PATH: '/usr/bin:/bin' }, opzioniShebang).PATH.split(':');
+  assert.deepStrictEqual(voci, ['/usr/bin', '/bin', dir]);
+});
+
 ok('le variabili extra hanno precedenza su quelle dell ambiente', () => {
   const env = augmentedEnv([], { ANTHROPIC_API_KEY: 'nuova' }, { PATH: '/bin', ANTHROPIC_API_KEY: 'vecchia' });
   assert.strictEqual(env.ANTHROPIC_API_KEY, 'nuova');

@@ -130,12 +130,14 @@ test('collect: scheda Claude appena aperta (senza id) e Codex piu recente, la fi
   assert.equal(u.block.limitKind, 'declared');
 });
 
-test('collect: una scheda shell non sceglie l assistente, vale il piu recente', async () => {
+test('collect: una scheda shell non ha assistente, la barra resta vuota', async () => {
   const codexDopo = {
     claude: () => ({ ok: true, events: claudeEvents() }),
     codex: () => ({ ok: true, events: [{ ts: NOW - 60_000, source: 'codex', sessionId: 'x1', input: 10, output: 1, total: 11 }] }),
     opencode: empty,
   };
   const u = await collectUsage({ now: NOW, collectors: codexDopo, env: {}, tab: { type: 'shell' }, quota: recordingQuota([]) });
-  assert.equal(u.block.source, 'codex');
+  assert.equal(u.block.source, null);
+  assert.equal(u.block.ratio, null);
+  assert.equal(u.rateLimits, null);
 });

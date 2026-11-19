@@ -238,3 +238,30 @@ ok('chat corrente: il riquadro mostra cartella e nome, e sparisce senza sessioni
     assert.strictEqual(cell.hidden, true);
   } finally { restore(); }
 });
+
+/* Antigravity in primo piano: lib/usage manda una finestra vuota a suo nome.
+   Il tooltip non deve dire «nessuna attivita'» (falso: ha lavorato, non si
+   sa quanto) ma perche' il numero manca. */
+ok('usage bar: un assistente non supportato dice perche manca il numero', () => {
+  const { texts, titles } = mount(snapshot({
+    session: null,
+    block: { source: 'antigravity', active: false, totals: totals({ total: 0 }), ratio: null, limitKind: null, resetsIn: null },
+    rateLimits: null,
+  }));
+  assert.deepStrictEqual(texts.map((t) => t.trim()), ['SESSIONE —', 'FINESTRA 5h — antigravity', 'SETTIMANA —']);
+  assert.ok(titles[1].includes('protobuf binario'), titles[1]);
+  assert.ok(!titles[1].includes('Nessuna attivita'), titles[1]);
+  assert.ok(titles[2].includes('protobuf binario'), titles[2]);
+});
+
+ok('usage bar: con una shell in primo piano la barra e vuota e dice perche', () => {
+  const { texts, titles } = mount(snapshot({
+    session: null,
+    block: { source: null, active: false, totals: totals({ total: 0 }), ratio: null, limitKind: null, resetsIn: null },
+    rateLimits: null,
+  }));
+  assert.deepStrictEqual(texts.map((t) => t.trim()), ['SESSIONE —', 'FINESTRA 5h —', 'SETTIMANA —']);
+  assert.ok(titles[1].includes('non e\' un assistente'), titles[1]);
+  assert.ok(!titles[1].includes('Nessuna attivita'), titles[1]);
+  assert.ok(titles[2].includes('non e\' un assistente'), titles[2]);
+});

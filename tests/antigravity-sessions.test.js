@@ -100,3 +100,76 @@ ok('antigravity resume: senza dati risponde con un errore leggibile', () => {
   assert.ok(/antigravity-cli/.test(r.error), 'l errore non dice dove ha cercato');
   assert.deepStrictEqual(r.sessions, []);
 });
+
+/* agy 1.5 salva le conversazioni come conversations/<id>.db (SQLite) e scrive
+   la cache dei metadati solo a fine sessione: finche' la sessione e' aperta la
+   conversazione non aveva cartella, la scheda non la riconosceva e al
+   riavvio ripartiva vuota. Cartella e ora arrivano da history.jsonl, una riga
+   per prompt: il primo prompt e' senza conversationId (la conversazione nasce
+   in quell'istante, ed e' la data di creazione del .db), i successivi lo hanno. */
+function writeAgyHistory(home, rows) {
+  fs.writeFileSync(path.join(home, 'history.jsonl'), rows.map((r) => JSON.stringify(r)).join('\n') + '\n');
+}
+
+ok('antigravity resume: le conversazioni .db (agy 1.5) compaiono anche senza cache', () => {
+  const agy = require('../lib/antigravity-sessions');
+  withAntigravityFixture((home) => {
+    fs.writeFileSync(path.join(home, 'conversations', 'nuova.db'), 'SQLite format 3');
+    const r = agy.listAntigravitySessions(10, { home });
+    assert.deepStrictEqual(r.sessions.map((s) => s.id), ['nuova']);
+  });
+});
+
+ok('antigravity resume: cartella e ora di una conversazione aperta vengono da history.jsonl', () => {
+  const agy = require('../lib/antigravity-sessions');
+  withAntigravityFixture((home) => {
+    fs.writeFileSync(path.join(home, 'conversations', 'aperta.db'), 'SQLite format 3');
+    writeAgyHistory(home, [
+      { display: 'primo', timestamp: 1000, workspace: '/altrove' },
+      { display: 'secondo', timestamp: 9_000_000_000_000, workspace: '/repo/x', conversationId: 'aperta' },
+      { display: '/model', timestamp: 9_000_000_000_100, workspace: '/repo/x', conversationId: 'aperta', type: 'slash_command' },
+    ]);
+    const [s] = agy.listAntigravitySessions(10, { home }).sessions;
+    assert.strictEqual(s.cwd, '/repo/x');
+    assert.strictEqual(s.mtime, 9_000_000_000_100, 'l ultima riga della conversazione, comandi compresi');
+  });
+});
+
+ok('antigravity resume: dopo un solo prompt la cartella si abbina dalla nascita del .db', () => {
+  const agy = require('../lib/antigravity-sessions');
+  withAntigravityFixture((home) => {
+    const file = path.join(home, 'conversations', 'neonata.db');
+    fs.writeFileSync(file, 'SQLite format 3');
+    const born = fs.statSync(file).birthtimeMs;
+    if (!born) return; // filesystem senza data di nascita: resta il caso con l'id
+    writeAgyHistory(home, [
+      { display: 'di un altra', timestamp: born - 60_000, workspace: '/altrove' },
+      { display: 'spiegami la join', timestamp: Math.round(born), workspace: '/repo/rust' },
+    ]);
+    const [s] = agy.listAntigravitySessions(10, { home }).sessions;
+    assert.strictEqual(s.cwd, '/repo/rust');
+    assert.strictEqual(s.title, 'spiegami la join');
+  });
+});
+
+ok('antigravity resume: una history.jsonl rotta non rompe la lista', () => {
+  const agy = require('../lib/antigravity-sessions');
+  withAntigravityFixture((home) => {
+    fs.writeFileSync(path.join(home, 'conversations', 'c.db'), 'x');
+    fs.writeFileSync(path.join(home, 'history.jsonl'), '{rotta\n{"timestamp":"no","conversationId":5}\n');
+    const r = agy.listAntigravitySessions(10, { home });
+    assert.strictEqual(r.ok, true);
+    assert.deepStrictEqual(r.sessions.map((s) => [s.id, s.cwd]), [['c', '']]);
+  });
+});
+
+ok('antigravity resume: la history aggiorna l ora anche delle conversazioni gia in cache', () => {
+  const agy = require('../lib/antigravity-sessions');
+  withAntigravityFixture((home) => {
+    writeAgyMetadata(home, { vecchia: { last_modified_time: '2026-01-01T00:00:00Z', summary: { Title: 'T', WorkspaceURIs: ['file:///repo/v'] } } });
+    writeAgyHistory(home, [{ display: 'ripresa', timestamp: Date.parse('2026-06-01T00:00:00Z'), workspace: '/repo/v', conversationId: 'vecchia' }]);
+    const [s] = agy.listAntigravitySessions(10, { home }).sessions;
+    assert.strictEqual(s.mtime, Date.parse('2026-06-01T00:00:00Z'));
+    assert.strictEqual(s.title, 'T', 'il titolo della cache resta');
+  });
+});

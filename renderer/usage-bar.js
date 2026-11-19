@@ -217,11 +217,24 @@
   }
 
   /**
+   * Perche' la barra non ha numeri: scheda senza assistente (shell, remota),
+   * o assistente che lib/usage dichiara non supportato; altrimenti ''.
+   */
+  function unsupportedReason(block, snapshot) {
+    const src = block && block.source;
+    if (!src) return 'La scheda in primo piano non e\' un assistente (shell o sessione remota).';
+    const st = src && snapshot && snapshot.sources ? snapshot.sources[src] : null;
+    return st && st.supported === false ? `${src}: ${st.error || 'consumi non leggibili'}` : '';
+  }
+
+  /**
    * Tooltip del riquadro FINESTRA 5h. Dice sempre **da dove viene il numero**:
    * una stima calibrata sul proprio uso e una quota dichiarata dal fornitore
    * si leggono uguali, ma non valgono uguale.
    */
   function blockTitle(block, snapshot) {
+    const nonLeggibile = unsupportedReason(block, snapshot);
+    if (nonLeggibile) return `${nonLeggibile}\nLa barra segue solo la scheda in primo piano: senza dati resta vuota.`;
     if (!block || !block.active) {
       return 'Nessuna attivita\' nelle ultime 5 ore: la prossima richiesta apre una finestra nuova.';
     }
@@ -330,7 +343,10 @@
       const resetSettimana = limits.weekly ? formatDelta(Number(limits.weekly.resetsAt) - Number(w.now)) : '';
       week.val.textContent = weekText(limits.weekly);
       setProgress(week, declaredProgress(limits.weekly));
-      week.box.title = limits.weekly
+      const nonLeggibile = unsupportedReason(b, snapshot);
+      week.box.title = nonLeggibile
+        ? `${nonLeggibile}\nNessuna quota settimanale da mostrare per questa scheda.`
+        : limits.weekly
         ? `Quota settimanale dichiarata dal CLI${resetSettimana ? `, reset ${resetSettimana}` : ''}.\n${tokensLine(w.totals)} negli ultimi 7 giorni.\n\n${detailText(snapshot)}`
         : `Nessun CLI dichiara il limite settimanale: ${tokensLine(w.totals)} negli ultimi 7 giorni, senza percentuale da mostrare.\n\n${detailText(snapshot)}`;
       root.title = '';

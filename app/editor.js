@@ -1,5 +1,6 @@
 'use strict';
 const fs = require('fs');
+const path = require('path');
 const { createEditorFs } = require('../lib/editor-fs');
 const { createEditorWatch } = require('../lib/editor-watch');
 const { createEditorSessionsStore } = require('../lib/editor-sessions');
@@ -7,6 +8,10 @@ const { savedBeforeBoot } = require('../lib/git-sessions');
 const { installEditorCloseGuard } = require('./editor-close');
 const { createEditorCopy, pickProperties } = require('../lib/editor-copy');
 const { clipboardSelection, clipboardPayload } = require('../lib/clipboard-files');
+const { outermost } = require('../lib/editor-paths');
+
+// Righe scelte che vanno negli appunti in una volta (docs/plans/98); come MAX_SOURCES della copia
+const MAX_CLIPBOARD = 1000;
 const { createEditorGit } = require('../lib/editor-git');
 const { listAllFiles, gitStatusLetters } = require('../lib/editor-index');
 const { createEditorDefinition } = require('../lib/editor-definition');
@@ -196,14 +201,22 @@ function registerEditorHandlers(ipcMain, {
   }));
   // Ctrl+C / Ctrl+X nell'albero (docs/plans/95): gli appunti del sistema,
   // così si incolla anche in un'altra scheda o nel file manager
-  ipcMain.handle('editor-clipboard-put', guard(localOnly(async ({ root, rel, mode }) => {
-    if (typeof rel !== 'string' || !rel || (mode !== 'copy' && mode !== 'cut')) return { ok: false, error: 'Scegli un file o una cartella.' };
-    const abs = files(root).resolveInside(rel); // lancia se esce dalla cartella
-    if (!(await fs.promises.lstat(abs).catch(() => null))) return { ok: false, error: 'Non esiste più.' };
-    const { format, buffer } = clipboardPayload([abs], mode, platform);
+  // Più righe scelte (docs/plans/98): `rels`; `rel` da solo resta per una riga
+  ipcMain.handle('editor-clipboard-put', guard(localOnly(async ({ root, rel, rels, mode }) => {
+    const list = rels === undefined ? [rel] : rels;
+    const valid = Array.isArray(list) && list.length > 0 && list.length <= MAX_CLIPBOARD
+      && list.every((r) => typeof r === 'string' && r);
+    if (!valid || (mode !== 'copy' && mode !== 'cut')) return { ok: false, error: 'Scegli un file o una cartella.' };
+    if (platform === 'win32' && list.length > 1) return { ok: false, error: 'Su Windows si copia un elemento alla volta.' };
+    const abs = list.map((r) => files(root).resolveInside(r)); // lancia se esce dalla cartella
+    for (const p of abs) {
+      if (!(await fs.promises.lstat(p).catch(() => null))) return { ok: false, error: `«${path.basename(p)}» non esiste più.` };
+    }
+    const paths = outermost(abs, platform);
+    const { format, buffer } = clipboardPayload(paths, mode, platform);
     electron.clipboard.writeBuffer(format, buffer);
-    lastPut = { paths: [abs], mode };
-    return { ok: true };
+    lastPut = { paths, mode };
+    return { ok: true, count: paths.length };
   })));
   // Schede editor da riaprire (lib/editor-sessions.js); dopo un riavvio
   // della macchina `ask`: si propongono, non si riaprono da sole.

@@ -258,9 +258,10 @@ ok('move: sposta file e cartelle con rename, gli originali spariscono, moved dic
   assert.deepStrictEqual(r, {
     ok: true, copied: 3, skipped: 0, failed: [],
     moved: [
-      { fromRel: 'src/a.txt', toRel: 'dest/a.txt' },
-      { fromRel: 'src/d', toRel: 'dest/d' },
-      { fromRel: null, toRel: 'dest/f.txt' }, // da fuori dalla sessione
+      { fromRel: 'src/a.txt', toRel: 'dest/a.txt', from: sources[0], to: path.join(root, 'dest', 'a.txt') },
+      { fromRel: 'src/d', toRel: 'dest/d', from: sources[1], to: path.join(root, 'dest', 'd') },
+      // da fuori dalla sessione; from/to assoluti servono alle altre schede (docs/plans/98)
+      { fromRel: null, toRel: 'dest/f.txt', from: fuori, to: path.join(root, 'dest', 'f.txt') },
     ],
   });
   assert.deepStrictEqual(fs.readdirSync(path.join(root, 'src')), []);

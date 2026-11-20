@@ -177,12 +177,37 @@ ok('ipc editor: Ctrl+C / Ctrl+X scrivono gli appunti come Nautilus, Incolla rile
   const { call, root } = setup(t, { platform: 'linux', electron: { clipboard } });
   fs.mkdirSync(path.join(root, 'src'));
   fs.writeFileSync(path.join(root, 'src', 'a b.txt'), 'a');
-  assert.deepStrictEqual(await call('editor-clipboard-put', { root, rel: 'src/a b.txt', mode: 'cut' }), { ok: true });
+  assert.deepStrictEqual(await call('editor-clipboard-put', { root, rel: 'src/a b.txt', mode: 'cut' }), { ok: true, count: 1 });
   const abs = path.join(root, 'src', 'a b.txt');
   assert.strictEqual(clipboard.readBuffer('x-special/gnome-copied-files').toString('utf8'), `cut\n${require('url').pathToFileURL(abs).href}`);
   assert.deepStrictEqual(await call('editor-clipboard-files'), { ok: true, paths: [abs], cut: true });
   await call('editor-clipboard-put', { root, rel: 'src/a b.txt', mode: 'copy' });
   assert.deepStrictEqual(await call('editor-clipboard-files'), { ok: true, paths: [abs], cut: false });
+});
+
+ok('ipc editor: Ctrl+C con più righe le mette tutte negli appunti; una cartella copre quello che contiene (docs/plans/98)', async (t) => {
+  if (process.platform === 'win32') { t.skip('FileNameW tiene un solo file'); return; }
+  const clipboard = fakeClipboard();
+  const { call, root } = setup(t, { platform: 'linux', electron: { clipboard } });
+  fs.mkdirSync(path.join(root, 'src'));
+  for (const n of ['src/a.txt', 'b.txt']) fs.writeFileSync(path.join(root, n), n);
+  const r = await call('editor-clipboard-put', { root, rels: ['src/a.txt', 'b.txt', 'src'], mode: 'cut' });
+  assert.deepStrictEqual(r, { ok: true, count: 2 });
+  const want = [path.join(root, 'b.txt'), path.join(root, 'src')];
+  assert.deepStrictEqual(await call('editor-clipboard-files'), { ok: true, paths: want, cut: true });
+  for (const bad of [[], ['b.txt', ''], ['b.txt', '../x'], ['b.txt', 'manca.txt'], 'b.txt']) {
+    const refused = await call('editor-clipboard-put', { root, rels: bad, mode: 'copy' });
+    assert.strictEqual(refused.ok, false, JSON.stringify(bad));
+  }
+});
+
+ok('ipc editor: su Windows più righe negli appunti danno un errore chiaro', async (t) => {
+  const clipboard = fakeClipboard();
+  const { call, root } = setup(t, { platform: 'win32', electron: { clipboard } });
+  for (const n of ['a.txt', 'b.txt']) fs.writeFileSync(path.join(root, n), n);
+  const r = await call('editor-clipboard-put', { root, rels: ['a.txt', 'b.txt'], mode: 'copy' });
+  assert.deepStrictEqual(r, { ok: false, error: 'Su Windows si copia un elemento alla volta.' });
+  assert.strictEqual(clipboard.data.size, 0);
 });
 
 ok('ipc editor: Ctrl+C rifiuta la radice, percorsi fuori, file che non ci sono e modi sconosciuti', async (t) => {
@@ -223,7 +248,7 @@ ok('ipc editor: incollare un taglia sposta, dice cosa e svuota gli appunti', asy
   const plan = await call('editor-copy-plan', { root, rel: 'dest', sources: [a], move: true });
   assert.strictEqual(plan.ok, true, plan.error);
   const r = await call('editor-copy-run', { root, rel: 'dest', sources: [a], decisions: {}, move: true });
-  assert.deepStrictEqual(r.moved, [{ fromRel: 'src/a.txt', toRel: 'dest/a.txt' }]);
+  assert.deepStrictEqual(r.moved.map(({ fromRel, toRel }) => ({ fromRel, toRel })), [{ fromRel: 'src/a.txt', toRel: 'dest/a.txt' }]);
   assert.ok(!fs.existsSync(a));
   assert.strictEqual(clipboard.cleared, 1);
   // Una copia non svuota niente

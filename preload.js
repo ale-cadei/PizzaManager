@@ -83,7 +83,7 @@ contextBridge.exposeInMainWorld('aisess', {
   editorCopyRun: (root, rel, sources, decisions, move) => ipcRenderer.invoke('editor-copy-run', { root, rel, sources, decisions, move }),
   editorPickFiles: () => ipcRenderer.invoke('editor-pick-files'),
   editorClipboardFiles: () => ipcRenderer.invoke('editor-clipboard-files'),
-  editorClipboardPut: (root, rel, mode) => ipcRenderer.invoke('editor-clipboard-put', { root, rel, mode }),
+  editorClipboardPut: (root, rels, mode) => ipcRenderer.invoke('editor-clipboard-put', { root, rels, mode }),
   // Il percorso di un File trascinato: in Electron 33 File.path non c'è più
   editorPathForFile: (file) => webUtils.getPathForFile(file),
   gitChanges: (cwd, base, since, incoming) => ipcRenderer.invoke('git-changes', { cwd, base, since, incoming }),

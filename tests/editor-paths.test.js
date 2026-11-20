@@ -34,3 +34,10 @@ ok('safeRel: rifiuta .., assoluti, lettere di unità, controllo e non-stringhe',
     assert.strictEqual(safeRel(r), null, JSON.stringify(r));
   }
 });
+
+ok('outermost: toglie chi sta dentro un altro della lista, tiene l ordine e i fratelli', () => {
+  const { outermost } = require('../lib/editor-paths');
+  assert.deepStrictEqual(outermost(['/r/src/a.js', '/r/src', '/r/srcx', '/r/b.txt', '/r/src'], 'linux'), ['/r/src', '/r/srcx', '/r/b.txt']);
+  assert.deepStrictEqual(outermost(['C:\\r\\Src', 'c:\\r\\src\\a.js', 'C:\\r\\b'], 'win32'), ['C:\\r\\Src', 'C:\\r\\b']);
+  assert.deepStrictEqual(outermost([], 'linux'), []);
+});

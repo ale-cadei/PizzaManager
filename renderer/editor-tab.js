@@ -114,7 +114,8 @@ function buildEditorLayout(tab) {
     onToggleDir: (rel) => (tab.editor.filter.active ? openEditorDirFromFilter(tab, rel) : toggleEditorDir(tab, rel)),
     onContextMenu: (row, e) => editorTreeMenu(tab, row, e),
     onCopyInto: (dir, source) => copyIntoEditor(tab, dir, source),
-    onClipboard: (row, mode) => putEditorClipboard(tab, row, mode),
+    onClipboard: (rows, mode) => putEditorClipboard(tab, rows, mode),
+    onMark: (rel, mode, rels) => markEditorRows(tab, rel, mode, rels),
     onDeselect: () => clearEditorSelection(tab),
     onRename: (row) => renameEditorEntry(tab, row),
     onTrash: (row) => trashEditorEntry(tab, row),
@@ -190,11 +191,11 @@ function renderEditorTree(tab) {
   const { tree, ui, git, filter } = tab.editor;
   if (filter.active && filter.query.trim()) {
     const rows = EditorTree.filterRows(tree, filter.query);
-    ui.tree.renderFiltered(rows, tree.selected, git);
+    ui.tree.renderFiltered(rows, EditorTree.selection(tree), git);
     renderEditorFilterCount(tab, rows.length);
     return;
   }
-  ui.tree.render(EditorTree.visibleRows(tree), tree.selected, git);
+  ui.tree.render(EditorTree.visibleRows(tree), EditorTree.selection(tree), git);
   if (filter.active) renderEditorFilterCount(tab, '');
 }
 
@@ -243,6 +244,13 @@ async function toggleEditorDir(tab, rel) {
   if (EditorTree.isExpanded(tab.editor.tree, rel)) await loadEditorDir(tab, rel);
 }
 
+/** Ctrl+click (`toggle`) e Maiusc+click (`range`) fra le righe mostrate `rels` (docs/plans/98). */
+function markEditorRows(tab, rel, mode, rels) {
+  const tree = tab.editor.tree;
+  tab.editor.tree = mode === 'range' ? EditorTree.markRange(tree, rels, rel) : EditorTree.markToggle(tree, rel);
+  renderEditorTree(tab);
+}
+
 /** Click nel vuoto dell'albero: senza, Ctrl+V nella radice resta irraggiungibile
  *  una volta selezionato qualcosa (piano 61). */
 function clearEditorSelection(tab) {
@@ -256,8 +264,21 @@ async function reloadEditorTree(tab) {
   for (const dir of ['', ...tab.editor.tree.expanded]) await loadEditorDir(tab, dir);
 }
 
+/** Le righe su cui lavora il menu di `row`: tutte le scelte se ne fa parte, se no lei sola. */
+function editorMenuTargets(tab, row) {
+  const chosen = EditorTree.selection(tab.editor.tree);
+  if (!chosen.includes(row.rel) || chosen.length < 2) return [row];
+  const rows = tab.editor.filter.active && tab.editor.filter.query.trim()
+    ? EditorTree.filterRows(tab.editor.tree, tab.editor.filter.query)
+    : EditorTree.visibleRows(tab.editor.tree);
+  const found = chosen.map((rel) => rows.find((r) => r.rel === rel)).filter(Boolean);
+  return found.length ? found : [row];
+}
+
 function editorTreeMenu(tab, row, e) {
   const dir = !row ? '' : row.kind === 'dir' ? row.rel : EditorFiles.parentRel(row.rel);
+  const targets = row ? editorMenuTargets(tab, row) : [];
+  const many = targets.length > 1 ? ` ${targets.length} elementi` : '';
   const items = [
     { label: 'Nuovo file', icon: 'new-file', run: () => newEditorEntry(tab, dir, 'file') },
     { label: 'Nuova cartella', icon: 'new-folder', run: () => newEditorEntry(tab, dir, 'dir') },
@@ -273,8 +294,8 @@ function editorTreeMenu(tab, row, e) {
     { sep: true },
     // Appunti del sistema: solo per una cartella di questo computer
     ...(isRemoteEditor(tab) ? [] : [
-      { label: 'Copia', icon: 'files', key: 'Ctrl C', run: () => putEditorClipboard(tab, row, 'copy') },
-      { label: 'Taglia', icon: 'move', key: 'Ctrl X', run: () => putEditorClipboard(tab, row, 'cut') },
+      { label: `Copia${many}`, icon: 'files', key: 'Ctrl C', run: () => putEditorClipboard(tab, targets, 'copy') },
+      { label: `Taglia${many}`, icon: 'move', key: 'Ctrl X', run: () => putEditorClipboard(tab, targets, 'cut') },
     ]),
     { label: 'Rinomina', icon: 'edit', key: 'F2', run: () => renameEditorEntry(tab, row) },
     { label: 'Copia percorso', icon: 'copy', run: () => copyEditorPath(tab, row.rel) },

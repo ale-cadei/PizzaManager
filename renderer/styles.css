@@ -1585,6 +1585,7 @@ body.editor-tree-hidden .editor-open-menu:not([hidden]) { display: inline-flex; 
 .editor-tree-row {
   display: flex; align-items: center; gap: 6px; height: 26px; margin: 0 6px; padding-right: 10px;
   border-radius: 5px; font: 13px var(--font-ui); color: var(--text-2); cursor: pointer; white-space: nowrap;
+  user-select: none; /* Maiusc+click sceglie righe, non testo (docs/plans/98) */
 }
 .editor-tree-row:hover { background: var(--surface-2); }
 .editor-tree-row.is-selected {

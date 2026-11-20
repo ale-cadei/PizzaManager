@@ -102,6 +102,7 @@ quel file ha tutto il contesto per eseguirlo, senza aver letto gli altri.
 | 95 | [`feat/editor-copia-taglia`](95-editor-copia-taglia.md) — Ctrl+C / Ctrl+X sulle voci dell'albero dell'editor e Ctrl+V in un'altra cartella: copia o sposta, appunti del sistema, i file aperti seguono | 61 | ~3h | fatto, test verdi; smoke nell'app da fare |
 | 96 | [`feat/ssh-diretto`](96-ssh-diretto.md) — nel «Dove» della nuova sessione «Altro server…»: `utente@host:porta` scritto a mano, poi fra i recenti | 93 | ~3h | fatto, smoke da fare |
 | 97 | [`feat/copilot-support`](97-copilot.md) — sessione GitHub Copilot CLI: nuova sessione, Resume, profili, colore | — | ~½ g | fatto, da mergiare |
+| 98 | [`feat/editor-selezione-multipla`](98-editor-selezione-multipla.md) — albero dell'editor: Ctrl+click e Shift+click per scegliere più righe, copia/taglia/incolla di tutte, anche fra editor diversi | 95 | ~½ g | fatto, smoke da fare |
 
 **3 e 4 sono paralleli** fra loro (toccano parti diverse), ma entrambi dopo il 2.
 **7 non è in coda**: è una proposta di ergonomia, il suo caso d'uso è già

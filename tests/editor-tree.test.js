@@ -179,6 +179,32 @@ ok('showMenu: una voce esegue e chiude, Esc chiude', () => {
   } finally { restore(); }
 });
 
+ok('menuPosition: sotto e a destra del click finché ci sta; altrimenti sopra e a sinistra; mai fuori', () => {
+  const view = { width: 800, height: 600 };
+  const size = { width: 200, height: 300 };
+  const at = (x, y, sz = size) => T.menuPosition({ x, y, ...sz, view });
+  assert.deepStrictEqual(at(100, 100), { left: 100, top: 100 });
+  // troppo in basso: si apre verso l'alto, il fondo sul punto del click
+  assert.deepStrictEqual(at(100, 500), { left: 100, top: 200 });
+  // troppo a destra: si apre verso sinistra
+  assert.deepStrictEqual(at(700, 100), { left: 500, top: 100 });
+  // né sopra né sotto ci sta intero: incollato al bordo, dentro la finestra
+  assert.deepStrictEqual(at(100, 250, { width: 200, height: 500 }), { left: 100, top: 92 });
+  // più alto della finestra: parte dal margine in alto (poi scorre, via CSS)
+  assert.deepStrictEqual(at(100, 300, { width: 200, height: 900 }), { left: 100, top: 8 });
+});
+
+ok('showMenu: vicino al fondo della finestra si apre verso l alto', () => {
+  const restore = installDocument();
+  try {
+    document.defaultView = { innerWidth: 300, innerHeight: 100 };
+    const menu = T.showMenu({ document, x: 250, y: 90, items: [{ label: 'Elimina', run: () => {} }] });
+    assert.strictEqual(menu.element.style.top, '50px');
+    assert.strictEqual(menu.element.style.left, '50px');
+    menu.close();
+  } finally { restore(); }
+});
+
 ok('showMenu: icona, scorciatoia e separatori; il nome della voce resta testo', () => {
   const restore = installDocument();
   try {

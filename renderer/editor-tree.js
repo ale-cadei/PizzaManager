@@ -439,6 +439,42 @@
    * `{ sep: true }`. `onClose` arriva
    * una volta, comunque si chiuda.
    */
+  const MENU_MARGIN = 8;
+
+  /** Un asse: dopo il click se ci sta, prima se ci sta, altrimenti contro il bordo. */
+  function menuAxis(at, size, limit) {
+    if (at + size <= limit - MENU_MARGIN) return at;
+    if (at - size >= MENU_MARGIN) return at - size;
+    return Math.max(MENU_MARGIN, limit - MENU_MARGIN - size);
+  }
+
+  /**
+   * Dove mettere un menu di `width`×`height` aperto al punto (x, y) perché
+   * resti tutto nella finestra `view`: in fondo all'albero si apre verso
+   * l'alto, sul bordo destro verso sinistra.
+   * @returns {{ left: number, top: number }}
+   */
+  function menuPosition({ x, y, width, height, view }) {
+    return { left: menuAxis(x, width, view.width), top: menuAxis(y, height, view.height) };
+  }
+
+  /** Dimensioni della finestra; null se il documento non le conosce. */
+  function viewOf(doc) {
+    const win = doc.defaultView;
+    if (!win || !(win.innerWidth > 0) || !(win.innerHeight > 0)) return null;
+    return { width: win.innerWidth, height: win.innerHeight };
+  }
+
+  /** Riposiziona il menu già nella pagina, ora che se ne conoscono le misure. */
+  function keepMenuInView(doc, menu, x, y) {
+    const view = viewOf(doc);
+    if (!view || typeof menu.getBoundingClientRect !== 'function') return;
+    const { width, height } = menu.getBoundingClientRect();
+    const { left, top } = menuPosition({ x, y, width, height, view });
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+  }
+
   function showMenu({ document: doc, x, y, items, onClose = () => {} }) {
     const menu = doc.createElement('div');
     menu.className = 'editor-menu';
@@ -459,6 +495,7 @@
     }
     for (const item of items) menu.appendChild(menuItem(doc, item, close));
     doc.body.appendChild(menu);
+    keepMenuInView(doc, menu, x, y);
     doc.addEventListener('mousedown', onDown, true);
     doc.addEventListener('keydown', onKey, true);
     return { element: menu, close };
@@ -466,6 +503,6 @@
 
   return {
     emptyTree, setChildren, isExpanded, toggle, select, deselect, selection, markToggle, markRange, relIn, renamePath, removePath, visibleRows, filterRows, changedDirs,
-    createTreeView, promptName, showMenu,
+    createTreeView, promptName, showMenu, menuPosition,
   };
 });

@@ -7,7 +7,9 @@
  * in quale cartella copiare, la copia la fa chi la usa.
  *
  * Righe con chevron, lettere git e filtro; menu con icone e scorciatoie
- * (docs/plans/75).
+ * (docs/plans/75). Selezione multipla con Ctrl+click e Maiusc+click
+ * (docs/plans/98): `selected` è la riga a fuoco, `marked` le righe scelte,
+ * `anchor` da dove parte l'intervallo.
  *
  * Wrapper UMD come sidebar.js: globale nella pagina, module.exports sotto Node. */
 (function (root, factory) {
@@ -20,15 +22,51 @@
 
   const GIT_TITLES = { M: 'Modificato', U: 'Nuovo, non tracciato', A: 'Aggiunto', D: 'Eliminato' };
 
-  const emptyTree = () => ({ children: {}, expanded: [], selected: null });
+  const emptyTree = () => ({ children: {}, expanded: [], selected: null, marked: [], anchor: null });
   const setChildren = (tree, dir, entries) => ({ ...tree, children: { ...tree.children, [dir]: entries } });
   const isExpanded = (tree, dir) => tree.expanded.includes(dir);
   const toggle = (tree, dir) => ({
     ...tree,
     expanded: isExpanded(tree, dir) ? tree.expanded.filter((d) => d !== dir) : [...tree.expanded, dir],
   });
-  const select = (tree, rel) => ({ ...tree, selected: rel });
-  const deselect = (tree) => ({ ...tree, selected: null });
+  // Un click semplice: una riga sola, e da lì parte il prossimo Maiusc+click
+  const select = (tree, rel) => ({ ...tree, selected: rel, marked: [], anchor: rel });
+  const deselect = (tree) => ({ ...tree, selected: null, marked: [], anchor: null });
+
+  /** Le righe scelte, quella a fuoco per ultima: è lei che decide dove incollare. */
+  function selection(tree) {
+    const marked = tree.marked || [];
+    if (!marked.length) return tree.selected === null ? [] : [tree.selected];
+    return marked.includes(tree.selected) ? [...marked.filter((r) => r !== tree.selected), tree.selected] : marked;
+  }
+
+  /** Ctrl+click: aggiunge o toglie la riga; il fuoco e l'ancora vanno lì (o all'ultima rimasta). */
+  function markToggle(tree, rel) {
+    const base = selection(tree);
+    if (!base.includes(rel)) return { ...tree, marked: [...base, rel], selected: rel, anchor: rel };
+    const marked = base.filter((r) => r !== rel);
+    const focus = marked.length ? marked[marked.length - 1] : null;
+    return { ...tree, marked, selected: focus, anchor: focus };
+  }
+
+  /** Maiusc+click: le righe mostrate (`rels`) fra l'ancora e `rel`; l'ancora resta. */
+  function markRange(tree, rels, rel) {
+    const from = tree.anchor === null || tree.anchor === undefined ? -1 : rels.indexOf(tree.anchor);
+    const to = rels.indexOf(rel);
+    if (from < 0 || to < 0) return { ...tree, marked: [], selected: rel, anchor: rel };
+    const marked = rels.slice(Math.min(from, to), Math.max(from, to) + 1);
+    return { ...tree, marked, selected: rel };
+  }
+
+  /** Percorso assoluto → relativo alla cartella `root` di una scheda, con `/`; null se fuori. */
+  function relIn(root, abs) {
+    const norm = (p) => String(p || '').replace(/\\/g, '/').replace(/\/+$/, '');
+    const base = norm(root);
+    const target = norm(abs);
+    if (!base || !target) return null;
+    if (target === base) return '';
+    return target.startsWith(base + '/') ? target.slice(base.length + 1) : null;
+  }
 
   const under = (rel, base) => rel === base || rel.startsWith(base + '/');
   const moved = (rel, from, to) => (under(rel, from) ? to + rel.slice(from.length) : rel);
@@ -41,20 +79,26 @@
   function renamePath(tree, from, to) {
     const children = {};
     for (const [dir, list] of Object.entries(tree.children)) children[moved(dir, from, to)] = list;
+    const follow = (rel) => (rel === null || rel === undefined ? null : moved(rel, from, to));
     return {
       children,
       expanded: tree.expanded.map((d) => moved(d, from, to)),
-      selected: tree.selected === null ? null : moved(tree.selected, from, to),
+      selected: follow(tree.selected),
+      marked: (tree.marked || []).map((r) => moved(r, from, to)),
+      anchor: follow(tree.anchor),
     };
   }
 
   function removePath(tree, rel) {
     const children = {};
     for (const [dir, list] of Object.entries(tree.children)) if (!under(dir, rel)) children[dir] = list;
+    const keep = (r) => (r === null || r === undefined || under(r, rel) ? null : r);
     return {
       children,
       expanded: tree.expanded.filter((d) => !under(d, rel)),
-      selected: tree.selected !== null && under(tree.selected, rel) ? null : tree.selected,
+      selected: keep(tree.selected),
+      marked: (tree.marked || []).filter((r) => !under(r, rel)),
+      anchor: keep(tree.anchor),
     };
   }
 
@@ -109,7 +153,7 @@
 
   function createTreeView({
     root, document: doc, onOpenFile, onToggleDir, onContextMenu,
-    onCopyInto = () => {}, onClipboard = () => {}, onDeselect = () => {}, onRename = () => {}, onTrash = () => {}, onTypeToFilter = () => {}, iconUrl = null,
+    onCopyInto = () => {}, onClipboard = () => {}, onMark = () => {}, onDeselect = () => {}, onRename = () => {}, onTrash = () => {}, onTypeToFilter = () => {}, iconUrl = null,
   }) {
     const list = doc.createElement('div');
     list.className = 'editor-tree';
@@ -119,7 +163,9 @@
     list.oncontextmenu = (e) => { e.preventDefault(); onContextMenu(null, e); };
     root.appendChild(list);
 
-    let shown = { rows: [], selected: null };
+    // `selected`: le righe scelte, quella a fuoco per ultima (selection del modello)
+    let shown = { rows: [], selected: [] };
+    const asList = (selected) => (Array.isArray(selected) ? selected : selected === null || selected === undefined ? [] : [selected]);
     let lit = null; // l'elemento evidenziato durante il drag
 
     const rowOf = (rel) => [...list.children].find((c) => c.dataset.rel === rel) || null;
@@ -158,7 +204,15 @@
     // bersaglio): toglie la selezione, così Ctrl+V torna a incollare nella
     // radice (docs/plans/61)
     list.addEventListener('click', (e) => { if (e.target === list) onDeselect(); });
-    const selectedRow = () => shown.rows.find((r) => r.rel === shown.selected) || null;
+    const selectedRows = () => shown.selected.map((rel) => shown.rows.find((r) => r.rel === rel)).filter(Boolean);
+    const selectedRow = () => selectedRows().pop() || null;
+    /** Click su una riga: con Ctrl/Cmd o Maiusc sceglie (docs/plans/98), senza apre. */
+    const clickRow = (r) => (e) => {
+      if (e && (e.ctrlKey || e.metaKey)) { onMark(r.rel, 'toggle', shown.rows.map((x) => x.rel)); return; }
+      if (e && e.shiftKey) { onMark(r.rel, 'range', shown.rows.map((x) => x.rel)); return; }
+      if (r.kind === 'dir') onToggleDir(r.rel);
+      else onOpenFile(r.rel);
+    };
     list.addEventListener('keydown', (e) => {
       const chord = (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key ? e.key.toLowerCase() : '';
       if (chord === 'v') {
@@ -168,14 +222,14 @@
         onCopyInto(row ? dirOf(row) : '', { kind: 'paste' });
         return;
       }
-      // Ctrl+C / Ctrl+X: la riga selezionata negli appunti (docs/plans/95)
+      // Ctrl+C / Ctrl+X: le righe scelte negli appunti (docs/plans/95, 98)
       const clip = chord === 'c' ? 'copy' : chord === 'x' ? 'cut' : null;
       if (clip) {
-        const row = selectedRow();
-        if (!row) return;
+        const rows = selectedRows();
+        if (!rows.length) return;
         e.preventDefault();
         e.stopPropagation();
-        onClipboard(row, clip);
+        onClipboard(rows, clip);
         return;
       }
       // Una lettera scritta con l'albero a fuoco apre il filtro (docs/plans/75)
@@ -230,15 +284,16 @@
       return name;
     }
 
-    function rowElement(r, selected, git = {}, dirs = new Set()) {
+    function rowElement(r, selected, git = {}, dirs = new Set()) { // selected: Set
       const el = doc.createElement('div');
       el.className = 'editor-tree-row'
         + (r.kind === 'dir' ? ' is-dir' : '')
         + (r.expanded ? ' is-open' : '')
         + (r.ignored ? ' is-ignored' : '')
-        + (r.rel === selected ? ' is-selected' : '');
+        + (selected.has(r.rel) ? ' is-selected' : '');
       el.dataset.rel = r.rel;
       el.setAttribute('role', 'treeitem');
+      el.setAttribute('aria-selected', String(selected.has(r.rel)));
       el.style.paddingLeft = `${PAD + r.depth * INDENT}px`;
       const twisty = doc.createElement('span');
       twisty.className = 'editor-tree-twisty'
@@ -247,7 +302,7 @@
       name.className = 'editor-tree-name';
       name.textContent = r.name; // testo, mai HTML: il nome viene dal disco
       el.append(twisty, ...(iconUrl ? [iconElement(r)] : []), name, gitMark(r, git, dirs));
-      el.onclick = () => (r.kind === 'dir' ? onToggleDir(r.rel) : onOpenFile(r.rel));
+      el.onclick = clickRow(r);
       el.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(r, e); };
       el.addEventListener('dragover', onDragOver(dirOf(r)));
       el.addEventListener('drop', onDrop(dirOf(r)));
@@ -256,20 +311,23 @@
 
     return {
       element: list,
-      /** `git`: lettere per file ({rel: 'M'|'U'|'A'|'D'}); le cartelle col pallino si ricavano. */
+      /** `selected`: una riga o la lista di selection(); `git`: lettere per file
+       *  ({rel: 'M'|'U'|'A'|'D'}); le cartelle col pallino si ricavano. */
       render(rows, selected, git = {}) {
         for (const child of [...list.children]) { const cancel = openPrompts.get(child); if (cancel) cancel(); }
-        shown = { rows, selected };
+        shown = { rows, selected: asList(selected) };
         highlight(null);
         const dirs = changedDirs(git);
-        list.replaceChildren(...rows.map((r) => rowElement(r, selected, git, dirs)));
+        const chosen = new Set(shown.selected);
+        list.replaceChildren(...rows.map((r) => rowElement(r, chosen, git, dirs)));
       },
       /** Righe di filterRows: piatte, su due livelli (nome, cartella sotto), e la nota in fondo. */
       renderFiltered(rows, selected, git = {}) {
         for (const child of [...list.children]) { const cancel = openPrompts.get(child); if (cancel) cancel(); }
-        shown = { rows, selected };
+        shown = { rows, selected: asList(selected) };
         highlight(null);
         const dirs = changedDirs(git);
+        const chosen = new Set(shown.selected);
         const note = (cls, text) => {
           const n = doc.createElement('div');
           n.className = cls;
@@ -279,7 +337,7 @@
         const els = rows.map((r) => {
           const el = doc.createElement('div');
           el.className = 'editor-tree-row is-flat' + (r.kind === 'dir' ? ' is-dir' : '') + (r.ignored ? ' is-ignored' : '')
-            + (r.rel === selected ? ' is-selected' : '');
+            + (chosen.has(r.rel) ? ' is-selected' : '');
           el.dataset.rel = r.rel;
           el.setAttribute('role', 'treeitem');
           const top = doc.createElement('div');
@@ -289,7 +347,7 @@
           dir.className = 'editor-tree-dir';
           dir.textContent = r.dir || '';
           el.append(top, dir);
-          el.onclick = () => (r.kind === 'dir' ? onToggleDir(r.rel) : onOpenFile(r.rel));
+          el.onclick = clickRow(r);
           el.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(r, e); };
           return el;
         });
@@ -407,7 +465,7 @@
   }
 
   return {
-    emptyTree, setChildren, isExpanded, toggle, select, deselect, renamePath, removePath, visibleRows, filterRows, changedDirs,
+    emptyTree, setChildren, isExpanded, toggle, select, deselect, selection, markToggle, markRange, relIn, renamePath, removePath, visibleRows, filterRows, changedDirs,
     createTreeView, promptName, showMenu,
   };
 });

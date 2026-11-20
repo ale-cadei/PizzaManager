@@ -34,14 +34,24 @@ function copyOutcomeText({ copied = 0, skipped = 0, failed = [] }, move = false)
   return `${parts.join(', ')}.`;
 }
 
-/** Ctrl+C / Ctrl+X su una riga: negli appunti del sistema, li scrive il main. */
-async function putEditorClipboard(tab, row, mode) {
+/** Ctrl+C / Ctrl+X sulle righe scelte: negli appunti del sistema, li scrive il main. */
+async function putEditorClipboard(tab, rows, mode) {
   if (isRemoteEditor(tab)) { showEditorNotice(tab, EDITOR_LOCAL_ONLY); return; }
   const cut = mode === 'cut';
-  const r = await callEditor(() => window.aisess.editorClipboardPut(tab.cwd, row.rel, mode));
+  const r = await callEditor(() => window.aisess.editorClipboardPut(tab.cwd, rows.map((row) => row.rel), mode));
   if (!tabs.has(tab.id)) return;
-  if (!r.ok) { showEditorMessage(tab, `Non si ${cut ? 'taglia' : 'copia'} ${row.rel}: ${r.error}`); return; }
-  showEditorNotice(tab, `${cut ? 'Tagliato' : 'Copiato'} «${row.name}»: Ctrl+V in un'altra cartella per ${cut ? 'spostarlo' : 'incollarlo'}.`);
+  const what = rows.length === 1 ? rows[0].rel : copyCount(rows.length, 'elemento', 'elementi');
+  if (!r.ok) { showEditorMessage(tab, `Non si ${cut ? 'taglia' : 'copia'} ${what}: ${r.error}`); return; }
+  showEditorNotice(tab, editorClipboardNotice(rows, r.count, cut));
+}
+
+/** «Copiato «a.txt»: …» per uno, «Tagliati 3 elementi: …» per più (una cartella copre i suoi figli). */
+function editorClipboardNotice(rows, count, cut) {
+  const n = Number.isInteger(count) ? count : rows.length;
+  const done = `${cut ? 'Tagliat' : 'Copiat'}${copyEnding(n)}`;
+  const what = n === 1 && rows.length === 1 ? `«${rows[0].name}»` : copyCount(n, 'elemento', 'elementi');
+  const then = cut ? `spostar${n === 1 ? 'lo' : 'li'}` : `incollar${n === 1 ? 'lo' : 'li'}`;
+  return `${done} ${what}: Ctrl+V in un'altra cartella per ${then}.`;
 }
 
 /** Dopo uno spostamento: i file aperti seguono, le cartelle da cui sono usciti si rileggono. */
@@ -50,6 +60,31 @@ async function followEditorMoves(tab, moved) {
   for (const m of from) await followEditorMove(tab, m.fromRel, m.toRel);
   for (const dir of new Set(from.map((m) => EditorFiles.parentRel(m.fromRel)))) await loadEditorDir(tab, dir);
   if (from.length) { renderEditorOpen(tab); saveEditorSessions(); }
+}
+
+/**
+ * Le altre schede editor di questo computer non hanno un watch sulle
+ * cartelle (docs/plans/98): rileggono quelle toccate che hanno già letto,
+ * e un file aperto spostato dentro la loro stessa cartella lo seguono.
+ */
+async function refreshOtherEditors(tab, destAbs, moved) {
+  const others = [...tabs.values()].filter((t) => t !== tab && t.editor && !isRemoteEditor(t));
+  for (const other of others) {
+    const dirs = new Set();
+    const into = EditorTree.relIn(other.cwd, destAbs);
+    if (into !== null) dirs.add(into);
+    let followed = false;
+    for (const m of moved) {
+      const from = EditorTree.relIn(other.cwd, m.from);
+      const to = EditorTree.relIn(other.cwd, m.to);
+      if (from) dirs.add(EditorFiles.parentRel(from));
+      if (from && to) { await followEditorMove(other, from, to); followed = true; }
+    }
+    if (!tabs.has(other.id)) continue;
+    for (const dir of dirs) if (other.editor.tree.children[dir]) await loadEditorDir(other, dir);
+    if (followed) renderEditorOpen(other);
+  }
+  if (moved.length) saveEditorSessions();
 }
 
 /** @returns {Promise<Object<string, string>|null>} nome → decisione; null se annullato */
@@ -139,6 +174,7 @@ async function copyIntoEditor(tab, dir, source) {
     else showEditorNotice(tab, copyOutcomeText(r, move));
     if (r.ok && r.moved) await followEditorMoves(tab, r.moved);
     await revealEditorDir(tab, dir);
+    if (r.ok) await refreshOtherEditors(tab, `${tab.cwd}/${dir}`, r.moved || []);
   } finally {
     ed.copying = false;
   }

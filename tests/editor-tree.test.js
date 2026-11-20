@@ -284,7 +284,7 @@ ok('vista: Ctrl+C / Ctrl+X mettono negli appunti la riga selezionata (docs/plans
     const root = createElement('div');
     const put = [];
     const view = T.createTreeView({ root, document, onOpenFile() {}, onToggleDir() {}, onContextMenu() {},
-      onClipboard: (row, mode) => put.push([row.rel, mode]) });
+      onClipboard: (rows, mode) => put.push([rows.map((r) => r.rel).join(','), mode]) });
     view.render(T.visibleRows(T.toggle(sample(), 'src')), 'src/x.js');
     const e = fire(view.element, 'keydown', { key: 'c', ctrlKey: true });
     assert.strictEqual(e.defaultPrevented, true);
@@ -433,5 +433,97 @@ ok('vista: scrivere con l albero a fuoco apre il filtro con quella lettera', () 
     fire(view.element, 'keydown', { key: 'Enter' });
     fire(view.element, 'keydown', { key: ' ' });
     assert.deepStrictEqual(typed, ['e']);
+  } finally { restore(); }
+});
+
+ok('selezione multipla: Ctrl+click aggiunge e toglie, la riga a fuoco resta per ultima', () => {
+  let tree = T.select(sample(), 'a.log');
+  assert.deepStrictEqual(T.selection(tree), ['a.log']);
+  tree = T.markToggle(tree, 'b.js');
+  assert.deepStrictEqual(T.selection(tree), ['a.log', 'b.js']);
+  assert.strictEqual(tree.selected, 'b.js');
+  tree = T.markToggle(tree, 'src');
+  assert.deepStrictEqual(T.selection(tree), ['a.log', 'b.js', 'src']);
+  tree = T.markToggle(tree, 'b.js');
+  assert.deepStrictEqual(T.selection(tree), ['a.log', 'src']);
+  // Togliere quella a fuoco: il fuoco passa all'ultima rimasta
+  tree = T.markToggle(tree, 'src');
+  assert.deepStrictEqual([tree.selected, T.selection(tree)], ['a.log', ['a.log']]);
+  // Un click semplice azzera la scelta
+  assert.deepStrictEqual(T.selection(T.select(T.markToggle(tree, 'b.js'), 'src')), ['src']);
+  assert.deepStrictEqual(T.selection(T.deselect(tree)), []);
+  // Da nessuna selezione: Ctrl+click sceglie solo quella
+  assert.deepStrictEqual(T.selection(T.markToggle(sample(), 'b.js')), ['b.js']);
+});
+
+ok('selezione multipla: Maiusc+click sceglie l intervallo dall ancora fra le righe mostrate', () => {
+  const tree0 = T.toggle(sample(), 'src');
+  const rels = T.visibleRows(tree0).map((r) => r.rel); // src, src/lib, src/x.js, a.log, b.js
+  let tree = T.select(tree0, 'src/lib');
+  tree = T.markRange(tree, rels, 'a.log');
+  assert.deepStrictEqual(T.selection(tree), ['src/lib', 'src/x.js', 'a.log']);
+  // L'ancora resta: un altro Maiusc+click riparte da lì, anche all'indietro
+  tree = T.markRange(tree, rels, 'src');
+  assert.deepStrictEqual(T.selection(tree), ['src/lib', 'src']);
+  // Ctrl+click sposta l'ancora
+  tree = T.markRange(T.markToggle(tree, 'b.js'), rels, 'a.log');
+  assert.deepStrictEqual(T.selection(tree), ['b.js', 'a.log']);
+  // Senza ancora, o con l'ancora non più mostrata: solo la riga
+  assert.deepStrictEqual(T.selection(T.markRange(tree0, rels, 'a.log')), ['a.log']);
+  assert.deepStrictEqual(T.selection(T.markRange(T.select(tree0, 'src/lib/y.js'), rels, 'a.log')), ['a.log']);
+});
+
+ok('selezione multipla: renamePath e removePath la tengono in riga', () => {
+  let tree = T.markToggle(T.markToggle(T.select(sample(), 'src/x.js'), 'b.js'), 'src/lib');
+  const moved = T.renamePath(tree, 'src', 'core');
+  assert.deepStrictEqual(T.selection(moved), ['core/x.js', 'b.js', 'core/lib']);
+  assert.strictEqual(moved.anchor, 'core/lib');
+  const gone = T.removePath(tree, 'src');
+  assert.deepStrictEqual(T.selection(gone), ['b.js']);
+  assert.strictEqual(gone.anchor, null);
+});
+
+ok('relIn: un percorso assoluto relativo alla cartella di una scheda, con / e \\', () => {
+  assert.strictEqual(T.relIn('/r/p', '/r/p/src/a.js'), 'src/a.js');
+  assert.strictEqual(T.relIn('/r/p/', '/r/p'), '');
+  assert.strictEqual(T.relIn('/r/p', '/r/px/a.js'), null);
+  assert.strictEqual(T.relIn('C:\\r\\p', 'C:\\r\\p\\src\\a.js'), 'src/a.js');
+  assert.strictEqual(T.relIn('/r/p', ''), null);
+});
+
+ok('vista: Ctrl+click e Maiusc+click chiamano onMark con le righe mostrate, non aprono', () => {
+  const restore = installDocument();
+  try {
+    const root = createElement('div');
+    const calls = [];
+    const view = T.createTreeView({ root, document, onContextMenu() {},
+      onOpenFile: (rel) => calls.push(['open', rel]), onToggleDir: (rel) => calls.push(['dir', rel]),
+      onMark: (rel, mode, rels) => calls.push([mode, rel, rels.length]) });
+    view.render(T.visibleRows(T.toggle(sample(), 'src')), ['src/x.js', 'b.js']);
+    assert.ok(view.rowOf('src/x.js').className.includes('is-selected'));
+    assert.ok(view.rowOf('b.js').className.includes('is-selected'));
+    assert.ok(!view.rowOf('a.log').className.includes('is-selected'));
+    fire(view.rowOf('a.log'), 'click', { ctrlKey: true });
+    fire(view.rowOf('src'), 'click', { metaKey: true });
+    fire(view.rowOf('b.js'), 'click', { shiftKey: true });
+    fire(view.rowOf('b.js'), 'click');
+    assert.deepStrictEqual(calls, [['toggle', 'a.log', 5], ['toggle', 'src', 5], ['range', 'b.js', 5], ['open', 'b.js']]);
+  } finally { restore(); }
+});
+
+ok('vista: Ctrl+C con più righe scelte le passa tutte; F2 e Ctrl+V usano quella a fuoco (l ultima)', () => {
+  const restore = installDocument();
+  try {
+    const root = createElement('div');
+    const got = [];
+    const view = T.createTreeView({ root, document, onOpenFile() {}, onToggleDir() {}, onContextMenu() {},
+      onClipboard: (rows, mode) => got.push([rows.map((r) => r.rel), mode]),
+      onRename: (row) => got.push(['rename', row.rel]),
+      onCopyInto: (dir) => got.push(['paste', dir]) });
+    view.render(T.visibleRows(T.toggle(sample(), 'src')), ['b.js', 'src/x.js']);
+    fire(view.element, 'keydown', { key: 'c', ctrlKey: true });
+    fire(view.element, 'keydown', { key: 'F2' });
+    fire(view.element, 'keydown', { key: 'v', ctrlKey: true });
+    assert.deepStrictEqual(got, [[['b.js', 'src/x.js'], 'copy'], ['rename', 'src/x.js'], ['paste', 'src']]);
   } finally { restore(); }
 });
